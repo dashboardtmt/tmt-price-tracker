@@ -1,0 +1,27 @@
+name: Teste de geolocalizacao
+
+# Responde uma pergunta so: de um servidor do GitHub (Estados Unidos), o robo
+# consegue enxergar as pracas brasileiras, ou vem sempre Sao Paulo?
+#
+# Nao grava nada, nao publica nada. So le sites publicos e imprime o veredito.
+# Roda apenas quando disparado na mao.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Rodar o teste
+        run: python testes/teste_geoip.py
