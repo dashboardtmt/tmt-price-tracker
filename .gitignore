@@ -1,0 +1,33 @@
+# Segredos - NUNCA versionar
+.env
+.env.*
+*.key
+secrets/
+credenciais*.json
+
+# Capturas brutas e cache local do coletor
+capturas/
+cache/
+*.zip
+*.har
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Material de terceiros (relatorios proprietarios - nao redistribuir)
+*.pdf
+*.pptx
+*.xlsx
