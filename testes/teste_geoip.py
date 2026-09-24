@@ -30,13 +30,40 @@ import urllib.request
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 
+# Cabecalhos completos, como um navegador de verdade manda.
+# Medido em 24/09/2026: o catalogo da Vivo devolve 403 para requisicao "pelada"
+# (so User-Agent) e 200 com o conjunto abaixo. O bloqueio e de cabecalho, nao
+# de geografia.
 CABECALHOS = [
     ("User-Agent", UA),
     ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
     ("Accept-Language", "pt-BR,pt;q=0.9,en;q=0.8"),
     ("Accept-Encoding", "identity"),
     ("Upgrade-Insecure-Requests", "1"),
+    ("Sec-Fetch-Site", "none"),
+    ("Sec-Fetch-Mode", "navigate"),
+    ("Sec-Fetch-Dest", "document"),
+    ("Sec-Fetch-User", "?1"),
+    ("sec-ch-ua", '"Chromium";v="128", "Not;A=Brand";v="24"'),
+    ("sec-ch-ua-mobile", "?0"),
+    ("sec-ch-ua-platform", '"Windows"'),
 ]
+
+# Para chamadas de API (XHR), o navegador troca os Sec-Fetch e manda origem.
+def cabecalhos_api(origem):
+    return {
+        "User-Agent": UA,
+        "Accept": "*/*",
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        "Origin": origem,
+        "Referer": origem + "/",
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
+        "sec-ch-ua": '"Chromium";v="128", "Not;A=Brand";v="24"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    }
 
 PAUSA = 4  # segundos entre requisicoes: o site da Vivo bloqueia rajada
 
@@ -49,9 +76,11 @@ def sessao():
     return op, cj
 
 
-def buscar(op, url, metodo="GET", timeout=45):
+def buscar(op, url, metodo="GET", timeout=45, extras=None):
     """Devolve (status, corpo). Nao levanta excecao em erro HTTP."""
     req = urllib.request.Request(url, method=metodo)
+    for k, v in (extras or {}).items():
+        req.add_header(k, v)
     try:
         with op.open(req, timeout=timeout) as r:
             return r.status, r.read().decode("utf-8", "replace")
@@ -119,7 +148,10 @@ def testa_vivo():
     time.sleep(PAUSA)
 
     url = VIVO_TROCA % (urllib.parse.quote("Manaus"), "AM")
-    s2, corpo2 = buscar(op, url, metodo="POST")
+    extras = cabecalhos_api("https://vivo.com.br")
+    extras["X-Requested-With"] = "XMLHttpRequest"
+    extras["Sec-Fetch-Site"] = "same-origin"
+    s2, corpo2 = buscar(op, url, metodo="POST", extras=extras)
     print("  2. pedir a praca de Manaus .......... HTTP %s -> %s" % (s2, corpo2[:60]))
     cookies = {c.name: c.value for c in cj}
     print("     cookies de regiao recebidos: %s" %
@@ -200,7 +232,7 @@ def testa_catalogo():
     print("=" * 68)
     op, _ = sessao()
     url = "https://plataforma.portal.vivo.com.br/catalog/main/b2c/fibra.json"
-    s, corpo = buscar(op, url)
+    s, corpo = buscar(op, url, extras=cabecalhos_api("https://internet.vivo.com.br"))
     print("  HTTP %s (%d KB)" % (s, len(corpo) // 1024))
     if s == 200:
         try:
