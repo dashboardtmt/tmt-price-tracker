@@ -119,6 +119,9 @@
     <tr><td>10</td><td>Bundles</td><td>Classificar em níveis, comparar nível com nível</td></tr>
     <tr><td>11</td><td>Repasse</td><td>Separado de promoção pela persistência no tempo</td></tr>
     <tr><td>12</td><td>Falhas</td><td>Grava o que veio e alerta no Telegram</td></tr>
+    <tr><td>13</td><td>Condição de preço</td><td>Preço cheio, sem desconto nenhum</td></tr>
+    <tr><td>14</td><td>Armazenamento</td><td>Supabase: Postgres para a base, Storage para a tela</td></tr>
+    <tr><td>15</td><td>Horário</td><td>Coleta 7h, repique 7h30, mensagem 8h</td></tr>
   </table>
 </section>
 
@@ -237,6 +240,19 @@
   <p>De brinde, a diferença entre o nível 2 e o nível 1 da mesma operadora, no mesmo degrau, é
   <b>quanto ela cobra pelo streaming</b>. Isso ninguém publica.</p>
 
+  <h3>A condição de pagamento: preço cheio</h3>
+  <p>Quase toda operadora dá desconto por débito automático e fatura digital — o controle da Claro
+  custa R$ 59,90 e cai para R$ 54,90 nessa condição. <b>A série usa o preço cheio, sem desconto
+  nenhum.</b></p>
+  <div class="box neutro">
+    <span class="rotulo">Regra de extração</span>
+    <p>Nem toda operadora destaca o cheio. Algumas exibem o valor <b>já descontado</b> como preço
+    principal, com o cheio riscado ou em letra miúda. O robô precisa distinguir os dois, senão
+    captura o descontado achando que é cheio.</p>
+  </div>
+  <p>Efeito colateral bom: preço cheio muda menos que promoção, então <b>mudança nele é sinal
+  forte</b> — combina com a regra de repasse por persistência da seção 7.</p>
+
   <h3>Campos sem fonte ficam vazios</h3>
   <p>Só a Vivo publica fidelidade, multa e taxa de instalação de forma exata. Nas outras o campo
   fica em branco. A base fica desigual, mas nada se perde — e se amanhã a Claro passar a publicar,
@@ -283,6 +299,16 @@
 
 <section id="s8">
   <h2><span class="num">8.</span> O aviso diário e as falhas</h2>
+
+  <h3>O relógio do dia</h3>
+  <table>
+    <tr><th>Hora</th><th>O que acontece</th></tr>
+    <tr><td><b>7h00</b></td><td>o robô coleta as seis operadoras nas 20 praças</td></tr>
+    <tr><td><b>7h30</b></td><td>repique automático, só do que falhou</td></tr>
+    <tr><td><b>8h00</b></td><td>mensagem no Telegram, com o que conseguiu</td></tr>
+  </table>
+  <p class="legenda">O repique existe porque 7h não deixa margem: sem ele, uma instabilidade de
+  cinco minutos custaria o dia inteiro — e dia perdido não volta.</p>
 
   <h3>Uma mensagem por dia no Telegram, às 8h</h3>
   <p>Chega <b>todo dia, mesmo sem novidade</b>. Isso é proposital: se a mensagem não chegou, é
@@ -413,7 +439,7 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
   <table>
     <tr><th>Pendência</th><th>O que falta</th></tr>
     <tr><td><b>Onde o robô roda</b></td><td>Estender o teste a Claro, Brisanet e Unifique. Se elas passarem, só a Vivo precisa de tratamento especial — bem mais barato que mudar tudo de lugar.</td></tr>
-    <tr><td><b>Armazenamento</b></td><td>Recomendado: Supabase, com Postgres para a base histórica e Storage para os JSONs que a tela lê. Ainda não formalizado.</td></tr>
+    <tr><td><b>Arquivamento do histórico</b></td><td>O plano gratuito do Supabase dá 500 MB. Com cerca de 900 mil linhas por ano, segura uns dois anos — depois é preciso mover o histórico antigo para o Storage comprimido. Decidir antes de encher, não depois.</td></tr>
     <tr><td><b>Dicionário de serviços</b></td><td>A Vivo lista os apps inclusos em códigos padronizados. Falta a tabela que traduz código para nome.</td></tr>
     <tr><td><b>Regionalização da Brisanet</b></td><td>Não confirmada — a API GraphQL foi identificada, mas não se sabe se ela varia por cidade.</td></tr>
     <tr><td><b>Unifique sem navegador</b></td><td>Verificar se existe endereço de dados por trás do seletor de cidade, o que evitaria simular cliques.</td></tr>
