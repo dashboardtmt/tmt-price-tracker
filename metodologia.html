@@ -409,36 +409,55 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
 
 <section id="s10">
   <h2><span class="num">10.</span> Onde o robô roda</h2>
-  <p>Teste executado em 23/09/2026 a partir de um servidor do GitHub, nos Estados Unidos
-  (<code>testes/teste_geoip.py</code>).</p>
+  <div class="destaque">GitHub Actions serve. Nenhuma conta nova, nenhum fornecedor a mais.</div>
+  <p>Teste em 24/09/2026 a partir de um servidor do GitHub em São Francisco
+  (<code>testes/teste_geoip.py</code>):</p>
   <table>
     <tr><th>O que foi testado</th><th>Resultado</th></tr>
-    <tr><td>Abrir a vitrine da Vivo</td><td class="ok">funciona — mas vem São Paulo</td></tr>
-    <tr><td>Pedir a praça de Manaus na Vivo</td><td class="pend">bloqueado (403)</td></tr>
-    <tr><td>Catálogo de dados da Vivo</td><td class="pend">bloqueado (403)</td></tr>
-    <tr><td>TIM, trocando o estado na URL</td><td class="ok">funciona</td></tr>
+    <tr><td>Abrir a vitrine da Vivo</td><td class="ok">200 — vem São Paulo, como esperado</td></tr>
+    <tr><td>Pedir a praça de Manaus</td><td class="ok">200, sucesso — cookies de praça recebidos</td></tr>
+    <tr><td>Vitrine depois da troca</td><td class="ok"><b>virou Manaus</b> — ultravelocidade sumiu</td></tr>
+    <tr><td>Catálogo de dados da Vivo</td><td class="ok">200, 15 ofertas</td></tr>
+    <tr><td>TIM por estado na URL</td><td class="ok">200, preços diferentes entre SP e RJ</td></tr>
   </table>
+
   <div class="box">
-    <p>O servidor lê páginas públicas, mas é barrado <b>exatamente nos dois endereços que
-    interessam na Vivo</b>: o que troca a praça e o que entrega os dados puros. Um robô ali colheria
-    São Paulo vinte vezes por dia, <b>sem dar erro nenhum</b>.</p>
-    <p>Na TIM funciona porque o estado está na URL — não há serviço para bloquear.</p>
+    <span class="rotulo">A lição que quase custou caro</span>
+    <p>Na primeira rodada, tudo isso deu <b>403</b>, e o diagnóstico foi "bloqueio geográfico, precisa
+    de servidor no Brasil". <b>Estava errado.</b> O problema era o script mandando requisição pelada.</p>
+    <table>
+      <tr><th>Como se pede</th><th>Resposta da Vivo</th></tr>
+      <tr><td>Só identificação de navegador</td><td>403</td></tr>
+      <tr><td>Mais idioma e formato aceito</td><td>403</td></tr>
+      <tr><td><b>Cabeçalhos completos, como o navegador manda</b></td><td><b>200</b></td></tr>
+    </table>
+    <p>Regra que fica: <b>o coletor precisa se apresentar como navegador de verdade</b> — origem,
+    referência e os cabeçalhos de contexto. Sem isso, 403 silencioso.</p>
   </div>
-  <h3>O que já se sabe sobre o bloqueio</h3>
+
+  <h3>O que mais se sabe sobre o bloqueio</h3>
   <ul>
-    <li><b>Não é por país.</b> De doze nós testados no mundo, dez abriram a Vivo normalmente. É
-    reputação de endereço específico.</li>
+    <li><b>Não é por país.</b> De doze nós testados no mundo, dez abriram a Vivo normalmente.</li>
     <li><b>A Vivo tem proteção anti-bot que dispara com rajada.</b> Durante a investigação, o
-    próprio acesso residencial brasileiro foi bloqueado depois de requisições seguidas.</li>
+    próprio acesso residencial brasileiro foi bloqueado depois de requisições seguidas. Daí a pausa
+    de quatro segundos entre consultas.</li>
   </ul>
-  <p><b>Conclusão parcial:</b> GitHub Actions serve para a TIM, não serve para a Vivo.</p>
+
+  <h3>A arquitetura, então</h3>
+  <table>
+    <tr><th>Peça</th><th>Onde</th><th>Conta</th></tr>
+    <tr><td>Executar o robô</td><td>GitHub Actions</td><td class="ok">já tem</td></tr>
+    <tr><td>Guardar a base</td><td>Supabase Postgres</td><td class="ok">já tem</td></tr>
+    <tr><td>Servir a tela</td><td>Supabase Storage</td><td class="ok">já tem</td></tr>
+    <tr><td>Avisar</td><td>Telegram</td><td class="ok">já tem</td></tr>
+  </table>
 </section>
 
 <section id="s11">
   <h2><span class="num">11.</span> Em aberto</h2>
   <table>
     <tr><th>Pendência</th><th>O que falta</th></tr>
-    <tr><td><b>Onde o robô roda</b></td><td>Estender o teste a Claro, Brisanet e Unifique. Se elas passarem, só a Vivo precisa de tratamento especial — bem mais barato que mudar tudo de lugar.</td></tr>
+    <tr><td><b>Cabeçalhos das outras cinco</b></td><td>A Vivo exige cabeçalhos completos de navegador. Falta verificar se Claro, Brisanet, Unifique e NuCel têm exigência parecida — provável, e a correção é a mesma.</td></tr>
     <tr><td><b>Arquivamento do histórico</b></td><td>O plano gratuito do Supabase dá 500 MB. Com cerca de 900 mil linhas por ano, segura uns dois anos — depois é preciso mover o histórico antigo para o Storage comprimido. Decidir antes de encher, não depois.</td></tr>
     <tr><td><b>Dicionário de serviços</b></td><td>A Vivo lista os apps inclusos em códigos padronizados. Falta a tabela que traduz código para nome.</td></tr>
     <tr><td><b>Regionalização da Brisanet</b></td><td>Não confirmada — a API GraphQL foi identificada, mas não se sabe se ela varia por cidade.</td></tr>
