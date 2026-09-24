@@ -122,6 +122,8 @@
     <tr><td>13</td><td>Condição de preço</td><td>Preço cheio, sem desconto nenhum</td></tr>
     <tr><td>14</td><td>Armazenamento</td><td>Supabase: Postgres para a base, Storage para a tela</td></tr>
     <tr><td>15</td><td>Horário</td><td>Coleta 7h, repique 7h30, mensagem 8h</td></tr>
+    <tr><td>16</td><td>Combo</td><td>Acompanha só o preço de entrada por praça</td></tr>
+    <tr><td>17</td><td>Pré-pago</td><td>Fixado na recarga de 30 dias</td></tr>
   </table>
 </section>
 
@@ -211,6 +213,32 @@
     <p>O plano de entrada tem uma armadilha: quando a operadora lança um plano novo mais barato, a
     linha despenca sem que preço nenhum tenha caído. Por isso <b>o dia em que o plano de entrada
     troca de produto é marcado no gráfico</b>, com o antes e o depois.</p>
+  </div>
+
+  <h3>Combo e pré-pago: regra própria</h3>
+  <p>Os dois não encaixam na regra de degrau, cada um por um motivo.</p>
+  <table>
+    <tr><th>Produto</th><th>O problema</th><th>Regra adotada</th></tr>
+    <tr>
+      <td><b>Combo</b></td>
+      <td>Tem dois degraus ao mesmo tempo — uma velocidade e uma franquia. Cada operadora monta o
+      pacote do seu jeito, então quase nunca há composição equivalente para comparar.</td>
+      <td><b>Acompanhar só o preço de entrada</b>: o combo mais barato de cada operadora, em cada
+      praça.</td>
+    </tr>
+    <tr>
+      <td><b>Pré-pago</b></td>
+      <td>Não tem mensalidade, tem recarga. Comparar "R$ 30" é errado se uma dura 15 dias e a outra
+      30.</td>
+      <td><b>Fixar na recarga de 30 dias</b>, a mesma referência que o J.P. Morgan usa.</td>
+    </tr>
+  </table>
+  <div class="box neutro">
+    <p><b>O que se abre mão, de propósito:</b> no combo, não dá para dizer se está caro ou barato
+    pelo que entrega — só se subiu ou desceu, e se difere entre praças. No pré-pago, ficam de fora
+    as recargas curtas. Nos dois casos a troca é simplicidade por profundidade, e foi deliberada.</p>
+    <p>O que o combo <b>preserva</b> é o principal: a diferença regional. Foi ali que apareceu o
+    maior contraste de todo o levantamento — TIM a R$ 89,99 em São Paulo contra R$ 149,99 no Rio.</p>
   </div>
 
   <h3>Degraus</h3>
