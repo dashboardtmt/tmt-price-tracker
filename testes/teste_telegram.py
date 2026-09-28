@@ -40,8 +40,10 @@ def chamar(token, metodo, dados=None):
 
 
 def main():
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    chat = os.environ.get("TELEGRAM_CHAT_ID", "")
+    # .strip() e essencial: colar o token no GitHub costuma levar junto uma
+    # quebra de linha, e a URL da API nao aceita caractere de controle.
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
     print("=" * 60)
     print("TESTE DO AVISO DIARIO NO TELEGRAM")
