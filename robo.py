@@ -26,7 +26,8 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coletores import armazenamento, brisanet, claro, tim, vivo   # noqa: E402
+from coletores import (armazenamento, brisanet, claro, nucel, tim,   # noqa: E402
+                       unifique, vivo)
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
 
 BRT = timezone(timedelta(hours=-3))
@@ -35,7 +36,7 @@ BRT = timezone(timedelta(hours=-3))
 # a serie comeca desigual de proposito (decisao 18) porque esperar custa
 # historico que nao volta.
 COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
-             "Brisanet": brisanet}
+             "Brisanet": brisanet, "Unifique": unifique, "NuCel": nucel}
 
 
 def agora():
@@ -94,8 +95,14 @@ def rodar_coleta(uma_praca=None, simular=False):
     print("=" * 70)
     resumo = []
     for nome, modulo in COLETORES.items():
-        pracas = pracas_de(nome)
-        if uma_praca:
+        # operadora nacional roda uma vez: repetir nas 20 pracas gravaria
+        # 20 copias do mesmo preco
+        if getattr(modulo, "NACIONAL", False):
+            pracas = [{"cidade": "Brasil", "uf": "BR", "regiao": "Nacional", "capital": False}]
+        else:
+            pracas = pracas_de(nome)
+        # o filtro de praca (modo teste) nao se aplica a operadora nacional
+        if uma_praca and not getattr(modulo, "NACIONAL", False):
             cidade, uf = uma_praca.split("/")
             pracas = [p for p in pracas if p["cidade"] == cidade and p["uf"] == uf]
         print("\n%s - %d pracas" % (nome, len(pracas)))

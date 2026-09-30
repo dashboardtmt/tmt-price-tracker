@@ -53,8 +53,12 @@ COBERTURA = {
     # cidades ativas - ausencia esperada, nao falha de coleta.
     "Brisanet": {"Fortaleza", "Recife", "Natal", "Joao Pessoa", "Maceio",
                  "Aracaju", "Teresina"},
-    "Unifique": {"Florianopolis", "Blumenau", "Joinville", "Curitiba",
-                 "Porto Alegre"},
+    # Medido no proprio seletor da Unifique em 30/09/2026: ela NAO atende
+    # Florianopolis - o site nem lista a cidade. Confirma o que o dado da
+    # Anatel ja sugeria, que ela e forte no interior e fraca na capital.
+    # Curitiba entra com ressalva: a pagina carrega mas nao traz oferta de
+    # fibra legivel, e o coletor avisa em vez de gravar vazio calado.
+    "Unifique": {"Blumenau", "Joinville", "Porto Alegre", "Curitiba"},
 }
 
 
