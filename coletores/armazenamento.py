@@ -89,10 +89,10 @@ def gravar_capturas(ofertas):
             "produto": o.get("produto"),
             "praca": praca,
             "uf": praca.split("/")[-1] if "/" in praca else None,
-            "nome_oferta": o.get("nome_oferta"),
+            "nome_oferta": o.get("nome_oferta") or "",
             "destaque": o.get("destaque"),
             "chave": chave_continuidade(o),
-            "codigo_anatel": o.get("codigo_anatel"),
+            "codigo_anatel": o.get("codigo_anatel") or "",
             "codigos_anatel": o.get("codigos_anatel"),
             "id_catalogo": o.get("id_catalogo"),
             "degrau_mbps": o.get("degrau_mbps"),
@@ -108,11 +108,27 @@ def gravar_capturas(ofertas):
             "bruto": o,
         })
 
-    # ignore-duplicates: repetir a rodada nao duplica nem sobrescreve
-    status, corpo = _pedir(url, chave, "capturas",
-                           linhas, "return=minimal,resolution=ignore-duplicates")
+    # Deduplica dentro do proprio lote. O Postgres rejeita o lote INTEIRO
+    # quando duas linhas dele colidem entre si - nesse caso nem o
+    # ignore-duplicates salva, porque ele so trata conflito com o que ja
+    # esta gravado, nao conflito interno.
+    unicas, vistas = [], set()
+    for l in linhas:
+        k = (l["data_captura"], l["operadora"], l["produto"], l["praca"],
+             l["chave"], l["nome_oferta"], l["codigo_anatel"])
+        if k in vistas:
+            continue
+        vistas.add(k)
+        unicas.append(l)
+
+    # on_conflict precisa nomear a restricao, senao o banco rejeita em vez
+    # de ignorar - foi o que derrubou a coleta de 30/09.
+    alvo = ("capturas?on_conflict=data_captura,operadora,produto,praca,"
+            "chave,nome_oferta,codigo_anatel")
+    status, corpo = _pedir(url, chave, alvo,
+                           unicas, "return=minimal,resolution=ignore-duplicates")
     if status in (200, 201, 204):
-        return len(linhas), None
+        return len(unicas), None
     return 0, "HTTP %s: %s" % (status, corpo[:300])
 
 
