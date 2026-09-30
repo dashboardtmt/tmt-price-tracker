@@ -182,6 +182,35 @@ def ler_cards(op, url, produto):
     return cards, None
 
 
+def ler_fibra(op, url):
+    """A pagina de fibra nao usa card-planos: ela e montada em Storyblok,
+    com os dados em JSON dentro do HTML. O que sobra legivel e o padrao
+    "600 mega a partir de R$ 99,90", com o internetId do plano ao lado.
+
+    Menos elegante que os cards do movel, mas estavel: e o texto que a
+    propria Claro exibe ao cliente.
+    """
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    achados, vistos = [], set()
+    for m in re.finditer(r"(\d{2,4})\s*mega[^\"]{0,40}?R\$\s?(\d{1,3},\d{2})", h, re.I):
+        velocidade, preco = m.group(1), m.group(2)
+        if (velocidade, preco) in vistos:
+            continue
+        vistos.add((velocidade, preco))
+        ident = re.findall(r"internetId=([\d,]+)", h[m.start():m.start() + 700])
+        contexto = re.sub(r"<[^>]+>", " ", h[max(0, m.start() - 400):m.start() + 400])
+        achados.append({
+            "id_catalogo": ident[0][:40] if ident else None,
+            "nome_oferta": "Claro Fibra %s Mega" % velocidade,
+            "destaque": "%s Mega" % velocidade,
+            "preco_promocional": numero(preco),
+            "composicao": re.sub(r"\s+", " ", contexto)[:400],
+        })
+    return achados, None
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op, _ = navegador()
@@ -209,7 +238,9 @@ def coletar(cidade, uf, verbose=True):
     time.sleep(PAUSA)
 
     for produto, url in PAGINAS.items():
-        cards, erro = ler_cards(op, url, produto)
+        leitor = ler_fibra if produto == "fibra" else ler_cards
+        cards, erro = (leitor(op, url) if produto == "fibra"
+                       else leitor(op, url, produto))
         if erro:
             saida["avisos"].append("%s: %s" % (produto, erro))
             if verbose:

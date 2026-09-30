@@ -21,6 +21,7 @@ Uso:  python coletores/vivo.py [--praca "Sao Paulo/SP"] [--json]
 import argparse
 import html as _html
 import http.cookiejar
+import io
 import json
 import re
 import sys
@@ -28,6 +29,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from datetime import datetime, timedelta, timezone
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -237,6 +239,90 @@ def enriquecer(oferta, card):
     return oferta
 
 
+# ------------------------------------------------- regulamento (contrato)
+
+REGULAMENTO = "https://vivo.com.br/bin/vivo-portal/rgc-offer-json-file?anatelCode=%s"
+
+# Cache da rodada: as 20 pracas compartilham os mesmos ~25 codigos, entao
+# sem isto seriam 500 downloads de 500 KB para baixar 25 documentos.
+_cache_regulamento = {}
+
+
+def regulamento(op, codigo):
+    """Baixa o regulamento da Anatel e devolve o que a vitrine nao mostra.
+
+    E aqui que moram preco de tabela, fidelidade, multa, taxa de instalacao
+    e a franquia CONTRATUAL - a que esta no contrato, sem o bonus que expira.
+    So a Vivo publica isso em formato estruturado.
+
+    O arquivo vem como ZIP com um JSON dentro, e o encoding varia.
+    """
+    if codigo in _cache_regulamento:
+        return _cache_regulamento[codigo]
+
+    extras = cabecalhos_api("https://vivo.com.br")
+    extras["Sec-Fetch-Site"] = "same-origin"
+    try:
+        req = urllib.request.Request(REGULAMENTO % codigo)
+        for k, v in extras.items():
+            req.add_header(k, v)
+        with op.open(req, timeout=60) as r:
+            bruto = r.read()
+        z = zipfile.ZipFile(io.BytesIO(bruto))
+        cru = z.read(z.namelist()[0])
+        dados = None
+        for enc in ("utf-8", "latin-1"):
+            try:
+                dados = json.loads(cru.decode(enc))
+                break
+            except Exception:
+                continue
+        oferta = (dados or {}).get("ofertas", [{}])[0] if dados else None
+    except Exception:
+        oferta = None
+
+    _cache_regulamento[codigo] = oferta
+    return oferta
+
+
+def _num(x):
+    if x in (None, "", "null"):
+        return None
+    try:
+        return float(str(x).replace(".", "").replace(",", "."))
+    except Exception:
+        return None
+
+
+def aplicar_regulamento(oferta, reg):
+    """Passa para a observacao o que o contrato diz."""
+    if not reg:
+        return oferta
+    fid = reg.get("fidelizacao") or {}
+    custo = reg.get("custoInicial") or {}
+    smp = reg.get("SMP") or {}
+    scm = reg.get("SCM") or {}
+
+    # precoSemDescontos e o preco de tabela oficial - o campo que faltava
+    oferta["preco_cheio"] = _num(reg.get("precoSemDescontos")) or oferta.get("preco_cheio")
+    oferta["fidelidade_meses"] = int(_num(fid.get("tempoFidelizacao")) or 0) or None
+    oferta["multa_fidelidade"] = _num(fid.get("multaFidelizacao"))
+    oferta["taxa_instalacao"] = _num(custo.get("instalacao"))
+    oferta["taxa_adesao"] = _num(custo.get("adesao"))
+
+    franquia = (smp.get("franquiaDados") or {}).get("franquia")
+    if franquia:
+        oferta["franquia_contratual_gb"] = int(_num(franquia) or 0) or None
+    velo = (scm.get("velocidade") or {})
+    if velo.get("download"):
+        oferta["download_mbps"] = int(_num(velo["download"]) or 0) or None
+        oferta["upload_mbps"] = int(_num(velo.get("upload")) or 0) or None
+    if scm.get("listaTecnologia"):
+        oferta["tecnologia"] = scm["listaTecnologia"]
+    oferta["nome_regulamento"] = reg.get("nomeOferta")
+    return oferta
+
+
 # ------------------------------------------------------------------ coleta
 
 def trocar_praca(op, cidade, uf):
@@ -300,7 +386,10 @@ def coletar(cidade, uf, verbose=True):
                 "campanha": None,
                 "id_catalogo": None,
             }
-            saida["ofertas"].append(enriquecer(oferta, idx.get(c["codigo_anatel"])))
+            oferta = enriquecer(oferta, idx.get(c["codigo_anatel"]))
+            if c["codigo_anatel"]:
+                oferta = aplicar_regulamento(oferta, regulamento(op, c["codigo_anatel"]))
+            saida["ofertas"].append(oferta)
 
         if verbose:
             print("  vitrine %-9s %d ofertas" % (produto, len(cards)))
