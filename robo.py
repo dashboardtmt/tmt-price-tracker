@@ -26,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coletores import armazenamento, claro, tim, vivo   # noqa: E402
+from coletores import armazenamento, brisanet, claro, tim, vivo   # noqa: E402
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
 
 BRT = timezone(timedelta(hours=-3))
@@ -34,7 +34,8 @@ BRT = timezone(timedelta(hours=-3))
 # Quais operadoras ja tem coletor. As outras entram conforme ficarem prontas;
 # a serie comeca desigual de proposito (decisao 18) porque esperar custa
 # historico que nao volta.
-COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro}
+COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
+             "Brisanet": brisanet}
 
 
 def agora():

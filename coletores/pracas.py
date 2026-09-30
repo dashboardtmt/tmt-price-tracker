@@ -48,8 +48,11 @@ COBERTURA = {
     "Claro":    None,
     "TIM":      None,
     "NuCel":    None,   # nacional, mas sem variacao por praca
+    # Medido na API da Brisanet em 30/09/2026: das 9 pracas nordestinas
+    # da cesta, ela atende 7. Salvador e Sao Luis nao estao na lista de
+    # cidades ativas - ausencia esperada, nao falha de coleta.
     "Brisanet": {"Fortaleza", "Recife", "Natal", "Joao Pessoa", "Maceio",
-                 "Aracaju", "Teresina", "Salvador", "Sao Luis"},
+                 "Aracaju", "Teresina"},
     "Unifique": {"Florianopolis", "Blumenau", "Joinville", "Curitiba",
                  "Porto Alegre"},
 }
