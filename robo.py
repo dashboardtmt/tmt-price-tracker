@@ -191,7 +191,19 @@ def montar_mensagem(hoje, ontem):
 
     # 2. estado da coleta
     col, _ = armazenamento.consultar(
-        "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,ofertas,sucesso" % hoje)
+        "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"
+        "ofertas,sucesso,iniciada_em&order=iniciada_em.desc" % hoje)
+    # Em dia de repique ou de correcao, a mesma operadora tem varios
+    # registros. Vale o ultimo: somar todos contaria a mesma coleta duas
+    # vezes e transformaria uma rodada que falhou em numero no relatorio.
+    if col:
+        ultima, vistos = [], set()
+        for c in col:
+            if c["operadora"] in vistos:
+                continue
+            vistos.add(c["operadora"])
+            ultima.append(c)
+        col = ultima
     linhas.append("")
     if col:
         ok = sum(1 for c in col if c["sucesso"])
