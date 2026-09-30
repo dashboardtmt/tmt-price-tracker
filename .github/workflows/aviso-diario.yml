@@ -1,0 +1,31 @@
+name: Aviso diario
+
+# 8h de Brasilia (11h UTC), todo dia, mesmo sem novidade.
+#
+# Chegar todo dia e proposital: se a mensagem nao chegou, e porque algo
+# quebrou. O silencio passa a ser o alarme.
+
+on:
+  schedule:
+    - cron: '0 11 * * *'    # 08:00 BRT
+  workflow_dispatch:
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Montar e enviar a mensagem
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python robo.py --avisar

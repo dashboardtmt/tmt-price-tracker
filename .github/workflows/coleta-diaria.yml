@@ -1,0 +1,58 @@
+name: Coleta diaria
+
+# 7h de Brasilia, com repique as 7h30.
+#
+# O repique roda a coleta inteira de novo, nao so o que falhou. Pode fazer
+# isso porque a gravacao e append-only com indice unico: o que ja entrou e
+# ignorado, o que faltou entra. Repetir e barato; perder o dia nao volta.
+#
+# Brasilia e UTC-3 e nao tem mais horario de verao, entao 7h = 10h UTC.
+
+on:
+  schedule:
+    - cron: '0 10 * * *'    # 07:00 BRT - coleta
+    - cron: '30 10 * * *'   # 07:30 BRT - repique
+  workflow_dispatch:
+
+# Se o repique comecar com a coleta ainda rodando, espera em vez de
+# atropelar - duas rodadas simultaneas brigariam pelo mesmo indice unico.
+concurrency:
+  group: coleta-diaria
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Coletar e gravar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python robo.py --coletar
+
+      - name: Avisar se a coleta falhou
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'FIM'
+          import os, urllib.parse, urllib.request
+          token = os.environ["TELEGRAM_BOT_TOKEN"].strip()
+          chat = os.environ["TELEGRAM_CHAT_ID"].strip()
+          texto = ("Price Tracker: a COLETA FALHOU inteira.\n"
+                   "Nenhum dado foi gravado nesta rodada.\n"
+                   "Ver: github.com/dashboardtmt/tmt-price-tracker/actions")
+          urllib.request.urlopen(urllib.request.Request(
+              "https://api.telegram.org/bot%s/sendMessage" % token,
+              data=urllib.parse.urlencode({"chat_id": chat, "text": texto}).encode()),
+              timeout=30)
+          FIM
