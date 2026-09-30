@@ -77,7 +77,8 @@
   <a href="#s8">8. Falhas e alertas</a>
   <a href="#s9">9. As seis fontes</a>
   <a href="#s10">10. Onde o robô roda</a>
-  <a href="#s11">11. Em aberto</a>
+  <a href="#s12">12. A tela</a>
+  <a href="#s13">13. Em aberto</a>
 </nav>
 
 <main>
@@ -127,6 +128,14 @@
     <tr><td>18</td><td>Início da série</td><td>Começa assim que a Vivo estiver pronta; as outras entram depois</td></tr>
     <tr><td>19</td><td>Banco</td><td>Projeto Supabase próprio, separado do Dashboard</td></tr>
     <tr><td>20</td><td>Telegram</td><td>Bot próprio, conversa separada</td></tr>
+    <tr><td>21</td><td>Abertura da tela</td><td>A evolução no tempo</td></tr>
+    <tr><td>22</td><td>Praça padrão</td><td>São Paulo, com filtro para as outras 19</td></tr>
+    <tr><td>23</td><td>Preço em destaque</td><td>Cheio e promocional lado a lado</td></tr>
+    <tr><td>24</td><td>Gráficos</td><td>Dispersão, anunciado x contratado, mapa e spread</td></tr>
+    <tr><td>25</td><td>Operadora ausente</td><td>Sai da tela naquela praça</td></tr>
+    <tr><td>26</td><td>Mudanças de preço</td><td>Marcadas na própria linha do gráfico</td></tr>
+    <tr><td>27</td><td>Filtros</td><td>Praça, produto, operadora e período</td></tr>
+    <tr><td>28</td><td>Idioma</td><td>PT e EN desde o começo</td></tr>
   </table>
   <div class="box">
     <span class="rotulo">Por que começar só com a Vivo</span>
@@ -490,8 +499,58 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
   </table>
 </section>
 
-<section id="s11">
-  <h2><span class="num">11.</span> Em aberto</h2>
+<section id="s12">
+  <h2><span class="num">12.</span> A tela</h2>
+  <p>Decidida em 30/09/2026, antes de existir série para mostrar. O desenho
+  vem primeiro; os dados enchem a tela com o tempo.</p>
+
+  <h3>O que ela responde</h3>
+  <p>Abre na <b>evolução no tempo</b>, em <b>São Paulo</b> — a mesma praça que
+  J.P. Morgan, XP e Bradesco usam, o que torna os números comparáveis com os
+  relatórios do mercado. As outras 19 ficam no filtro.</p>
+  <p>O número em destaque traz <b>preço cheio e promocional lado a lado</b>, com a
+  diferença visível. É o que dá sentido à metodologia inteira: hoje a fibra de
+  700 Mega da Vivo tem tabela de R$ 150 e vitrine de R$ 100, e um número só
+  esconderia isso.</p>
+  <div class="box alerta">
+    <p><b>A tela nasce quase vazia, e isso é esperado.</b> A série tem um ponto.
+    O gráfico deve dizer "série iniciada em 30/09, N dias acumulados" em vez de
+    mostrar uma linha solitária — senão parece defeito quando é só juventude.</p>
+  </div>
+
+  <h3>Os gráficos</h3>
+  <table>
+    <tr><th>Gráfico</th><th>O que mostra</th><th>Precisa de série?</th></tr>
+    <tr><td>Evolução no tempo</td><td>preço por semana, por operadora</td><td>sim</td></tr>
+    <tr><td>Dispersão preço x velocidade</td><td>quem cobra mais caro pelo que entrega</td><td><b>não</b></td></tr>
+    <tr><td>Anunciado x contratado</td><td>quanto da franquia é bônus temporário</td><td><b>não</b></td></tr>
+    <tr><td>Mapa das 20 praças</td><td>cobertura e diferença regional</td><td><b>não</b></td></tr>
+    <tr><td>Spread sobre a tabela</td><td>intensidade promocional do setor</td><td>ajuda</td></tr>
+  </table>
+  <p>Os quatro entram para serem avaliados na prática e podados depois de vistos.
+  Três deles <b>já funcionam com um único dia de dado</b> — o que dá algo para
+  olhar enquanto a série de tempo não amadurece.</p>
+
+  <h3>Ausência e eventos</h3>
+  <p>Operadora que não opera na praça <b>sai da tela</b> ali. No banco a célula
+  continua vazia, nunca zero — mas o gráfico não carrega o espaço morto.</p>
+  <div class="box neutro">
+    <p><b>Risco a cobrir:</b> quem olhar Fortaleza não vê a Unifique e pode achar
+    que faltou coleta, ou que a Brisanet é nacional. Proposta: um indicador de
+    cobertura do tipo "4 de 6 operadoras nesta praça", para a ausência continuar
+    sendo informação sem poluir o gráfico.</p>
+  </div>
+  <p>Mudança de preço aparece <b>marcada na própria linha</b>, com o detalhe ao
+  passar o mouse — o mesmo conteúdo que chega no Telegram às 8h.</p>
+
+  <h3>O básico</h3>
+  <p>Filtros de <b>praça, produto, operadora e período</b>. <b>PT e EN desde o
+  começo</b>, como as 7 abas do Dashboard: traduzir tela pronta custa mais que
+  nascer bilíngue.</p>
+</section>
+
+<section id="s13">
+  <h2><span class="num">13.</span> Em aberto</h2>
   <table>
     <tr><th>Pendência</th><th>O que falta</th></tr>
     <tr><td><b>Cabeçalhos das outras cinco</b></td><td>A Vivo exige cabeçalhos completos de navegador. Falta verificar se Claro, Brisanet, Unifique e NuCel têm exigência parecida — provável, e a correção é a mesma.</td></tr>
