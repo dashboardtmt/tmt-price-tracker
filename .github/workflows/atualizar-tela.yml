@@ -1,0 +1,48 @@
+name: Atualizar a tela
+
+# Roda depois da coleta: le o banco, regera a tela e guarda no repositorio.
+#
+# NAO PUBLICA NADA. O arquivo fica no repositorio privado, e nada vai ao ar
+# sem autorizacao explicita. O ganho e que a tela deixa de ser uma foto
+# tirada na mao e passa a refletir o que esta gravado.
+
+on:
+  schedule:
+    - cron: '45 11 * * *'   # 08:45 BRT, depois da coleta e do aviso
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Exportar o banco
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python exportar.py --dias 90 --saida dados.json
+
+      - name: Regerar a tela
+        run: python gerar_tela.py --dados dados.json --saida tela.html
+
+      - name: Guardar no repositorio
+        run: |
+          git config user.name "dashboardtmt"
+          git config user.email "leonardojdesousa@gmail.com"
+          git add tela.html
+          if git diff --staged --quiet; then
+            echo "tela sem mudanca - nada a guardar"
+          else
+            git commit -m "Tela atualizada com a coleta de $(date -u +%d/%m/%Y)"
+            git push
+          fi

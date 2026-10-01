@@ -193,7 +193,11 @@ let desligadas = new Set();
 const OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort();
 const PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
 const PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort();
-const DIAS = [...new Set(DADOS.map(o=>(o.capturado_em||"").slice(0,10)))].filter(Boolean).sort();
+// aceita os dois formatos: o do coletor (capturado_em) e o do banco
+// (data_captura), para a tela servir tanto a coleta avulsa quanto
+// a exportacao diaria
+const diaDe = o => o.data_captura || (o.capturado_em||"").slice(0,10);
+const DIAS = [...new Set(DADOS.map(diaDe))].filter(Boolean).sort();
 
 function t(k){ return T[lang][k]; }
 function num(v){ return v==null?null:Number(v); }
@@ -261,7 +265,7 @@ function grafEvolucao(ofertas){
   DIAS.forEach((d,i)=> s+=rotulo(x(i),H-mb+18,d.slice(8,10)+"/"+d.slice(5,7)));
   OPERADORAS.filter(o=>!desligadas.has(o)).forEach(op=>{
     const pts=DIAS.map((d,i)=>{
-      const doDia=ofertas.filter(o=>o.operadora===op && (o.capturado_em||"").slice(0,10)===d
+      const doDia=ofertas.filter(o=>o.operadora===op && diaDe(o)===d
                                     && num(o.preco_promocional)!=null);
       if(!doDia.length) return null;
       const v=Math.min(...doDia.map(o=>num(o.preco_promocional)));
