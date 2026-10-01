@@ -1,0 +1,1204 @@
+{
+ "deduzido_em": "2026-10-01",
+ "aviso": "Deduzido por cruzamento, nao oficial. Nunca usar como fonte unica: o texto da vitrine manda.",
+ "codigos": {
+  "030032": {
+   "ofertas_com_o_codigo": 18,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 0.83,
+     "exclusividade": 0.71
+    },
+    "Gemini": {
+     "suporte": 0.39,
+     "exclusividade": 0.39
+    },
+    "Vivo Sync": {
+     "suporte": 0.17,
+     "exclusividade": 0.6
+    },
+    "McAfee": {
+     "suporte": 0.11,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.11,
+     "exclusividade": 1.0
+    },
+    "Disney+": {
+     "suporte": 0.06,
+     "exclusividade": 1.0
+    },
+    "Max": {
+     "suporte": 0.06,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.06,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "060016": {
+   "ofertas_com_o_codigo": 3,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "McAfee": {
+     "suporte": 0.67,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.33,
+     "exclusividade": 0.5
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "030012": {
+   "ofertas_com_o_codigo": 24,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030021"
+   ],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 0.88,
+     "exclusividade": 1.0
+    },
+    "Gemini": {
+     "suporte": 0.46,
+     "exclusividade": 0.61
+    },
+    "Vivo Sync": {
+     "suporte": 0.21,
+     "exclusividade": 1.0
+    },
+    "McAfee": {
+     "suporte": 0.08,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.08,
+     "exclusividade": 1.0
+    },
+    "Globoplay": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Spotify": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Disney+": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Max": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "bloco"
+  },
+  "040022": {
+   "ofertas_com_o_codigo": 23,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 0.87,
+     "exclusividade": 0.95
+    },
+    "Gemini": {
+     "suporte": 0.48,
+     "exclusividade": 0.61
+    },
+    "Vivo Sync": {
+     "suporte": 0.22,
+     "exclusividade": 1.0
+    },
+    "McAfee": {
+     "suporte": 0.09,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.09,
+     "exclusividade": 1.0
+    },
+    "Globoplay": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Spotify": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Disney+": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Max": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "030021": {
+   "ofertas_com_o_codigo": 24,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030012"
+   ],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 0.88,
+     "exclusividade": 1.0
+    },
+    "Gemini": {
+     "suporte": 0.46,
+     "exclusividade": 0.61
+    },
+    "Vivo Sync": {
+     "suporte": 0.21,
+     "exclusividade": 1.0
+    },
+    "McAfee": {
+     "suporte": 0.08,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.08,
+     "exclusividade": 1.0
+    },
+    "Globoplay": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Spotify": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Disney+": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Max": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.04,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "bloco"
+  },
+  "030033": {
+   "ofertas_com_o_codigo": 10,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.48
+    },
+    "Vivo Sync": {
+     "suporte": 0.5,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.1,
+     "exclusividade": 0.5
+    },
+    "Globoplay": {
+     "suporte": 0.1,
+     "exclusividade": 1.0
+    },
+    "Spotify": {
+     "suporte": 0.1,
+     "exclusividade": 1.0
+    },
+    "Disney+": {
+     "suporte": 0.1,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "040059": {
+   "ofertas_com_o_codigo": 21,
+   "candidatos": [
+    "Vivo Travel"
+   ],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 1.0
+    },
+    "Gemini": {
+     "suporte": 0.52,
+     "exclusividade": 0.61
+    },
+    "Vivo Sync": {
+     "suporte": 0.24,
+     "exclusividade": 1.0
+    },
+    "Netflix": {
+     "suporte": 0.05,
+     "exclusividade": 0.5
+    },
+    "Globoplay": {
+     "suporte": 0.05,
+     "exclusividade": 1.0
+    },
+    "Spotify": {
+     "suporte": 0.05,
+     "exclusividade": 1.0
+    },
+    "Disney+": {
+     "suporte": 0.05,
+     "exclusividade": 1.0
+    },
+    "Max": {
+     "suporte": 0.05,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.05,
+     "exclusividade": 1.0
+    }
+   },
+   "app": "Vivo Travel",
+   "confianca": "alta"
+  },
+  "060006": {
+   "ofertas_com_o_codigo": 18,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.86
+    },
+    "Gemini": {
+     "suporte": 0.61,
+     "exclusividade": 0.61
+    },
+    "Vivo Sync": {
+     "suporte": 0.17,
+     "exclusividade": 0.6
+    },
+    "Netflix": {
+     "suporte": 0.06,
+     "exclusividade": 0.5
+    },
+    "Disney+": {
+     "suporte": 0.06,
+     "exclusividade": 1.0
+    },
+    "Max": {
+     "suporte": 0.06,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.06,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "040010": {
+   "ofertas_com_o_codigo": 14,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030014"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 0.71,
+     "exclusividade": 0.56
+    },
+    "Vivo Travel": {
+     "suporte": 0.5,
+     "exclusividade": 0.33
+    },
+    "Max": {
+     "suporte": 0.07,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.07,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "bloco"
+  },
+  "030014": {
+   "ofertas_com_o_codigo": 14,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "040010"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 0.71,
+     "exclusividade": 0.56
+    },
+    "Vivo Travel": {
+     "suporte": 0.5,
+     "exclusividade": 0.33
+    },
+    "Max": {
+     "suporte": 0.07,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.07,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "bloco"
+  },
+  "100001": {
+   "ofertas_com_o_codigo": 7,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.33
+    },
+    "Gemini": {
+     "suporte": 0.43,
+     "exclusividade": 0.17
+    },
+    "Max": {
+     "suporte": 0.14,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.14,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "030034": {
+   "ofertas_com_o_codigo": 6,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.29
+    },
+    "Gemini": {
+     "suporte": 0.5,
+     "exclusividade": 0.17
+    },
+    "Max": {
+     "suporte": 0.17,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.17,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "030074": {
+   "ofertas_com_o_codigo": 2,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.1
+    },
+    "Gemini": {
+     "suporte": 0.5,
+     "exclusividade": 0.06
+    },
+    "Max": {
+     "suporte": 0.5,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.5,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "030048": {
+   "ofertas_com_o_codigo": 7,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030035",
+    "030039",
+    "100060",
+    "100069"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.39
+    }
+   },
+   "confianca": "bloco"
+  },
+  "030039": {
+   "ofertas_com_o_codigo": 7,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030035",
+    "030048",
+    "100060",
+    "100069"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.39
+    }
+   },
+   "confianca": "bloco"
+  },
+  "100060": {
+   "ofertas_com_o_codigo": 7,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030035",
+    "030039",
+    "030048",
+    "100069"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.39
+    }
+   },
+   "confianca": "bloco"
+  },
+  "030035": {
+   "ofertas_com_o_codigo": 7,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030039",
+    "030048",
+    "100060",
+    "100069"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.39
+    }
+   },
+   "confianca": "bloco"
+  },
+  "100069": {
+   "ofertas_com_o_codigo": 7,
+   "candidatos": [],
+   "indistinguivel_de": [
+    "030035",
+    "030039",
+    "030048",
+    "100060"
+   ],
+   "associacao": {
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.39
+    }
+   },
+   "confianca": "bloco"
+  },
+  "030011": {
+   "ofertas_com_o_codigo": 11,
+   "candidatos": [],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.52
+    },
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.61
+    },
+    "Max": {
+     "suporte": 0.09,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 0.09,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "indefinida"
+  },
+  "040026": {
+   "ofertas_com_o_codigo": 1,
+   "candidatos": [
+    "Max",
+    "Telecine"
+   ],
+   "indistinguivel_de": [],
+   "associacao": {
+    "Vivo Travel": {
+     "suporte": 1.0,
+     "exclusividade": 0.05
+    },
+    "Gemini": {
+     "suporte": 1.0,
+     "exclusividade": 0.06
+    },
+    "Max": {
+     "suporte": 1.0,
+     "exclusividade": 1.0
+    },
+    "Telecine": {
+     "suporte": 1.0,
+     "exclusividade": 1.0
+    }
+   },
+   "confianca": "fraca"
+  }
+ },
+ "evidencias": [
+  {
+   "codigo_anatel": "VIV202600042481",
+   "oferta": "Vivo Controle",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": [
+    "McAfee"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042488",
+   "oferta": "Vivo Controle Amazon",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": []
+  },
+  {
+   "codigo_anatel": "VIV202600042473",
+   "oferta": "Vivo Controle",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": [
+    "McAfee"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042444",
+   "oferta": "Vivo Controle YouTube Premium",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": []
+  },
+  {
+   "codigo_anatel": "VIV202600042445",
+   "oferta": "Vivo Controle Saúde",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": []
+  },
+  {
+   "codigo_anatel": "VIV202600042454",
+   "oferta": "Vivo Controle Educação",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": []
+  },
+  {
+   "codigo_anatel": "VIV202600042450",
+   "oferta": "Vivo Controle Música",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": []
+  },
+  {
+   "codigo_anatel": "VIV202600042447",
+   "oferta": "Vivo Controle Netflix",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012"
+   ],
+   "apps_vitrine": [
+    "Netflix"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042451",
+   "oferta": "Vivo Controle Entretenimento",
+   "sva": [
+    "030021",
+    "040022",
+    "060016",
+    "030032",
+    "030012",
+    "040059"
+   ],
+   "apps_vitrine": []
+  },
+  {
+   "codigo_anatel": "VIV202600042391",
+   "oferta": "Vivo Pós com Amazon",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042369",
+   "oferta": "Vivo Pós com Globoplay",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030033",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Globoplay",
+    "Vivo Sync",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042389",
+   "oferta": "Vivo Pós com Spotify",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030033",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Spotify",
+    "Vivo Sync",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042382",
+   "oferta": "Vivo Pós com Netflix",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Netflix",
+    "Vivo Sync",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042415",
+   "oferta": "Vivo Pós com Disney+",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Disney+",
+    "Vivo Sync",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042371",
+   "oferta": "Vivo Pós com Travel",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Vivo Sync",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042399",
+   "oferta": "Vivo Família 2",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "100001",
+    "040010",
+    "030014",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042406",
+   "oferta": "Vivo Família 3",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "100001",
+    "040010",
+    "030034",
+    "030014",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042416",
+   "oferta": "Vivo Família 4",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "100001",
+    "040010",
+    "030034",
+    "030014"
+   ],
+   "apps_vitrine": [
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600042422",
+   "oferta": "Vivo Família 5",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "030032",
+    "030033",
+    "060006",
+    "100001",
+    "040010",
+    "030034",
+    "030014",
+    "030074",
+    "040022"
+   ],
+   "apps_vitrine": [
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202603035617",
+   "oferta": "Vivo Fibra",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202603035925",
+   "oferta": "Vivo Fibra",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202603034672",
+   "oferta": "Vivo Fibra Ultravelocidade",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202603034716",
+   "oferta": "Vivo Fibra Ultravelocidade",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604039088",
+   "oferta": "Fibra + TV por assinatura",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604035683",
+   "oferta": "Fibra + TV por assinatura",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604035991",
+   "oferta": "Fibra + TV por assinatura",
+   "sva": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "apps_vitrine": [
+    "Gemini"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604037365",
+   "oferta": "Vivo Total Ultra",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604037023",
+   "oferta": "Vivo Total Pro",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604036703",
+   "oferta": "Vivo Total Família 2",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030032",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604036783",
+   "oferta": "Vivo Total Família 3",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030032",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604036551",
+   "oferta": "Vivo Total Família 4",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011",
+    "030032",
+    "100001",
+    "040010",
+    "030014",
+    "030034"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604036639",
+   "oferta": "Vivo Total Família 5",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011",
+    "030032",
+    "100001",
+    "040010",
+    "030014",
+    "030034"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604037463",
+   "oferta": "Vivo Total V 1 Giga",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011",
+    "030032",
+    "100001",
+    "040010",
+    "030014",
+    "030034",
+    "040026",
+    "030074"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Max",
+    "Telecine",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604037365",
+   "oferta": "Vivo Total Ultra + TV online",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604037213",
+   "oferta": "Vivo Total Ultra + TV",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604036703",
+   "oferta": "Vivo Família 2 + TV",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030032",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202604036493",
+   "oferta": "Vivo Família 2 + TV",
+   "sva": [
+    "030021",
+    "040059",
+    "030012",
+    "040022",
+    "060006",
+    "030032",
+    "030011"
+   ],
+   "apps_vitrine": [
+    "Gemini",
+    "Vivo Travel"
+   ]
+  },
+  {
+   "codigo_anatel": "VIV202600029376",
+   "oferta": "Vivo Pré",
+   "sva": [
+    "030032",
+    "040022",
+    "030012",
+    "030021",
+    "060016"
+   ],
+   "apps_vitrine": []
+  }
+ ]
+}

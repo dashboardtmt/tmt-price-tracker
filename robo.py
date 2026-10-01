@@ -147,44 +147,80 @@ def entrada_do_controle(hoje, praca="Sao Paulo/SP"):
     return saida, None
 
 
-def mudancas(hoje, ontem):
-    """O que mudou de preco de ontem para hoje, na mesma chave e praca."""
-    def indexar(dia):
-        f = ("capturas?data_captura=eq.%s&select=chave,praca,operadora,produto,"
-             "nome_oferta,destaque,preco_promocional,franquia_anunciada_gb,"
-             "degrau_mbps,nivel_bundle&limit=20000" % dia)
-        linhas, _ = armazenamento.consultar(f)
-        return {(l["chave"], l["praca"]): l for l in (linhas or [])}
+def _indexar(dia):
+    campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
+              "preco_promocional,franquia_anunciada_gb,degrau_mbps,nivel_bundle")
+    # enquanto o ALTER TABLE nao rodar, pedir a coluna derrubaria o aviso
+    if armazenamento.tem_coluna("assinatura_sva"):
+        campos += ",assinatura_sva"
+    linhas, _ = armazenamento.consultar(
+        "capturas?data_captura=eq.%s&select=%s&limit=20000" % (dia, campos))
+    return {(l["chave"], l["praca"]): l for l in (linhas or [])}
 
-    h, o = indexar(hoje), indexar(ontem)
-    achados = {}
+
+def _rotulo(l):
+    """Operadora e nome, sem repetir: "Vivo Vivo Controle" ficava feio."""
+    nome = l.get("nome_oferta") or l.get("produto") or ""
+    op = l.get("operadora") or ""
+    return nome if nome.lower().startswith(op.lower()) else ("%s %s" % (op, nome)).strip()
+
+
+def _reais(v):
+    return ("%.2f" % v).replace(".", ",") if v is not None else "-"
+
+
+def _agrupar(achados, ident, atual, antes):
+    """Uma mudanca nacional e um alerta com 20 pracas, nao 20 alertas."""
+    d = achados.setdefault(ident, {"pracas": [], "atual": atual, "antes": antes})
+    d["pracas"].append(atual["praca"])
+
+
+def mudancas(hoje, ontem):
+    """O que mudou de ontem para hoje, na mesma chave e praca.
+
+    Devolve duas listas: as mudancas de preco e as de composicao com preco
+    parado. A segunda e o repasse disfarcado - tiraram algo da oferta e
+    cobraram o mesmo. Sem a assinatura dos codigos SVA isso passava batido,
+    porque o nome e o preco da oferta continuam identicos.
+    """
+    h, o = _indexar(hoje), _indexar(ontem)
+    precos, composicao = {}, {}
     for k, atual in h.items():
         antes = o.get(k)
-        if not antes or antes["preco_promocional"] is None:
+        if not antes:
             continue
-        if atual["preco_promocional"] == antes["preco_promocional"]:
+        if antes["preco_promocional"] is not None and \
+                atual["preco_promocional"] != antes["preco_promocional"]:
+            _agrupar(precos, (atual["operadora"], atual["produto"], atual["chave"],
+                              antes["preco_promocional"], atual["preco_promocional"]),
+                     atual, antes)
             continue
-        # agrupa por oferta: uma mudanca nacional nao vira 20 alertas
-        ident = (atual["operadora"], atual["produto"], atual["chave"],
-                 antes["preco_promocional"], atual["preco_promocional"])
-        d = achados.setdefault(ident, {"pracas": [], "atual": atual, "antes": antes})
-        d["pracas"].append(atual["praca"])
-    return list(achados.values())
+
+        # Composicao so e comparavel quando os DOIS dias tem assinatura.
+        # Assinatura que aparece ou desaparece e quase sempre o regulamento
+        # da Vivo tendo falhado - foi o que houve em 30/09, quando 1042 de
+        # 1044 ofertas ficaram sem os campos de contrato. Tratar isso como
+        # mudanca de oferta encheria o aviso de alarme falso no pior dia.
+        a, d = antes.get("assinatura_sva"), atual.get("assinatura_sva")
+        if a and d and a != d:
+            _agrupar(composicao, (atual["operadora"], atual["produto"],
+                                  atual["chave"], a, d), atual, antes)
+    return list(precos.values()), list(composicao.values())
 
 
 def montar_mensagem(hoje, ontem):
     linhas = ["Price Tracker - %s" % datetime.fromisoformat(hoje).strftime("%d/%m")]
 
     # 1. mudanca sobe para o topo, com detalhe
-    mud = mudancas(hoje, ontem)
+    mud, comp = mudancas(hoje, ontem)
     if mud:
         linhas.append("")
         for m in mud[:6]:
             a, d = m["antes"], m["atual"]
             de, para = a["preco_promocional"], d["preco_promocional"]
             var = (para - de) / de * 100 if de else 0
-            linhas.append("MUDOU: %s %s %g -> %g (%+.0f%%)" % (
-                d["operadora"], d["nome_oferta"] or d["produto"], de, para, var))
+            linhas.append("MUDOU: %s R$ %s -> R$ %s (%+.0f%%)" % (
+                _rotulo(d), _reais(de), _reais(para), var))
             linhas.append("  Onde: %s (%d de %d pracas)" % (
                 ", ".join(sorted({p.split("/")[0] for p in m["pracas"]})[:4]),
                 len(m["pracas"]), len(PRACAS)))
@@ -195,6 +231,29 @@ def montar_mensagem(hoje, ontem):
                 "igual" if mesmo_bundle else "MUDOU"))
         if len(mud) > 6:
             linhas.append("  (+%d outras mudancas)" % (len(mud) - 6))
+
+    # 1b. preco parado e composicao mexida: o repasse que nao aparece na
+    # etiqueta. Vem depois das mudancas de preco porque e mais raro, e
+    # antes do estado da coleta porque e noticia, nao diagnostico.
+    if comp:
+        linhas.append("")
+        for m in comp[:4]:
+            d = m["atual"]
+            antes_sva = set((m["antes"]["assinatura_sva"] or "").split("+"))
+            agora_sva = set((d["assinatura_sva"] or "").split("+"))
+            preco = d["preco_promocional"]
+            linhas.append("COMPOSICAO MUDOU, PRECO PARADO: %s (R$ %s)" % (
+                _rotulo(d), _reais(preco)))
+            saiu, entrou = sorted(antes_sva - agora_sva), sorted(agora_sva - antes_sva)
+            if saiu:
+                linhas.append("  Saiu: %s" % ", ".join(saiu))
+            if entrou:
+                linhas.append("  Entrou: %s" % ", ".join(entrou))
+            linhas.append("  Onde: %s (%d de %d pracas)" % (
+                ", ".join(sorted({p.split("/")[0] for p in m["pracas"]})[:4]),
+                len(m["pracas"]), len(PRACAS)))
+        if len(comp) > 4:
+            linhas.append("  (+%d outras)" % (len(comp) - 4))
 
     # 2. estado da coleta
     col, _ = armazenamento.consultar(

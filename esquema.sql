@@ -44,6 +44,15 @@ create table if not exists capturas (
   nivel_bundle            smallint,               -- 0 a 4 (decisao 10)
   campanha                text[],
 
+  -- Assinatura da composicao: os codigos SVA da oferta, ordenados e unidos
+  -- por "+" ("030012+030021+040022"). So a Vivo publica esses codigos.
+  --
+  -- Nao sabemos que app e cada codigo, e nao da para saber: o cruzamento
+  -- com a vitrine nomeou 1 dos 20 (secao 7 da metodologia). O valor nao
+  -- esta no nome e sim no conjunto - quando ele muda com o preco parado,
+  -- a oferta trocou de conteudo sem trocar de etiqueta.
+  assinatura_sva          text,
+
   -- a captura crua, para nao perder o que ainda nao sabemos usar
   bruto                   jsonb,
 
@@ -53,7 +62,7 @@ create table if not exists capturas (
 -- Uma oferta so pode ser gravada uma vez por praca por dia. Protege contra
 -- duplicata quando o robo repete (o repique das 7h30) sem apagar nada.
 create unique index if not exists capturas_unicas
-  on capturas (data_captura, operadora, produto, praca, chave, coalesce(codigo_anatel, ''));
+  on capturas (data_captura, operadora, produto, praca, chave, nome_oferta, codigo_anatel);
 
 create index if not exists capturas_serie
   on capturas (operadora, produto, chave, data_captura);
@@ -99,3 +108,11 @@ create policy leitura_publica_capturas on capturas for select using (true);
 
 drop policy if exists leitura_publica_coletas on coletas;
 create policy leitura_publica_coletas on coletas for select using (true);
+
+
+-- ------------------------------------------------- mudancas em banco criado
+
+-- Para um banco que ja existe, o create table acima nao faz nada. Estas
+-- linhas sao seguras de rodar mais de uma vez.
+
+alter table capturas add column if not exists assinatura_sva text;

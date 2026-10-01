@@ -72,6 +72,26 @@ def _pedir(url, chave, caminho, corpo, prefer):
         return 0, str(e)
 
 
+_colunas = {}
+
+
+def tem_coluna(nome):
+    """A coluna existe no banco?
+
+    Campo novo no codigo chega antes do ALTER TABLE no Supabase, que e um
+    passo manual. Sem esta checagem, o dia em que o codigo ganha um campo
+    novo e um dia de coleta perdida inteira - e dia perdido nao volta, que
+    e o principio de que todo o resto do projeto depende. Com ela, o campo
+    novo fica vazio ate o ALTER rodar, e a serie continua.
+
+    O resultado fica em cache: uma consulta por execucao, nao uma por lote.
+    """
+    if nome not in _colunas:
+        _, erro = consultar("capturas?select=%s&limit=1" % nome)
+        _colunas[nome] = not erro
+    return _colunas[nome]
+
+
 def gravar_capturas(ofertas):
     """Grava as ofertas do dia. Devolve (gravadas, erro)."""
     if not ofertas:
@@ -106,9 +126,16 @@ def gravar_capturas(ofertas):
             "meses_desconto": o.get("meses_desconto"),
             "preco_pos_promocao": o.get("preco_pos_promocao"),
             "nivel_bundle": o.get("nivel_bundle"),
+            # conjunto de codigos SVA, ordenado: muda quando a composicao
+            # da oferta muda, mesmo que o preco e o nome fiquem iguais
+            "assinatura_sva": o.get("assinatura_sva"),
             "campanha": o.get("campanha"),
             "bruto": o,
         })
+
+    if not tem_coluna("assinatura_sva"):
+        for l in linhas:
+            l.pop("assinatura_sva", None)
 
     # Deduplica dentro do proprio lote. O Postgres rejeita o lote INTEIRO
     # quando duas linhas dele colidem entre si - nesse caso nem o

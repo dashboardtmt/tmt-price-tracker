@@ -329,6 +329,22 @@ def aplicar_regulamento(oferta, reg):
     if scm.get("listaTecnologia"):
         oferta["tecnologia"] = scm["listaTecnologia"]
     oferta["nome_regulamento"] = reg.get("nomeOferta")
+
+    # Assinatura da composicao: o conjunto de codigos SVA, ordenado.
+    #
+    # Nao e preciso saber que app e cada codigo - o cruzamento mostrou que
+    # a Vivo nao da para saber (so 1 dos 20 tem nome seguro). O que importa
+    # e o CONJUNTO: se o preco nao se move e a assinatura muda, a oferta
+    # trocou de conteudo sem trocar de etiqueta, que e o repasse disfarcado
+    # da metodologia. Guardado em texto ordenado para comparar com "=".
+    #
+    # Os dois blocos entram juntos: no combo, movel e fixa declaram SVA
+    # cada um, e ler so o primeiro perderia metade da composicao.
+    sva = sorted({c for bloco in (smp, scm)
+                  for c in (bloco.get("listaSVA") or []) if c})
+    if sva:
+        oferta["sva"] = sva
+        oferta["assinatura_sva"] = "+".join(sva)
     return oferta
 
 
@@ -394,6 +410,9 @@ def coletar(cidade, uf, verbose=True):
                 "preco_cheio": None,
                 "preco_promocional": c["preco"],
                 "nivel_bundle": nivel_bundle(c["texto"]),
+                # o texto do card alimenta o cruzamento que deduz quais
+                # apps correspondem a quais codigos SVA do regulamento
+                "bruto_texto": c["texto"][:600],
                 "codigo_anatel": c["codigo_anatel"],
                 "campanha": None,
                 "id_catalogo": None,

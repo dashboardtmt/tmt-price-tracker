@@ -33,11 +33,16 @@ PAGINA = 1000   # o PostgREST limita a resposta; pagina para nao truncar calado
 
 def exportar(dias):
     desde = (date.today() - timedelta(days=dias)).isoformat()
+    campos = CAMPOS
+    # campo novo no codigo chega antes do ALTER TABLE: pedi-lo antes da hora
+    # derrubaria a exportacao e a tela ficaria congelada no dia anterior
+    if armazenamento.tem_coluna("assinatura_sva"):
+        campos += ",assinatura_sva"
     tudo, inicio = [], 0
     while True:
         filtro = ("capturas?data_captura=gte.%s&select=%s"
                   "&order=data_captura.asc,operadora.asc"
-                  "&limit=%d&offset=%d" % (desde, CAMPOS, PAGINA, inicio))
+                  "&limit=%d&offset=%d" % (desde, campos, PAGINA, inicio))
         linhas, erro = armazenamento.consultar(filtro)
         if erro:
             return None, erro
