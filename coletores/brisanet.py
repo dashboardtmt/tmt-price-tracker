@@ -149,6 +149,21 @@ def nivel_bundle(texto, produtos):
     return 1 if produtos else 0
 
 
+def fim_da_promocao(nota):
+    """Le o price_note: "No 13o mes o valor sera R$ 109,90".
+
+    A Brisanet declara por quanto tempo o desconto vale e qual sera o
+    preco depois - a propria operadora respondendo se o preco de hoje e
+    temporario. Nenhuma das outras cinco diz isso de forma direta.
+    """
+    if not nota:
+        return None, None
+    mes = re.search(r"(\d{1,2})\s*[ºo°]?\s*m[eê]s", str(nota), re.I)
+    valor = re.search(r"R\$\s*([\d.]+,\d{2})", str(nota))
+    meses = (int(mes.group(1)) - 1) if mes else None     # "13o mes" = 12 de desconto
+    return meses, (numero(valor.group(1)) if valor else None)
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     praca = "%s/%s" % (cidade, uf)
@@ -196,6 +211,7 @@ def coletar(cidade, uf, verbose=True):
         for g in grupos:
             for o in (g.get("offers") or []):
                 preco = o.get("price") or {}
+                meses_desc, preco_depois = fim_da_promocao(preco.get("price_note"))
                 produtos = [p.get("name") for p in (o.get("included_products") or []) if p.get("name")]
                 contexto = " ".join(filter(None, [o.get("offer_name"), o.get("description"),
                                                   o.get("additional_details")]))
@@ -212,6 +228,10 @@ def coletar(cidade, uf, verbose=True):
                     "preco_promocional": numero(preco.get("discount_price")) or numero(preco.get("original_price")),
                     "nivel_bundle": nivel_bundle(contexto, produtos),
                     "apps": produtos or None,
+                    # a Brisanet diz quanto o desconto dura e o preco depois
+                    "meses_desconto": meses_desc,
+                    "preco_pos_promocao": preco_depois,
+                    "nota_preco": preco.get("price_note"),
                     "id_catalogo": o.get("documentId"),
                     "aba": g.get("tab_name"),
                     "codigo_anatel": None, "campanha": None,

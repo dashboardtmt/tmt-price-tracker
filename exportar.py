@@ -25,7 +25,8 @@ from coletores import armazenamento   # noqa: E402
 CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           "destaque,chave,codigo_anatel,degrau_mbps,franquia_anunciada_gb,"
           "franquia_contratual_gb,preco_cheio,preco_promocional,"
-          "fidelidade_meses,multa_fidelidade,taxa_instalacao,nivel_bundle")
+          "fidelidade_meses,multa_fidelidade,taxa_instalacao,nivel_bundle,"
+          "meses_desconto,preco_pos_promocao")
 
 PAGINA = 1000   # o PostgREST limita a resposta; pagina para nao truncar calado
 

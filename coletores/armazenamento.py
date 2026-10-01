@@ -103,6 +103,8 @@ def gravar_capturas(ofertas):
             "fidelidade_meses": o.get("fidelidade_meses"),
             "multa_fidelidade": o.get("multa_fidelidade"),
             "taxa_instalacao": o.get("taxa_instalacao"),
+            "meses_desconto": o.get("meses_desconto"),
+            "preco_pos_promocao": o.get("preco_pos_promocao"),
             "nivel_bundle": o.get("nivel_bundle"),
             "campanha": o.get("campanha"),
             "bruto": o,
