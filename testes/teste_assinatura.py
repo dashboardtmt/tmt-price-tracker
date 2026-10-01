@@ -46,11 +46,22 @@ def main():
     campos = ("produto,nome_oferta,operadora,"
               "do_jsonb:bruto->>produto,"
               "assinatura_sva:bruto->>assinatura_sva")
-    linhas, erro = armazenamento.consultar(
-        "capturas?data_captura=eq.%s&select=%s&limit=3000" % (dia, campos))
+    linhas, erro = armazenamento.consultar_tudo(
+        "capturas?data_captura=eq.%s&select=%s" % (dia, campos))
     if erro:
         print("FALHOU ao extrair do jsonb: %s" % erro)
         return 1
+
+    # Quantas capturas o dia tem de verdade. O PostgREST corta em 1000, e
+    # uma consulta sem paginacao traz so a primeira pagina sem avisar - era
+    # o que a comparacao diaria fazia, pedindo limit=20000 e confiando.
+    uma_pagina, _ = armazenamento.consultar(
+        "capturas?data_captura=eq.%s&select=produto&limit=20000" % dia)
+    print("\n0. capturas do dia: %d paginando, %d numa pagina so"
+          % (len(linhas), len(uma_pagina or [])))
+    if len(linhas) > len(uma_pagina or []):
+        print("   confirmado: sem paginar, %d capturas ficavam invisiveis"
+              % (len(linhas) - len(uma_pagina or [])))
 
     conferem = sum(1 for l in linhas if l["produto"] == l["do_jsonb"])
     print("\n1. extracao do jsonb: %d linhas lidas, sem erro" % len(linhas))
@@ -79,9 +90,14 @@ def main():
         "&order=data_captura.desc&limit=1" % dia)
     if anterior:
         ontem = anterior[0]["data_captura"]
-        precos, comp = robo.mudancas(dia, ontem)
+        precos, comp, erro_cmp = robo.mudancas(dia, ontem)
+        if erro_cmp:
+            print("\n4. mudancas FALHOU: %s" % erro_cmp)
+            return 1
         print("\n4. mudancas(%s, %s): %d de preco, %d de composicao"
               % (dia, ontem, len(precos), len(comp)))
+        indice, _ = robo._indexar(dia)
+        print("   o indice da comparacao cobre %d ofertas de %s" % (len(indice), dia))
     else:
         print("\n4. so existe um dia no banco - nada a comparar ainda")
 

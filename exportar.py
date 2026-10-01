@@ -30,26 +30,13 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           # extraida do jsonb, por nao ter coluna propria
           "assinatura_sva:bruto->>assinatura_sva")
 
-PAGINA = 1000   # o PostgREST limita a resposta; pagina para nao truncar calado
-
-
 def exportar(dias):
     desde = (date.today() - timedelta(days=dias)).isoformat()
-    tudo, inicio = [], 0
-    while True:
-        filtro = ("capturas?data_captura=gte.%s&select=%s"
-                  "&order=data_captura.asc,operadora.asc"
-                  "&limit=%d&offset=%d" % (desde, CAMPOS, PAGINA, inicio))
-        linhas, erro = armazenamento.consultar(filtro)
-        if erro:
-            return None, erro
-        if not linhas:
-            break
-        tudo.extend(linhas)
-        if len(linhas) < PAGINA:
-            break
-        inicio += PAGINA
-    return tudo, None
+    # a paginacao mora em armazenamento: o aviso diario precisava da mesma
+    # coisa e tinha ficado sem, trazendo so as primeiras mil capturas
+    return armazenamento.consultar_tudo(
+        "capturas?data_captura=gte.%s&select=%s"
+        "&order=data_captura.asc,operadora.asc" % (desde, CAMPOS))
 
 
 def main():

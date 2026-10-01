@@ -147,6 +147,35 @@ def registrar_coleta(registro):
     return False, "HTTP %s: %s" % (status, corpo[:300])
 
 
+PAGINA = 1000   # o PostgREST corta a resposta nesse tamanho
+
+
+def consultar_tudo(caminho, pagina=PAGINA):
+    """Como consultar, mas segue as paginas ate o fim.
+
+    O PostgREST devolve no maximo 1000 linhas. Quem pede 20000 e confia
+    recebe 1000 e nao percebe: truncamento calado. Na comparacao diaria
+    isso significa deixar de ver as ofertas que ficaram de fora da
+    primeira pagina - a falha silenciosa que a metodologia proibe, e que
+    sobreviveu aqui porque o numero pedido parecia grande demais para
+    importar.
+    """
+    tudo, inicio = [], 0
+    sep = "&" if "?" in caminho else "?"
+    while True:
+        linhas, erro = consultar("%s%slimit=%d&offset=%d"
+                                 % (caminho, sep, pagina, inicio))
+        if erro:
+            return None, erro
+        if not linhas:
+            break
+        tudo.extend(linhas)
+        if len(linhas) < pagina:
+            break
+        inicio += pagina
+    return tudo, None
+
+
 def consultar(caminho):
     """GET simples na API, para a mensagem diaria comparar com ontem."""
     url, chave = _config()

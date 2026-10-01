@@ -153,9 +153,11 @@ def _indexar(dia):
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
               "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
               "nivel_bundle,assinatura_sva:bruto->>assinatura_sva")
-    linhas, _ = armazenamento.consultar(
-        "capturas?data_captura=eq.%s&select=%s&limit=20000" % (dia, campos))
-    return {(l["chave"], l["praca"]): l for l in (linhas or [])}
+    # paginado: sao mais de mil capturas por dia, e pedir "limit=20000"
+    # trazia so as primeiras mil sem reclamar
+    linhas, erro = armazenamento.consultar_tudo(
+        "capturas?data_captura=eq.%s&select=%s" % (dia, campos))
+    return {(l["chave"], l["praca"]): l for l in (linhas or [])}, erro
 
 
 def _rotulo(l):
@@ -183,7 +185,13 @@ def mudancas(hoje, ontem):
     cobraram o mesmo. Sem a assinatura dos codigos SVA isso passava batido,
     porque o nome e o preco da oferta continuam identicos.
     """
-    h, o = _indexar(hoje), _indexar(ontem)
+    h, erro_h = _indexar(hoje)
+    o, erro_o = _indexar(ontem)
+    # Comparacao que falhou nao e comparacao sem novidade. Sem devolver o
+    # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
+    # que nao avisar, porque soa como noticia verificada.
+    if erro_h or erro_o:
+        return [], [], erro_h or erro_o
     precos, composicao = {}, {}
     for k, atual in h.items():
         antes = o.get(k)
@@ -205,14 +213,18 @@ def mudancas(hoje, ontem):
         if a and d and a != d:
             _agrupar(composicao, (atual["operadora"], atual["produto"],
                                   atual["chave"], a, d), atual, antes)
-    return list(precos.values()), list(composicao.values())
+    return list(precos.values()), list(composicao.values()), None
 
 
 def montar_mensagem(hoje, ontem):
     linhas = ["Price Tracker - %s" % datetime.fromisoformat(hoje).strftime("%d/%m")]
 
     # 1. mudanca sobe para o topo, com detalhe
-    mud, comp = mudancas(hoje, ontem)
+    mud, comp, erro_cmp = mudancas(hoje, ontem)
+    if erro_cmp:
+        linhas.append("")
+        linhas.append("COMPARACAO COM ONTEM FALHOU: %s" % erro_cmp[:120])
+        linhas.append("  Nao da para dizer se algo mudou hoje.")
     if mud:
         linhas.append("")
         for m in mud[:6]:
