@@ -443,6 +443,48 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     e bundle mudaram junto com o preço. Só o preço mexeu, é preço mesmo. A franquia mudou junto,
     é produto novo.</p>
   </div>
+
+  <h3>Como o robô reconhece a mesma oferta amanhã</h3>
+  <p>Comparar dois dias exige dizer o que é "a mesma oferta", e isso é mais difícil do que parece.
+  Três defeitos foram encontrados e medidos no banco de verdade:</p>
+  <table>
+    <tr><th>Defeito</th><th>O que acontecia</th><th>Correção</th></tr>
+    <tr><td><b>Só as primeiras mil</b></td><td>O banco corta a resposta em 1.000 linhas. A
+    comparação pedia 20.000 e aceitava o que viesse. Em 01/10 havia <b>1.756 capturas: 756
+    invisíveis</b>, e as ofertas de fora podiam mudar de preço sem que o aviso dissesse nada.</td>
+    <td>Paginação, a mesma que a tela já usava</td></tr>
+    <tr><td><b>A chave não é a oferta</b></td><td>A chave de continuidade identifica a <i>série</i>
+    — operadora, produto, degrau, variante. "TIM Controle Redes Sociais" e "TIM Controle Pro
+    Express" têm a mesma chave, degrau e preço. Uma sobrescrevia a outra, e qual sobrevivia
+    dependia da ordem do banco: o preço de uma era comparado com o da outra.</td>
+    <td>O nome entra na identidade, e a consulta ordena</td></tr>
+    <tr><td><b>Safra no nome</b></td><td>A NuCel carimba o mês na oferta: "[SET] OFT NC PF PROMO
+    12M 700M". Com o nome cru, toda virada de mês essas ofertas perdiam o par — e ficavam sem
+    vigilância <b>no único dia em que o alarme mais importa</b>.</td>
+    <td>A marca entre colchetes sai da identidade; o resto do nome fica</td></tr>
+  </table>
+  <p>O terceiro foi encontrado olhando quem ficou sem par depois de corrigir o segundo — e esse
+  número virou medida permanente, porque <b>zero mudanças pode ser mercado parado ou comparação
+  cega</b>, e sem a cobertura as duas coisas são indistinguíveis.</p>
+  <div class="box neutro">
+    <span class="rotulo">Cobertura medida em 01/10 contra 30/09</span>
+    <table>
+      <tr><td>Ofertas com par nos dois dias</td><td><b>1.042</b> de 1.044 — 74% das de hoje</td></tr>
+      <tr><td>Sem par, apareceram hoje</td><td>368: Vivo 266, Claro 100, Brisanet 2 — combo e
+      pré-pago, que o coletor passou a ler ontem. Não existiam na véspera porque ninguém as
+      coletava; a cobertura sobe sozinha.</td></tr>
+      <tr><td>Sem par, saíram de ontem</td><td>2 — "Vivo Fibra Ultravelocidade" em duas praças,
+      oferta que deixou a vitrine. Evento, não defeito.</td></tr>
+      <tr><td>Mudanças de preço</td><td>0 — e agora isso significa mercado parado, não
+      vista curta</td></tr>
+    </table>
+  </div>
+  <div class="box alerta">
+    <span class="rotulo">Falha que não pode virar silêncio</span>
+    <p>A consulta de comparação descartava o próprio erro. Banco fora do ar virava índice vazio,
+    e índice vazio virava <b>"nenhuma mudança hoje"</b> — pior que não avisar, porque soa como
+    notícia verificada. Agora o erro sobe e a mensagem diz que não dá para saber se algo mudou.</p>
+  </div>
   <div class="box neutro">
     <p>Detalhe de execução: 8h de Brasília são <b>11h UTC</b>, e é esse o horário que vai no
     agendamento. Vale conferir no horário de verão, se voltar a existir.</p>
