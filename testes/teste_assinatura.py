@@ -96,8 +96,26 @@ def main():
             return 1
         print("\n4. mudancas(%s, %s): %d de preco, %d de composicao"
               % (dia, ontem, len(precos), len(comp)))
-        indice, _ = robo._indexar(dia)
-        print("   o indice da comparacao cobre %d ofertas de %s" % (len(indice), dia))
+        # Cobertura: zero mudancas pode significar mercado parado ou
+        # comparacao cega. A diferenca esta em quantas ofertas de hoje
+        # encontram a mesma identidade ontem - sem par, nao ha o que
+        # comparar e o silencio nao prova nada.
+        hj, _ = robo._indexar(dia)
+        on, _ = robo._indexar(ontem)
+        comuns = set(hj) & set(on)
+        print("   ofertas: %d em %s, %d em %s, %d com par nos dois"
+              % (len(hj), dia, len(on), ontem, len(comuns)))
+        if hj:
+            print("   cobertura da comparacao: %.0f%% das ofertas de hoje"
+                  % (100.0 * len(comuns) / len(hj)))
+        so_hoje = [hj[k]["nome_oferta"] for k in (set(hj) - comuns)][:3]
+        so_ontem = [on[k]["nome_oferta"] for k in (set(on) - comuns)][:3]
+        if so_hoje:
+            print("   sem par (apareceram hoje): %s" % ", ".join(
+                str(n)[:30] for n in so_hoje))
+        if so_ontem:
+            print("   sem par (sairam de ontem): %s" % ", ".join(
+                str(n)[:30] for n in so_ontem))
     else:
         print("\n4. so existe um dia no banco - nada a comparar ainda")
 
