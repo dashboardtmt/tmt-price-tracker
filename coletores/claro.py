@@ -37,7 +37,13 @@ TROCA = BASE + "/view/ClaroCMSRegionComponentController/addRegionCookie"
 PAGINAS = {
     "movel": BASE + "/",
     "fibra": "https://www.claro.com.br/internet/banda-larga/fibra-otica",
+    "combo": "https://www.claro.com.br/multi",
+    "prepago": "https://www.claro.com.br/celular/planos-pre/prezao",
 }
+
+# Montadas em Storyblok, sem os cards do movel: a leitura e pelo texto que
+# a Claro exibe ao cliente.
+POR_TEXTO = {"fibra", "combo", "prepago"}
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "deezer"}
@@ -182,7 +188,7 @@ def ler_cards(op, url, produto):
     return cards, None
 
 
-def ler_fibra(op, url):
+def ler_por_texto(op, url, produto):
     """A pagina de fibra nao usa card-planos: ela e montada em Storyblok,
     com os dados em JSON dentro do HTML. O que sobra legivel e o padrao
     "600 mega a partir de R$ 99,90", com o internetId do plano ao lado.
@@ -194,7 +200,8 @@ def ler_fibra(op, url):
     if s != 200:
         return None, "HTTP %s" % s
     achados, vistos = [], set()
-    for m in re.finditer(r"(\d{2,4})\s*mega[^\"]{0,40}?R\$\s?(\d{1,3},\d{2})", h, re.I):
+    unidade = "gb" if produto == "prepago" else "mega"
+    for m in re.finditer(r"(\d{1,4})\s*%s[^\"]{0,40}?R\$\s?(\d{1,3},\d{2})" % unidade, h, re.I):
         velocidade, preco = m.group(1), m.group(2)
         if (velocidade, preco) in vistos:
             continue
@@ -203,8 +210,10 @@ def ler_fibra(op, url):
         contexto = re.sub(r"<[^>]+>", " ", h[max(0, m.start() - 400):m.start() + 400])
         achados.append({
             "id_catalogo": ident[0][:40] if ident else None,
-            "nome_oferta": "Claro Fibra %s Mega" % velocidade,
-            "destaque": "%s Mega" % velocidade,
+            "nome_oferta": "Claro %s %s %s" % (
+                {"fibra": "Fibra", "combo": "Multi", "prepago": "Pre"}[produto],
+                velocidade, "GB" if produto == "prepago" else "Mega"),
+            "destaque": "%s %s" % (velocidade, "GB" if produto == "prepago" else "Mega"),
             "preco_promocional": numero(preco),
             "composicao": re.sub(r"\s+", " ", contexto)[:400],
         })
@@ -238,9 +247,8 @@ def coletar(cidade, uf, verbose=True):
     time.sleep(PAUSA)
 
     for produto, url in PAGINAS.items():
-        leitor = ler_fibra if produto == "fibra" else ler_cards
-        cards, erro = (leitor(op, url) if produto == "fibra"
-                       else leitor(op, url, produto))
+        cards, erro = (ler_por_texto(op, url, produto) if produto in POR_TEXTO
+                       else ler_cards(op, url, produto))
         if erro:
             saida["avisos"].append("%s: %s" % (produto, erro))
             if verbose:
@@ -249,16 +257,18 @@ def coletar(cidade, uf, verbose=True):
             continue
         for c in cards:
             nome = c["nome_oferta"]
-            real = "fibra" if produto == "fibra" or "internet" in nome.lower() \
-                else ("controle" if "controle" in nome.lower()
-                      else ("prepago" if "pr" in nome.lower()[:8] and "pre" in sem_acento(nome).lower()[:8]
-                            else "movel"))
+            if produto in POR_TEXTO:
+                real = produto          # a pagina ja define o produto
+            elif "controle" in nome.lower():
+                real = "controle"
+            else:
+                real = "movel"
             c.update({
                 "operadora": "Claro", "produto": real, "praca": praca,
                 "capturado_em": agora.isoformat(),
-                "franquia_anunciada_gb": gb(c["destaque"]) if real != "fibra" else None,
+                "franquia_anunciada_gb": gb(c["destaque"]) if real not in ("fibra", "combo") else None,
                 "franquia_contratual_gb": franquia_contratual(c["composicao"]),
-                "degrau_mbps": mbps(c["destaque"]) if real == "fibra" else None,
+                "degrau_mbps": mbps(c["destaque"]) if real in ("fibra", "combo") else None,
                 "nivel_bundle": nivel_bundle(c["composicao"]),
                 "preco_cheio": None, "codigo_anatel": None, "campanha": None,
                 "ibge": ibge,

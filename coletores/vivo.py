@@ -44,6 +44,8 @@ VITRINE = {
     "fibra": "https://vivo.com.br/para-voce/produtos-e-servicos/para-casa/internet",
     "movel": "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/planos-pos-pago",
     "controle": "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/planos-controle",
+    "combo": "https://vivo.com.br/para-voce/produtos-e-servicos/combos/vivo-total",
+    "prepago": "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/pre-pago/vivo-pre",
 }
 
 APPS_CATALOGO = {"skeelo", "goread", "nba", "hube", "super comics", "atma",
@@ -365,7 +367,7 @@ def coletar(cidade, uf, verbose=True):
     if verbose:
         print("  catalogo indexado: %d ofertas com codigo Anatel" % len(idx))
 
-    for produto in ("controle", "movel", "fibra"):
+    for produto in ("controle", "movel", "fibra", "combo", "prepago"):
         cards, err = ler_vitrine(op, produto)
         if err:
             saida["avisos"].append("vitrine %s: %s" % (produto, err))
@@ -383,8 +385,11 @@ def coletar(cidade, uf, verbose=True):
                 "capturado_em": agora.isoformat(),
                 "nome_oferta": c["plano"],
                 "destaque": destaque,
-                "degrau_mbps": degrau_mbps(destaque) if produto == "fibra" else None,
-                "franquia_anunciada_gb": degrau_gb(destaque) if produto != "fibra" else None,
+                # combo tem velocidade e franquia ao mesmo tempo; pela decisao
+                # 16 ele e acompanhado pelo preco de entrada, entao guarda-se
+                # o que o card destaca e nao se tenta decompor o pacote
+                "degrau_mbps": degrau_mbps(destaque) if produto in ("fibra", "combo") else None,
+                "franquia_anunciada_gb": degrau_gb(destaque) if produto not in ("fibra", "combo") else None,
                 # preco cheio fica vazio quando a fonte nao informa (decisao 9)
                 "preco_cheio": None,
                 "preco_promocional": c["preco"],

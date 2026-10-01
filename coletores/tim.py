@@ -38,6 +38,12 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 PAUSA = 4
 
 # A UF vai na URL. Nao ha cookie nem requisicao de troca de praca.
+#
+# PENDENTE: o TIM Ultracombo. A rota /tim-ultracombo aparece no HTML do
+# site, mas responde 404 em todas as variacoes testadas em 01/10/2026
+# (/tim-ultracombo, /sp/tim-ultracombo, /sp/para-voce/tim-ultracombo,
+# /sp/para-voce/ultracombo, /sp/para-voce/combos). O combo da TIM e o
+# unico produto de operadora grande que falta no tracker.
 PAGINAS = {
     "controle": "https://www.tim.com.br/%s/para-voce/planos/controle",
     "movel": "https://www.tim.com.br/%s/para-voce/planos",
