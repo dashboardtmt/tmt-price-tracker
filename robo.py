@@ -156,8 +156,23 @@ def _indexar(dia):
     # paginado: sao mais de mil capturas por dia, e pedir "limit=20000"
     # trazia so as primeiras mil sem reclamar
     linhas, erro = armazenamento.consultar_tudo(
-        "capturas?data_captura=eq.%s&select=%s" % (dia, campos))
-    return {(l["chave"], l["praca"]): l for l in (linhas or [])}, erro
+        "capturas?data_captura=eq.%s&select=%s"
+        "&order=chave.asc,nome_oferta.asc,codigo_anatel.asc" % (dia, campos))
+
+    # O nome entra na identidade. A chave de continuidade identifica a
+    # SERIE - operadora|produto|degrau|variante - e nao a oferta: "TIM
+    # Controle Redes Sociais" e "TIM Controle Pro Express" tem a mesma
+    # chave, o mesmo degrau e o mesmo preco. Foi por isso que o indice
+    # unico do banco precisou ganhar nome_oferta.
+    #
+    # Indexando so por chave e praca, uma oferta sobrescrevia a outra e
+    # qual sobrevivia dependia da ordem em que o banco devolvesse as
+    # linhas. Isso comparava o preco de uma oferta hoje com o de outra
+    # ontem: capaz de acusar mudanca onde nao houve e de esconder a que
+    # houve, variando de uma execucao para a seguinte. A ordem explicita
+    # acima e para nao depender de sorte nem quando ainda houver empate.
+    return {(l["chave"], l["praca"], l["nome_oferta"]): l
+            for l in (linhas or [])}, erro
 
 
 def _rotulo(l):
