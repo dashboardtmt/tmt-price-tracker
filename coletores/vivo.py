@@ -246,6 +246,7 @@ REGULAMENTO = "https://vivo.com.br/bin/vivo-portal/rgc-offer-json-file?anatelCod
 # Cache da rodada: as 20 pracas compartilham os mesmos ~25 codigos, entao
 # sem isto seriam 500 downloads de 500 KB para baixar 25 documentos.
 _cache_regulamento = {}
+_falhas_regulamento = []
 
 
 def regulamento(op, codigo):
@@ -278,7 +279,13 @@ def regulamento(op, codigo):
             except Exception:
                 continue
         oferta = (dados or {}).get("ofertas", [{}])[0] if dados else None
-    except Exception:
+        if oferta is None:
+            _falhas_regulamento.append("%s: ZIP sem JSON legivel" % codigo)
+    except Exception as e:
+        # Engolir a falha aqui foi um erro de projeto: o enriquecimento
+        # sumia sem deixar rastro, e a base saia sem fidelidade nem preco
+        # de tabela como se a fonte nao tivesse esses campos.
+        _falhas_regulamento.append("%s: %s" % (codigo, str(e)[:70]))
         oferta = None
 
     _cache_regulamento[codigo] = oferta
@@ -395,6 +402,11 @@ def coletar(cidade, uf, verbose=True):
             print("  vitrine %-9s %d ofertas" % (produto, len(cards)))
         time.sleep(PAUSA)
 
+    if _falhas_regulamento:
+        saida["avisos"].append(
+            "regulamento falhou em %d oferta(s) - fidelidade, multa e preco "
+            "de tabela ficam vazios. Primeira: %s"
+            % (len(_falhas_regulamento), _falhas_regulamento[0]))
     return saida
 
 
