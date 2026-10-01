@@ -1,0 +1,27 @@
+name: Teste da assinatura de composicao
+
+# Confere que a assinatura dos codigos SVA e legivel de dentro do jsonb,
+# sem coluna nova e sem ALTER TABLE na mao.
+#
+# So le o banco. Nao grava, nao manda mensagem, nao chama operadora.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Ler a assinatura do jsonb
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python testes/teste_assinatura.py

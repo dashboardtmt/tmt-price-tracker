@@ -148,11 +148,11 @@ def entrada_do_controle(hoje, praca="Sao Paulo/SP"):
 
 
 def _indexar(dia):
+    # a assinatura sai de dentro do jsonb: nao existe coluna para ela, e
+    # criar uma exigiria um ALTER TABLE na mao a cada campo novo
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
-              "preco_promocional,franquia_anunciada_gb,degrau_mbps,nivel_bundle")
-    # enquanto o ALTER TABLE nao rodar, pedir a coluna derrubaria o aviso
-    if armazenamento.tem_coluna("assinatura_sva"):
-        campos += ",assinatura_sva"
+              "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
+              "nivel_bundle,assinatura_sva:bruto->>assinatura_sva")
     linhas, _ = armazenamento.consultar(
         "capturas?data_captura=eq.%s&select=%s&limit=20000" % (dia, campos))
     return {(l["chave"], l["praca"]): l for l in (linhas or [])}

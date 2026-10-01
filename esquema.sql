@@ -44,16 +44,16 @@ create table if not exists capturas (
   nivel_bundle            smallint,               -- 0 a 4 (decisao 10)
   campanha                text[],
 
-  -- Assinatura da composicao: os codigos SVA da oferta, ordenados e unidos
-  -- por "+" ("030012+030021+040022"). So a Vivo publica esses codigos.
-  --
-  -- Nao sabemos que app e cada codigo, e nao da para saber: o cruzamento
-  -- com a vitrine nomeou 1 dos 20 (secao 7 da metodologia). O valor nao
-  -- esta no nome e sim no conjunto - quando ele muda com o preco parado,
-  -- a oferta trocou de conteudo sem trocar de etiqueta.
-  assinatura_sva          text,
 
-  -- a captura crua, para nao perder o que ainda nao sabemos usar
+  -- A captura crua, para nao perder o que ainda nao sabemos usar - e para
+  -- que campo novo no coletor entre no mesmo dia, sem ALTER TABLE.
+  --
+  -- A assinatura da composicao mora aqui, em bruto->>'assinatura_sva': os
+  -- codigos SVA da oferta ordenados e unidos por "+". So a Vivo os publica.
+  -- Nao sabemos que app e cada codigo, e nao da para saber - o cruzamento
+  -- com a vitrine nomeou 1 dos 20 (secao 7 da metodologia). O valor nao
+  -- esta no nome e sim no conjunto: quando ele muda com o preco parado, a
+  -- oferta trocou de conteudo sem trocar de etiqueta.
   bruto                   jsonb,
 
   gravado_em              timestamptz not null default now()
@@ -109,10 +109,3 @@ create policy leitura_publica_capturas on capturas for select using (true);
 drop policy if exists leitura_publica_coletas on coletas;
 create policy leitura_publica_coletas on coletas for select using (true);
 
-
--- ------------------------------------------------- mudancas em banco criado
-
--- Para um banco que ja existe, o create table acima nao faz nada. Estas
--- linhas sao seguras de rodar mais de uma vez.
-
-alter table capturas add column if not exists assinatura_sva text;
