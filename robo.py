@@ -18,6 +18,7 @@ Uso:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -171,8 +172,24 @@ def _indexar(dia):
     # ontem: capaz de acusar mudanca onde nao houve e de esconder a que
     # houve, variando de uma execucao para a seguinte. A ordem explicita
     # acima e para nao depender de sorte nem quando ainda houver empate.
-    return {(l["chave"], l["praca"], l["nome_oferta"]): l
-            for l in (linhas or [])}, erro
+    return {_identidade(l): l for l in (linhas or [])}, erro
+
+
+def _identidade(l):
+    """Como reconhecer a mesma oferta amanha.
+
+    O nome desambigua, mas cru ele tambem muda sozinho: a NuCel carimba a
+    safra no proprio nome - "[SET] OFT NC PF PROMO 12M 700M" virou "[OUT]
+    ..." no dia primeiro. Com o nome cru, toda virada de mes essas ofertas
+    perdem o par e nenhuma mudanca de preco e detectada nelas - justamente
+    quando o mes vira, que e quando preco muda.
+
+    Entao a marca de safra sai da identidade e o resto do nome fica. O
+    alerta continua mostrando o nome de verdade; isto aqui so serve para
+    reencontrar a oferta.
+    """
+    nome = re.sub(r"\[[^\]]*\]", " ", l.get("nome_oferta") or "")
+    return l["chave"], l["praca"], " ".join(nome.lower().split())
 
 
 def _rotulo(l):

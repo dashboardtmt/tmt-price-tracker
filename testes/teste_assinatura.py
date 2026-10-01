@@ -108,14 +108,18 @@ def main():
         if hj:
             print("   cobertura da comparacao: %.0f%% das ofertas de hoje"
                   % (100.0 * len(comuns) / len(hj)))
-        so_hoje = [hj[k]["nome_oferta"] for k in (set(hj) - comuns)][:3]
-        so_ontem = [on[k]["nome_oferta"] for k in (set(on) - comuns)][:3]
-        if so_hoje:
-            print("   sem par (apareceram hoje): %s" % ", ".join(
-                str(n)[:30] for n in so_hoje))
-        if so_ontem:
-            print("   sem par (sairam de ontem): %s" % ", ".join(
-                str(n)[:30] for n in so_ontem))
+        # por operadora, para distinguir ausencia esperada (coletor novo,
+        # praca que a operadora nao atende) de serie partida de verdade
+        import collections
+        for titulo, indice, chaves in (("apareceram hoje", hj, set(hj) - comuns),
+                                       ("sairam de ontem", on, set(on) - comuns)):
+            if not chaves:
+                continue
+            porop = collections.Counter(indice[k]["operadora"] for k in chaves)
+            print("   sem par, %s: %s" % (titulo, ", ".join(
+                "%s %d" % (o, n) for o, n in porop.most_common())))
+            exemplo = [indice[k]["nome_oferta"] for k in list(chaves)[:2]]
+            print("      ex: %s" % " | ".join(str(n)[:34] for n in exemplo))
     else:
         print("\n4. so existe um dia no banco - nada a comparar ainda")
 
