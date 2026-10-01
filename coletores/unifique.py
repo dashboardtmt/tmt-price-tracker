@@ -188,8 +188,20 @@ def coletar(cidade, uf, verbose=True, pagina=None):
             saida["ofertas"].append(o)
 
         if not saida["ofertas"]:
-            saida["avisos"].append(
-                "nenhuma oferta lida - o layout da Unifique provavelmente mudou")
+            # Ausencia e falha parecem iguais no resultado e sao coisas
+            # opostas. Se a pagina confirmou a cidade e mesmo assim nao ha
+            # oferta, a Unifique simplesmente nao vende fibra ali - foi o
+            # caso de Curitiba, medido em 01/10/2026. Se nem a cidade
+            # confirmou, ai sim algo quebrou.
+            if cidade.lower() in texto.lower():
+                saida["avisos"].append(
+                    "sem oferta de fibra em %s - a Unifique atende a cidade "
+                    "mas nao vende fibra residencial ali" % cidade)
+                saida["sem_oferta"] = True
+            else:
+                saida["avisos"].append(
+                    "nenhuma oferta lida e a cidade nao confirmou - "
+                    "o layout da Unifique provavelmente mudou")
         if verbose:
             print("  fibra  %d ofertas" % len(saida["ofertas"]))
     except Exception as e:

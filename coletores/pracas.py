@@ -56,9 +56,10 @@ COBERTURA = {
     # Medido no proprio seletor da Unifique em 30/09/2026: ela NAO atende
     # Florianopolis - o site nem lista a cidade. Confirma o que o dado da
     # Anatel ja sugeria, que ela e forte no interior e fraca na capital.
-    # Curitiba entra com ressalva: a pagina carrega mas nao traz oferta de
-    # fibra legivel, e o coletor avisa em vez de gravar vazio calado.
-    "Unifique": {"Blumenau", "Joinville", "Porto Alegre", "Curitiba"},
+    # Curitiba saiu depois de investigada em 01/10/2026: a Unifique atende
+    # a cidade, mas nao vende fibra residencial ali - a pagina confirma a
+    # praca e nao lista nenhuma oferta. Pedir todo dia so geraria alarme.
+    "Unifique": {"Blumenau", "Joinville", "Porto Alegre"},
 }
 
 
