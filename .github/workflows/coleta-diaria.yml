@@ -7,11 +7,18 @@ name: Coleta diaria
 # ignorado, o que faltou entra. Repetir e barato; perder o dia nao volta.
 #
 # Brasilia e UTC-3 e nao tem mais horario de verao, entao 7h = 10h UTC.
+#
+# HORARIO QUEBRADO DE PROPOSITO. Cron em minuto zero de hora cheia cai na
+# fila mais disputada do GitHub Actions, que e best-effort e nao garante
+# hora. Medido aqui: em 01/10 a coleta agendada para 10:00 UTC rodou as
+# 16:50, com 6h20 de atraso, e o aviso saiu 17:12 em vez de 11:00 - a
+# ordem coleta-antes-do-aviso se manteve por sorte, nao por desenho.
+# Minuto fora da hora cheia pega fila curta.
 
 on:
   schedule:
-    - cron: '0 10 * * *'    # 07:00 BRT - coleta
-    - cron: '30 10 * * *'   # 07:30 BRT - repique
+    - cron: '7 10 * * *'    # 07:07 BRT - coleta
+    - cron: '37 10 * * *'   # 07:37 BRT - repique
   workflow_dispatch:
 
 # Se o repique comecar com a coleta ainda rodando, espera em vez de

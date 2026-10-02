@@ -8,7 +8,7 @@ name: Atualizar a tela
 
 on:
   schedule:
-    - cron: '45 11 * * *'   # 08:45 BRT, depois da coleta e do aviso
+    - cron: '51 11 * * *'   # 08:51 BRT, depois da coleta e do aviso
   workflow_dispatch:
 
 permissions:

@@ -404,6 +404,17 @@
   </table>
   <p class="legenda">O repique existe porque 7h não deixa margem: sem ele, uma instabilidade de
   cinco minutos custaria o dia inteiro — e dia perdido não volta.</p>
+  <div class="box alerta">
+    <span class="rotulo">Esse horário é intenção, não garantia</span>
+    <p>O agendamento do GitHub Actions é <b>best-effort</b>: ele entra numa fila e pode atrasar.
+    Medido em 01/10 — a coleta marcada para 7h rodou às <b>13h50</b>, com 6h20 de atraso, e o aviso
+    das 8h saiu às 14h12. A ordem coleta-antes-do-aviso se manteve por sorte, não por desenho.</p>
+    <p>A causa é o minuto: hora cheia é a fila mais disputada. Os horários passaram a ter minuto
+    quebrado (7h07, 7h37, 8h13, 8h51), o que pega fila curta. <b>Continua sem garantia</b> — o que
+    o projeto exige é uma coleta por dia, não uma coleta às 7h em ponto, e a data da captura é a do
+    dia, não a da hora. Atraso dentro do mesmo dia não fere a série; o que a feriria é o dia
+    passar em branco, e para isso existem o repique e o aviso que falta.</p>
+  </div>
 
   <h3>Uma mensagem por dia no Telegram, às 8h</h3>
   <p>Chega <b>todo dia, mesmo sem novidade</b>. Isso é proposital: se a mensagem não chegou, é

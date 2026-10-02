@@ -5,9 +5,13 @@ name: Aviso diario
 # Chegar todo dia e proposital: se a mensagem nao chegou, e porque algo
 # quebrou. O silencio passa a ser o alarme.
 
+# Minuto quebrado pelo mesmo motivo da coleta: hora cheia atrasa horas na
+# fila do Actions, e aviso que chega antes da coleta acusa um robo parado
+# que na verdade so esta na fila.
+
 on:
   schedule:
-    - cron: '0 11 * * *'    # 08:00 BRT
+    - cron: '13 11 * * *'   # 08:13 BRT
   workflow_dispatch:
 
 jobs:
