@@ -245,6 +245,23 @@ function rotulo(x,y,txt,anchor,cor,tam){
     font-size="${tam||11}" font-family="Arial">${txt}</text>`;
 }
 
+function curva(pts){
+  // Linha de grafico e sempre curva, nunca reta e pontuda. Catmull-Rom
+  // convertido em Bezier: passa exatamente por cada ponto capturado, em
+  // vez de suavizar por cima deles - num grafico de preco, o ponto e o
+  // dado, e uma curva que corta o ponto estaria inventando valor.
+  if(pts.length<2) return pts.length?`M${pts[0].x},${pts[0].y}`:"";
+  let d=`M${pts[0].x},${pts[0].y}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+    const t=0.2;   // tensao baixa: curva discreta, sem balanco artificial
+    const c1x=p1.x+(p2.x-p0.x)*t, c1y=p1.y+(p2.y-p0.y)*t;
+    const c2x=p2.x-(p3.x-p1.x)*t, c2y=p2.y-(p3.y-p1.y)*t;
+    d+=` C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
+
 function grafEvolucao(ofertas){
   const alvo=document.getElementById("g-tempo");
   if(DIAS.length<2){
@@ -272,7 +289,7 @@ function grafEvolucao(ofertas){
       return {x:x(i), y:y(v), v:v};
     }).filter(Boolean);
     if(!pts.length) return;
-    const d=pts.map((p,i)=> i?`L${p.x},${p.y}`:`M${p.x},${p.y}`).join(" ");
+    const d=curva(pts);
     s+=`<path d="${d}" fill="none" stroke="${CORES[op]||"#999"}" stroke-width="2.2"
          stroke-linejoin="round" stroke-linecap="round"/>`;
     pts.forEach(p=> s+=`<circle cx="${p.x}" cy="${p.y}" r="3.6" fill="${CORES[op]||"#999"}"/>`);

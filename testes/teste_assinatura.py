@@ -90,12 +90,20 @@ def main():
         "&order=data_captura.desc&limit=1" % dia)
     if anterior:
         ontem = anterior[0]["data_captura"]
-        precos, comp, erro_cmp = robo.mudancas(dia, ontem)
+        precos, comp, renom, erro_cmp = robo.mudancas(dia, ontem)
         if erro_cmp:
             print("\n4. mudancas FALHOU: %s" % erro_cmp)
             return 1
-        print("\n4. mudancas(%s, %s): %d de preco, %d de composicao"
-              % (dia, ontem, len(precos), len(comp)))
+        print("\n4. mudancas(%s, %s): %d de preco, %d de composicao, "
+              "%d renomeadas" % (dia, ontem, len(precos), len(comp), len(renom)))
+        for m in renom[:4]:
+            a, d = m["antes"], m["atual"]
+            mudou = ("PRECO MUDOU: %s -> %s" % (a["preco_promocional"],
+                                                d["preco_promocional"])
+                     if a["preco_promocional"] != d["preco_promocional"]
+                     else "mesmo preco (%s)" % d["preco_promocional"])
+            print("   %s -> %s | %s | %d praca(s)"
+                  % (a["nome_oferta"], d["nome_oferta"], mudou, len(m["pracas"])))
         # Cobertura: zero mudancas pode significar mercado parado ou
         # comparacao cega. A diferenca esta em quantas ofertas de hoje
         # encontram a mesma identidade ontem - sem par, nao ha o que

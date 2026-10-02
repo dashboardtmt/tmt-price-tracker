@@ -16,6 +16,7 @@ Uso:
 """
 
 import argparse
+import collections
 import json
 import os
 import re
@@ -223,7 +224,7 @@ def mudancas(hoje, ontem):
     # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
     # que nao avisar, porque soa como noticia verificada.
     if erro_h or erro_o:
-        return [], [], erro_h or erro_o
+        return [], [], [], erro_h or erro_o
     precos, composicao = {}, {}
     for k, atual in h.items():
         antes = o.get(k)
@@ -245,14 +246,52 @@ def mudancas(hoje, ontem):
         if a and d and a != d:
             _agrupar(composicao, (atual["operadora"], atual["produto"],
                                   atual["chave"], a, d), atual, antes)
-    return list(precos.values()), list(composicao.values()), None
+
+    renomeadas = _renomeadas(h, o)
+    return list(precos.values()), list(composicao.values()), renomeadas, None
+
+
+def _renomeadas(h, o):
+    """Oferta que trocou de nome, e o preco que ela levou na troca.
+
+    O nome na identidade protege de comparar ofertas diferentes, mas cria
+    um ponto cego: oferta renomeada nao casa com a de ontem e sai da
+    comparacao sem gerar alerta. Em 02/10 foi o caso de "TIM Controle",
+    que virou "TIM Controle Smart" em 20 pracas - se o preco tivesse
+    mudado junto, ninguem saberia, e trocar o nome junto com o preco e
+    justamente como um repasse passa desapercebido.
+
+    O reencontro usa a chave de continuidade, que existe para sobreviver a
+    renomeacao, e so vale quando sobrou exatamente UMA candidata de cada
+    lado: com duas ou mais, qualquer emparelhamento seria chute.
+    """
+    sobra_h = collections.defaultdict(list)
+    sobra_o = collections.defaultdict(list)
+    for k, l in h.items():
+        if k not in o:
+            sobra_h[(l["chave"], l["praca"])].append(l)
+    for k, l in o.items():
+        if k not in h:
+            sobra_o[(l["chave"], l["praca"])].append(l)
+
+    achados = {}
+    for cp, atuais in sobra_h.items():
+        anteriores = sobra_o.get(cp)
+        if not anteriores or len(atuais) != 1 or len(anteriores) != 1:
+            continue
+        atual, antes = atuais[0], anteriores[0]
+        _agrupar(achados, (atual["operadora"], atual["chave"],
+                           antes["nome_oferta"], atual["nome_oferta"],
+                           antes["preco_promocional"], atual["preco_promocional"]),
+                 atual, antes)
+    return list(achados.values())
 
 
 def montar_mensagem(hoje, ontem):
     linhas = ["Price Tracker - %s" % datetime.fromisoformat(hoje).strftime("%d/%m")]
 
     # 1. mudanca sobe para o topo, com detalhe
-    mud, comp, erro_cmp = mudancas(hoje, ontem)
+    mud, comp, renom, erro_cmp = mudancas(hoje, ontem)
     if erro_cmp:
         linhas.append("")
         linhas.append("COMPARACAO COM ONTEM FALHOU: %s" % erro_cmp[:120])
@@ -298,6 +337,28 @@ def montar_mensagem(hoje, ontem):
                 len(m["pracas"]), len(PRACAS)))
         if len(comp) > 4:
             linhas.append("  (+%d outras)" % (len(comp) - 4))
+
+    # 1c. renomeacao: evento por si, e o unico lugar onde um preco novo
+    # chegaria sem passar pelos blocos acima
+    if renom:
+        linhas.append("")
+        for m in renom[:4]:
+            a, d = m["antes"], m["atual"]
+            de, para = a["preco_promocional"], d["preco_promocional"]
+            if de is not None and para is not None and de != para:
+                var = (para - de) / de * 100 if de else 0
+                cauda = "e o preco foi de R$ %s para R$ %s (%+.0f%%)" % (
+                    _reais(de), _reais(para), var)
+            else:
+                cauda = "com o mesmo preco (R$ %s)" % _reais(para)
+            linhas.append("RENOMEOU: %s -> %s" % (
+                a["nome_oferta"] or "?", d["nome_oferta"] or "?"))
+            linhas.append("  %s" % cauda)
+            linhas.append("  Onde: %s (%d de %d pracas)" % (
+                ", ".join(sorted({p.split("/")[0] for p in m["pracas"]})[:4]),
+                len(m["pracas"]), len(PRACAS)))
+        if len(renom) > 4:
+            linhas.append("  (+%d outras)" % (len(renom) - 4))
 
     # 2. estado da coleta
     col, _ = armazenamento.consultar(

@@ -62,7 +62,7 @@
 
 <header>
   <h1>Price Tracker das telecos — Metodologia</h1>
-  <div class="sub">Atualizado em 30/09/2026 &middot; as 28 definições fechadas &middot; uso interno, nada publicado</div>
+  <div class="sub">Atualizado em 02/10/2026 &middot; as 28 definições fechadas &middot; página privada, fora do dashboard oficial de TMT</div>
 </header>
 
 <div class="wrap">
@@ -122,7 +122,7 @@
     <tr><td>12</td><td>Falhas</td><td>Grava o que veio e alerta no Telegram</td></tr>
     <tr><td>13</td><td>Condição de preço</td><td>Preço cheio, sem desconto nenhum</td></tr>
     <tr><td>14</td><td>Armazenamento</td><td>Supabase: Postgres para a base, Storage para a tela</td></tr>
-    <tr><td>15</td><td>Horário</td><td>Coleta 7h, repique 7h30, mensagem 8h</td></tr>
+    <tr><td>15</td><td>Horário</td><td>Coleta 7h07, repique 7h37, mensagem 8h13 — minuto quebrado de propósito (seção 8)</td></tr>
     <tr><td>16</td><td>Combo</td><td>Acompanha só o preço de entrada por praça</td></tr>
     <tr><td>17</td><td>Pré-pago</td><td>Fixado na recarga de 30 dias</td></tr>
     <tr><td>18</td><td>Início da série</td><td>Começa assim que a Vivo estiver pronta; as outras entram depois</td></tr>
@@ -398,12 +398,13 @@
   <h3>O relógio do dia</h3>
   <table>
     <tr><th>Hora</th><th>O que acontece</th></tr>
-    <tr><td><b>7h00</b></td><td>o robô coleta as seis operadoras nas 20 praças</td></tr>
-    <tr><td><b>7h30</b></td><td>repique automático, só do que falhou</td></tr>
-    <tr><td><b>8h00</b></td><td>mensagem no Telegram, com o que conseguiu</td></tr>
+    <tr><td><b>7h07</b></td><td>o robô coleta as seis operadoras nas 20 praças</td></tr>
+    <tr><td><b>7h37</b></td><td>repique automático, roda tudo de novo; o que já entrou é ignorado</td></tr>
+    <tr><td><b>8h13</b></td><td>mensagem no Telegram, com o que conseguiu</td></tr>
+    <tr><td><b>8h51</b></td><td>a tela é regerada com o que foi gravado</td></tr>
   </table>
-  <p class="legenda">O repique existe porque 7h não deixa margem: sem ele, uma instabilidade de
-  cinco minutos custaria o dia inteiro — e dia perdido não volta.</p>
+  <p class="legenda">O repique existe porque a primeira passada não deixa margem: sem ele, uma
+  instabilidade de cinco minutos custaria o dia inteiro — e dia perdido não volta.</p>
   <div class="box alerta">
     <span class="rotulo">Esse horário é intenção, não garantia</span>
     <p>O agendamento do GitHub Actions é <b>best-effort</b>: ele entra numa fila e pode atrasar.
@@ -416,7 +417,7 @@
     passar em branco, e para isso existem o repique e o aviso que falta.</p>
   </div>
 
-  <h3>Uma mensagem por dia no Telegram, às 8h</h3>
+  <h3>Uma mensagem por dia no Telegram</h3>
   <p>Chega <b>todo dia, mesmo sem novidade</b>. Isso é proposital: se a mensagem não chegou, é
   porque algo quebrou. O silêncio vira alarme.</p>
   <p>A mensagem tem três camadas, nesta ordem de prioridade:</p>
@@ -497,8 +498,8 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     notícia verificada. Agora o erro sobe e a mensagem diz que não dá para saber se algo mudou.</p>
   </div>
   <div class="box neutro">
-    <p>Detalhe de execução: 8h de Brasília são <b>11h UTC</b>, e é esse o horário que vai no
-    agendamento. Vale conferir no horário de verão, se voltar a existir.</p>
+    <p>Detalhe de execução: o agendamento é em <b>UTC</b> e Brasília é UTC-3 sem horário de
+    verão, então 8h13 daqui vão como 11h13 lá. Vale reconferir se o horário de verão voltar.</p>
   </div>
 
   <h3>Quando a coleta falha</h3>
@@ -643,7 +644,7 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     sendo informação sem poluir o gráfico.</p>
   </div>
   <p>Mudança de preço aparece <b>marcada na própria linha</b>, com o detalhe ao
-  passar o mouse — o mesmo conteúdo que chega no Telegram às 8h.</p>
+  passar o mouse — o mesmo conteúdo que chega no Telegram pela manhã.</p>
 
   <h3>O básico</h3>
   <p>Filtros de <b>praça, produto, operadora e período</b>. <b>PT e EN desde o
@@ -657,7 +658,7 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     <tr><th>Pendência</th><th>O que falta</th></tr>
     <tr><td><b>Cabeçalhos das outras cinco</b></td><td>A Vivo exige cabeçalhos completos de navegador. Falta verificar se Claro, Brisanet, Unifique e NuCel têm exigência parecida — provável, e a correção é a mesma.</td></tr>
     <tr><td><b>Arquivamento do histórico</b></td><td>O plano gratuito do Supabase dá 500 MB. Com cerca de 900 mil linhas por ano, segura uns dois anos — depois é preciso mover o histórico antigo para o Storage comprimido. Decidir antes de encher, não depois.</td></tr>
-    <tr><td><b>Dicionário de serviços</b></td><td>A Vivo lista os apps inclusos em códigos padronizados. Falta a tabela que traduz código para nome.</td></tr>
+    <tr><td><b>Dicionário de serviços</b></td><td class="ok">Fechado em 01/10, e o resultado foi magro por limite da fonte: <b>1 dos 20 códigos</b> ficou nomeado. A tradução código→nome é impossível para o resto, e o que sobrou de útil foi a assinatura de composição — seção 7.</td></tr>
     <tr><td><b>Regionalização da Brisanet</b></td><td>Não confirmada — a API GraphQL foi identificada, mas não se sabe se ela varia por cidade.</td></tr>
     <tr><td><b>Unifique sem navegador</b></td><td>Verificar se existe endereço de dados por trás do seletor de cidade, o que evitaria simular cliques.</td></tr>
   </table>
@@ -667,7 +668,8 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
 </div>
 
 <footer>
-  Documento de trabalho interno, não publicado.
+  Documento de trabalho. Publicado como <b>página privada</b>, a pedido — nunca no dashboard
+  oficial de TMT.
   Repositório privado <code>dashboardtmt/tmt-price-tracker</code>.
   Separado do Dashboard TMT (Anatel).
 </footer>
