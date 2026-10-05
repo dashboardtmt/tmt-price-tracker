@@ -60,6 +60,12 @@
     border-radius:12px;padding:14px 22px 16px;margin-bottom:15px;
     box-shadow:0 1px 2px rgba(45,38,30,.04)}
   .bloco h2{margin:0;font-size:15px;font-weight:600}
+  td.vazia{color:var(--cinza)}
+  td.sobe{color:var(--negativo);font-weight:600}
+  td.desce{color:var(--positivo);font-weight:600}
+  #matriz th.num{text-align:right}
+  .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
+         padding-top:7px;border-top:1px solid var(--cor-borda)}
   .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
@@ -135,6 +141,7 @@
     <p class="descricao" data-t="g1_x"></p>
     <div class="grafico-wrap"><canvas id="c-tempo"></canvas></div>
     <div class="nota" id="n-tempo"></div>
+    <div class="fonte" data-t="fonte"></div>
   </div>
 
   <div class="dupla">
@@ -144,10 +151,17 @@
       <div class="grafico-wrap baixo"><canvas id="c-dispersao"></canvas></div>
     </div>
     <div class="bloco">
-      <h2 data-t="g3_t">Posição de hoje</h2>
+      <h2 data-t="g3_t">Preço por unidade entregue</h2>
       <p class="descricao" data-t="g3_x"></p>
-      <div class="grafico-wrap baixo"><canvas id="c-ranking"></canvas></div>
+      <div class="grafico-wrap baixo"><canvas id="c-unitario"></canvas></div>
     </div>
+  </div>
+
+  <div class="bloco">
+    <h2 data-t="mat_t">Preço de entrada, dia a dia</h2>
+    <p class="descricao" data-t="mat_x"></p>
+    <div class="tabela-wrap" id="matriz"></div>
+    <div class="fonte" data-t="fonte"></div>
   </div>
 
   <div class="bloco">
@@ -155,6 +169,7 @@
     <p class="descricao" data-t="tab_x"></p>
     <div class="tabela-wrap" id="tabela"></div>
     <div class="nota" id="n-tabela"></div>
+    <div class="fonte" data-t="fonte"></div>
   </div>
 </div>
 
@@ -168,17 +183,26 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4"};
-const GERADO = "05/10/2026 18:00";
+const GERADO = "05/10/2026 18:58";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
       f_operadora:"Operadoras",
-      g1_t:"Preço de entrada, por operadora",
+      leitura_t:"O que mudou",
+      l_preco:"mudou o preço de entrada de", l_em:"em",
+      l_trocou:"trocou a oferta de entrada:", l_mesmo:"pelo mesmo preço de",
+      l_apareceu:"aparece nesta praça com", l_saiu:"não aparece mais nesta praça hoje",
+      l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
+      l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
+      fonte:"Fonte: vitrines públicas das operadoras, coletadas uma vez por dia. Preço cheio, sem desconto condicionado.",
+      g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse.",
-      g2_t:"Quanto custa o que entrega",
+      g2_t:"Quanto custa o que entrega (R$/mês × entrega)",
       g2_x:"Cada ponto é uma oferta de hoje. À direita entrega mais; acima custa mais.",
-      g3_t:"Posição de hoje",
-      g3_x:"O preço de entrada de cada operadora nesta praça, do mais barato ao mais caro.",
+      g3_t:"Preço por unidade entregue",
+      g3_x:"O preço de entrada dividido pelo que ele entrega. Normaliza ofertas de franquia diferente — R$ 59 com 45 GB não é o mesmo que R$ 59 com 40 GB.",
+      mat_t:"Preço de entrada, dia a dia (R$/mês)",
+      mat_x:"Uma linha por operadora, uma coluna por dia. A seta marca o dia em que o preço mudou.",
       tab_t:"As ofertas de entrada de cada operadora",
       tab_x:"Uma linha por operadora: a oferta mais barata de hoje, com o que ela entrega e o que o contrato garante.",
       rodape:"Documento de trabalho interno. Preços coletados das vitrines públicas das operadoras, uma vez por dia.",
@@ -195,12 +219,21 @@ const T = {
       mbps:"Mbps", gb:"GB"},
   en:{titulo:"TMT Price Tracker", f_praca:"City", f_produto:"Product",
       f_operadora:"Carriers",
-      g1_t:"Entry price, by carrier",
+      leitura_t:"What changed",
+      l_preco:"changed its entry price from", l_em:"on",
+      l_trocou:"switched its entry offer:", l_mesmo:"at the same price of",
+      l_apareceu:"shows up in this city at", l_saiu:"is not in this city today",
+      l_spread:"End to end:", l_a:"at", l_acima:"apart",
+      l_nada:"No change in entry price against the previous day, among this city's carriers.",
+      fonte:"Source: carriers' public websites, collected once a day. List price, before conditional discounts.",
+      g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised.",
-      g2_t:"What you pay for what you get",
+      g2_t:"What you pay for what you get (R$/month × delivery)",
       g2_x:"Each dot is an offer from today. Further right delivers more; higher up costs more.",
-      g3_t:"Where they stand today",
-      g3_x:"Each carrier's entry price in this city, cheapest to most expensive.",
+      g3_t:"Price per unit delivered",
+      g3_x:"Entry price divided by what it delivers. Normalises offers with different allowances — R$ 59 with 45 GB is not the same as R$ 59 with 40 GB.",
+      mat_t:"Entry price, day by day (R$/month)",
+      mat_x:"One row per carrier, one column per day. The arrow marks the day the price changed.",
       tab_t:"Each carrier's entry offer",
       tab_x:"One row per carrier: today's cheapest offer, what it delivers and what the contract guarantees.",
       rodape:"Internal working document. Prices collected once a day from carriers' public websites.",
@@ -393,6 +426,93 @@ function grafDispersao(){
   });
 }
 
+// Preco por unidade entregue: R$/GB no movel, R$/Mbps na fibra. E o
+// grafico do meio de toda pagina do tracker da XP, e e o que impede de
+// comparar precos nominais de ofertas que entregam coisas diferentes.
+function grafUnitario(){
+  const hoje = DIAS[DIAS.length-1];
+  const entrada = entradaPorOperadora(hoje);
+  const itens = [];
+  for (const [op, o] of Object.entries(entrada)) {
+    const e = entregaDe(o), p = precoDe(o);
+    if (!e.v || p == null) continue;
+    itens.push({op, v:p/e.v, u:e.u, nome:o.nome_oferta||"", preco:p, entrega:e.v});
+  }
+  itens.sort((a,b)=>a.v-b.v);
+  const alvo = document.getElementById("c-unitario");
+  if (!itens.length) {
+    if (graficos["c-unitario"]) graficos["c-unitario"].destroy(), delete graficos["c-unitario"];
+    return;
+  }
+  const u = itens[0].u;
+  // casas decimais conforme a grandeza: R$/GB fica na ordem de centavos
+  const casas = itens[itens.length-1].v < 1 ? 2 : 1;
+  trocar("c-unitario", {
+    type:"bar",
+    data:{labels:itens.map(i=>i.op),
+          datasets:[{data:itens.map(i=>+i.v.toFixed(3)),
+            backgroundColor:itens.map(i=>CORES[i.op]||"#999"),
+            borderRadius:4, barThickness:22}]},
+    options:{indexAxis:"y", responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>{
+          const i = itens[c.dataIndex];
+          return i.nome+": "+reais(i.v)+"/"+i.u
+                 +"  ("+reais(i.preco)+" ÷ "+i.entrega+" "+i.u+")";
+        }}}},
+      scales:{
+        x:{grid:{display:true, color:EIXO.grade, drawTicks:false},
+           border:{display:true, color:EIXO.borda, width:1},
+           title:{display:true, text:"R$/"+u, color:"#7C7468", font:{size:11}},
+           ticks:{color:"#7C7468", font:{size:11},
+                  callback:v=>Number(v).toLocaleString("pt-BR",
+                    {minimumFractionDigits:casas, maximumFractionDigits:casas})}},
+        y:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
+           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}}}},
+  });
+}
+
+// A matriz do Exhibit 1 do J.P. Morgan: operadora nas linhas, data nas
+// colunas, preco de entrada na celula. A mudanca aparece sem grafico e
+// sem frase - a celula que muda recebe seta e cor.
+//
+// A deles e mensal; a nossa e diaria, porque a coleta e diaria.
+function matriz(){
+  const alvo = document.getElementById("matriz");
+  const dias = DIAS.slice(-12);
+  const ops = OPERADORAS.filter(o=>!desligadas.has(o));
+  const porOp = {};
+  for (const op of ops) {
+    const linha = dias.map(d=>{
+      const e = entradaPorOperadora(d)[op];
+      return e ? {p:precoDe(e), nome:e.nome_oferta||""} : null;
+    });
+    if (linha.some(c=>c && c.p!=null)) porOp[op] = linha;
+  }
+  if (!Object.keys(porOp).length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    return;
+  }
+  const cab = `<tr><th>${t("col")[0]}</th>` +
+    dias.map(d=>`<th class="num">${dataCurta(d)}</th>`).join("") + `</tr>`;
+  const corpo = Object.entries(porOp).map(([op, linha])=>{
+    const celulas = linha.map((c, i)=>{
+      if (!c || c.p == null) return `<td class="num vazia">—</td>`;
+      const ant = i ? linha[i-1] : null;
+      let marca = "", cls = "";
+      if (ant && ant.p != null && ant.p !== c.p) {
+        const sobe = c.p > ant.p;
+        marca = sobe ? " ▲" : " ▼";
+        cls = sobe ? " sobe" : " desce";
+      }
+      return `<td class="num${cls}" title="${c.nome}">`
+             + reais(c.p).replace("R$ ", "") + marca + `</td>`;
+    }).join("");
+    return `<tr><td><span class="op-tag"><span class="marcador" style="background:${CORES[op]||"#999"}"></span>${op}</span></td>${celulas}</tr>`;
+  }).join("");
+  alvo.innerHTML = `<table><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
+}
+
 function grafRanking(){
   const hoje = DIAS[DIAS.length-1];
   const entrada = entradaPorOperadora(hoje);
@@ -501,7 +621,8 @@ function desenhar(){
   kpis();
   grafTempo();
   grafDispersao();
-  grafRanking();
+  grafUnitario();
+  matriz();
   tabela();
   const ultimo = DIAS.length ? dataCurta(DIAS[DIAS.length-1]) : "—";
   document.getElementById("sub").textContent =
