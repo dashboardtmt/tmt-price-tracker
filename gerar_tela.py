@@ -147,7 +147,11 @@ MOLDE = """<!DOCTYPE html>
 </footer>
 
 <script>
-const DADOS = __DADOS__;
+let DADOS = __DADOS__;
+// Vazia no modo embutido. Preenchida no modo remoto, e entao a pagina
+// busca o dado do Supabase Storage em vez de carrega-lo de dentro de
+// si: a coleta do dia aparece sem precisar de deploy novo.
+const FONTE = "__FONTE__";
 const CORES = __CORES__;
 const GERADO = "__GERADO__";
 
@@ -190,14 +194,17 @@ const T = {
 let lang = "pt";
 let desligadas = new Set();
 
-const OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort();
-const PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
-const PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort();
+let OPERADORAS = [], PRACAS = [], PRODUTOS = [], DIAS = [];
 // aceita os dois formatos: o do coletor (capturado_em) e o do banco
 // (data_captura), para a tela servir tanto a coleta avulsa quanto
 // a exportacao diaria
 const diaDe = o => o.data_captura || (o.capturado_em||"").slice(0,10);
-const DIAS = [...new Set(DADOS.map(diaDe))].filter(Boolean).sort();
+function derivar(){
+  OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort();
+  PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
+  PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort();
+  DIAS = [...new Set(DADOS.map(diaDe))].filter(Boolean).sort();
+}
 
 function t(k){ return T[lang][k]; }
 function num(v){ return v==null?null:Number(v); }
@@ -392,13 +399,50 @@ function desenhar(){
   const naPraca=new Set(DADOS.filter(o=>o.praca===praca).map(o=>o.operadora));
   document.getElementById("tab-x").textContent =
     t("cobertura").replace("{a}",naPraca.size).replace("{b}",OPERADORAS.length);
+  // no modo remoto a data vem do proprio dado: a pagina foi publicada
+  // uma vez, mas o dado chega todo dia, e datar pela publicacao mentiria
+  const quando = FONTE
+    ? (DIAS.length ? DIAS[DIAS.length-1].split("-").reverse().join("/") : "-")
+    : GERADO;
   document.getElementById("sub").textContent =
-    (lang==="pt"?"Coletado em ":"Collected on ")+GERADO+" · "+DADOS.length+
+    (lang==="pt"?"Ultima coleta: ":"Last collection: ")+quando+" · "+DADOS.length+
     (lang==="pt"?" ofertas":" offers");
 }
 
-montarFiltros();
-desenhar();
+function iniciar(){
+  derivar();
+  montarFiltros();
+  desenhar();
+}
+
+function recado(txt){
+  const alvo = document.getElementById("g-tempo");
+  if (alvo) alvo.innerHTML = '<div class="aviso">' + txt + '</div>';
+  const sub = document.getElementById("sub");
+  if (sub) sub.textContent = txt;
+}
+
+if (FONTE) {
+  recado(lang === "pt" ? "Carregando a serie..." : "Loading the series...");
+  // no-store: a tela tem de mostrar a coleta de hoje, nao a de ontem que
+  // ficou no cache do navegador
+  fetch(FONTE, {cache: "no-store"})
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(d => {
+      if (!Array.isArray(d) || !d.length) throw new Error("vazio");
+      DADOS = d;
+      iniciar();
+    })
+    .catch(e => {
+      // Falha de carga nao pode virar tela branca nem numero inventado:
+      // diz o que houve e de onde era para vir.
+      recado((lang === "pt"
+        ? "Nao consegui carregar a serie (" + e.message + "). A pagina esta no ar, mas sem dado - nada aqui foi estimado."
+        : "Could not load the series (" + e.message + "). The page is up but has no data - nothing here was estimated."));
+    });
+} else {
+  iniciar();
+}
 </script>
 </body>
 </html>
@@ -408,19 +452,28 @@ desenhar();
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dados", required=True)
+    ap.add_argument("--remoto", default="",
+                    help="URL do JSON; a pagina busca o dado em vez de embuti-lo")
     ap.add_argument("--saida", default="tela.html")
     a = ap.parse_args()
 
     dados = json.load(io.open(a.dados, encoding="utf-8"))
     agora = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
 
+    # no modo remoto o HTML vai sem os dados: fica leve e nao envelhece
+    embutidos = [] if a.remoto else dados
     html = (MOLDE
-            .replace("__DADOS__", json.dumps(dados, ensure_ascii=False))
+            .replace("__DADOS__", json.dumps(embutidos, ensure_ascii=False))
+            .replace("__FONTE__", a.remoto)
             .replace("__CORES__", json.dumps(CORES, ensure_ascii=False))
             .replace("__GERADO__", agora))
     io.open(a.saida, "w", encoding="utf-8").write(html)
-    print("tela gerada: %s (%d ofertas, %d KB)"
-          % (a.saida, len(dados), len(html) // 1024))
+    print("tela gerada: %s (%d KB)%s"
+          % (a.saida, len(html) // 1024,
+             "" if a.remoto else " com %d ofertas embutidas" % len(dados)))
+    if a.remoto:
+        print("  busca o dado em: %s" % a.remoto)
+        print("  (%d ofertas no arquivo de origem, nenhuma embutida)" % len(dados))
     return 0
 
 

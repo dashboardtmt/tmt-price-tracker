@@ -36,10 +36,23 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python exportar.py --dias 90 --saida dados.json
-
+      - name: Publicar o dado no Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python publicar_dados.py --dados dados.json
       - name: Regerar a tela
-        run: python gerar_tela.py --dados dados.json --saida tela.html
-
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          # A pagina do Vercel busca o dado no Storage: publicada uma vez,
+          # passa a mostrar a coleta de cada dia sem deploy novo. A copia
+          # local segue com os dados dentro, para abrir sem rede.
+          FONTE="${SUPABASE_URL%/}/storage/v1/object/public/tela/dados.json"
+          python gerar_tela.py --dados dados.json --saida tela.html
+          mkdir -p site
+          python gerar_tela.py --dados dados.json --saida site/index.html --remoto "$FONTE"
+          cp metodologia.html site/metodologia.html
       - name: Guardar no repositorio
         run: |
           git config user.name "dashboardtmt"

@@ -15,6 +15,12 @@ name: Rotina diaria
 #
 # O repique roda a coleta inteira de novo porque a gravacao e append-only
 # com indice unico: o que ja entrou e ignorado, o que faltou entra.
+#
+# NAO HA DEPLOY AQUI, de proposito. A pagina publicada busca o JSON no
+# Supabase Storage em tempo de execucao, entao a coleta do dia aparece
+# sem republicar nada. O Vercel se recusa a criar token de API a partir
+# da sessao do CLI, e exigir que alguem gere um na mao seria pendurar a
+# atualizacao diaria num passo manual - que e justamente o que nao pode.
 
 on:
   schedule:
@@ -99,11 +105,22 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python exportar.py --dias 90 --saida dados.json
+      - name: Publicar o dado no Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python publicar_dados.py --dados dados.json
       - name: Regerar a tela
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
+          # A pagina do Vercel busca o dado no Storage: publicada uma vez,
+          # passa a mostrar a coleta de cada dia sem deploy novo. A copia
+          # local segue com os dados dentro, para abrir sem rede.
+          FONTE="${SUPABASE_URL%/}/storage/v1/object/public/tela/dados.json"
           python gerar_tela.py --dados dados.json --saida tela.html
           mkdir -p site
-          cp tela.html site/index.html
+          python gerar_tela.py --dados dados.json --saida site/index.html --remoto "$FONTE"
           cp metodologia.html site/metodologia.html
       - name: Guardar no repositorio
         run: |
@@ -118,14 +135,3 @@ jobs:
             git push
           fi
 
-      # O deploy so acontece quando o segredo existir. Sem ele o passo e
-      # pulado em silencio, de proposito: a coleta e o aviso nao podem
-      # falhar por causa de uma credencial de publicacao que falta.
-      - name: Publicar no Vercel
-        if: ${{ env.VERCEL_TOKEN != '' }}
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          npx --yes vercel@62 deploy --prod --yes --token "$VERCEL_TOKEN"
