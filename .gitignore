@@ -34,3 +34,6 @@ desktop.ini
 
 # o site e gerado a partir da tela; o dados.json e intermediario
 dados.json
+
+# Vercel: o link local do projeto e os tokens que o CLI baixa
+.vercel/

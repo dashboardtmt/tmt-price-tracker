@@ -1,0 +1,5 @@
+# O deploy serve a pasta site/. Nada mais precisa subir.
+*
+!site
+!site/**
+!vercel.json
