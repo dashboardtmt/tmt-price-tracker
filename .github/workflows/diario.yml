@@ -52,7 +52,12 @@ jobs:
 
   repique:
     needs: coleta
-    if: always()        # a coleta falhar e justamente quando o repique importa
+    # So quando a coleta nao fechou. Rodando sempre, o repique dobrava o
+    # consumo do Actions: medidos 87 min/dia contra a cota de 2000/mes, o
+    # que faria o robo parar por falta de minutos antes do fim do mes. Dia
+    # em que tudo deu certo nao precisa de segunda tentativa, e o robo
+    # agora sai com codigo de erro quando alguma operadora fica incompleta.
+    if: failure()
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

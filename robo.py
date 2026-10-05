@@ -115,7 +115,12 @@ def rodar_coleta(uma_praca=None, simular=False):
             "" if registro["sucesso"] else "  (COM AVISOS)"))
         for a in (registro["avisos"] or [])[:5]:
             print("     " + a)
-    return resumo
+
+    falhas = [r["operadora"] for r in resumo if not r["sucesso"]]
+    if falhas:
+        print("")
+        print("Incompletas: %s" % ", ".join(falhas))
+    return resumo, falhas
 
 
 # ----------------------------------------------------------------- mensagem
@@ -483,7 +488,15 @@ def main():
     if not (a.coletar or a.avisar):
         ap.error("escolha --coletar ou --avisar")
     if a.coletar:
-        rodar_coleta(a.praca, a.simular)
+        _, falhas = rodar_coleta(a.praca, a.simular)
+        # Sair diferente de zero quando algo ficou incompleto. Isto existe
+        # para o repique poder ser condicional: antes ele rodava a coleta
+        # inteira de novo TODO dia, o que dobrava o consumo de minutos do
+        # Actions - medido em 87 min/dia, contra a cota de 2000 por mes.
+        # Agora o dia em que tudo deu certo custa metade, e o repique volta
+        # a ser o que o nome diz: a segunda tentativa de quem falhou.
+        if falhas:
+            return 1
     if a.avisar:
         return rodar_aviso(a.simular)
     return 0
