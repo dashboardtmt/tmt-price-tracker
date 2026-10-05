@@ -611,9 +611,39 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     <tr><th>Peça</th><th>Onde</th><th>Conta</th></tr>
     <tr><td>Executar o robô</td><td>GitHub Actions</td><td class="ok">já tem</td></tr>
     <tr><td>Guardar a base</td><td>Supabase Postgres</td><td class="ok">já tem</td></tr>
-    <tr><td>Servir a tela</td><td>Supabase Storage</td><td class="ok">já tem</td></tr>
+    <tr><td>Servir o dado da tela</td><td>Supabase Storage</td><td class="ok">já tem</td></tr>
+    <tr><td>Servir a página</td><td>Vercel próprio</td><td class="ok">tmt-price-tracker</td></tr>
     <tr><td>Avisar</td><td>Telegram</td><td class="ok">já tem</td></tr>
   </table>
+
+  <h3>O limite que quase parou o robô: minutos de execução</h3>
+  <p>Repositório privado tem <b>2.000 minutos de Actions por mês</b>. Medido em 03, 04 e 05/10:
+  <b>87 minutos por dia</b>, o que projeta 2.610 por mês. O robô ia parar sozinho antes do fim do
+  mês — e robô parado é dia perdido, que não volta.</p>
+  <table>
+    <tr><th>Onde o tempo ia</th><th>Quanto</th></tr>
+    <tr><td>Coleta diária (com o repique)</td><td><b>537 de 588 min</b> do período — 91%</td></tr>
+    <tr><td>Tela, aviso e testes</td><td>51 min somados</td></tr>
+  </table>
+  <p>O repique rodava a coleta <b>inteira</b> de novo todo dia, inclusive quando as seis operadoras
+  fechavam 20 de 20 praças. Agora ele roda <b>só quando a coleta não fecha</b> — que é o que o nome
+  dele sempre disse. Dia limpo passa a custar metade.</p>
+  <div class="box neutro">
+    <p>Para isso funcionar, o dia com buraco precisava ser distinguível do dia limpo, e não era: o
+    robô saía com código zero sempre, então o passo nunca ficava vermelho e o repique não tinha como
+    ser condicionado. <b>Falha que não é sinalizada não é falha, é silêncio</b> — o mesmo princípio
+    que vale para o dado vale para a execução.</p>
+    <p>Efeito colateral aceito: o workflow aparece vermelho no dia em que uma praça falha. Isso é
+    informação, não defeito — significa que o repique rodou porque precisava.</p>
+  </div>
+  <div class="box alerta">
+    <span class="rotulo">O horário continua sendo melhor esforço</span>
+    <p>Em 05/10 a coleta das 7h07 <b>não havia rodado às 16h</b>, e dois disparos da tela foram
+    cancelados ainda na fila, sem chegar a executar um passo. A fila do Actions é compartilhada e
+    não dá garantia de hora nem de execução imediata. O que o projeto exige é <b>uma coleta por
+    dia</b>, e a data da captura é a do dia — mas vale olhar o aviso do Telegram: ele é o que
+    denuncia o dia em que nada rodou.</p>
+  </div>
 </section>
 
 <section id="s11">
