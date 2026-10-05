@@ -125,6 +125,13 @@ MOLDE = r"""<!DOCTYPE html>
 
   @media(max-width:860px){
     .dupla{grid-template-columns:1fr}
+    /* dois KPIs por linha: em 375px, quatro cartoes em quatro linhas
+       empurravam os graficos para fora da primeira tela */
+    .kpis{grid-template-columns:1fr 1fr;gap:9px}
+    .kpi{padding:11px 13px}
+    .kpi .val{font-size:19px}
+    .bloco{padding:13px 15px 15px}
+    .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
     .controles{gap:12px}
     .campo select{min-width:0;width:100%}

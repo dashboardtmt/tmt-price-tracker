@@ -83,6 +83,13 @@
 
   @media(max-width:860px){
     .dupla{grid-template-columns:1fr}
+    /* dois KPIs por linha: em 375px, quatro cartoes em quatro linhas
+       empurravam os graficos para fora da primeira tela */
+    .kpis{grid-template-columns:1fr 1fr;gap:9px}
+    .kpi{padding:11px 13px}
+    .kpi .val{font-size:19px}
+    .bloco{padding:13px 15px 15px}
+    .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
     .controles{gap:12px}
     .campo select{min-width:0;width:100%}
@@ -161,7 +168,7 @@ let DADOS = [];
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4"};
-const GERADO = "05/10/2026 17:57";
+const GERADO = "05/10/2026 18:00";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
