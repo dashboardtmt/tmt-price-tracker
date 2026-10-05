@@ -1,0 +1,131 @@
+name: Rotina diaria
+
+# Coleta, repique, aviso e tela EM SEQUENCIA, num workflow so.
+#
+# Antes eram quatro agendamentos independentes, e isso tinha um defeito
+# que apareceu em 04/10: o aviso das 8h rodou no meio da coleta e anunciou
+# "2 de 2 operadoras, 992 ofertas" quando as seis estavam coletando e
+# terminaram todas. A mensagem do dia saiu errada por chegar cedo.
+#
+# Agendamento independente nao tem como garantir ordem: a fila do GitHub
+# Actions e best-effort e cada workflow atrasa o seu tanto. Medido aqui:
+# atrasos de 4 a 6 horas, e desiguais entre si. Encadear por "needs" e a
+# unica forma de o aviso ver a coleta terminada - nao depende de acertar
+# horario nenhum.
+#
+# O repique roda a coleta inteira de novo porque a gravacao e append-only
+# com indice unico: o que ja entrou e ignorado, o que faltou entra.
+
+on:
+  schedule:
+    - cron: '7 10 * * *'    # 07:07 BRT (pode atrasar; a ordem e que importa)
+  workflow_dispatch:
+
+concurrency:
+  group: rotina-diaria
+  cancel-in-progress: false
+
+jobs:
+  coleta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar o navegador (Unifique e NuCel)
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Coletar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python robo.py --coletar
+
+  repique:
+    needs: coleta
+    if: always()        # a coleta falhar e justamente quando o repique importa
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar o navegador
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+      - name: Repicar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python robo.py --coletar
+
+  aviso:
+    needs: repique
+    if: always()        # dia que falhou e dia que mais precisa de aviso
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Avisar no Telegram
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python robo.py --avisar
+
+  tela:
+    needs: aviso
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exportar o banco
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python exportar.py --dias 90 --saida dados.json
+      - name: Regerar a tela
+        run: |
+          python gerar_tela.py --dados dados.json --saida tela.html
+          mkdir -p site
+          cp tela.html site/index.html
+          cp metodologia.html site/metodologia.html
+      - name: Guardar no repositorio
+        run: |
+          git config user.name "dashboardtmt"
+          git config user.email "leonardojdesousa@gmail.com"
+          git add tela.html site
+          if git diff --staged --quiet; then
+            echo "tela sem mudanca - nada a guardar"
+          else
+            git commit -m "Tela atualizada com a coleta de $(date -u +%d/%m/%Y)"
+            git pull --rebase --autostash
+            git push
+          fi
+
+      # O deploy so acontece quando o segredo existir. Sem ele o passo e
+      # pulado em silencio, de proposito: a coleta e o aviso nao podem
+      # falhar por causa de uma credencial de publicacao que falta.
+      - name: Publicar no Vercel
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx --yes vercel@62 deploy --prod --yes --token "$VERCEL_TOKEN"

@@ -9,9 +9,14 @@ name: Aviso diario
 # fila do Actions, e aviso que chega antes da coleta acusa um robo parado
 # que na verdade so esta na fila.
 
+# O AGENDAMENTO SAIU DAQUI. Quem marca a hora e diario.yml, que roda
+# coleta, repique, aviso e tela em sequencia - agendamento separado
+# nao garante ordem, e em 04/10 o aviso saiu no meio da coleta e
+# contou 2 de 6 operadoras.
+#
+# Este arquivo fica para rodar o passo sozinho quando for preciso.
+
 on:
-  schedule:
-    - cron: '13 11 * * *'   # 08:13 BRT
   workflow_dispatch:
 
 jobs:

@@ -15,10 +15,14 @@ name: Coleta diaria
 # ordem coleta-antes-do-aviso se manteve por sorte, nao por desenho.
 # Minuto fora da hora cheia pega fila curta.
 
+# O AGENDAMENTO SAIU DAQUI. Quem marca a hora e diario.yml, que roda
+# coleta, repique, aviso e tela em sequencia - agendamento separado
+# nao garante ordem, e em 04/10 o aviso saiu no meio da coleta e
+# contou 2 de 6 operadoras.
+#
+# Este arquivo fica para rodar o passo sozinho quando for preciso.
+
 on:
-  schedule:
-    - cron: '7 10 * * *'    # 07:07 BRT - coleta
-    - cron: '37 10 * * *'   # 07:37 BRT - repique
   workflow_dispatch:
 
 # Se o repique comecar com a coleta ainda rodando, espera em vez de

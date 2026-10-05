@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Price Tracker — Metodologia</title>
+<style>
+  :root{
+    --laranja:#FF5000; --preto:#000512; --cinza-claro:#CFCFCF; --cinza-medio:#6E6E6E;
+    --cinza-fundo:#F7F7F7; --azul:#1D4080; --laranja-claro:#FFE4CC; --borda:#DCDCDC;
+    --verde:#398478;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--preto);
+    font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6}
+  header{border-bottom:3px solid var(--laranja);padding:26px 32px 18px}
+  header h1{margin:0 0 5px;font-size:25px;letter-spacing:-.3px}
+  header .sub{color:var(--cinza-medio);font-size:13px}
+  .wrap{display:flex;align-items:flex-start;gap:34px;padding:26px 32px 80px;max-width:1220px}
+  nav{position:sticky;top:18px;flex:0 0 210px;font-size:13px;
+    border-left:2px solid var(--borda);padding-left:14px}
+  nav a{display:block;color:var(--cinza-medio);text-decoration:none;padding:3px 0}
+  nav a:hover{color:var(--laranja)}
+  main{flex:1;min-width:0}
+  section{margin-bottom:40px;scroll-margin-top:18px}
+  h2{font-size:19px;margin:0 0 4px;padding-bottom:7px;border-bottom:2px solid var(--laranja)}
+  h2 .num{color:var(--laranja)}
+  h3{font-size:15px;margin:20px 0 6px;color:var(--azul)}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0;padding-left:22px} li{margin:5px 0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th{background:var(--cinza-medio);color:#fff;text-align:left;padding:8px 10px}
+  td{border-bottom:1px solid var(--borda);padding:8px 10px;vertical-align:top}
+  tr:nth-child(even) td{background:var(--cinza-fundo)}
+  .box{border-left:4px solid var(--laranja);background:var(--laranja-claro);
+    padding:12px 16px;margin:16px 0}
+  .box.neutro{border-left-color:var(--cinza-medio);background:var(--cinza-fundo)}
+  .box.alerta{border-left-color:var(--azul);background:#EDF1F8}
+  .box p:first-child{margin-top:0} .box p:last-child{margin-bottom:0}
+  .rotulo{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--cinza-medio);display:block;margin-bottom:4px}
+  .destaque{font-size:16px;font-weight:bold;border-left:4px solid var(--preto);
+    padding:8px 0 8px 16px;margin:16px 0}
+  code{background:var(--cinza-fundo);padding:1px 5px;font-size:13px;
+    border:1px solid var(--borda);font-family:Consolas,monospace}
+  .decisoes td:first-child{background:var(--preto);color:#fff;font-weight:bold;
+    text-align:center;width:38px}
+  .decisoes tr:nth-child(even) td:first-child{background:var(--preto)}
+  .ok{color:var(--verde);font-weight:bold}
+  .pend{color:var(--laranja);font-weight:bold}
+  .legenda{font-size:12px;color:var(--cinza-medio);margin-top:-6px}
+  footer{border-top:1px solid var(--borda);padding:18px 32px;font-size:12px;color:var(--cinza-medio)}
+  @media (max-width:880px){
+    .wrap{flex-direction:column;gap:18px;padding:18px}
+    nav{position:static;flex:none;width:100%;border-left:none;
+      border-top:2px solid var(--borda);padding:14px 0 0;columns:2}
+    header{padding:18px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Price Tracker das telecos — Metodologia</h1>
+  <div class="sub">Atualizado em 02/10/2026 &middot; as 28 definições fechadas &middot; página privada, fora do dashboard oficial de TMT</div>
+</header>
+
+<div class="wrap">
+<nav>
+  <a href="#s1">1. O que é</a>
+  <a href="#s2">2. As 28 decisões</a>
+  <a href="#s3">3. Escopo</a>
+  <a href="#s4">4. As 20 praças</a>
+  <a href="#s5">5. Como a série funciona</a>
+  <a href="#s6">6. Como comparar</a>
+  <a href="#s7">7. Houve repasse?</a>
+  <a href="#s8">8. Falhas e alertas</a>
+  <a href="#s9">9. As seis fontes</a>
+  <a href="#s10">10. Onde o robô roda</a>
+  <a href="#s11">11. A tela</a>
+  <a href="#s12">12. Em aberto</a>
+</nav>
+
+<main>
+
+<section id="s1">
+  <h2><span class="num">1.</span> O que é</h2>
+  <div class="destaque">Preço de teleco não é um número, e ninguém guarda o histórico.</div>
+  <p><b>Não é um número</b> porque o mesmo plano tem preço de tabela, preço com desconto,
+  desconto condicionado a débito automático, desconto que expira, fidelidade com multa e taxa de
+  instalação que pode ou não ser isenta.</p>
+  <p><b>Ninguém guarda</b> porque o site só mostra o preço de hoje. O que não for capturado no dia
+  está perdido — não existe coleta retroativa de preço.</p>
+  <p>O produto é um <b>dashboard</b> que mostra as várias leituras sobre a mesma base: evolução de
+  preço, movimento do dia e posição relativa entre operadoras.</p>
+  <div class="box">
+    <span class="rotulo">Princípios que não se negociam</span>
+    <ol>
+      <li><b>Append-only.</b> Uma captura nunca sobrescreve outra.</li>
+      <li><b>Falha vira buraco, não vira número.</b> Nunca interpolar nem repetir o dia anterior.</li>
+      <li><b>Ausência é ausência, nunca zero.</b> Operadora que não vende na praça deixa célula vazia.</li>
+      <li><b>Nada vai ao ar sem autorização explícita.</b></li>
+    </ol>
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="num">2.</span> As 28 decisões</h2>
+  <table class="decisoes">
+    <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
+    <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
+    <tr><td>2</td><td>Produtos</td><td><b>Controle</b> (principal), fibra FTTH, pós-pago, combo e pré-pago</td></tr>
+    <tr><td>3</td><td>Players</td><td>Vivo, TIM, Claro, Brisanet, Unifique e NuCel</td></tr>
+    <tr><td>4</td><td>Praças</td><td>20, congeladas (seção 4)</td></tr>
+    <tr><td>5</td><td>Frequência</td><td>Diária</td></tr>
+    <tr><td>6</td><td>Granularidade</td><td>Toda oferta visível na vitrine vira uma linha</td></tr>
+    <tr><td>7</td><td>Espinha dorsal</td><td>Plano de entrada como padrão, com seletor para outros</td></tr>
+    <tr><td>8</td><td>Degraus</td><td>Velocidade e franquia exatas, sem faixas</td></tr>
+    <tr><td>9</td><td>Campos sem fonte</td><td>Guardar vazio e seguir</td></tr>
+    <tr><td>10</td><td>Bundles</td><td>Classificar em níveis, comparar nível com nível</td></tr>
+    <tr><td>11</td><td>Repasse</td><td>Separado de promoção pela persistência no tempo</td></tr>
+    <tr><td>12</td><td>Falhas</td><td>Grava o que veio e alerta no Telegram</td></tr>
+    <tr><td>13</td><td>Condição de preço</td><td>Preço cheio, sem desconto nenhum</td></tr>
+    <tr><td>14</td><td>Armazenamento</td><td>Supabase: Postgres para a base, Storage para a tela</td></tr>
+    <tr><td>15</td><td>Horário</td><td>Coleta 7h07, repique 7h37, mensagem 8h13 — minuto quebrado de propósito (seção 8)</td></tr>
+    <tr><td>16</td><td>Combo</td><td>Acompanha só o preço de entrada por praça</td></tr>
+    <tr><td>17</td><td>Pré-pago</td><td>Fixado na recarga de 30 dias</td></tr>
+    <tr><td>18</td><td>Início da série</td><td>Começa assim que a Vivo estiver pronta; as outras entram depois</td></tr>
+    <tr><td>19</td><td>Banco</td><td>Projeto Supabase próprio, separado do Dashboard</td></tr>
+    <tr><td>20</td><td>Telegram</td><td>Bot próprio, conversa separada</td></tr>
+    <tr><td>21</td><td>Abertura da tela</td><td>A evolução no tempo</td></tr>
+    <tr><td>22</td><td>Praça padrão</td><td>São Paulo, com filtro para as outras 19</td></tr>
+    <tr><td>23</td><td>Preço em destaque</td><td>Cheio e promocional lado a lado</td></tr>
+    <tr><td>24</td><td>Gráficos</td><td>Dispersão, anunciado x contratado, mapa e spread</td></tr>
+    <tr><td>25</td><td>Operadora ausente</td><td>Sai da tela naquela praça</td></tr>
+    <tr><td>26</td><td>Mudanças de preço</td><td>Marcadas na própria linha do gráfico</td></tr>
+    <tr><td>27</td><td>Filtros</td><td>Praça, produto, operadora e período</td></tr>
+    <tr><td>28</td><td>Idioma</td><td>PT e EN desde o começo</td></tr>
+  </table>
+  <div class="box">
+    <span class="rotulo">Por que começar só com a Vivo</span>
+    <p>Cada semana esperando as seis operadoras ficarem prontas é uma semana de histórico que
+    <b>não volta nunca</b>. A série nasce desigual — só Vivo no começo — e isso é aceitável, porque
+    o contrário seria perder dado para sempre em troca de elegância.</p>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="num">3.</span> Escopo</h2>
+  <h3>Produtos</h3>
+  <table>
+    <tr><th>Ordem</th><th>Produto</th><th>Papel</th></tr>
+    <tr><td><b>1</b></td><td><b>Controle</b></td><td><b>O mais importante.</b> Abre o dashboard e é o segmento do resumo diário</td></tr>
+    <tr><td>2</td><td>Banda larga FTTH</td><td>a outra metade do tracker</td></tr>
+    <tr><td>3</td><td>Móvel pós-pago</td><td>topo do móvel</td></tr>
+    <tr><td>4</td><td>Combo</td><td>fibra mais móvel; onde aparece a maior diferença regional</td></tr>
+    <tr><td>5</td><td>Pré-pago</td><td>piso do mercado</td></tr>
+  </table>
+  <p>Ficam de fora fibra com TV linear e a criação de categoria separada para planos digitais.</p>
+  <div class="box neutro">
+    <p>O controle entra <b>sem custo relevante de coleta</b>: está na mesma vitrine do pós-pago, nas
+    mesmas páginas que o robô já vai abrir.</p>
+  </div>
+  <div class="box neutro">
+    <p>Vivo Lite, TIM Fit e Claro Flex são vendidos na mesma vitrine do pós-pago. Como não ganharam
+    categoria própria, são <b>capturados marcados como variante do pós-pago</b> — assim não somem
+    da base e ainda podem ser filtrados para fora quando atrapalharem.</p>
+  </div>
+  <h3>Players</h3>
+  <p>Vivo, TIM, Claro, Brisanet, Unifique e NuCel. Os dois regionais são essencialmente fibra e a
+  NuCel é só móvel e nacional.</p>
+  <div class="box">
+    <p><b>A matriz será esparsa, e isso é esperado.</b> Não existe Unifique em Fortaleza nem
+    Brisanet em Blumenau. Célula vazia no gráfico, nunca linha no chão.</p>
+  </div>
+  <h3>Frequência</h3>
+  <p>Diária. Mudança de oferta de um dia para o outro é notícia do dia, e coleta mensal perderia a
+  data do evento. O tracker passa a ter <b>dois produtos</b>: a série, para tendência, e o
+  <b>log de eventos</b>, que vira alerta no mesmo dia.</p>
+</section>
+
+<section id="s4">
+  <h2><span class="num">4.</span> As 20 praças</h2>
+  <p>Todas as capitais de Sul, Sudeste e Nordeste, mais quatro praças que tapam buracos.</p>
+  <table>
+    <tr><th>Região</th><th>Praças</th></tr>
+    <tr><td>Sul</td><td>Curitiba, Florianópolis, Porto Alegre</td></tr>
+    <tr><td>Sudeste</td><td>São Paulo, Rio de Janeiro, Belo Horizonte, Vitória</td></tr>
+    <tr><td>Nordeste</td><td>Salvador, Fortaleza, Recife, São Luís, Natal, João Pessoa, Maceió, Aracaju, Teresina</td></tr>
+    <tr><td>Complemento</td><td>Brasília, Manaus, <b>Blumenau</b>, <b>Joinville</b></td></tr>
+  </table>
+  <div class="box">
+    <span class="rotulo">Por que Blumenau e Joinville</span>
+    <p>Medido na base municipal da Anatel (julho/2026): a <b>Unifique não aparece nem entre as
+    quatro maiores em Florianópolis</b> (lá é Claro 44%, Vivo 26%). Ela é líder em Blumenau com 38%
+    e vice em Joinville com 27%. Sem essas duas, a Unifique entraria no tracker sem ter onde ser
+    medida.</p>
+    <p>No Nordeste a cobertura das capitais já resolve a Brisanet: líder em João Pessoa com 46%,
+    vice em Natal com 33% e em Fortaleza com 21%.</p>
+  </div>
+  <div class="box neutro">
+    <p><b>A cesta é congelada na primeira captura e não muda mais.</b> Alterar a cesta quebra a
+    comparabilidade da série inteira. Praça acrescentada depois começa do zero.</p>
+  </div>
+  <h3>O que a praça mede varia por operadora</h3>
+  <p>Medição em seis praças da Vivo: 600 Mega custa R$ 100 em todas as que têm fibra. <b>O preço da
+  Vivo é nacional</b> — o que muda é quais planos existem (ultravelocidade só em São Paulo). Já na
+  TIM, o teste de 23/09 confirmou preços distintos: São Paulo tem planos a R$ 79,99, R$ 109,99 e
+  R$ 119,99 que o Rio não tem; o Rio tem R$ 99,99 e R$ 129,99 que São Paulo não tem.</p>
+  <p>Isso precisa estar dito na tela, senão a linha achatada da Vivo é lida como falta de dado.</p>
+</section>
+
+<section id="s5">
+  <h2><span class="num">5.</span> Como a série funciona</h2>
+  <h3>A unidade</h3>
+  <div class="destaque">(operadora, oferta, praça, data)</div>
+  <p><b>Toda oferta visível na vitrine vira uma linha</b>, mesmo as que não interessam hoje. Se
+  amanhã surgir uma análise que não previmos, o dado estará lá — e não dá para voltar no tempo.</p>
+
+  <h3>A chave de continuidade</h3>
+  <p>O código Anatel <b>não serve como chave</b>: ele identifica uma <i>versão</i> de oferta e muda
+  a cada reedição, partindo a série em duas sem aviso. A chave é sintética —
+  <code>operadora | produto | degrau | variante</code> — e o código entra como atributo. Assim a
+  troca de código vira dado: mede-se com que frequência cada operadora reescreve suas ofertas.</p>
+
+  <h3>O que o gráfico acompanha</h3>
+  <p>O gráfico principal abre no <b>plano de entrada</b>, com seletor para escolher outros planos e
+  ofertas. Como a base guarda tudo, as outras leituras são calculadas a partir dela.</p>
+  <div class="box alerta">
+    <span class="rotulo">Salvaguarda</span>
+    <p>O plano de entrada tem uma armadilha: quando a operadora lança um plano novo mais barato, a
+    linha despenca sem que preço nenhum tenha caído. Por isso <b>o dia em que o plano de entrada
+    troca de produto é marcado no gráfico</b>, com o antes e o depois.</p>
+  </div>
+
+  <h3>Combo e pré-pago: regra própria</h3>
+  <p>Os dois não encaixam na regra de degrau, cada um por um motivo.</p>
+  <table>
+    <tr><th>Produto</th><th>O problema</th><th>Regra adotada</th></tr>
+    <tr>
+      <td><b>Combo</b></td>
+      <td>Tem dois degraus ao mesmo tempo — uma velocidade e uma franquia. Cada operadora monta o
+      pacote do seu jeito, então quase nunca há composição equivalente para comparar.</td>
+      <td><b>Acompanhar só o preço de entrada</b>: o combo mais barato de cada operadora, em cada
+      praça.</td>
+    </tr>
+    <tr>
+      <td><b>Pré-pago</b></td>
+      <td>Não tem mensalidade, tem recarga. Comparar "R$ 30" é errado se uma dura 15 dias e a outra
+      30.</td>
+      <td><b>Fixar na recarga de 30 dias</b>, a mesma referência que o J.P. Morgan usa.</td>
+    </tr>
+  </table>
+  <div class="box neutro">
+    <p><b>O que se abre mão, de propósito:</b> no combo, não dá para dizer se está caro ou barato
+    pelo que entrega — só se subiu ou desceu, e se difere entre praças. No pré-pago, ficam de fora
+    as recargas curtas. Nos dois casos a troca é simplicidade por profundidade, e foi deliberada.</p>
+    <p>O que o combo <b>preserva</b> é o principal: a diferença regional. Foi ali que apareceu o
+    maior contraste de todo o levantamento — TIM a R$ 89,99 em São Paulo contra R$ 149,99 no Rio.</p>
+  </div>
+
+  <h3>Degraus</h3>
+  <p><b>Velocidade e franquia exatas, sem faixas.</b> Compara-se 600 com 600, 700 com 700.</p>
+  <p>Contrapartida: quando uma operadora vende 600 e a outra 700, elas nunca caem no mesmo ponto de
+  um gráfico de linha. A saída é o <b>gráfico de dispersão</b> — preço no eixo vertical, velocidade
+  no horizontal, cada operadora um ponto. Mostra quem cobra mais caro pelo que entrega sem forçar
+  ninguém para dentro de um balde.</p>
+</section>
+
+<section id="s6">
+  <h2><span class="num">6.</span> Como comparar</h2>
+  <h3>Bundles em níveis</h3>
+  <p>Quase todo plano hoje vem com streaming, nuvem ou apps. Excluir os que têm bundle eliminaria
+  quase o portfólio inteiro da Vivo; ignorar o bundle compararia R$ 150 sem Netflix com R$ 180 com
+  Netflix. A saída é classificar:</p>
+  <table>
+    <tr><th>Nível</th><th>O que é</th><th>Exemplo</th></tr>
+    <tr><td>0</td><td>Só conectividade</td><td>plano pelado</td></tr>
+    <tr><td>1</td><td>Apps de catálogo</td><td>Skeelo, GoRead, NBA básico, McAfee</td></tr>
+    <tr><td>2</td><td>Um streaming premium</td><td>Netflix, Globoplay, Amazon, Disney+</td></tr>
+    <tr><td>3</td><td>Vários streamings premium</td><td></td></tr>
+    <tr><td>4</td><td>TV linear inclusa</td><td>fibra + TV por assinatura</td></tr>
+  </table>
+  <p>A série usa, para cada operadora e degrau, <b>o nível mais baixo disponível</b>. E a tela diz
+  qual nível está mostrando.</p>
+  <p>De brinde, a diferença entre o nível 2 e o nível 1 da mesma operadora, no mesmo degrau, é
+  <b>quanto ela cobra pelo streaming</b>. Isso ninguém publica.</p>
+
+  <h3>A condição de pagamento: preço cheio</h3>
+  <p>Quase toda operadora dá desconto por débito automático e fatura digital — o controle da Claro
+  custa R$ 59,90 e cai para R$ 54,90 nessa condição. <b>A série usa o preço cheio, sem desconto
+  nenhum.</b></p>
+  <div class="box neutro">
+    <span class="rotulo">Regra de extração</span>
+    <p>Nem toda operadora destaca o cheio. Algumas exibem o valor <b>já descontado</b> como preço
+    principal, com o cheio riscado ou em letra miúda. O robô precisa distinguir os dois, senão
+    captura o descontado achando que é cheio.</p>
+  </div>
+  <p>Efeito colateral bom: preço cheio muda menos que promoção, então <b>mudança nele é sinal
+  forte</b> — combina com a regra de repasse por persistência da seção 7.</p>
+
+  <h3>Campos sem fonte ficam vazios</h3>
+  <p>Só a Vivo publica fidelidade, multa e taxa de instalação de forma exata. Nas outras o campo
+  fica em branco. A base fica desigual, mas nada se perde — e se amanhã a Claro passar a publicar,
+  o campo começa a preencher sozinho.</p>
+
+  <h3>O que fica fora</h3>
+  <ul>
+    <li>Ofertas B2B</li>
+    <li>Planos com aparelho subsidiado</li>
+    <li>Ofertas de retenção e migração, que nem aparecem na vitrine pública</li>
+    <li><b>Produto que não é FTTH.</b> Onde não há fibra, a operadora empurra 5G fixo ou satélite
+    — medido em Rio Branco: "350 GB por R$ 293". O filtro é pela tecnologia declarada, nunca pelo
+    que a vitrine aparenta.</li>
+  </ul>
+</section>
+
+<section id="s7">
+  <h2><span class="num">7.</span> Houve repasse?</h2>
+  <p>O preço de tabela — o valor sem desconto nenhum — <b>só existe na Vivo</b>. Nas outras cinco
+  há apenas o preço anunciado. A coleta diária resolve isso de outro jeito:</p>
+  <div class="destaque">Se o preço muda e volta em algumas semanas, era promoção.<br>
+  Se muda e fica, foi repasse.</div>
+  <p>O tempo substitui o preço de tabela que não temos. <b>Só funciona porque a coleta é diária</b>
+  — com dado mensal seria impossível.</p>
+  <table>
+    <tr><th>Situação</th><th>Leitura</th></tr>
+    <tr><td>Preço mudou e permaneceu além do limiar</td><td><b>Repasse</b></td></tr>
+    <tr><td>Preço mudou e voltou antes do limiar</td><td><b>Promoção</b></td></tr>
+    <tr><td>Preço igual, mas a composição mudou</td><td><b>Repasse disfarçado</b> — tiraram o Amazon Prime pelo mesmo preço, ou a franquia subiu</td></tr>
+  </table>
+  <p><b>Limiar: 30 dias.</b> Ajustável depois, já que o dado bruto fica guardado.</p>
+  <div class="box neutro">
+    <p>Consequência a ter em mente: <b>o evento aparece no dashboard no dia em que acontece, mas o
+    rótulo de repasse ou promoção só chega quando o prazo fecha.</b> O alerta é imediato; a
+    classificação amadurece.</p>
+  </div>
+  <div class="box neutro">
+    <span class="rotulo">O dicionário de apps da Vivo — o que rendeu e o que não</span>
+    <p>A Vivo é a única que declara os apps inclusos no regulamento da Anatel, mas por <b>código</b>
+    ("030039"), sem o nome. Cruzando 38 ofertas distintas — os códigos do regulamento contra os
+    nomes escritos na vitrine —, <b>1 dos 20 códigos ficou nomeado com segurança</b>: 040059 é o
+    Vivo Travel, sustentado por 21 ofertas, presente em todas as que o anunciam e em nenhuma das
+    outras. Os 19 restantes não têm nome, e não por falta de dado nosso:</p>
+    <table>
+      <tr><th>Obstáculo</th><th>Por que não há como contornar</th></tr>
+      <tr><td>A vitrine não lista todos os apps</td><td>Ela anuncia os de marketing. Um card que não
+      escreve "Gemini" não está dizendo que Gemini ficou fora — está calado. <b>Silêncio não é
+      ausência</b>, então essas ofertas saem do cruzamento em vez de virar prova falsa.</td></tr>
+      <tr><td>Os códigos vêm em blocos</td><td>030035, 030039, 030048, 100060 e 100069 aparecem
+      sempre nas <b>mesmas</b> ofertas. Códigos que nunca se separam não podem ser separados por
+      cruzamento nenhum — nomear cada um seria inventar precisão.</td></tr>
+      <tr><td>O regulamento descreve a base, não o diferencial</td><td>Controle, Controle Amazon,
+      Controle YouTube Premium e Controle Saúde trazem <b>exatamente a mesma lista de códigos</b>.
+      Justamente o streaming que distingue o plano é o que não aparece ali.</td></tr>
+    </table>
+    <p>Por isso o dicionário nasce com cada entrada carregando a evidência que a sustenta, e as
+    deduções fracas ficam marcadas e <b>não são usadas em lugar nenhum</b>. Ele é confirmação e
+    alarme; o texto da vitrine continua mandando na classificação de bundle.</p>
+  </div>
+  <div class="box">
+    <span class="rotulo">O que o cruzamento entregou de melhor que os nomes</span>
+    <p>Não é preciso saber o que é "030035" para que ele seja útil. O <b>conjunto</b> de códigos de
+    uma oferta é a assinatura da sua composição: se o preço não se move e a assinatura muda, a
+    oferta mudou de conteúdo sem mudar de etiqueta — que é exatamente o repasse disfarçado da
+    tabela acima, hoje detectável só a olho e só na Vivo.</p>
+    <p>Essa assinatura passou a ser gravada em cada captura — os códigos ordenados e unidos por
+    "+". O aviso diário ganhou um alerta próprio: <b>composição mudou, preço parado</b>, dizendo
+    quais códigos saíram e quais entraram. Antes, a comparação diária pulava justamente as ofertas
+    de preço igual, que são onde esse caso mora.</p>
+    <table>
+      <tr><th>Medido em São Paulo</th><th></th></tr>
+      <tr><td>Ofertas com assinatura</td><td>40 de 41 — móvel, controle, fibra, combo e pré</td></tr>
+      <tr><td>Assinaturas distintas</td><td>14, então o campo distingue de fato</td></tr>
+      <tr><td>Combo</td><td>13 códigos: móvel e fixa declaram SVA cada um e os dois entram
+      juntos. Ler só o primeiro bloco perderia metade da composição.</td></tr>
+    </table>
+    <p><b>O limite, dito antes que alguém se decepcione:</b> "Vivo Controle" e "Vivo Controle
+    Amazon" têm a <b>mesma</b> assinatura. Trocar o Amazon por outro streaming não a move — é a
+    mesma razão pela qual os códigos não puderam ser nomeados. A assinatura pega o que o nome não
+    pega (apps de base saindo em silêncio); o nome pega o que ela não pega (o streaming da
+    etiqueta). Nenhum dos dois sozinho fecha o caso, e é por isso que a série guarda os dois.</p>
+    <p>Assinatura que <b>aparece ou desaparece</b> não gera alerta: é quase sempre o regulamento da
+    Vivo tendo falhado, como em 30/09, quando 1.042 de 1.044 ofertas vieram sem os campos de
+    contrato. Confundir isso com mudança de oferta encheria o aviso de alarme falso no pior dia.</p>
+  </div>
+  <div class="box alerta">
+    <span class="rotulo">Tentação a evitar</span>
+    <p>Calcular o "preço implícito de telecom" subtraindo o valor de varejo do streaming. O número
+    atribuído é arbitrário, a operadora paga um atacado desconhecido, e isso vira uma alavanca que
+    move a série sem que nada tenha acontecido no mercado.</p>
+  </div>
+</section>
+
+<section id="s8">
+  <h2><span class="num">8.</span> O aviso diário e as falhas</h2>
+
+  <h3>O relógio do dia</h3>
+  <table>
+    <tr><th>Hora</th><th>O que acontece</th></tr>
+    <tr><td><b>7h07</b></td><td>o robô coleta as seis operadoras nas 20 praças</td></tr>
+    <tr><td><b>7h37</b></td><td>repique automático, roda tudo de novo; o que já entrou é ignorado</td></tr>
+    <tr><td><b>8h13</b></td><td>mensagem no Telegram, com o que conseguiu</td></tr>
+    <tr><td><b>8h51</b></td><td>a tela é regerada com o que foi gravado</td></tr>
+  </table>
+  <p class="legenda">O repique existe porque a primeira passada não deixa margem: sem ele, uma
+  instabilidade de cinco minutos custaria o dia inteiro — e dia perdido não volta.</p>
+  <div class="box alerta">
+    <span class="rotulo">Esse horário é intenção, não garantia</span>
+    <p>O agendamento do GitHub Actions é <b>best-effort</b>: ele entra numa fila e pode atrasar.
+    Medido em 01/10 — a coleta marcada para 7h rodou às <b>13h50</b>, com 6h20 de atraso, e o aviso
+    das 8h saiu às 14h12. A ordem coleta-antes-do-aviso se manteve por sorte, não por desenho.</p>
+    <p>A causa é o minuto: hora cheia é a fila mais disputada. Os horários passaram a ter minuto
+    quebrado (7h07, 7h37, 8h13, 8h51), o que pega fila curta. <b>Continua sem garantia</b> — o que
+    o projeto exige é uma coleta por dia, não uma coleta às 7h em ponto, e a data da captura é a do
+    dia, não a da hora. Atraso dentro do mesmo dia não fere a série; o que a feriria é o dia
+    passar em branco, e para isso existem o repique e o aviso que falta.</p>
+  </div>
+
+  <h3>Uma mensagem por dia no Telegram</h3>
+  <p>Chega <b>todo dia, mesmo sem novidade</b>. Isso é proposital: se a mensagem não chegou, é
+  porque algo quebrou. O silêncio vira alarme.</p>
+  <p>A mensagem tem três camadas, nesta ordem de prioridade:</p>
+  <ol>
+    <li><b>Mudança, se houver</b> — sobe para o topo, com os detalhes</li>
+    <li><b>Estado da coleta</b> — o mapeamento deu certo ou não, e onde falhou</li>
+    <li><b>Resumo do controle</b> — os planos de entrada das operadoras</li>
+  </ol>
+
+  <p class="legenda">Dia sem novidade:</p>
+  <pre style="background:var(--cinza-fundo);border:1px solid var(--borda);padding:12px;
+    font-size:13px;overflow-x:auto;margin:6px 0 16px">Price Tracker - 24/09
+Coleta OK: 6 de 6 operadoras, 20 pracas
+
+Controle, plano de entrada (SP):
+Vivo   45GB  R$ 59,00
+Claro  40GB  R$ 59,90
+TIM    38GB  R$ 58,99</pre>
+
+  <p class="legenda">Dia com mudança — ela vira o assunto principal:</p>
+  <pre style="background:var(--laranja-claro);border-left:4px solid var(--laranja);padding:12px;
+    font-size:13px;overflow-x:auto;margin:6px 0 16px">Price Tracker - 24/09
+
+MUDOU: TIM Controle 58,99 -> 49,99 (-15%)
+  Onde: SP, RJ, MG (3 de 20 pracas)
+  Franquia: 38GB (igual)
+  Bundle: igual
+  Primeira vez vista: hoje
+
+Coleta OK: 6 de 6 operadoras, 20 pracas
+Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 49,99</pre>
+
+  <div class="box">
+    <p>Repare que a mensagem de mudança <b>já responde à pergunta do repasse</b>: mostra se franquia
+    e bundle mudaram junto com o preço. Só o preço mexeu, é preço mesmo. A franquia mudou junto,
+    é produto novo.</p>
+  </div>
+
+  <h3>Como o robô reconhece a mesma oferta amanhã</h3>
+  <p>Comparar dois dias exige dizer o que é "a mesma oferta", e isso é mais difícil do que parece.
+  Três defeitos foram encontrados e medidos no banco de verdade:</p>
+  <table>
+    <tr><th>Defeito</th><th>O que acontecia</th><th>Correção</th></tr>
+    <tr><td><b>Só as primeiras mil</b></td><td>O banco corta a resposta em 1.000 linhas. A
+    comparação pedia 20.000 e aceitava o que viesse. Em 01/10 havia <b>1.756 capturas: 756
+    invisíveis</b>, e as ofertas de fora podiam mudar de preço sem que o aviso dissesse nada.</td>
+    <td>Paginação, a mesma que a tela já usava</td></tr>
+    <tr><td><b>A chave não é a oferta</b></td><td>A chave de continuidade identifica a <i>série</i>
+    — operadora, produto, degrau, variante. "TIM Controle Redes Sociais" e "TIM Controle Pro
+    Express" têm a mesma chave, degrau e preço. Uma sobrescrevia a outra, e qual sobrevivia
+    dependia da ordem do banco: o preço de uma era comparado com o da outra.</td>
+    <td>O nome entra na identidade, e a consulta ordena</td></tr>
+    <tr><td><b>Safra no nome</b></td><td>A NuCel carimba o mês na oferta: "[SET] OFT NC PF PROMO
+    12M 700M". Com o nome cru, toda virada de mês essas ofertas perdiam o par — e ficavam sem
+    vigilância <b>no único dia em que o alarme mais importa</b>.</td>
+    <td>A marca entre colchetes sai da identidade; o resto do nome fica</td></tr>
+  </table>
+  <p>O terceiro foi encontrado olhando quem ficou sem par depois de corrigir o segundo — e esse
+  número virou medida permanente, porque <b>zero mudanças pode ser mercado parado ou comparação
+  cega</b>, e sem a cobertura as duas coisas são indistinguíveis.</p>
+  <div class="box">
+    <span class="rotulo">Renomeação é alerta, e por pouco não foi</span>
+    <p>Pôr o nome na identidade protege de comparar ofertas diferentes, mas abre um ponto cego:
+    oferta renomeada não casa com a de ontem e sai da comparação sem alertar. Esse custo foi
+    assumido por escrito — e a TIM mostrou <b>no dia seguinte</b> por que era alto demais:
+    "TIM Controle" virou <b>"TIM Controle Smart" em 20 praças</b>.</p>
+    <p>Dessa vez o preço não mudou: R$ 58,99 antes e depois. Mas <b>trocar o nome junto com o preço
+    é exatamente como um repasse passa desapercebido</b>, e a renomeação é notícia por si — é
+    mudança de portfólio. Ela agora é reencontrada pela chave de continuidade, que existe para
+    sobreviver à troca de nome, e vira bloco próprio no aviso, com o preço de antes e o de depois.</p>
+    <p class="legenda">Só vale quando sobrou uma candidata de cada lado. Com duas ou mais, qualquer
+    emparelhamento seria chute, e aí o robô prefere não dizer nada a dizer algo inventado.</p>
+  </div>
+  <div class="box neutro">
+    <span class="rotulo">Cobertura medida em 02/10 contra 01/10</span>
+    <table>
+      <tr><td>Ofertas com par nos dois dias</td><td><b>1.390</b> de 1.410 — <b>99%</b></td></tr>
+      <tr><td>Sem par</td><td>20 de cada lado, e são a mesma coisa: a renomeação da TIM acima</td></tr>
+      <tr><td>Mudanças de preço</td><td>0, e isso agora significa mercado parado</td></tr>
+      <tr><td>Composição mudada</td><td>0 — a assinatura chegou hoje, então 03/10 é o primeiro dia
+      com dois pontos para comparar</td></tr>
+      <tr><td>Renomeações</td><td>1, em 20 praças</td></tr>
+    </table>
+    <p class="legenda">No dia anterior a cobertura era 74%, porque combo e pré-pago tinham acabado
+    de entrar no coletor e não existiam na véspera. Subiu sozinha, como previsto — é o sinal de que
+    os 26% não eram cegueira.</p>
+  </div>
+  <div class="box alerta">
+    <span class="rotulo">Falha que não pode virar silêncio</span>
+    <p>A consulta de comparação descartava o próprio erro. Banco fora do ar virava índice vazio,
+    e índice vazio virava <b>"nenhuma mudança hoje"</b> — pior que não avisar, porque soa como
+    notícia verificada. Agora o erro sobe e a mensagem diz que não dá para saber se algo mudou.</p>
+  </div>
+  <div class="box neutro">
+    <p>Detalhe de execução: o agendamento é em <b>UTC</b> e Brasília é UTC-3 sem horário de
+    verão, então 8h13 daqui vão como 11h13 lá. Vale reconferir se o horário de verão voltar.</p>
+  </div>
+
+  <h3>Quando a coleta falha</h3>
+  <p>Coletor que quebra em silêncio é o pior cenário, porque envenena a série sem avisar.</p>
+  <p><b>Quando parte da coleta falha, o robô grava o que veio, deixa o resto como buraco e alerta
+  no Telegram.</b> Cinco operadoras capturadas e uma falhou: grava as cinco. Dado parcial vale mais
+  que dado nenhum, e o que não for capturado hoje está perdido para sempre.</p>
+  <p>Alerta quando:</p>
+  <ul>
+    <li>a coleta volta vazia para qualquer operadora</li>
+    <li>a contagem de ofertas cai mais de um terço contra o dia anterior</li>
+    <li>um campo esperado desaparece — mudança de estrutura da fonte</li>
+    <li>um preço varia mais de 30% na mesma chave e persiste no dia seguinte</li>
+  </ul>
+  <div class="box alerta">
+    <span class="rotulo">Teste A/B é risco real, não teórico</span>
+    <p>A NuCel roda ferramenta de experimentos no site: o mesmo endereço pode mostrar preços
+    diferentes para visitantes diferentes. Por isso <b>uma mudança só vira evento se persistir na
+    captura do dia seguinte</b>, ou se vier com código de oferta novo. Dia isolado fica registrado,
+    mas não dispara alerta.</p>
+  </div>
+</section>
+
+<section id="s9">
+  <h2><span class="num">9.</span> As seis fontes</h2>
+  <p>Investigadas em 02 e 23/09/2026. <b>Todas coletáveis.</b> Cinco fáceis, uma trabalhosa.</p>
+  <table>
+    <tr><th>Operadora</th><th>Como os dados saem</th><th>Troca de praça</th><th>Dificuldade</th></tr>
+    <tr><td><b>TIM</b></td><td>HTML com JSON embutido</td><td><b>estado na URL</b> — /sp/, /rj/</td><td>Baixa</td></tr>
+    <tr><td><b>Brisanet</b></td><td>API GraphQL</td><td>a confirmar</td><td>Baixa</td></tr>
+    <tr><td><b>NuCel</b></td><td>página simples</td><td>não tem, é nacional</td><td>Muito baixa</td></tr>
+    <tr><td><b>Vivo</b></td><td>catálogo e regulamento em dado puro</td><td>requisição de troca</td><td>Baixa, mas tem anti-bot</td></tr>
+    <tr><td><b>Claro</b></td><td>HTML pronto (SAP Hybris)</td><td>cookie de região</td><td>Média</td></tr>
+    <tr><td><b>Unifique</b></td><td>só mostra preço após escolher cidade</td><td>obrigatória, por JavaScript</td><td><b>Alta</b></td></tr>
+  </table>
+  <div class="box">
+    <span class="rotulo">A aposta que não se confirmou</span>
+    <p>Esperava-se que todas publicassem o regulamento da Anatel no mesmo formato estruturado da
+    Vivo. <b>Não publicam — só a Vivo.</b> A Claro publica em texto corrido. É a origem da decisão 9:
+    fidelidade, multa e taxa vêm exatas na Vivo e vazias nas outras.</p>
+  </div>
+  <p><b>A Claro entrega as cidades com código IBGE</b>, a mesma chave do dado municipal da Anatel
+  que o Dashboard já usa. Amarra as duas bases sem conversão.</p>
+  <h3>Volume da coleta diária</h3>
+  <table>
+    <tr><th>Operadora</th><th>Praças</th><th>Consultas por dia</th></tr>
+    <tr><td>Vivo, Claro, TIM</td><td>20 cada</td><td>~100 cada</td></tr>
+    <tr><td>Brisanet</td><td>~9 do Nordeste</td><td>~27</td></tr>
+    <tr><td>Unifique</td><td>~5 do Sul</td><td>~15</td></tr>
+    <tr><td>NuCel</td><td>nacional</td><td>~3</td></tr>
+    <tr><td colspan="2"><b>Total</b></td><td><b>~350, cerca de 25 minutos</b></td></tr>
+  </table>
+  <p>Com pausa de quatro segundos entre consultas. <b>O que bloqueia não é o volume, é o ritmo</b> —
+  350 consultas espalhadas em 25 minutos entre seis sites dá umas duas por minuto em cada um.</p>
+</section>
+
+<section id="s10">
+  <h2><span class="num">10.</span> Onde o robô roda</h2>
+  <div class="destaque">GitHub Actions serve. Nenhuma conta nova, nenhum fornecedor a mais.</div>
+  <p>Teste em 24/09/2026 a partir de um servidor do GitHub em São Francisco
+  (<code>testes/teste_geoip.py</code>):</p>
+  <table>
+    <tr><th>O que foi testado</th><th>Resultado</th></tr>
+    <tr><td>Abrir a vitrine da Vivo</td><td class="ok">200 — vem São Paulo, como esperado</td></tr>
+    <tr><td>Pedir a praça de Manaus</td><td class="ok">200, sucesso — cookies de praça recebidos</td></tr>
+    <tr><td>Vitrine depois da troca</td><td class="ok"><b>virou Manaus</b> — ultravelocidade sumiu</td></tr>
+    <tr><td>Catálogo de dados da Vivo</td><td class="ok">200, 15 ofertas</td></tr>
+    <tr><td>TIM por estado na URL</td><td class="ok">200, preços diferentes entre SP e RJ</td></tr>
+  </table>
+
+  <div class="box">
+    <span class="rotulo">A lição que quase custou caro</span>
+    <p>Na primeira rodada, tudo isso deu <b>403</b>, e o diagnóstico foi "bloqueio geográfico, precisa
+    de servidor no Brasil". <b>Estava errado.</b> O problema era o script mandando requisição pelada.</p>
+    <table>
+      <tr><th>Como se pede</th><th>Resposta da Vivo</th></tr>
+      <tr><td>Só identificação de navegador</td><td>403</td></tr>
+      <tr><td>Mais idioma e formato aceito</td><td>403</td></tr>
+      <tr><td><b>Cabeçalhos completos, como o navegador manda</b></td><td><b>200</b></td></tr>
+    </table>
+    <p>Regra que fica: <b>o coletor precisa se apresentar como navegador de verdade</b> — origem,
+    referência e os cabeçalhos de contexto. Sem isso, 403 silencioso.</p>
+  </div>
+
+  <h3>O que mais se sabe sobre o bloqueio</h3>
+  <ul>
+    <li><b>Não é por país.</b> De doze nós testados no mundo, dez abriram a Vivo normalmente.</li>
+    <li><b>A Vivo tem proteção anti-bot que dispara com rajada.</b> Durante a investigação, o
+    próprio acesso residencial brasileiro foi bloqueado depois de requisições seguidas. Daí a pausa
+    de quatro segundos entre consultas.</li>
+  </ul>
+
+  <h3>A arquitetura, então</h3>
+  <table>
+    <tr><th>Peça</th><th>Onde</th><th>Conta</th></tr>
+    <tr><td>Executar o robô</td><td>GitHub Actions</td><td class="ok">já tem</td></tr>
+    <tr><td>Guardar a base</td><td>Supabase Postgres</td><td class="ok">já tem</td></tr>
+    <tr><td>Servir a tela</td><td>Supabase Storage</td><td class="ok">já tem</td></tr>
+    <tr><td>Avisar</td><td>Telegram</td><td class="ok">já tem</td></tr>
+  </table>
+</section>
+
+<section id="s11">
+  <h2><span class="num">11.</span> A tela</h2>
+  <p>Decidida em 30/09/2026, antes de existir série para mostrar. O desenho
+  vem primeiro; os dados enchem a tela com o tempo.</p>
+
+  <h3>O que ela responde</h3>
+  <p>Abre na <b>evolução no tempo</b>, em <b>São Paulo</b> — a mesma praça que
+  J.P. Morgan, XP e Bradesco usam, o que torna os números comparáveis com os
+  relatórios do mercado. As outras 19 ficam no filtro.</p>
+  <p>O número em destaque traz <b>preço cheio e promocional lado a lado</b>, com a
+  diferença visível. É o que dá sentido à metodologia inteira: hoje a fibra de
+  700 Mega da Vivo tem tabela de R$ 150 e vitrine de R$ 100, e um número só
+  esconderia isso.</p>
+  <div class="box alerta">
+    <p><b>A tela nasce quase vazia, e isso é esperado.</b> A série tem um ponto.
+    O gráfico deve dizer "série iniciada em 30/09, N dias acumulados" em vez de
+    mostrar uma linha solitária — senão parece defeito quando é só juventude.</p>
+  </div>
+
+  <h3>Os gráficos</h3>
+  <table>
+    <tr><th>Gráfico</th><th>O que mostra</th><th>Precisa de série?</th></tr>
+    <tr><td>Evolução no tempo</td><td>preço por semana, por operadora</td><td>sim</td></tr>
+    <tr><td>Dispersão preço x velocidade</td><td>quem cobra mais caro pelo que entrega</td><td><b>não</b></td></tr>
+    <tr><td>Anunciado x contratado</td><td>quanto da franquia é bônus temporário</td><td><b>não</b></td></tr>
+    <tr><td>Mapa das 20 praças</td><td>cobertura e diferença regional</td><td><b>não</b></td></tr>
+    <tr><td>Spread sobre a tabela</td><td>intensidade promocional do setor</td><td>ajuda</td></tr>
+  </table>
+  <p>Os quatro entram para serem avaliados na prática e podados depois de vistos.
+  Três deles <b>já funcionam com um único dia de dado</b> — o que dá algo para
+  olhar enquanto a série de tempo não amadurece.</p>
+
+  <h3>Ausência e eventos</h3>
+  <p>Operadora que não opera na praça <b>sai da tela</b> ali. No banco a célula
+  continua vazia, nunca zero — mas o gráfico não carrega o espaço morto.</p>
+  <div class="box neutro">
+    <p><b>Risco a cobrir:</b> quem olhar Fortaleza não vê a Unifique e pode achar
+    que faltou coleta, ou que a Brisanet é nacional. Proposta: um indicador de
+    cobertura do tipo "4 de 6 operadoras nesta praça", para a ausência continuar
+    sendo informação sem poluir o gráfico.</p>
+  </div>
+  <p>Mudança de preço aparece <b>marcada na própria linha</b>, com o detalhe ao
+  passar o mouse — o mesmo conteúdo que chega no Telegram pela manhã.</p>
+
+  <h3>O básico</h3>
+  <p>Filtros de <b>praça, produto, operadora e período</b>. <b>PT e EN desde o
+  começo</b>, como as 7 abas do Dashboard: traduzir tela pronta custa mais que
+  nascer bilíngue.</p>
+</section>
+
+<section id="s12">
+  <h2><span class="num">12.</span> Em aberto</h2>
+  <table>
+    <tr><th>Pendência</th><th>O que falta</th></tr>
+    <tr><td><b>Cabeçalhos das outras cinco</b></td><td>A Vivo exige cabeçalhos completos de navegador. Falta verificar se Claro, Brisanet, Unifique e NuCel têm exigência parecida — provável, e a correção é a mesma.</td></tr>
+    <tr><td><b>Arquivamento do histórico</b></td><td>O plano gratuito do Supabase dá 500 MB. Com cerca de 900 mil linhas por ano, segura uns dois anos — depois é preciso mover o histórico antigo para o Storage comprimido. Decidir antes de encher, não depois.</td></tr>
+    <tr><td><b>Dicionário de serviços</b></td><td class="ok">Fechado em 01/10, e o resultado foi magro por limite da fonte: <b>1 dos 20 códigos</b> ficou nomeado. A tradução código→nome é impossível para o resto, e o que sobrou de útil foi a assinatura de composição — seção 7.</td></tr>
+    <tr><td><b>Regionalização da Brisanet</b></td><td>Não confirmada — a API GraphQL foi identificada, mas não se sabe se ela varia por cidade.</td></tr>
+    <tr><td><b>Unifique sem navegador</b></td><td>Verificar se existe endereço de dados por trás do seletor de cidade, o que evitaria simular cliques.</td></tr>
+  </table>
+</section>
+
+</main>
+</div>
+
+<footer>
+  Documento de trabalho. Publicado como <b>página privada</b>, a pedido — nunca no dashboard
+  oficial de TMT.
+  Repositório privado <code>dashboardtmt/tmt-price-tracker</code>.
+  Separado do Dashboard TMT (Anatel).
+</footer>
+
+</body>
+</html>

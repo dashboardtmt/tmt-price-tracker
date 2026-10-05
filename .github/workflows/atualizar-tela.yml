@@ -6,9 +6,14 @@ name: Atualizar a tela
 # sem autorizacao explicita. O ganho e que a tela deixa de ser uma foto
 # tirada na mao e passa a refletir o que esta gravado.
 
+# O AGENDAMENTO SAIU DAQUI. Quem marca a hora e diario.yml, que roda
+# coleta, repique, aviso e tela em sequencia - agendamento separado
+# nao garante ordem, e em 04/10 o aviso saiu no meio da coleta e
+# contou 2 de 6 operadoras.
+#
+# Este arquivo fica para rodar o passo sozinho quando for preciso.
+
 on:
-  schedule:
-    - cron: '51 11 * * *'   # 08:51 BRT, depois da coleta e do aviso
   workflow_dispatch:
 
 permissions:

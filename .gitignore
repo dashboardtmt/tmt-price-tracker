@@ -31,3 +31,6 @@ desktop.ini
 *.pdf
 *.pptx
 *.xlsx
+
+# o site e gerado a partir da tela; o dados.json e intermediario
+dados.json

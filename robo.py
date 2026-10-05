@@ -133,10 +133,16 @@ def _tel(metodo, dados=None):
 
 
 def entrada_do_controle(hoje, praca="Sao Paulo/SP"):
-    """O plano de entrada do controle em cada operadora, na praca de referencia."""
-    filtro = ("capturas?data_captura=eq.%s&produto=eq.controle&praca=eq.%s"
+    """O plano de entrada do controle, o produto principal."""
+    return entrada_do_produto(hoje, "controle", praca)
+
+
+def entrada_do_produto(hoje, produto, praca="Sao Paulo/SP"):
+    """O plano de entrada de cada operadora, na praca de referencia."""
+    filtro = ("capturas?data_captura=eq.%s&produto=eq.%s&praca=eq.%s"
               "&select=operadora,nome_oferta,destaque,preco_promocional"
-              "&order=preco_promocional.asc" % (hoje, urllib.parse.quote(praca)))
+              "&order=preco_promocional.asc"
+              % (hoje, produto, urllib.parse.quote(praca)))
     linhas, erro = armazenamento.consultar(filtro)
     if erro or not linhas:
         return [], erro
@@ -360,7 +366,13 @@ def montar_mensagem(hoje, ontem):
         if len(renom) > 4:
             linhas.append("  (+%d outras)" % (len(renom) - 4))
 
-    # 2. estado da coleta
+    # Nada mudou tem de ser dito, e com o tamanho da base por tras:
+    # "sem novidade" sozinho nao diz se o robo olhou 10 ofertas ou 1400.
+    if not (mud or comp or renom or erro_cmp):
+        linhas.append("")
+        linhas.append("Nenhuma mudanca de preco, composicao ou nome.")
+
+    # 2. estado da coleta, operadora por operadora
     col, _ = armazenamento.consultar(
         "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"
         "ofertas,sucesso,iniciada_em&order=iniciada_em.desc" % hoje)
@@ -375,27 +387,69 @@ def montar_mensagem(hoje, ontem):
             vistos.add(c["operadora"])
             ultima.append(c)
         col = ultima
+
     linhas.append("")
+    linhas.append("--- A COLETA ---")
     if col:
         ok = sum(1 for c in col if c["sucesso"])
-        tot_ofertas = sum(c["ofertas"] for c in col)
-        linhas.append("Coleta: %d de %d operadoras, %d ofertas" % (ok, len(col), tot_ofertas))
-        for c in col:
-            if not c["sucesso"]:
-                linhas.append("  %s: %d de %d pracas" % (
-                    c["operadora"], c["pracas_ok"], c["pracas_pedidas"]))
-    else:
-        linhas.append("Coleta: NENHUM REGISTRO HOJE - o robo nao rodou")
+        tot = sum(c["ofertas"] for c in col)
+        linhas.append("%d de %d operadoras | %d ofertas" % (ok, len(col), tot))
+        for c in sorted(col, key=lambda x: -x["ofertas"]):
+            marca = "" if c["sucesso"] else "   <-- INCOMPLETA"
+            linhas.append("  %-9s %5d ofertas  %d/%d pracas%s" % (
+                c["operadora"], c["ofertas"], c["pracas_ok"],
+                c["pracas_pedidas"], marca))
+        if ok < len(col):
+            linhas.append("  Operadora incompleta deixa buraco, nunca zero.")
+        if len(col) < len(COLETORES):
+            faltam = sorted(set(COLETORES) - {c["operadora"] for c in col})
+            linhas.append("  SEM REGISTRO AINDA: %s" % ", ".join(faltam))
 
-    # 3. resumo do controle, o produto principal
-    entrada, _ = entrada_do_controle(hoje)
-    if entrada:
+    else:
+        linhas.append("NENHUM REGISTRO HOJE - o robo nao rodou")
+
+    # 3. a saude da comparacao. Sem isto, "nada mudou" nao se sustenta:
+    # pode ser mercado parado ou pode ser comparacao sem par para comparar.
+    h, e1 = _indexar(hoje)
+    o, e2 = _indexar(ontem)
+    if not (e1 or e2):
+        comuns = len(set(h) & set(o))
         linhas.append("")
-        linhas.append("Controle, plano de entrada (SP):")
+        linhas.append("--- A COMPARACAO ---")
+        linhas.append("%d ofertas hoje, %d ontem, %d com par nos dois"
+                      % (len(h), len(o), comuns))
+        if h:
+            linhas.append("Cobertura: %.0f%%" % (100.0 * comuns / len(h)))
+        com_sva = sum(1 for l in h.values() if l.get("assinatura_sva"))
+        if com_sva:
+            linhas.append("Assinatura de composicao: %d ofertas"
+                          " (so a Vivo publica os codigos)" % com_sva)
+
+    # 4. o plano de entrada, por produto, na praca de referencia
+    for produto, titulo in (("controle", "CONTROLE"), ("fibra", "FIBRA"),
+                            ("movel", "POS-PAGO")):
+        entrada, _ = entrada_do_produto(hoje, produto)
+        if not entrada:
+            continue
+        linhas.append("")
+        linhas.append("--- %s, ENTRADA EM SP ---" % titulo)
         for e in entrada:
-            linhas.append("%-7s %-8s R$ %s" % (
-                e["operadora"], e["destaque"] or "-",
-                ("%.2f" % e["preco_promocional"]).replace(".", ",")))
+            linhas.append("  %-9s %-10s R$ %s" % (
+                e["operadora"], (e["destaque"] or "-")[:10],
+                _reais(e["preco_promocional"])))
+
+    # 5. o tamanho da serie: o ativo do projeto e o historico acumulado
+    primeiro, _ = armazenamento.consultar(
+        "capturas?select=data_captura&order=data_captura.asc&limit=1")
+    if primeiro:
+        inicio = primeiro[0]["data_captura"]
+        n = (datetime.fromisoformat(hoje).date()
+             - datetime.fromisoformat(inicio).date()).days + 1
+        linhas.append("")
+        linhas.append("--- A SERIE ---")
+        linhas.append("%d dia(s) desde %s" % (
+            n, datetime.fromisoformat(inicio).strftime("%d/%m")))
+
     return "\n".join(linhas)
 
 
