@@ -57,7 +57,7 @@ jobs:
         run: |
           git config user.name "dashboardtmt"
           git config user.email "leonardojdesousa@gmail.com"
-          git add tela.html
+          git add tela.html site
           if git diff --staged --quiet; then
             echo "tela sem mudanca - nada a guardar"
           else
