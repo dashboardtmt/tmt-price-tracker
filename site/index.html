@@ -73,6 +73,13 @@
   .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
          padding-top:7px;border-top:1px solid var(--cor-borda)}
   .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
+  .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
+          gap:14px;flex-wrap:wrap}
+  .metricas{display:flex;gap:5px;flex:none}
+  .metricas button{font:inherit;font-size:11.5px;padding:5px 11px;cursor:pointer;
+    border:1px solid var(--cor-borda);border-radius:7px;background:#fff;
+    color:var(--cor-texto-suave)}
+  .metricas button.on{background:var(--preto);border-color:var(--preto);color:#fff}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
   .dupla{display:grid;grid-template-columns:1fr 1fr;gap:15px}
@@ -164,8 +171,16 @@
   </div>
 
   <div class="bloco">
-    <h2 data-t="mat_t">Preço de entrada, dia a dia</h2>
-    <p class="descricao" data-t="mat_x"></p>
+    <div class="cabeca">
+      <div>
+        <h2 data-t="mat_t">Preço por degrau, dia a dia</h2>
+        <p class="descricao" data-t="mat_x"></p>
+      </div>
+      <div class="metricas">
+        <button id="bt-mes" class="on" onclick="metrica('mes')">R$/mês</button>
+        <button id="bt-gb" onclick="metrica('unidade')">R$/GB</button>
+      </div>
+    </div>
     <div class="tabela-wrap" id="matriz"></div>
     <div class="fonte" data-t="fonte"></div>
   </div>
@@ -188,8 +203,8 @@ let DADOS = [];
 // Vazia no modo embutido. No modo remoto a pagina busca o JSON do Supabase
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
-const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4"};
-const GERADO = "06/10/2026 09:18";
+const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
+const GERADO = "06/10/2026 16:23";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -207,7 +222,7 @@ const T = {
       g2_x:"Cada ponto é uma oferta de hoje. À direita entrega mais; acima custa mais.",
       g3_t:"Preço por unidade entregue",
       g3_x:"O preço de entrada dividido pelo que ele entrega. Normaliza ofertas de franquia diferente — R$ 59 com 45 GB não é o mesmo que R$ 59 com 40 GB.",
-      mat_t:"Preço por degrau, dia a dia (R$/mês)",
+      mat_t:"Preço por degrau, dia a dia", mes:"mês",
       mat_x:"Uma linha por degrau de cada operadora, uma coluna por dia. ▲▼ é o preço da mesma oferta mudando; ◆ é outra oferta assumindo o degrau, que não é mudança de preço. Dentro do degrau vale o menor nível de bundle, e só então o menor preço.",
       m_trocou:"Outra oferta assumiu o degrau",
       tab_t:"As ofertas de entrada de cada operadora",
@@ -239,7 +254,7 @@ const T = {
       g2_x:"Each dot is an offer from today. Further right delivers more; higher up costs more.",
       g3_t:"Price per unit delivered",
       g3_x:"Entry price divided by what it delivers. Normalises offers with different allowances — R$ 59 with 45 GB is not the same as R$ 59 with 40 GB.",
-      mat_t:"Price by tier, day by day (R$/month)",
+      mat_t:"Price by tier, day by day", mes:"month",
       mat_x:"One row per tier of each carrier, one column per day. ▲▼ is the same offer changing price; ◆ is a different offer taking over the tier, which is not a price change. Within a tier the lowest bundle level wins, then the lowest price.",
       m_trocou:"A different offer took over this tier",
       tab_t:"Each carrier's entry offer",
@@ -260,6 +275,17 @@ const T = {
 let lang = "pt";
 let desligadas = new Set();
 let graficos = {};
+// "mes" = o preco que a operadora cobra. "unidade" = o mesmo preco dividido
+// pelo que ele entrega, que e a metrica que a XP usa em todo o tracker
+// para comparar operadoras com franquias diferentes.
+let metricaAtual = "mes";
+
+function metrica(m){
+  metricaAtual = m;
+  document.getElementById("bt-mes").className = m === "mes" ? "on" : "";
+  document.getElementById("bt-gb").className = m === "unidade" ? "on" : "";
+  matriz();
+}
 
 let OPERADORAS = [], PRACAS = [], PRODUTOS = [], DIAS = [];
 const diaDe = o => o.data_captura || (o.capturado_em||"").slice(0,10);
@@ -553,6 +579,10 @@ function matriz(){
     const celulas = dias.map(d=>{
       const c = l.por[d];
       if (!c || c.p == null) { anterior = null; return `<td class="num vazia">—</td>`; }
+      // no modo unidade, a celula vira preco dividido pela entrega
+      const mostra = v => metricaAtual === "unidade"
+        ? (l.degrau ? (v / l.degrau) : null)
+        : v;
       let marca = "", cls = "", dica = c.nome;
       if (anterior) {
         if (anterior.nome !== c.nome) {
@@ -572,8 +602,13 @@ function matriz(){
         }
       }
       anterior = c;
-      return `<td class="num${cls}" title="${dica}">`
-             + reais(c.p).replace("R$ ", "") + marca + `</td>`;
+      const v = mostra(c.p);
+      if (v == null) return `<td class="num vazia">—</td>`;
+      // R$/GB fica na ordem de centavos: duas casas, ou o eixo repete
+      const txt = metricaAtual === "unidade"
+        ? v.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2})
+        : reais(v).replace("R$ ", "");
+      return `<td class="num${cls}" title="${dica}">` + txt + marca + `</td>`;
     }).join("");
     // o nome da operadora so na primeira linha dela: repetir seis vezes
     // "Claro" rouba a atencao do que importa, que e o degrau e o preco
@@ -587,6 +622,12 @@ function matriz(){
   }).join("");
 
   alvo.innerHTML = `<table><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
+
+  // o titulo diz a unidade, como nos quadros do tracker do BBA
+  const unidade = ordenadas[0] ? ordenadas[0].unidade : "";
+  document.querySelector('[data-t="mat_t"]').textContent =
+    t("mat_t") + (metricaAtual === "unidade"
+      ? " (R$/" + unidade + ")" : " (R$/" + t("mes") + ")");
 }
 
 function grafRanking(){
