@@ -28,8 +28,8 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coletores import (armazenamento, brisanet, claro, nucel, tim,   # noqa: E402
-                       unifique, vivo)
+from coletores import (armazenamento, brisanet, claro, nucel, starlink,  # noqa: E402
+                       tim, unifique, vivo)
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
 
 BRT = timezone(timedelta(hours=-3))
@@ -38,7 +38,10 @@ BRT = timezone(timedelta(hours=-3))
 # a serie comeca desigual de proposito (decisao 18) porque esperar custa
 # historico que nao volta.
 COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
-             "Brisanet": brisanet, "Unifique": unifique, "NuCel": nucel}
+             "Brisanet": brisanet, "Unifique": unifique, "NuCel": nucel,
+             # satelite, produto proprio: nao e comparavel com fibra e nao
+             # disputa degrau com ela (ver coletores/starlink.py)
+             "Starlink": starlink}
 
 
 def agora():

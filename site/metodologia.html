@@ -62,7 +62,7 @@
 
 <header>
   <h1>Price Tracker das telecos — Metodologia</h1>
-  <div class="sub">Atualizado em 02/10/2026 &middot; as 28 definições fechadas &middot; página privada, fora do dashboard oficial de TMT</div>
+  <div class="sub">Atualizado em 06/10/2026 &middot; as 28 definições fechadas &middot; página privada, fora do dashboard oficial de TMT</div>
 </header>
 
 <div class="wrap">
@@ -75,7 +75,7 @@
   <a href="#s6">6. Como comparar</a>
   <a href="#s7">7. Houve repasse?</a>
   <a href="#s8">8. Falhas e alertas</a>
-  <a href="#s9">9. As seis fontes</a>
+  <a href="#s9">9. As sete fontes</a>
   <a href="#s10">10. Onde o robô roda</a>
   <a href="#s11">11. A tela</a>
   <a href="#s12">12. Em aberto</a>
@@ -110,7 +110,7 @@
     <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
     <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
     <tr><td>2</td><td>Produtos</td><td><b>Controle</b> (principal), fibra FTTH, pós-pago, combo e pré-pago</td></tr>
-    <tr><td>3</td><td>Players</td><td>Vivo, TIM, Claro, Brisanet, Unifique e NuCel</td></tr>
+    <tr><td>3</td><td>Players</td><td>Vivo, TIM, Claro, Brisanet, Unifique, NuCel e <b>Starlink</b> (satélite, em produto próprio)</td></tr>
     <tr><td>4</td><td>Praças</td><td>20, congeladas (seção 4)</td></tr>
     <tr><td>5</td><td>Frequência</td><td>Diária</td></tr>
     <tr><td>6</td><td>Granularidade</td><td>Toda oferta visível na vitrine vira uma linha</td></tr>
@@ -155,6 +155,7 @@
     <tr><td>3</td><td>Móvel pós-pago</td><td>topo do móvel</td></tr>
     <tr><td>4</td><td>Combo</td><td>fibra mais móvel; onde aparece a maior diferença regional</td></tr>
     <tr><td>5</td><td>Pré-pago</td><td>piso do mercado</td></tr>
+    <tr><td>6</td><td><b>Satélite</b></td><td>só a Starlink; produto à parte, não comparável com fibra</td></tr>
   </table>
   <p>Ficam de fora fibra com TV linear e a criação de categoria separada para planos digitais.</p>
   <div class="box neutro">
@@ -167,8 +168,27 @@
     da base e ainda podem ser filtrados para fora quando atrapalharem.</p>
   </div>
   <h3>Players</h3>
-  <p>Vivo, TIM, Claro, Brisanet, Unifique e NuCel. Os dois regionais são essencialmente fibra e a
-  NuCel é só móvel e nacional.</p>
+  <p>Vivo, TIM, Claro, Brisanet, Unifique, NuCel e Starlink. Os dois regionais são essencialmente
+  fibra, a NuCel é só móvel e nacional, e a Starlink é satélite.</p>
+  <div class="box alerta">
+    <span class="rotulo">A Starlink entra, mas não disputa degrau com ninguém</span>
+    <p>Acrescentada em 06/10/2026, em <b>produto próprio ("satélite")</b> em vez de dentro de
+    fibra. Quatro razões, e qualquer uma bastaria:</p>
+    <table>
+      <tr><td>Tecnologia</td><td>A seção 6 exclui de FTTH o que não é fibra. Misturar faria a
+      Starlink parecer cara por Mbps contra uma fibra que ela não substitui — onde há as duas,
+      quase ninguém escolhe satélite.</td></tr>
+      <tr><td>Velocidade</td><td>Não é contratada, é "até": varia com a célula de cobertura e o
+      horário. O degrau não significa a mesma coisa que na fibra.</td></tr>
+      <tr><td>Custo de entrada</td><td>Outra ordem de grandeza. O kit padrão custa <b>R$ 2.400</b>,
+      contra instalação grátis ou quase na fibra. Comparar só a mensalidade esconde o que mais
+      pesa na decisão de quem contrata.</td></tr>
+      <tr><td>Praça</td><td>Não existe: o preço é nacional, declarado por país. Como a NuCel,
+      roda uma vez por dia.</td></tr>
+    </table>
+    <p>O que ela acrescenta é o <b>teto do mercado onde não há fibra</b> — e isso só faz sentido
+    lido à parte.</p>
+  </div>
   <div class="box">
     <p><b>A matriz será esparsa, e isso é esperado.</b> Não existe Unifique em Fortaleza nem
     Brisanet em Blumenau. Célula vazia no gráfico, nunca linha no chão.</p>
@@ -538,8 +558,8 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
 </section>
 
 <section id="s9">
-  <h2><span class="num">9.</span> As seis fontes</h2>
-  <p>Investigadas em 02 e 23/09/2026. <b>Todas coletáveis.</b> Cinco fáceis, uma trabalhosa.</p>
+  <h2><span class="num">9.</span> As sete fontes</h2>
+  <p>Investigadas em 02 e 23/09/2026, mais a Starlink em 06/10. <b>Todas coletáveis.</b></p>
   <table>
     <tr><th>Operadora</th><th>Como os dados saem</th><th>Troca de praça</th><th>Dificuldade</th></tr>
     <tr><td><b>TIM</b></td><td>HTML com JSON embutido</td><td><b>estado na URL</b> — /sp/, /rj/</td><td>Baixa</td></tr>
@@ -548,12 +568,23 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     <tr><td><b>Vivo</b></td><td>catálogo e regulamento em dado puro</td><td>requisição de troca</td><td>Baixa, mas tem anti-bot</td></tr>
     <tr><td><b>Claro</b></td><td>HTML pronto (SAP Hybris)</td><td>cookie de região</td><td>Média</td></tr>
     <tr><td><b>Unifique</b></td><td>só mostra preço após escolher cidade</td><td>obrigatória, por JavaScript</td><td><b>Alta</b></td></tr>
+    <tr><td><b>Starlink</b></td><td><b>API pública e estruturada</b></td><td>não tem, é nacional</td><td><b>Muito baixa</b></td></tr>
   </table>
   <div class="box">
     <span class="rotulo">A aposta que não se confirmou</span>
     <p>Esperava-se que todas publicassem o regulamento da Anatel no mesmo formato estruturado da
     Vivo. <b>Não publicam — só a Vivo.</b> A Claro publica em texto corrido. É a origem da decisão 9:
     fidelidade, multa e taxa vêm exatas na Vivo e vazias nas outras.</p>
+  </div>
+  <div class="box">
+    <span class="rotulo">A melhor fonte das sete é a que chegou por último</span>
+    <p>A Starlink expõe uma API pública e estruturada, sem anti-bot e sem navegador, que devolve
+    <b>preço, promoção e duração em campos separados</b> — o que na Vivo exige ler o regulamento da
+    Anatel e nas outras cinco simplesmente não existe. Ela ainda informa o preço do kit, que é o
+    custo de entrada.</p>
+    <p class="legenda">As duas famílias vendidas no Brasil têm códigos distintos na API, achados por
+    varredura: residencial e Priority. Os demais códigos voltam vazios — ausência declarada pela
+    fonte, que o coletor registra como aviso em vez de tratar como falha.</p>
   </div>
   <p><b>A Claro entrega as cidades com código IBGE</b>, a mesma chave do dado municipal da Anatel
   que o Dashboard já usa. Amarra as duas bases sem conversão.</p>

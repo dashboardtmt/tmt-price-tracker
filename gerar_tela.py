@@ -38,6 +38,7 @@ CORES = {
     "Brisanet": "#73C6A1",   # verde
     "Unifique": "#398478",   # verde-petroleo
     "NuCel": "#809BC4",      # azul acinzentado
+    "Starlink": "#1D4080",   # azul escuro
 }
 
 MOLDE = r"""<!DOCTYPE html>
