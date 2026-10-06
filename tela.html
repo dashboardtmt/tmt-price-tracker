@@ -64,6 +64,12 @@
   td.sobe{color:var(--negativo);font-weight:600}
   td.desce{color:var(--positivo);font-weight:600}
   #matriz th.num{text-align:right}
+  #matriz td.degrau{color:var(--cor-texto-suave);white-space:nowrap}
+  #matriz td.trocou{color:var(--cor-texto);font-weight:600}
+  .legenda-matriz{font-size:11px;color:var(--cor-texto-suave);margin-top:9px;
+                  display:flex;gap:16px;flex-wrap:wrap}
+  #matriz tr.troca-op td{border-top:1px solid var(--cinza-claro)}
+  #matriz tbody tr:first-child td{border-top:none}
   .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
          padding-top:7px;border-top:1px solid var(--cor-borda)}
   .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
@@ -183,7 +189,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4"};
-const GERADO = "05/10/2026 18:58";
+const GERADO = "06/10/2026 09:18";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -201,8 +207,9 @@ const T = {
       g2_x:"Cada ponto é uma oferta de hoje. À direita entrega mais; acima custa mais.",
       g3_t:"Preço por unidade entregue",
       g3_x:"O preço de entrada dividido pelo que ele entrega. Normaliza ofertas de franquia diferente — R$ 59 com 45 GB não é o mesmo que R$ 59 com 40 GB.",
-      mat_t:"Preço de entrada, dia a dia (R$/mês)",
-      mat_x:"Uma linha por operadora, uma coluna por dia. A seta marca o dia em que o preço mudou.",
+      mat_t:"Preço por degrau, dia a dia (R$/mês)",
+      mat_x:"Uma linha por degrau de cada operadora, uma coluna por dia. ▲▼ é o preço da mesma oferta mudando; ◆ é outra oferta assumindo o degrau, que não é mudança de preço. Dentro do degrau vale o menor nível de bundle, e só então o menor preço.",
+      m_trocou:"Outra oferta assumiu o degrau",
       tab_t:"As ofertas de entrada de cada operadora",
       tab_x:"Uma linha por operadora: a oferta mais barata de hoje, com o que ela entrega e o que o contrato garante.",
       rodape:"Documento de trabalho interno. Preços coletados das vitrines públicas das operadoras, uma vez por dia.",
@@ -232,8 +239,9 @@ const T = {
       g2_x:"Each dot is an offer from today. Further right delivers more; higher up costs more.",
       g3_t:"Price per unit delivered",
       g3_x:"Entry price divided by what it delivers. Normalises offers with different allowances — R$ 59 with 45 GB is not the same as R$ 59 with 40 GB.",
-      mat_t:"Entry price, day by day (R$/month)",
-      mat_x:"One row per carrier, one column per day. The arrow marks the day the price changed.",
+      mat_t:"Price by tier, day by day (R$/month)",
+      mat_x:"One row per tier of each carrier, one column per day. ▲▼ is the same offer changing price; ◆ is a different offer taking over the tier, which is not a price change. Within a tier the lowest bundle level wins, then the lowest price.",
+      m_trocou:"A different offer took over this tier",
       tab_t:"Each carrier's entry offer",
       tab_x:"One row per carrier: today's cheapest offer, what it delivers and what the contract guarantees.",
       rodape:"Internal working document. Prices collected once a day from carriers' public websites.",
@@ -331,6 +339,39 @@ function entradaPorOperadora(dia){
     if (p == null) continue;
     const atual = por[o.operadora];
     if (!atual || p < precoDe(atual)) por[o.operadora] = o;
+  }
+  return por;
+}
+
+// O mesmo criterio da entrada, aplicado degrau a degrau: dentro de cada
+// par (operadora, degrau), o menor preco do dia. Varias ofertas dividem o
+// mesmo degrau - "Vivo Controle" e "Vivo Controle Amazon" sao ambas 45 GB
+// - e comparar a mais barata de cada uma mantem a serie estavel quando a
+// operadora acrescenta ou tira uma variante.
+function nivel(o){
+  const n = o.nivel_bundle;
+  return n == null ? 9 : Number(n);
+}
+function menor(a, b){
+  const na = nivel(a), nb = nivel(b);
+  if (na !== nb) return na < nb;
+  return precoDe(a) < precoDe(b);
+}
+
+function porDegrau(dia){
+  const por = {};
+  for (const o of doFiltro(dia)) {
+    const p = precoDe(o), e = entregaDe(o);
+    if (p == null || e.v == null) continue;
+    const k = o.operadora + "|" + e.v;
+    const atual = por[k];
+    // Decisao 10: dentro do degrau vale o MENOR NIVEL DE BUNDLE, e so
+    // entao o menor preco. Pelo preco puro, "Fibra + TV por assinatura"
+    // e "Vivo Fibra" disputavam o mesmo degrau de 600 Mbps - comparar
+    // fibra pura com fibra mais TV e o que a metodologia proibe.
+    if (!atual || menor(o, atual.oferta)) {
+      por[k] = {operadora:o.operadora, degrau:e.v, unidade:e.u, oferta:o};
+    }
   }
   return por;
 }
@@ -472,44 +513,79 @@ function grafUnitario(){
   });
 }
 
-// A matriz do Exhibit 1 do J.P. Morgan: operadora nas linhas, data nas
-// colunas, preco de entrada na celula. A mudanca aparece sem grafico e
-// sem frase - a celula que muda recebe seta e cor.
+// A matriz do Exhibit 1 do J.P. Morgan: linhas sao a oferta, colunas sao
+// as datas, e a celula traz o preco. A mudanca aparece sem grafico e sem
+// frase - a celula que muda recebe seta e cor.
 //
-// A deles e mensal; a nossa e diaria, porque a coleta e diaria.
+// A deles e por mes e so da oferta de entrada, porque a coleta e manual.
+// A nossa e por dia e por DEGRAU: acompanhar so a entrada escondia o que
+// a Claro fez em 05/10, quando mexeu no 600 e no 750 Mega e deixou a
+// entrada parada.
 function matriz(){
   const alvo = document.getElementById("matriz");
   const dias = DIAS.slice(-12);
-  const ops = OPERADORAS.filter(o=>!desligadas.has(o));
-  const porOp = {};
-  for (const op of ops) {
-    const linha = dias.map(d=>{
-      const e = entradaPorOperadora(d)[op];
-      return e ? {p:precoDe(e), nome:e.nome_oferta||""} : null;
-    });
-    if (linha.some(c=>c && c.p!=null)) porOp[op] = linha;
+
+  // junta os degraus vistos em qualquer dia do recorte: degrau que sumiu
+  // no meio do caminho tem de continuar na tabela, com a celula vazia
+  const linhas = {};
+  for (const d of dias) {
+    for (const [k, v] of Object.entries(porDegrau(d))) {
+      if (desligadas.has(v.operadora)) continue;
+      linhas[k] = linhas[k] || {operadora:v.operadora, degrau:v.degrau,
+                                unidade:v.unidade, por:{}};
+      linhas[k].por[d] = {p:precoDe(v.oferta), nome:v.oferta.nome_oferta||""};
+    }
   }
-  if (!Object.keys(porOp).length) {
+  const ordenadas = Object.values(linhas).sort((a, b)=>
+    a.operadora.localeCompare(b.operadora) || a.degrau - b.degrau);
+
+  if (!ordenadas.length) {
     alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
     return;
   }
-  const cab = `<tr><th>${t("col")[0]}</th>` +
+
+  const cab = `<tr><th>${t("col")[0]}</th><th>${t("col")[2]}</th>` +
     dias.map(d=>`<th class="num">${dataCurta(d)}</th>`).join("") + `</tr>`;
-  const corpo = Object.entries(porOp).map(([op, linha])=>{
-    const celulas = linha.map((c, i)=>{
-      if (!c || c.p == null) return `<td class="num vazia">—</td>`;
-      const ant = i ? linha[i-1] : null;
-      let marca = "", cls = "";
-      if (ant && ant.p != null && ant.p !== c.p) {
-        const sobe = c.p > ant.p;
-        marca = sobe ? " ▲" : " ▼";
-        cls = sobe ? " sobe" : " desce";
+
+  let opAnterior = null;
+  const corpo = ordenadas.map(l=>{
+    let anterior = null;
+    const celulas = dias.map(d=>{
+      const c = l.por[d];
+      if (!c || c.p == null) { anterior = null; return `<td class="num vazia">—</td>`; }
+      let marca = "", cls = "", dica = c.nome;
+      if (anterior) {
+        if (anterior.nome !== c.nome) {
+          // Outra oferta assumiu o degrau. NAO e mudanca de preco: foi o
+          // que aconteceu com a Vivo em 03/10, quando a "Vivo Fibra" de
+          // 600 Mbps entrou a R$ 100 num degrau que so tinha "Fibra + TV"
+          // a R$ 270 - a seta de queda sugeriria corte de 63% onde houve
+          // lancamento de produto.
+          marca = " ◆";
+          cls = " trocou";
+          dica = t("m_trocou") + ": " + anterior.nome + " → " + c.nome;
+        } else if (anterior.p !== c.p) {
+          const sobe = c.p > anterior.p;
+          marca = sobe ? " ▲" : " ▼";
+          cls = sobe ? " sobe" : " desce";
+          dica = c.nome + ": " + reais(anterior.p) + " → " + reais(c.p);
+        }
       }
-      return `<td class="num${cls}" title="${c.nome}">`
+      anterior = c;
+      return `<td class="num${cls}" title="${dica}">`
              + reais(c.p).replace("R$ ", "") + marca + `</td>`;
     }).join("");
-    return `<tr><td><span class="op-tag"><span class="marcador" style="background:${CORES[op]||"#999"}"></span>${op}</span></td>${celulas}</tr>`;
+    // o nome da operadora so na primeira linha dela: repetir seis vezes
+    // "Claro" rouba a atencao do que importa, que e o degrau e o preco
+    const novaOp = l.operadora !== opAnterior;
+    opAnterior = l.operadora;
+    const rotuloOp = novaOp
+      ? `<span class="op-tag"><span class="marcador" style="background:${CORES[l.operadora]||"#999"}"></span>${l.operadora}</span>`
+      : "";
+    return `<tr class="${novaOp ? "troca-op" : ""}"><td>${rotuloOp}</td>`
+         + `<td class="degrau">${l.degrau} ${l.unidade}</td>${celulas}</tr>`;
   }).join("");
+
   alvo.innerHTML = `<table><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
 }
 
