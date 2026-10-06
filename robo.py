@@ -238,11 +238,17 @@ def mudancas(hoje, ontem):
     # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
     # que nao avisar, porque soa como noticia verificada.
     if erro_h or erro_o:
-        return [], [], [], erro_h or erro_o
+        return [], [], [], [], erro_h or erro_o
+    grades, suprimir = _grades_reorganizadas(h, o)
+
     precos, composicao = {}, {}
     for k, atual in h.items():
         antes = o.get(k)
         if not antes:
+            continue
+        # operadora que reorganizou a grade nao emite mudanca de preco:
+        # o par por nome casou degraus diferentes da escada
+        if (atual["operadora"], atual["produto"]) in suprimir:
             continue
         if antes["preco_promocional"] is not None and \
                 atual["preco_promocional"] != antes["preco_promocional"]:
@@ -261,8 +267,61 @@ def mudancas(hoje, ontem):
             _agrupar(composicao, (atual["operadora"], atual["produto"],
                                   atual["chave"], a, d), atual, antes)
 
-    renomeadas = _renomeadas(h, o)
-    return list(precos.values()), list(composicao.values()), renomeadas, None
+    renomeadas = [r for r in _renomeadas(h, o)
+                  if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
+    return (list(precos.values()), list(composicao.values()),
+            renomeadas, grades, None)
+
+
+def _entrega(l):
+    """O degrau da oferta: Mbps na fixa, GB no movel."""
+    return l.get("degrau_mbps") or l.get("franquia_anunciada_gb")
+
+
+def _grades_reorganizadas(h, o):
+    """Operadoras que mantiveram os precos e mexeram nos degraus.
+
+    Devolve (lista de eventos, conjunto de operadoras a suprimir). A
+    supressao existe porque, quando a escada inteira desliza, parear por
+    nome casa o topo de ontem com o meio de hoje e inventa uma queda que
+    nao houve.
+    """
+    def agrupar(indice):
+        por = collections.defaultdict(list)
+        for l in indice.values():
+            por[(l["operadora"], l["produto"], l["praca"])].append(l)
+        return por
+
+    ah, ao = agrupar(h), agrupar(o)
+    eventos, suprimir = {}, set()
+    for chave, atuais in ah.items():
+        anteriores = ao.get(chave)
+        if not anteriores or len(atuais) < 2:
+            continue
+        precos_h = sorted(x["preco_promocional"] for x in atuais
+                          if x["preco_promocional"] is not None)
+        precos_o = sorted(x["preco_promocional"] for x in anteriores
+                          if x["preco_promocional"] is not None)
+        if not precos_h or precos_h != precos_o:
+            continue        # algum preco mudou: nao e so reorganizacao
+
+        # mesmo preco a mesmo preco, o degrau mudou?
+        por_preco_h = {x["preco_promocional"]: _entrega(x) for x in atuais}
+        por_preco_o = {x["preco_promocional"]: _entrega(x) for x in anteriores}
+        saltos = [(p, por_preco_o[p], por_preco_h[p]) for p in por_preco_h
+                  if p in por_preco_o
+                  and por_preco_o[p] is not None and por_preco_h[p] is not None
+                  and por_preco_o[p] != por_preco_h[p]]
+        if not saltos:
+            continue
+
+        operadora, produto, praca = chave
+        suprimir.add((operadora, produto))
+        ident = (operadora, produto, tuple(sorted(saltos)))
+        d = eventos.setdefault(ident, {"operadora": operadora, "produto": produto,
+                                       "saltos": sorted(saltos), "pracas": []})
+        d["pracas"].append(praca)
+    return list(eventos.values()), suprimir
 
 
 def _renomeadas(h, o):
@@ -305,7 +364,7 @@ def montar_mensagem(hoje, ontem):
     linhas = ["Price Tracker - %s" % datetime.fromisoformat(hoje).strftime("%d/%m")]
 
     # 1. mudanca sobe para o topo, com detalhe
-    mud, comp, renom, erro_cmp = mudancas(hoje, ontem)
+    mud, comp, renom, grades, erro_cmp = mudancas(hoje, ontem)
     if erro_cmp:
         linhas.append("")
         linhas.append("COMPARACAO COM ONTEM FALHOU: %s" % erro_cmp[:120])
@@ -374,9 +433,27 @@ def montar_mensagem(hoje, ontem):
         if len(renom) > 4:
             linhas.append("  (+%d outras)" % (len(renom) - 4))
 
+    # 1d. grade reorganizada: mesmo preco, outra franquia. E o espelho do
+    # "composicao mudou, preco parado" - aqui o que muda e o que se leva
+    # pelo mesmo dinheiro.
+    if grades:
+        linhas.append("")
+        for g in grades[:4]:
+            linhas.append("GRADE REORGANIZADA: %s %s - mesmos precos, franquia nova"
+                          % (g["operadora"], g["produto"]))
+            for preco, antes_v, agora_v in g["saltos"]:
+                pc = (agora_v - antes_v) / float(antes_v) * 100 if antes_v else 0
+                linhas.append("  R$ %s: %s -> %s (%+.0f%%)"
+                              % (_reais(preco), antes_v, agora_v, pc))
+            linhas.append("  Onde: %s (%d de %d pracas)" % (
+                ", ".join(sorted({p.split("/")[0] for p in g["pracas"]})[:4]),
+                len(g["pracas"]), len(PRACAS)))
+        if len(grades) > 4:
+            linhas.append("  (+%d outras)" % (len(grades) - 4))
+
     # Nada mudou tem de ser dito, e com o tamanho da base por tras:
     # "sem novidade" sozinho nao diz se o robo olhou 10 ofertas ou 1400.
-    if not (mud or comp or renom or erro_cmp):
+    if not (mud or comp or renom or grades or erro_cmp):
         linhas.append("")
         linhas.append("Nenhuma mudanca de preco, composicao ou nome.")
 

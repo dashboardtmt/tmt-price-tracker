@@ -90,7 +90,7 @@ def main():
         "&order=data_captura.desc&limit=1" % dia)
     if anterior:
         ontem = anterior[0]["data_captura"]
-        precos, comp, renom, erro_cmp = robo.mudancas(dia, ontem)
+        precos, comp, renom, grades, erro_cmp = robo.mudancas(dia, ontem)
         if erro_cmp:
             print("\n4. mudancas FALHOU: %s" % erro_cmp)
             return 1
