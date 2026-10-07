@@ -31,14 +31,26 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 # Cores de serie, todas da paleta oficial Itau BBA.
+# Uma cor por operadora, todas da paleta primaria do Itau BBA, puxando a
+# cor real de cada marca quando a paleta permite.
+#
+# O arranjo anterior punha TIM (#5282D8 azul), NuCel (#809BC4 azul
+# acinzentado) e Vivo (#8258A0 roxo) em tons vizinhos: numa bolinha de
+# 6px eram quase a mesma coisa. Agora cada uma esta numa familia de
+# matiz diferente.
 CORES = {
-    "Vivo": "#8258A0",       # roxo
-    "TIM": "#5282D8",        # azul
-    "Claro": "#FF5000",      # laranja principal
-    "Brisanet": "#73C6A1",   # verde
-    "Unifique": "#398478",   # verde-petroleo
-    "NuCel": "#809BC4",      # azul acinzentado
-    "Starlink": "#1D4080",   # azul escuro
+    # vermelho e a cor da Claro; a paleta nao tem vermelho, e o laranja
+    # principal e o mais proximo dele
+    "Claro": "#FF5000",
+    "TIM": "#1D4080",        # o azul-marinho da TIM
+    "Vivo": "#8258A0",       # o roxo da Vivo
+    # a NuCel e MVNO do Nubank, que tambem e roxo - mas o roxo ja e da
+    # Vivo, e duas marcas roxas no mesmo quadro era o problema. Fica com
+    # o verde-petroleo, longe de todo o resto.
+    "NuCel": "#398478",
+    "Brisanet": "#FFAE66",   # laranja da marca, no tom claro da paleta
+    "Unifique": "#5282D8",   # o azul da marca
+    "Starlink": "#6E6E6E",   # marca preta e branca; o cinza medio da paleta
 }
 
 MOLDE = r"""<!DOCTYPE html>
@@ -348,9 +360,9 @@ MOLDE = r"""<!DOCTYPE html>
       <div class="metricas">
         <span id="legenda-datas" style="display:flex;gap:12px"></span>
         <span style="display:flex;gap:5px">
-          <button id="bt-r-todos" class="on" onclick="rotulos('todos')" data-t="r_todos">Nomes: todos</button>
-          <button id="bt-r-entrada" onclick="rotulos('entrada')" data-t="r_entrada">Só entrada</button>
-          <button id="bt-r-nenhum" onclick="rotulos('nenhum')" data-t="r_nenhum">Nenhum</button>
+          <button id="bt-r-todos" class="on" onclick="rotulos('todos')" data-t="r_todos">Todas as ofertas</button>
+          <button id="bt-r-entrada" onclick="rotulos('entrada')" data-t="r_entrada">Só a entrada</button>
+          <button id="bt-r-nenhum" onclick="rotulos('nenhum')" data-t="r_nenhum">Sem nomes</button>
         </span>
       </div>
     </div>
@@ -465,8 +477,8 @@ const T = {
       l_apareceu:"aparece nesta praça com", l_saiu:"não aparece mais nesta praça hoje",
       l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
-      fonte:"Vitrines públicas · uma coleta por dia · preço cheio, sem desconto condicionado",
-      fonte_tabela:"Entrega: 50+10 são 50 GB fixos mais 10 de bônus, que pode expirar · vitrines públicas · uma coleta por dia · preço cheio",
+      fonte:"Source: site das companhias / vitrines virtuais de cada região.",
+      fonte_tabela:"Entrega: 50+10 são 50 GB fixos mais 10 de bônus, que pode expirar. Source: site das companhias / vitrines virtuais de cada região.",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       ab_pan:"Panorama", ab_of:"Ofertas",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
@@ -500,7 +512,7 @@ const T = {
                 combo:"Combo (fibra + móvel)", prepago:"Pré-pago",
                 satelite:"Satélite", btl:"Below-the-line"},
       q_t:"Onde cada oferta está",
-      r_entrada:"Só entrada", r_todos:"Nomes: todos", r_nenhum:"Nenhum",
+      r_entrada:"Só a entrada", r_todos:"Todas as ofertas", r_nenhum:"Sem nomes",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada bolinha é uma oferta do dia: mais à direita entrega mais, mais acima custa mais. As melhores relações ficam embaixo e à direita.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
@@ -535,8 +547,8 @@ const T = {
       l_apareceu:"shows up in this city at", l_saiu:"is not in this city today",
       l_spread:"End to end:", l_a:"at", l_acima:"apart",
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
-      fonte:"Public websites · collected once a day · list price, before conditional discounts",
-      fonte_tabela:"Delivers: 50+10 means 50 GB fixed plus 10 GB of bonus, which can expire · public websites · once a day · list price",
+      fonte:"Source: carrier websites / regional online storefronts.",
+      fonte_tabela:"Delivers: 50+10 means 50 GB fixed plus 10 GB of bonus, which can expire. Source: carrier websites / regional online storefronts.",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       ab_pan:"Overview", ab_of:"Offers",
       sec_pan:"Market overview", sec_of:"Today's offers",
@@ -567,7 +579,7 @@ const T = {
                 combo:"Bundle (fibre + mobile)", prepago:"Prepaid",
                 satelite:"Satellite", btl:"Below-the-line"},
       q_t:"Where each offer sits",
-      r_entrada:"Entry only", r_todos:"Labels: all", r_nenhum:"None",
+      r_entrada:"Entry offers only", r_todos:"All offers", r_nenhum:"No labels",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day: further right delivers more, higher up costs more. The best deals sit low and to the right.",
       g1_t:"Entry price, by carrier (R$/month)",
@@ -1121,7 +1133,10 @@ function grafTempo(){
     data:{labels:DIAS.map(dataCurta), datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:"index", intersect:false},
+      layout:{padding:{top:20}},
       plugins:{legend:legenda(),
+        // a unidade no eixo, na horizontal
+        unidadeEixo:{y:"R$/" + t("mes")},
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
           c.dataset.label+": "+reais(c.parsed.y)
           + (c.dataset.sobrepoe ? " (" + t("sobre") + " " + c.dataset.sobrepoe + ")" : "")}}},
@@ -1129,6 +1144,7 @@ function grafTempo(){
               y:Object.assign(eixos(v=>reais(v).replace("R$ ","")).y,
                               {beginAtZero:false},
                               faixaEixo(series.flatMap(s2=>s2.data)))}},
+    plugins:[UNIDADE_EIXO],
   });
 }
 
@@ -1172,13 +1188,18 @@ function grafTempoUnitario(){
     data:{labels:DIAS.map(dataCurta), datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:"index", intersect:false},
+      layout:{padding:{top:20}},
       plugins:{legend:legenda(),
+        // a unidade fica no eixo, na horizontal - o titulo do bloco
+        // some quando o quadro e exportado ou impresso sozinho
+        unidadeEixo:{y:"R$/" + u},
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
           c.dataset.label+": R$ "+fmt(c.parsed.y)+"/"+u
           + (c.dataset.sobrepoe ? " (" + t("sobre") + " " + c.dataset.sobrepoe + ")" : "")}}},
       scales:{x:eixos().x,
               y:Object.assign(eixos(fmt).y, {beginAtZero:false},
                               faixaEixo(series.flatMap(s2=>s2.data)))}},
+    plugins:[UNIDADE_EIXO],
   });
 }
 
@@ -1221,7 +1242,7 @@ function textoRotulo(v, ctx){
 function rotular(ds, p){
   if (ds.ordem !== 1) return false;            // data de comparacao
   if (rotulosAtual === "nenhum") return false;
-  if (rotulosAtual === "entrada") return !!p.ehEntrada;
+  // no modo entrada so restam ofertas de entrada no grafico
   return true;
 }
 
@@ -1374,8 +1395,14 @@ function grafQuadrante(){
         ehEntrada: !!ent && precoDe(ent) === p && entregaDe(ent).v === e.v,
       };
     }
+    // "So a entrada" tira as OUTRAS BOLINHAS, e nao so os nomes delas.
+    // Escondendo apenas o nome sobravam dez pontos mudos no quadro, que
+    // e exatamente o defeito que este seletor existe para evitar.
+    let pontos = Object.values(por);
+    if (rotulosAtual === "entrada") pontos = pontos.filter(p => p.ehEntrada);
+
     const agrupado = {};
-    for (const pt of Object.values(por)) {
+    for (const pt of pontos) {
       (agrupado[pt.operadora] = agrupado[pt.operadora] || []).push(pt);
     }
     return agrupado;
