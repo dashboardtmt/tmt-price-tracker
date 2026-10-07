@@ -343,7 +343,7 @@ let DADOS = [];
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 11:30";
+const GERADO = "07/10/2026 11:33";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -382,7 +382,8 @@ const T = {
       r_entrada:"Só entrada", r_todos:"Nomes: todos", r_nenhum:"Nenhum",
       q_x:"A disposição do dia: cada bolinha é uma oferta, à direita entrega mais e acima custa mais. Para ver o movimento entre datas, use a matriz e o gráfico de evolução mais abaixo.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
-      g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse.",
+      g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse. Linha tracejada significa que ela coincide com outra — o preço é praticamente o mesmo.",
+      sobre:"praticamente sobre a",
       g5_t:"Preço por unidade entregue, dia a dia",
       g5_x:"A mesma série de cima, dividida pelo que cada plano entrega. É aqui que aparece o que o preço nominal esconde: quem manteve o preço e aumentou a franquia fica reto lá em cima e desce aqui.",
       g2_t:"Quanto custa o que entrega (R$/mês × entrega)",
@@ -443,7 +444,8 @@ const T = {
       r_entrada:"Entry only", r_todos:"Labels: all", r_nenhum:"None",
       q_x:"Today's layout: each dot is an offer, further right delivers more and higher up costs more. To see movement between dates, use the matrix and the evolution chart below.",
       g1_t:"Entry price, by carrier (R$/month)",
-      g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised.",
+      g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised. A dashed line means it coincides with another — the price is practically the same.",
+      sobre:"practically on top of",
       g5_t:"Price per unit delivered, day by day",
       g5_x:"The same series above, divided by what each plan delivers. This is where what the nominal price hides shows up: whoever kept the price and raised the allowance stays flat up there and drops here.",
       g2_t:"What you pay for what you get (R$/month × delivery)",
@@ -726,6 +728,33 @@ function legenda(extra){
 // colisao. Colar na faixa real tem o defeito oposto: a mesma diferenca de
 // centavos vira a tela inteira. A saida e uma faixa minima proporcional,
 // 15% do maior valor.
+// Duas operadoras com o mesmo preco desenham uma linha por cima da outra
+// e some uma do grafico - a Vivo a R$ 59,00 ficou escondida atras do TIM
+// a R$ 58,99, um centavo de diferenca. Deslocar a linha seria mentir sobre
+// o valor; o que se faz e marcar a de cima com tracejado, para a
+// coincidencia aparecer como coincidencia.
+function marcarSobrepostas(series, tolerancia){
+  for (let i = 1; i < series.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = series[i].data, b = series[j].data;
+      let juntas = 0, comparaveis = 0;
+      for (let k = 0; k < a.length; k++) {
+        if (a[k] == null || b[k] == null) continue;
+        comparaveis++;
+        if (Math.abs(a[k] - b[k]) <= tolerancia) juntas++;
+      }
+      // precisa coincidir em tudo que da para comparar, e nao so num dia
+      if (comparaveis && juntas === comparaveis) {
+        series[i].borderDash = [6, 4];
+        series[i].borderWidth = 2.5;
+        series[i].sobrepoe = series[j].label;
+        break;
+      }
+    }
+  }
+  return series;
+}
+
 function faixaEixo(valores){
   const vs = valores.filter(v => v != null && isFinite(v));
   if (!vs.length) return {};
@@ -781,6 +810,11 @@ function grafTempo(){
     nota.textContent = t("sem_dado");
     return;
   }
+  // tolerancia de meio por cento da faixa: abaixo disso as linhas caem no
+  // mesmo pixel e uma esconde a outra
+  const faixaT = faixaEixo(series.flatMap(s2=>s2.data));
+  marcarSobrepostas(series, ((faixaT.max||0) - (faixaT.min||0)) * 0.005);
+
   trocar("c-tempo", {
     type:"line",
     data:{labels:DIAS.map(dataCurta), datasets:series},
@@ -788,7 +822,8 @@ function grafTempo(){
       interaction:{mode:"index", intersect:false},
       plugins:{legend:legenda(),
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
-          c.dataset.label+": "+reais(c.parsed.y)}}},
+          c.dataset.label+": "+reais(c.parsed.y)
+          + (c.dataset.sobrepoe ? " (" + t("sobre") + " " + c.dataset.sobrepoe + ")" : "")}}},
       scales:{x:eixos().x,
               y:Object.assign(eixos(v=>reais(v).replace("R$ ","")).y,
                               {beginAtZero:false},
@@ -828,6 +863,9 @@ function grafTempoUnitario(){
 
   const fmt = v => Number(v).toLocaleString("pt-BR",
     {minimumFractionDigits:2, maximumFractionDigits:2});
+  const faixaU = faixaEixo(series.flatMap(s2=>s2.data));
+  marcarSobrepostas(series, ((faixaU.max||0) - (faixaU.min||0)) * 0.005);
+
   trocar("c-tempo-unit", {
     type:"line",
     data:{labels:DIAS.map(dataCurta), datasets:series},
@@ -835,7 +873,8 @@ function grafTempoUnitario(){
       interaction:{mode:"index", intersect:false},
       plugins:{legend:legenda(),
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
-          c.dataset.label+": R$ "+fmt(c.parsed.y)+"/"+u}}},
+          c.dataset.label+": R$ "+fmt(c.parsed.y)+"/"+u
+          + (c.dataset.sobrepoe ? " (" + t("sobre") + " " + c.dataset.sobrepoe + ")" : "")}}},
       scales:{x:eixos().x,
               y:Object.assign(eixos(fmt).y, {beginAtZero:false},
                               faixaEixo(series.flatMap(s2=>s2.data)))}},
