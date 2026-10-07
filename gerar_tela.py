@@ -43,7 +43,11 @@ CORES = {
     # principal e o mais proximo dele
     "Claro": "#FF5000",
     "TIM": "#1D4080",        # o azul-marinho da TIM
-    "Vivo": "#8258A0",       # o roxo da Vivo
+    # A Vivo e roxa na marca, mas o roxo ficou com a NuCel: duas marcas
+    # roxas no mesmo quadro o usuario nao quis, mesmo com os dois tons
+    # separados. Entre as cores legiveis que sobram na paleta, o
+    # verde-petroleo e a que mais se afasta das outras tres do movel.
+    "Vivo": "#398478",
     # A NuCel e MVNO do Nubank e tem de ser roxa como ele. Duas marcas
     # roxas no mesmo quadro se distinguem porque os dois roxos sao
     # diferentes de verdade: o da paleta e claro e dessaturado, o do
@@ -52,8 +56,12 @@ CORES = {
     # TIM x Vivo com 26,7. Unica cor que sai da paleta primaria; aqui a
     # cor identifica uma marca, e a marca e roxa.
     "NuCel": "#820AD1",
-    "Brisanet": "#FFAE66",   # laranja da marca, no tom claro da paleta
-    "Unifique": "#398478",   # verde-petroleo: longe do azul-marinho da TIM
+    # O laranja claro da paleta (#FFAE66) rende 1,8:1 de contraste sobre o
+    # fundo dos cartoes: numa bolinha de 6px ela praticamente sumia.
+    # Mesmo tom, escurecido ate 3,7:1 - a Brisanet segue laranja e passa
+    # a se ver.
+    "Brisanet": "#AD7645",
+    "Unifique": "#5282D8",   # o azul da marca
     "Starlink": "#6E6E6E",   # marca preta e branca; o cinza medio da paleta
 }
 
