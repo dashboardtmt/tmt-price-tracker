@@ -117,8 +117,8 @@
   .metricas button.on{background:var(--preto);border-color:var(--preto);color:#fff}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
-  .grafico-wrap.alto{height:470px}
-  @media(max-width:860px){.grafico-wrap.alto{height:380px}}
+  .grafico-wrap.alto{height:560px}
+  @media(max-width:860px){.grafico-wrap.alto{height:420px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
                  color:var(--cor-texto-suave)}
   .legenda-ponto i{width:9px;height:9px;border-radius:50%;display:inline-block}
@@ -197,10 +197,6 @@
       <label data-t="f_data">Data</label>
       <select id="f-data" onchange="desenhar()"></select>
     </div>
-    <div class="campo">
-      <label data-t="f_contra">Comparar com</label>
-      <select id="f-contra" onchange="desenhar()"></select>
-    </div>
     <div class="campo" style="flex:1 1 220px">
       <label data-t="f_operadora">Operadoras</label>
       <div class="chips" id="f-ops"></div>
@@ -223,8 +219,8 @@
       <div class="metricas">
         <span id="legenda-datas" style="display:flex;gap:12px"></span>
         <span style="display:flex;gap:5px">
-          <button id="bt-r-entrada" class="on" onclick="rotulos('entrada')" data-t="r_entrada">Nomes: entrada</button>
-          <button id="bt-r-todos" onclick="rotulos('todos')" data-t="r_todos">Todos</button>
+          <button id="bt-r-todos" class="on" onclick="rotulos('todos')" data-t="r_todos">Nomes: todos</button>
+          <button id="bt-r-entrada" onclick="rotulos('entrada')" data-t="r_entrada">Só entrada</button>
           <button id="bt-r-nenhum" onclick="rotulos('nenhum')" data-t="r_nenhum">Nenhum</button>
         </span>
       </div>
@@ -317,7 +313,7 @@ let DADOS = [];
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 10:41";
+const GERADO = "07/10/2026 10:54";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -344,11 +340,14 @@ const T = {
       col_cmp:["Operadora","Oferta de entrada","Entrega","Contrato","Preço","R$/un.","Vem junto"],
       bundles:["Só conectividade","Apps de catálogo","Um streaming premium",
                "Vários streamings","TV inclusa"],
-      f_data:"Data", f_contra:"Comparar com", f_escopo:"Planos",
-      e_todos:"Todos", e_entrada:"Só o de entrada",
+      f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
+      e_todos:"Todos os planos", e_entrada:"Só o mais barato de cada operadora",
+      produtos:{controle:"Controle", movel:"Pós-pago", fibra:"Fibra",
+                combo:"Combo (fibra + móvel)", prepago:"Pré-pago",
+                satelite:"Satélite"},
       q_t:"Onde cada oferta está",
-      r_entrada:"Nomes: entrada", r_todos:"Todos", r_nenhum:"Nenhum",
-      q_x:"Cada bolinha é uma oferta: à direita entrega mais, acima custa mais. Escolha uma segunda data para ver as ofertas daquele dia vazadas por baixo — é assim que a grade inteira se deslocando fica visível.",
+      r_entrada:"Só entrada", r_todos:"Nomes: todos", r_nenhum:"Nenhum",
+      q_x:"A disposição do dia: cada bolinha é uma oferta, à direita entrega mais e acima custa mais. Para ver o movimento entre datas, use a matriz e o gráfico de evolução mais abaixo.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse.",
       g2_t:"Quanto custa o que entrega (R$/mês × entrega)",
@@ -397,11 +396,14 @@ const T = {
       col_cmp:["Carrier","Entry offer","Delivers","Contract","Price","R$/unit","Included"],
       bundles:["Connectivity only","Catalogue apps","One premium streaming",
                "Several streamings","TV included"],
-      f_data:"Date", f_contra:"Compare with", f_escopo:"Plans",
-      e_todos:"All", e_entrada:"Entry only",
+      f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
+      e_todos:"All plans", e_entrada:"Cheapest of each carrier only",
+      produtos:{controle:"Hybrid (Controle)", movel:"Postpaid", fibra:"Fibre",
+                combo:"Bundle (fibre + mobile)", prepago:"Prepaid",
+                satelite:"Satellite"},
       q_t:"Where each offer sits",
-      r_entrada:"Labels: entry", r_todos:"All", r_nenhum:"None",
-      q_x:"Each dot is an offer: further right delivers more, higher up costs more. Pick a second date to see that day's offers outlined underneath — that is how a whole grid shifting becomes visible.",
+      r_entrada:"Entry only", r_todos:"Labels: all", r_nenhum:"None",
+      q_x:"Today's layout: each dot is an offer, further right delivers more and higher up costs more. To see movement between dates, use the matrix and the evolution chart below.",
       g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised.",
       g2_t:"What you pay for what you get (R$/month × delivery)",
@@ -441,7 +443,7 @@ let escopoAtual = "todos";
 // display:auto do plugin so evita colisao entre textos, nao entre texto e
 // ponto. O padrao passa a ser rotular so a oferta de entrada de cada
 // operadora: da referencia sem virar mancha, e o resto sai no hover.
-let rotulosAtual = "entrada";
+let rotulosAtual = "todos";
 
 function rotulos(v){
   rotulosAtual = v;
@@ -505,6 +507,13 @@ function derivar(){
 }
 
 function t(k){ return T[lang][k]; }
+
+// O banco guarda "movel", que no nosso esquema e o pos-pago PURO - mas o
+// rotulo fazia pensar em tudo que e celular, sendo que controle e pre-pago
+// tambem sao moveis. A tela mostra o nome de mercado; o banco nao muda.
+function nomeProduto(p){
+  return (T[lang].produtos || {})[p] || p;
+}
 function num(v){ return v==null?null:Number(v); }
 function reais(v){
   return v==null ? "—" : "R$ " + Number(v).toLocaleString("pt-BR",
@@ -530,6 +539,13 @@ function idioma(l){
   document.querySelectorAll("[data-t]").forEach(e=>{
     const k = e.dataset.t; if (T[l][k]) e.textContent = T[l][k];
   });
+  // os nomes de produto também mudam de idioma
+  const fd = document.getElementById("f-produto");
+  if (fd && fd.options.length) {
+    const atual = fd.value;
+    fd.innerHTML = PRODUTOS.map(p=>`<option value="${p}">${nomeProduto(p)}</option>`).join("");
+    fd.value = atual;
+  }
   desenhar();
 }
 
@@ -538,17 +554,11 @@ function montarFiltros(){
   fp.innerHTML = PRACAS.map(p=>`<option value="${p}">${p}</option>`).join("");
   if (PRACAS.includes("Sao Paulo/SP")) fp.value = "Sao Paulo/SP";   // decisao 22
   const fd = document.getElementById("f-produto");
-  fd.innerHTML = PRODUTOS.map(p=>`<option value="${p}">${p}</option>`).join("");
+  fd.innerHTML = PRODUTOS.map(p=>`<option value="${p}">${nomeProduto(p)}</option>`).join("");
   if (PRODUTOS.includes("controle")) fd.value = "controle";          // decisao 2
   const fdata = document.getElementById("f-data");
   fdata.innerHTML = DIAS.slice().reverse()
     .map(d=>`<option value="${d}">${dataCurta(d)}</option>`).join("");
-  const fcontra = document.getElementById("f-contra");
-  // a comparacao e opcional: sem ela o quadrante mostra so um dia
-  fcontra.innerHTML = `<option value="">—</option>` + DIAS.slice().reverse()
-    .map(d=>`<option value="${d}">${dataCurta(d)}</option>`).join("");
-  if (DIAS.length > 1) fcontra.value = DIAS[0];
-
   const fplayer = document.getElementById("f-player");
   fplayer.innerHTML = `<option value="">${t("todas")}</option>`
     + OPERADORAS.map(o=>`<option value="${o}">${o}</option>`).join("");
@@ -718,7 +728,6 @@ function grafTempo(){
 // comparacao vazada - e e ai que se ve a grade inteira se deslocar.
 function grafQuadrante(){
   const dia = document.getElementById("f-data").value;
-  const contra = document.getElementById("f-contra").value;
 
   const pontos = (d, atual) => {
     const por = {};
@@ -735,17 +744,14 @@ function grafQuadrante(){
     return por;
   };
 
+  // Um dia so. Este quadro mostra a disposicao de HOJE; a comparacao entre
+  // datas vive na matriz e no grafico de evolucao, e aqui ela dobrava os
+  // pontos e espremia o espaco que os nomes precisam.
   const series = [];
-  if (contra) {
-    for (const [op, pts] of Object.entries(pontos(contra, false))) {
-      series.push({label:op + " · " + dataCurta(contra), data:pts,
-        backgroundColor:"transparent", borderColor:CORES[op] || "#999",
-        borderWidth:2, pointRadius:5, pointHoverRadius:7, ordem:0});
-    }
-  }
   for (const [op, pts] of Object.entries(pontos(dia, true))) {
     series.push({label:op, data:pts, backgroundColor:CORES[op] || "#999",
-      borderColor:CORES[op] || "#999", pointRadius:6, pointHoverRadius:8, ordem:1});
+      borderColor:"#FCFBF7", borderWidth:1.5,
+      pointRadius:7, pointHoverRadius:9, ordem:1});
   }
 
   const alvo = document.getElementById("c-quadrante");
@@ -761,11 +767,6 @@ function grafQuadrante(){
   const faixa = {min: Math.min(...xs), max: Math.max(...xs)};
   faixa.vao = (faixa.max - faixa.min) || faixa.max || 1;
 
-  // a legenda explica as duas formas sem precisar de texto corrido
-  document.getElementById("legenda-datas").innerHTML = contra
-    ? `<span class="legenda-ponto"><i style="background:var(--cinza)"></i>${dataCurta(dia)}</span>`
-      + `<span class="legenda-ponto"><i class="vazado"></i>${dataCurta(contra)}</span>`
-    : "";
 
   trocar("c-quadrante", {
     type:"scatter",
@@ -794,31 +795,34 @@ function grafQuadrante(){
               return ctx.dataset.data[ctx.dataIndex].ehEntrada ? "auto" : false;
             return "auto";
           },
-          // o ponto na metade direita recebe o rotulo A ESQUERDA, senao o
-          // texto corre para fora da area e e cortado na borda
+          // Para cada ponto, o rotulo vai para o lado mais VAZIO da
+          // vizinhanca. Com vinte ofertas amontoadas, alinhar todos para o
+          // mesmo lado faz o texto de um cobrir o ponto do outro - foi o
+          // que o usuario viu com "TIM Controle Smart" por cima da bolinha
+          // da Claro.
           align: ctx => {
-            const x = ctx.dataset.data[ctx.dataIndex].x;
-            const esc = ctx.chart.scales.x;
-            return (x > (esc.min + esc.max) / 2) ? "left" : "right";
+            const ch = ctx.chart, ex = ch.scales.x, ey = ch.scales.y;
+            const d = ctx.dataset.data[ctx.dataIndex];
+            const px = ex.getPixelForValue(d.x), py = ey.getPixelForValue(d.y);
+            const lados = {right:0, left:0, top:0, bottom:0};
+            for (const ds of ch.data.datasets) {
+              for (const o of ds.data) {
+                if (o === d) continue;
+                const ox = ex.getPixelForValue(o.x), oy = ey.getPixelForValue(o.y);
+                const dx = ox - px, dy = oy - py;
+                if (Math.abs(dx) > 150 || Math.abs(dy) > 70) continue;
+                if (Math.abs(dx) > Math.abs(dy)) lados[dx > 0 ? "right" : "left"]++;
+                else lados[dy > 0 ? "bottom" : "top"]++;
+              }
+            }
+            // perto da borda, nao adianta mandar o texto para fora
+            if (px > ex.left + (ex.right - ex.left) * 0.72) lados.right += 9;
+            if (px < ex.left + (ex.right - ex.left) * 0.14) lados.left += 9;
+            return Object.keys(lados).sort((a, b) => lados[a] - lados[b])[0];
           },
           anchor:"center", offset:9, clamp:true, clip:false,
-          // pontos quase no mesmo lugar - Vivo a 59,00 e TIM a 58,99 -
-          // ganham rotulo acima e abaixo, senao um cobre o outro
-          verticalAlign: ctx => {
-            const d = ctx.dataset.data[ctx.dataIndex];
-            const ex = ctx.chart.scales.x, ey = ctx.chart.scales.y;
-            let ordem = 0;
-            ctx.chart.data.datasets.forEach((ds, i) => {
-              if (ds.ordem !== 1 || i >= ctx.datasetIndex) return;
-              ds.data.forEach(p => {
-                const perto = Math.abs(ex.getPixelForValue(p.x) - ex.getPixelForValue(d.x)) < 60
-                           && Math.abs(ey.getPixelForValue(p.y) - ey.getPixelForValue(d.y)) < 16;
-                if (perto) ordem++;
-              });
-            });
-            return ordem % 2 ? "top" : "bottom";
-          },
-          color:"#2B2621", font:{size:10, weight:"600"},
+          color:"#4A443C", font:{size:9.5, weight:"600"},
+          textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
           formatter:(v, ctx) => {
             const n = ctx.dataset.label.split(" · ")[0];
             // tira TODA repeticao do nome da operadora: "Claro Day Claro
