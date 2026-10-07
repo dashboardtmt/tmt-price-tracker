@@ -47,7 +47,7 @@ MOLDE = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Price Tracker TMT</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2324201B'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23000512'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
@@ -55,7 +55,7 @@ MOLDE = r"""<!DOCTYPE html>
     /* os mesmos tokens do Dashboard TMT - identidade clean, bege quente */
     --fonte: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --laranja:#FF5000; --laranja-claro:#FFAE66;
-    --preto:#24201B;            /* dark quente, para cabecalhos */
+    --preto:#000512;            /* o preto oficial Itau (0,5,18) */
     --cinza-medio:#6E6E6E; --cinza:#A0A0A0; --cinza-claro:#CFCFCF;
     --cor-fundo:#F0EDE4;        /* bege quente */
     --cor-superficie:#FCFBF7;   /* cartoes, off-white quente */
@@ -92,38 +92,33 @@ MOLDE = r"""<!DOCTYPE html>
   /* grade regular: com flex-wrap cada campo achava seu lugar e sobravam
      orfaos em linhas diferentes, o que deixava o cabecalho irregular */
   .controles{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-left:3px solid var(--laranja);border-radius:10px;padding:8px 14px 9px;
-    margin:11px 0 10px;display:grid;gap:7px 14px;
+    border-left:3px solid var(--laranja);border-radius:10px;padding:4px 13px 5px;
+    margin:4px 0 7px;display:grid;gap:4px 14px;
     grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
     position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
     box-shadow:0 2px 8px rgba(45,38,30,.06)}
+  /* o rotulo ao LADO dos chips, nao em cima: empilhado, ele sozinho
+     custava uma fileira inteira de altura na barra */
   .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
-    padding-top:7px;margin-top:0}
+    padding-top:4px;margin-top:0;display:flex;align-items:center;gap:10px}
+  .controles .campo-largo label{margin-bottom:0;white-space:nowrap}
   .abas{position:sticky;top:calc(var(--topo-h, 86px) + var(--filtros-h, 92px));
         z-index:28;background:var(--cor-fundo)}
-  .campo label{display:block;font-size:9px;text-transform:uppercase;
-    letter-spacing:.6px;color:var(--cor-texto-suave);margin-bottom:2px;font-weight:700}
-  .campo select{font:inherit;font-size:12.5px;padding:5px 9px;border-radius:7px;
+  .campo label{display:block;font-size:8.5px;line-height:1.25;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--cor-texto-suave);margin-bottom:1px;font-weight:700}
+  .campo select{font:inherit;font-size:12px;padding:2px 8px;border-radius:7px;
     border:1px solid var(--cor-borda);background:#fff;color:var(--cor-texto);
     width:100%;cursor:pointer}
   .campo select:focus{outline:2px solid rgba(255,80,0,.35);outline-offset:1px}
   .chips{display:flex;gap:5px;flex-wrap:wrap}
-  .chip{display:flex;align-items:center;gap:5px;font-size:11.5px;cursor:pointer;
-    padding:3px 9px;border:1px solid var(--cor-borda);border-radius:20px;
+  .chip{display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;
+    padding:1px 8px;border:1px solid var(--cor-borda);border-radius:20px;
     background:#fff;user-select:none;font-weight:600;
     transition:border-color .12s, opacity .12s}
   .chip:hover{border-color:var(--cinza)}
   .chip.off{opacity:.4}
-  .chip .marcador{width:9px;height:9px;border-radius:50%}
+  .chip .marcador{width:8px;height:8px;border-radius:50%}
 
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-        gap:12px;margin-bottom:15px}
-  .kpi{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(45,38,30,.04)}
-  .kpi .rot{font-size:10px;text-transform:uppercase;letter-spacing:.7px;
-    color:var(--cor-texto-suave);font-weight:600}
-  .kpi .val{font-size:26px;font-weight:700;margin-top:4px;letter-spacing:-.7px}
-  .kpi .pe{font-size:11.5px;color:var(--cor-texto-suave);margin-top:1px}
 
   .bloco{background:var(--cor-superficie);border:1px solid var(--cor-borda);
     border-radius:12px;padding:17px 24px 19px;margin-bottom:16px;
@@ -223,9 +218,6 @@ MOLDE = r"""<!DOCTYPE html>
     .dupla{grid-template-columns:1fr}
     /* dois KPIs por linha: em 375px, quatro cartoes em quatro linhas
        empurravam os graficos para fora da primeira tela */
-    .kpis{grid-template-columns:1fr 1fr;gap:9px}
-    .kpi{padding:11px 13px}
-    .kpi .val{font-size:19px}
     .bloco{padding:13px 15px 15px}
     .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
@@ -309,8 +301,6 @@ MOLDE = r"""<!DOCTYPE html>
     <div class="grafico-wrap alto"><canvas id="c-quadrante"></canvas></div>
     <div class="fonte" data-t="fonte"></div>
   </div>
-
-  <div class="kpis" id="kpis"></div>
 
   <div class="bloco">
     <h2 data-t="g1_t">Preço de entrada, por operadora</h2>
@@ -434,7 +424,7 @@ const T = {
       // aparecem nas vitrines.
       bundles:["Só internet e ligações",
                "Apps menores (Skeelo, McAfee, GoRead)",
-               "Um streaming (Netflix, Amazon ou Disney+)",
+               "Uma assinatura (Netflix, YouTube, Vale Saúde...)",
                "Vários streamings juntos",
                "TV por assinatura inclusa"],
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
@@ -461,9 +451,6 @@ const T = {
       tab_t:"As ofertas de entrada de cada operadora",
       tab_x:"Uma linha por operadora: a oferta mais barata de hoje, com o que ela entrega e o que o contrato garante.",
       rodape:"Documento de trabalho interno. Preços coletados das vitrines públicas das operadoras, uma vez por dia.",
-      kpi_ops:"Operadoras na praça", kpi_barato:"Mais barato hoje",
-      kpi_mediana:"Mediana de entrada", kpi_serie:"Série",
-      kpi_dias:"{n} dias", kpi_desde:"desde {d}",
       serie_jovem:"A série tem {n} dia(s). A linha se forma conforme os dias passam.",
       parcial:"Atenção: {d} tem {a} operadora(s) contra {b} no dia anterior — a coleta desse dia está incompleta ou ainda rodando. Os números de hoje podem subir.",
       sem_dado:"Nenhuma oferta capturada com este filtro.",
@@ -499,7 +486,7 @@ const T = {
                  "Included services":"Bundle level, from bare connectivity to TV included"},
       bundles:["Data and calls only",
                "Minor apps (Skeelo, McAfee, GoRead)",
-               "One streaming (Netflix, Amazon or Disney+)",
+               "One subscription (Netflix, YouTube, health...)",
                "Several streamings together",
                "Pay TV included"],
       f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
@@ -526,9 +513,6 @@ const T = {
       tab_t:"Each carrier's entry offer",
       tab_x:"One row per carrier: today's cheapest offer, what it delivers and what the contract guarantees.",
       rodape:"Internal working document. Prices collected once a day from carriers' public websites.",
-      kpi_ops:"Carriers in this city", kpi_barato:"Cheapest today",
-      kpi_mediana:"Median entry price", kpi_serie:"Series",
-      kpi_dias:"{n} days", kpi_desde:"since {d}",
       serie_jovem:"The series has {n} day(s). The line builds as days go by.",
       parcial:"Heads up: {d} has {a} carrier(s) against {b} the day before — that day's collection is incomplete or still running. Today's figures may rise.",
       sem_dado:"No offer captured with this filter.",
@@ -607,9 +591,24 @@ function corrigirHistorico(){
   }
 }
 
+// As tres grandes primeiro, depois a NuCel, e os regionais e o satelite
+// no fim. Em ordem alfabetica a Brisanet abria a lista e a Vivo fechava,
+// o que nao e a ordem em que ninguem le este mercado.
+const ORDEM_OPERADORAS = ["Claro", "TIM", "Vivo", "NuCel",
+                          "Brisanet", "Unifique", "Starlink"];
+
+function porRelevancia(a, b){
+  const ia = ORDEM_OPERADORAS.indexOf(a), ib = ORDEM_OPERADORAS.indexOf(b);
+  // operadora nova, ainda nao listada, vai para o fim em ordem alfabetica
+  if (ia < 0 && ib < 0) return a.localeCompare(b);
+  if (ia < 0) return 1;
+  if (ib < 0) return -1;
+  return ia - ib;
+}
+
 function derivar(){
   corrigirHistorico();
-  OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort();
+  OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort(porRelevancia);
   PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
   PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort();
   DIAS = [...new Set(DADOS.map(diaDe))].filter(Boolean).sort();
@@ -793,7 +792,7 @@ function porDegrau(dia){
 
 const EIXO = {
   grade: "rgba(0,0,0,0.07)",
-  borda: "#24201B",
+  borda: "#000512",
 };
 
 // Legenda com bolinha da cor da serie. Sem ela o leitor ve tres linhas
@@ -1009,6 +1008,142 @@ function grafTempoUnitario(){
   });
 }
 
+// ---------------- rotulos do quadrante ----------------
+
+// O texto de uma bolinha. Vive fora do grafico porque o posicionador
+// precisa medir a largura de TODOS os rotulos antes de desenhar o
+// primeiro.
+function textoRotulo(v, ctx){
+  // Operadora + o que diferencia a oferta. O nome do PRODUTO sai, porque
+  // o filtro ja o diz e ele e quem mais ocupa espaco: "TIM Controle
+  // Smart" vira "TIM Smart". A operadora fica, porque sem ela "35 GB"
+  // aparece duas vezes no mesmo quadro - uma da Claro, outra da NuCel -
+  // e so a cor distinguiria.
+  const op = ctx.dataset.label.split(" \u00b7 ")[0];
+  const prod = nomeProduto(filtro().produto);
+  const enxugar = s => {
+    let n = (s || "").split(op).join(" ");
+    for (const palavra of prod.split(/[\s(]+/)) {
+      if (palavra.length > 3) n = n.split(palavra).join(" ");
+    }
+    return n.replace(/\s+/g, " ").trim();
+  };
+  // ponto que junta varias ofertas: o nome de uma so enganaria
+  if (v.nomes && v.nomes.length > 1) {
+    return op + " \u00b7 " + v.nomes.length + " " + t("ofertas");
+  }
+  let nome = enxugar(v.nome);
+  // sobrou nada (a oferta se chama so "Vivo Controle")? usa a entrega,
+  // que e o que a distingue das irmas
+  if (!nome) return op + " " + v.x + " " + v.u;
+  // duas ofertas com o mesmo nome curto - as duas "Claro Day" - ficam
+  // indistinguiveis; a entrega desempata
+  if (ctx.dataset.data.filter(o => enxugar(o.nome) === nome).length > 1) {
+    nome += " " + v.x + " " + v.u;
+  }
+  return op + " " + nome.slice(0, 18);
+}
+
+function rotular(ds, p){
+  if (ds.ordem !== 1) return false;            // data de comparacao
+  if (rotulosAtual === "nenhum") return false;
+  if (rotulosAtual === "entrada") return !!p.ehEntrada;
+  return true;
+}
+
+// Os lugares que um rotulo tenta, na ordem: primeiro colado ao ponto,
+// depois mais longe. O angulo e o que o plugin entende em `align` -
+// 0 e a direita, e cresce no sentido horario.
+const VOLTAS = [];
+for (const d of [9, 17, 26, 36]) {
+  for (const a of [0, 180, 160, 20, 200, 340, 270, 90, 225, 315, 135, 45]) {
+    VOLTAS.push({a:a, d:d});
+  }
+}
+
+function sobreposicao(c1, c2){
+  const dx = Math.min(c1.r, c2.r) - Math.max(c1.l, c2.l);
+  const dy = Math.min(c1.b, c2.b) - Math.max(c1.t, c2.t);
+  return (dx > 0 && dy > 0) ? dx * dy : 0;
+}
+
+// Onde cada rotulo cabe, decidido de uma vez para o quadro inteiro.
+//
+// O `display:"auto"` do plugin resolve colisao escondendo o rotulo
+// perdedor, e foi assim que sobraram bolinhas sem nome. Aqui ninguem
+// some: o rotulo gira em volta do seu ponto ate achar lugar livre, e so
+// aceita o menos pior quando nao existe nenhum.
+function posicionarRotulos(ch){
+  const ex = ch.scales.x, ey = ch.scales.y;
+  const pincel = ch.ctx;
+  pincel.save();
+  pincel.font = "600 9.5px ui-sans-serif, system-ui, -apple-system, "
+              + "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+  const bolinhas = [], itens = [];
+  ch.data.datasets.forEach((ds, di) => {
+    if (!ch.isDatasetVisible(di)) return;
+    ds.data.forEach((p, i) => {
+      const chave = di + "|" + i;
+      const x = ex.getPixelForValue(p.x), y = ey.getPixelForValue(p.y);
+      const raio = (ds.pointRadius || 6) + 2;
+      bolinhas.push({l:x-raio, r:x+raio, t:y-raio, b:y+raio, chave:chave});
+      if (!rotular(ds, p)) return;
+      const txt = textoRotulo(p, {dataset:ds, dataIndex:i});
+      itens.push({chave:chave, x:x, y:y,
+                  w:pincel.measureText(txt).width + 5, h:13});
+    });
+  });
+  pincel.restore();
+
+  // O mais apertado escolhe primeiro: quem tem vizinho colado tem menos
+  // lugares possiveis, e quem esta sozinho se acomoda em qualquer sobra.
+  for (const it of itens) {
+    it.aperto = bolinhas.filter(b =>
+      Math.abs((b.l + b.r)/2 - it.x) < 170 &&
+      Math.abs((b.t + b.b)/2 - it.y) < 60).length;
+  }
+  itens.sort((a, b) => b.aperto - a.aperto || a.x - b.x);
+
+  const area = ch.chartArea, postos = [], mapa = {};
+  for (const it of itens) {
+    let melhor = null;
+    for (const v of VOLTAS) {
+      const rad = v.a * Math.PI / 180;
+      const cos = Math.cos(rad), sen = Math.sin(rad);
+      // O plugin encosta a BORDA da caixa na distancia pedida, entao o
+      // centro dela fica meia caixa mais longe, na direcao do angulo.
+      const alcance = v.d + Math.abs(cos)*it.w/2 + Math.abs(sen)*it.h/2;
+      const cx = it.x + cos*alcance, cy = it.y + sen*alcance;
+      const caixa = {l:cx-it.w/2, r:cx+it.w/2, t:cy-it.h/2, b:cy+it.h/2};
+      // Sair da moldura e pior que encostar em alguem: texto cortado na
+      // borda nao se le de jeito nenhum.
+      let pena = 4 * it.h * (Math.max(0, area.left - caixa.l)
+                           + Math.max(0, caixa.r - area.right)
+                           + Math.max(0, area.top - caixa.t)
+                           + Math.max(0, caixa.b - area.bottom));
+      for (const b of bolinhas) {
+        if (b.chave !== it.chave) pena += 1.6 * sobreposicao(caixa, b);
+      }
+      for (const p of postos) pena += sobreposicao(caixa, p);
+      // Longe do ponto tambem custa: o rotulo tem que dizer de quem fala.
+      const custo = pena + v.d * 0.4;
+      if (!melhor || custo < melhor.custo) melhor = {custo:custo, caixa:caixa, v:v};
+      if (pena === 0) break;              // livre, e o mais perto possivel
+    }
+    postos.push(melhor.caixa);
+    mapa[it.chave] = melhor.v;
+  }
+  ch.$rotulos = mapa;
+  return mapa;
+}
+
+function posto(ctx){
+  const ch = ctx.chart;
+  if (!ch.$rotulos) posicionarRotulos(ch);
+  return ch.$rotulos[ctx.datasetIndex + "|" + ctx.dataIndex] || {a:0, d:9};
+}
+
 // O quadrante da Figure 27: uma bolinha por OFERTA, preco contra entrega,
 // com o nome ao lado. Duas datas convivem - a escolhida cheia e a de
 // comparacao vazada - e e ai que se ve a grade inteira se deslocar.
@@ -1095,75 +1230,16 @@ function grafQuadrante(){
             .concat(nomes.map(n => "   " + n));
         }}},
         datalabels:{
-          // so a data escolhida recebe rotulo: rotular as duas viraria
-          // uma mancha de texto sobre o grafico
-          display: ctx => {
-            if (ctx.dataset.ordem !== 1) return false;      // data de comparacao
-            if (rotulosAtual === "nenhum") return false;
-            if (rotulosAtual === "entrada")
-              return ctx.dataset.data[ctx.dataIndex].ehEntrada ? "auto" : false;
-            return "auto";
-          },
-          // Para cada ponto, o rotulo vai para o lado mais VAZIO da
-          // vizinhanca. Com vinte ofertas amontoadas, alinhar todos para o
-          // mesmo lado faz o texto de um cobrir o ponto do outro - foi o
-          // que o usuario viu com "TIM Controle Smart" por cima da bolinha
-          // da Claro.
-          align: ctx => {
-            const ch = ctx.chart, ex = ch.scales.x, ey = ch.scales.y;
-            const d = ctx.dataset.data[ctx.dataIndex];
-            const px = ex.getPixelForValue(d.x), py = ey.getPixelForValue(d.y);
-            const lados = {right:0, left:0, top:0, bottom:0};
-            for (const ds of ch.data.datasets) {
-              for (const o of ds.data) {
-                if (o === d) continue;
-                const ox = ex.getPixelForValue(o.x), oy = ey.getPixelForValue(o.y);
-                const dx = ox - px, dy = oy - py;
-                if (Math.abs(dx) > 150 || Math.abs(dy) > 70) continue;
-                if (Math.abs(dx) > Math.abs(dy)) lados[dx > 0 ? "right" : "left"]++;
-                else lados[dy > 0 ? "bottom" : "top"]++;
-              }
-            }
-            // perto da borda, nao adianta mandar o texto para fora
-            if (px > ex.left + (ex.right - ex.left) * 0.72) lados.right += 9;
-            if (px < ex.left + (ex.right - ex.left) * 0.14) lados.left += 9;
-            return Object.keys(lados).sort((a, b) => lados[a] - lados[b])[0];
-          },
-          anchor:"center", offset:9, clamp:true, clip:false,
+          // Toda bolinha visivel recebe nome. O "auto" do plugin
+          // esconderia as que colidem; quem resolve a colisao aqui e o
+          // posicionador, dando lugar em vez de apagar.
+          display: ctx => rotular(ctx.dataset, ctx.dataset.data[ctx.dataIndex]),
+          align: ctx => posto(ctx).a,
+          offset: ctx => posto(ctx).d,
+          anchor:"center", clamp:true, clip:false,
           color:"#4A443C", font:{size:9.5, weight:"600"},
           textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
-          formatter:(v, ctx) => {
-            // Operadora + o que diferencia a oferta. O nome do PRODUTO sai,
-            // porque o filtro ja o diz e ele e quem mais ocupa espaco:
-            // "TIM Controle Smart" vira "TIM Smart". A operadora fica,
-            // porque sem ela "35 GB" aparece duas vezes no mesmo quadro -
-            // uma da Claro, outra da NuCel - e so a cor distinguiria.
-            const op = ctx.dataset.label.split(" · ")[0];
-            const prod = nomeProduto(filtro().produto);
-            let nome = (v.nome || "").split(op).join(" ");
-            for (const palavra of prod.split(/[\s(]+/)) {
-              if (palavra.length > 3) nome = nome.split(palavra).join(" ");
-            }
-            nome = nome.replace(/\s+/g, " ").trim();
-            // sobrou nada (a oferta se chama so "Vivo Controle")? usa a
-            // entrega, que e o que a distingue das irmas
-            if (!nome) return op + " " + v.x + " " + v.u;
-            // duas ofertas com o mesmo nome curto - as duas "Claro Day" -
-            // ficam indistinguiveis; a entrega desempata
-            const iguais = ctx.dataset.data.filter(o => {
-              let n2 = (o.nome || "").split(op).join(" ");
-              for (const w of prod.split(/[\s(]+/)) {
-                if (w.length > 3) n2 = n2.split(w).join(" ");
-              }
-              return n2.replace(/\s+/g, " ").trim() === nome;
-            }).length;
-            if (iguais > 1) nome += " " + v.x + " " + v.u;
-            // ponto que junta varias ofertas: o nome de uma so enganaria
-            if (v.nomes && v.nomes.length > 1) {
-              return op + " · " + v.nomes.length + " " + t("ofertas");
-            }
-            return op + " " + nome.slice(0, 18);
-          },
+          formatter:textoRotulo,
         },
       },
       scales:{
@@ -1176,7 +1252,10 @@ function grafQuadrante(){
            beginAtZero:false, min:escalaY.min, max:escalaY.max,
            title:{display:true, text:"R$", color:"#7C7468", font:{size:11}}}},
     },
-    plugins:[ChartDataLabels],
+    plugins:[ChartDataLabels,
+      // cada atualizacao (filtro, legenda, redimensionar) refaz o
+      // arranjo: os pontos mudaram de lugar, os rotulos tambem
+      {id:"posicionador", beforeUpdate:ch => { ch.$rotulos = null; }}],
   });
 }
 
@@ -1304,7 +1383,7 @@ function matriz(){
     }
   }
   const ordenadas = Object.values(linhas).sort((a, b)=>
-    a.operadora.localeCompare(b.operadora) || a.degrau - b.degrau);
+    porRelevancia(a.operadora, b.operadora) || a.degrau - b.degrau);
 
   if (!ordenadas.length) {
     alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
@@ -1428,33 +1507,6 @@ function diaParcial(){
   return a < b ? {dia:ultimo, tem:a, tinha:b, antes:antes} : null;
 }
 
-function kpis(){
-  const hoje = DIAS[DIAS.length-1];
-  const entrada = entradaPorOperadora(hoje);
-  const precos = Object.values(entrada).map(precoDe).filter(v=>v!=null).sort((a,b)=>a-b);
-  // no MESMO dia da tabela e do ranking: contar operadoras de todos os
-  // dias dava "3 de 6" ao lado de uma tabela com uma linha
-  const naPraca = new Set(doFiltro(hoje).map(o=>o.operadora));
-  const mediana = precos.length
-    ? (precos.length%2 ? precos[(precos.length-1)/2]
-       : (precos[precos.length/2-1]+precos[precos.length/2])/2) : null;
-  const maisBarato = Object.entries(entrada).sort((a,b)=>precoDe(a[1])-precoDe(b[1]))[0];
-
-  const cartoes = [
-    {rot:t("kpi_ops"), val:naPraca.size+" "+t("de")+" "+OPERADORAS.length,
-     pe:[...naPraca].sort().join(", ") || t("sem_dado")},
-    {rot:t("kpi_barato"), val:maisBarato?reais(precoDe(maisBarato[1])):"—",
-     pe:maisBarato?maisBarato[0]+" · "+(maisBarato[1].destaque||""):t("sem_dado")},
-    {rot:t("kpi_mediana"), val:reais(mediana),
-     pe:precos.length+" "+t("f_operadora").toLowerCase()},
-    {rot:t("kpi_serie"), val:t("kpi_dias").replace("{n}", DIAS.length),
-     pe:t("kpi_desde").replace("{d}", dataCurta(DIAS[0]))},
-  ];
-  document.getElementById("kpis").innerHTML = cartoes.map(c=>
-    `<div class="kpi"><div class="rot">${c.rot}</div>
-     <div class="val">${c.val}</div><div class="pe">${c.pe}</div></div>`).join("");
-}
-
 // Uma linha por operadora, nao uma por oferta. A versao anterior
 // despejava 79 linhas e 7 colunas, o que o usuario chamou de "tabelas
 // enfadonhas com muita informacao irrelevante" - e estava certo: ali
@@ -1507,7 +1559,7 @@ function tabelaPorPlayer(){
     nota.textContent = "";
     return;
   }
-  ofertas.sort((a, b) => a.operadora.localeCompare(b.operadora)
+  ofertas.sort((a, b) => porRelevancia(a.operadora, b.operadora)
     || precoDe(a) - precoDe(b));
 
   const c = colunas("col_player", ofertas);
@@ -1656,7 +1708,6 @@ function desenhar(){
     return;        // nao desenha grafico escondido: Chart.js mede errado
   }
   grafQuadrante();
-  kpis();
   grafTempo();
   grafTempoUnitario();
   grafDispersao();

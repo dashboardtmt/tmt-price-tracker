@@ -53,8 +53,21 @@ VITRINE = {
 APPS_CATALOGO = {"skeelo", "goread", "nba", "hube", "super comics", "atma",
                  "btfit", "mcafee", "ubook", "forbes", "casa do saber",
                  "vivo home fix", "nfl", "gemini"}
+# Servicos de assinatura que a operadora inclui no plano. Nao sao so
+# streamings de video: apurado em 07/10/2026 na vitrine, a Vivo inclui
+# telemedicina ("Vale Saude Sempre") e educacao ("Vivae") do mesmo jeito
+# que inclui Netflix - assinatura paga de terceiro, embutida no preco.
+# Tratar essas como "app de catalogo" subestimava o pacote.
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
-              "premiere", "max", "paramount", "telecine"}
+              "premiere", "max", "paramount", "telecine",
+              # faltavam: o plano "Controle YouTube Premium" caia em nivel 1
+              "youtube premium", "deezer",
+              # assinaturas de outra natureza, mesmo peso no bolso
+              "vale saude", "vivae"}
+
+# TV linear inclusa. "Vivo TV Inicial" e o que vem no Controle
+# Entretenimento, e sem esta marca ele era lido como app de catalogo.
+TV_INCLUSA = ("tv por assinatura", "canais", "vivo tv")
 
 
 # ------------------------------------------------------------------- rede
@@ -151,7 +164,7 @@ def degrau_gb(texto):
 
 def nivel_bundle(texto):
     t = (texto or "").lower()
-    if "tv por assinatura" in t or "canais" in t:
+    if any(m in t for m in TV_INCLUSA):
         return 4
     achados = {s for s in STREAMINGS if s in t}
     if len(achados) > 1:
