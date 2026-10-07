@@ -343,7 +343,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 12:10";
+const GERADO = "07/10/2026 12:13";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -938,12 +938,27 @@ function grafQuadrante(){
       const e = entregaDe(o), p = precoDe(o);
       if (e.v == null || p == null) continue;
       const ent = entrada[o.operadora];
-      (por[o.operadora] = por[o.operadora] || []).push(
-        {x:e.v, y:p, nome:o.nome_oferta || "", u:e.u, atual:atual,
-         // marca a de entrada para o modo de rotulo enxuto
-         ehEntrada: !!ent && precoDe(ent) === p && entregaDe(ent).v === e.v});
+      // Ofertas que coincidem em preco E entrega caem no mesmo pixel: a
+      // Vivo tem quatro variantes a 50 GB por R$ 85, que diferem so no app
+      // incluso. Desenhadas separadas, tres ficam escondidas atras da
+      // primeira e os rotulos somem por colisao. Viram um ponto so, que
+      // diz quantas sao e lista todas no tooltip.
+      const chave = o.operadora + "|" + e.v + "|" + p;
+      if (por[chave]) {
+        por[chave].nomes.push(o.nome_oferta || "");
+        continue;
+      }
+      por[chave] = {
+        operadora: o.operadora, x:e.v, y:p, u:e.u, atual:atual,
+        nome: o.nome_oferta || "", nomes: [o.nome_oferta || ""],
+        ehEntrada: !!ent && precoDe(ent) === p && entregaDe(ent).v === e.v,
+      };
     }
-    return por;
+    const agrupado = {};
+    for (const pt of Object.values(por)) {
+      (agrupado[pt.operadora] = agrupado[pt.operadora] || []).push(pt);
+    }
+    return agrupado;
   };
 
   // Um dia so. Este quadro mostra a disposicao de HOJE; a comparacao entre
@@ -985,9 +1000,16 @@ function grafQuadrante(){
         legend:legenda({labels:{usePointStyle:true, pointStyle:"circle",
           boxWidth:7, boxHeight:7, padding:14, color:"#2B2621",
           font:{size:11.5, weight:"600"}}}),
-        tooltip:{callbacks:{label:c=>
-          c.dataset.label + " · " + c.raw.nome + ": " + reais(c.parsed.y)
-          + " · " + c.parsed.x + " " + c.raw.u}},
+        tooltip:{callbacks:{label:c=>{
+          const base = reais(c.parsed.y) + " · " + c.parsed.x + " " + c.raw.u;
+          const nomes = c.raw.nomes || [c.raw.nome];
+          if (nomes.length === 1) {
+            return c.dataset.label + " · " + nomes[0] + ": " + base;
+          }
+          // uma linha por oferta do grupo, para nenhuma ficar invisivel
+          return [c.dataset.label + " · " + base + ":"]
+            .concat(nomes.map(n => "   " + n));
+        }}},
         datalabels:{
           // so a data escolhida recebe rotulo: rotular as duas viraria
           // uma mancha de texto sobre o grafico
@@ -1052,6 +1074,10 @@ function grafQuadrante(){
               return n2.replace(/\s+/g, " ").trim() === nome;
             }).length;
             if (iguais > 1) nome += " " + v.x + " " + v.u;
+            // ponto que junta varias ofertas: o nome de uma so enganaria
+            if (v.nomes && v.nomes.length > 1) {
+              return op + " · " + v.nomes.length + " " + t("ofertas");
+            }
             return op + " " + nome.slice(0, 18);
           },
         },
