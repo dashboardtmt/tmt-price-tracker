@@ -110,9 +110,10 @@ def ler_etiqueta(blob):
     mm = re.search(r"R\$\s?(\d{1,4}(?:[.,]\d{2})?)", multa)
 
     return {
-        # title() transformaria "TIM" em "Tim": a sigla fica como esta
-        "nome_oferta": re.sub(r"\s+", " ",
-                              nome.group(1)).strip().title().replace("Tim ", "TIM "),
+        # title() transformaria "TIM" em "Tim" e "FIT" em "Fit": as duas
+        # siglas voltam ao caixa alta depois
+        "nome_oferta": (re.sub(r"\s+", " ", nome.group(1)).strip().title()
+                        .replace("Tim ", "TIM ").replace(" Fit ", " FIT ")),
         "destaque": ("%s GB" % mg.group(1)) if mg else None,
         "franquia_anunciada_gb": int(mg.group(1)) if mg else None,
         "franquia_contratual_gb": int(mg.group(1)) if mg else None,
