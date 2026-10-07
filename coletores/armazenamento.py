@@ -43,17 +43,29 @@ def chave_continuidade(o):
 
 def _variante(o):
     nome = (o.get("nome_oferta") or "").lower()
+
+    # O CICLO DE PAGAMENTO faz parte da identidade onde a operadora vende
+    # os dois lados. "TIM Controle FIT Anual 2.0" e "FIT Mensal 2.0"
+    # entregam os mesmos 20 GB por R$ 30 e R$ 45; sem isto as duas
+    # dividiam uma chave so, e a serie ficaria alternando entre os dois
+    # precos como se houvesse reajuste todo dia. Vale igual para o Vivo
+    # Lite, que tem o mesmo par.
+    ciclo = ("_anual" if "anual" in nome
+             else "_mensal" if "mensal" in nome else "")
+
     if "fam" in nome:
-        return "familia"
+        return "familia" + ciclo
     if " tv" in nome or nome.startswith("tv"):
-        return "combo_tv"
+        return "combo_tv" + ciclo
     nivel = o.get("nivel_bundle") or 0
     if nivel >= 2:
         # o streaming faz parte da identidade: "Pos com Netflix" nao e o
         # mesmo produto que "Pos com Amazon", mesmo com franquia igual
         marca = re.sub(r"^vivo (pos|controle)\s*(com)?\s*", "", nome).strip()
-        return "com_%s" % re.sub(r"[^a-z0-9]+", "_", marca)[:24].strip("_") if marca else "com_streaming"
-    return "com_apps" if nivel == 1 else "simples"
+        base = ("com_%s" % re.sub(r"[^a-z0-9]+", "_", marca)[:24].strip("_")
+                if marca else "com_streaming")
+        return base + ciclo
+    return ("com_apps" if nivel == 1 else "simples") + ciclo
 
 
 def _pedir(url, chave, caminho, corpo, prefer):

@@ -194,46 +194,115 @@ def ler_cards(op, url, produto):
     return cards, None
 
 
-def ler_por_texto(op, url, produto):
-    """A pagina de fibra nao usa card-planos: ela e montada em Storyblok,
-    com os dados em JSON dentro do HTML. O que sobra legivel e o padrao
-    "600 mega a partir de R$ 99,90", com o internetId do plano ao lado.
+# Os textos de acessibilidade da pagina: cada um descreve uma oferta
+# inteira, com velocidade e preco na mesma frase. Ler assim evita o erro
+# de parear por proximidade no markup.
+FRASE = re.compile(
+    r'(?:accessText|access_text|title|aria-label)"?\s*[:=]\s*"([^"]{15,260})"',
+    re.I)
 
-    Menos elegante que os cards do movel, mas estavel: e o texto que a
-    propria Claro exibe ao cliente.
+# Preco que so vale para quem ja e cliente nao entra (decisao 9).
+CONDICIONADO = re.compile(
+    r"cliente\s+claro|j[a\u00e1]\s+(?:e|\u00e9)\s+cliente|para\s+clientes",
+    re.I)
+
+# Frase que vende fibra e movel junta, dentro da pagina de fibra: e
+# combo, e combo tem pagina propria.
+TEM_MOVEL = re.compile(r"claro\s+p[o\u00f3]s|\d+\s*gb\b", re.I)
+
+
+def _qualificador(frase, velocidade):
+    """O que distingue esta oferta das outras da mesma velocidade."""
+    f = frase.lower()
+    if "rel\u00e2mpago" in f or "relampago" in f:
+        return "Rel\u00e2mpago"
+    if "mesh" in f:
+        return "Mesh"
+    if "especial" in f:
+        return "Especial"
+    if "a partir de" in f:
+        return ""          # a oferta base, sem qualificador
+    return ""
+
+
+def ler_por_texto(op, url, produto):
+    """Uma frase de acessibilidade, uma oferta.
+
+    A versao anterior varria "N mega ... R$ X,XX" numa janela de 40
+    caracteres do HTML e chamava tudo de "Claro Fibra N Mega". Tres
+    ofertas de 750 Mega viravam um nome so, o banco guardava uma
+    arbitrariamente, e a troca de qual sobrevivia virava mudanca de preco
+    no tracker - aconteceu em 05/10.
     """
     s, h = buscar(op, url)
     if s != 200:
         return None, "HTTP %s" % s
+
+    unidade = r"gb" if produto == "prepago" else r"mega|giga"
     achados, vistos = [], set()
-    unidade = "gb" if produto == "prepago" else "mega"
-    for m in re.finditer(r"(\d{1,4})\s*%s[^\"]{0,40}?R\$\s?(\d{1,3},\d{2})" % unidade, h, re.I):
-        velocidade, preco = m.group(1), m.group(2)
-        if (velocidade, preco) in vistos:
+    for m in FRASE.finditer(h):
+        frase = re.sub(r"\s+", " ", m.group(1)).strip()
+        mv = re.search(r"(\d{1,4})\s*(%s)" % unidade, frase, re.I)
+        mp = re.search(r"R\$\s?(\d{1,3}(?:\.\d{3})?,\d{2})", frase)
+        if not mv or not mp:
             continue
-        vistos.add((velocidade, preco))
-        ident = re.findall(r"internetId=([\d,]+)", h[m.start():m.start() + 700])
-        contexto = re.sub(r"<[^>]+>", " ", h[max(0, m.start() - 400):m.start() + 400])
+        if CONDICIONADO.search(frase):
+            continue
+        velocidade = int(mv.group(1))
+        if mv.group(2).lower() == "giga":
+            velocidade *= 1000
+        # na pagina de fibra, frase que tambem vende movel e combo
+        if produto == "fibra" and TEM_MOVEL.search(frase):
+            continue
+
+        qual = _qualificador(frase, velocidade)
+        rotulo = {"fibra": "Fibra", "combo": "Multi", "prepago": "Pre"}[produto]
+        sufixo = "Mega" if produto != "prepago" else "GB"
+        nome = "Claro %s %s %s%s" % (rotulo, mv.group(1), sufixo,
+                                     (" " + qual) if qual else "")
+        preco = numero(mp.group(1))
+        if (nome, preco) in vistos:
+            continue
+        vistos.add((nome, preco))
+        ident = re.findall(r"internetId=([\d,]+)", h[m.start():m.start() + 900])
         achados.append({
             "id_catalogo": ident[0][:40] if ident else None,
-            "nome_oferta": "Claro %s %s %s" % (
-                {"fibra": "Fibra", "combo": "Multi", "prepago": "Pre"}[produto],
-                velocidade, "GB" if produto == "prepago" else "Mega"),
-            "destaque": "%s %s" % (velocidade, "GB" if produto == "prepago" else "Mega"),
-            "preco_promocional": numero(preco),
-            "composicao": re.sub(r"\s+", " ", contexto)[:400],
+            "nome_oferta": nome,
+            "destaque": "%s %s" % (mv.group(1), sufixo),
+            "preco_promocional": preco,
+            # a frase inteira, que e a fonte do dado e explica a oferta
+            "composicao": frase[:400],
         })
-    return achados, None
 
+    # Mesmo nome com dois precos ainda seria indistinguivel no banco:
+    # fica o menor, que e o criterio do tracker para o degrau, e o caso
+    # vira aviso em vez de sumir calado.
+    por_nome = {}
+    repetidos = []
+    for a in achados:
+        antes = por_nome.get(a["nome_oferta"])
+        if antes is None:
+            por_nome[a["nome_oferta"]] = a
+        else:
+            repetidos.append(a["nome_oferta"])
+            if a["preco_promocional"] < antes["preco_promocional"]:
+                por_nome[a["nome_oferta"]] = a
 
-# O Prezao NAO pode usar a varredura generica de "N GB ... R$ X,XX".
+    if not por_nome:
+        return None, "nenhuma frase com velocidade e preco juntos - a pagina mudou"
+    saida = list(por_nome.values())
+    if repetidos:
+        saida[0].setdefault("avisos_oferta", []).append(
+            "nomes repetidos com precos diferentes: %s" % ", ".join(sorted(set(repetidos))))
+    return saida, None
+# O Prezao NAO pode usar a leitura por frase de acessibilidade.
 #
 # A pagina tem uma pergunta frequente sobre bonus de recarga: "ao
 # recarregar R$20,00 ganhe 1GB de bonus, R$25,00 ganhe 2GB de bonus,
-# R$30,00 ganhe 3GB de bonus". A varredura casava o bonus de um degrau
-# com o preco do degrau SEGUINTE e gravava "Claro Pre 1 GB por R$ 25" e
-# "Claro Pre 2 GB por R$ 30" - dois planos que nao existem, com R$/GB de
-# 25,00 e 15,00. O usuario viu na tela e estranhou, com razao.
+# R$30,00 ganhe 3GB de bonus". Qualquer varredura generica casa com ela
+# e emparelha o bonus de um degrau com o preco do degrau SEGUINTE -
+# foi assim que nasceram "Claro Pre 1 GB por R$ 25" e "Claro Pre 2 GB
+# por R$ 30", dois planos que nunca existiram.
 #
 # A oferta de verdade esta numa tabela de quatro degraus, onde os precos
 # e as franquias aparecem em listas paralelas, da maior para a menor:

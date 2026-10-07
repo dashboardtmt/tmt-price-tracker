@@ -166,7 +166,9 @@ def classificar(nome, destaque):
         return "fibra"
     if "controle" in n:
         return "controle"
-    if re.search(r"pr[eé]|xip", n):
+    # sem \b na regex: o shell ja trocou isso por backspace uma vez,
+    # e a regex passou meses casando so pelo ramo do "xip"
+    if re.search(r"(^|[^a-z])pr[eé]([^a-z]|$)|xip", n):
         return "prepago"
     if "black" in n or "pos" in n or "pós" in n:
         return "movel"
