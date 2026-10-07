@@ -326,8 +326,8 @@ MOLDE = r"""<!DOCTYPE html>
 <nav class="abas">
   <div class="dentro">
     <ul>
-      <li><a href="#" class="ativa" id="ab-panorama" onclick="aba('panorama');return false" data-t="ab_pan">Panorama</a></li>
-      <li><a href="#" id="ab-ofertas" onclick="aba('ofertas');return false" data-t="ab_of">Ofertas</a></li>
+      <li><a href="#" class="ativa" id="ab-panorama" onclick="aba('panorama');return false" data-t="ab_pan">Overview</a></li>
+      <li><a href="#" id="ab-ofertas" onclick="aba('ofertas');return false" data-t="ab_of">Detalhes por player</a></li>
     </ul>
   </div>
 </nav>
@@ -490,7 +490,7 @@ const T = {
       fonte:"Source: site das companhias / vitrines virtuais de cada região.",
       fonte_tabela:"Source: site das companhias / vitrines virtuais de cada região.",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
-      ab_pan:"Panorama", ab_of:"Ofertas",
+      ab_pan:"Overview", ab_of:"Detalhes por player",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
       of_x:"A lista completa do dia, agrupada por operadora e ordenada do mais barato ao mais caro. Use o seletor para ver uma operadora de cada vez.",
@@ -560,7 +560,7 @@ const T = {
       fonte:"Source: carrier websites / regional online storefronts.",
       fonte_tabela:"Source: carrier websites / regional online storefronts.",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
-      ab_pan:"Overview", ab_of:"Offers",
+      ab_pan:"Overview", ab_of:"Detail by player",
       sec_pan:"Market overview", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
       of_x:"The full list for the day, grouped by carrier and sorted cheapest first. Use the selector to see one carrier at a time.",
