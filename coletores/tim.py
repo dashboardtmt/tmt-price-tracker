@@ -29,6 +29,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from . import rede
@@ -41,15 +42,20 @@ PAUSA = 4
 
 # A UF vai na URL. Nao ha cookie nem requisicao de troca de praca.
 #
-# PENDENTE: o TIM Ultracombo. A rota /tim-ultracombo aparece no HTML do
-# site, mas responde 404 em todas as variacoes testadas em 01/10/2026
-# (/tim-ultracombo, /sp/tim-ultracombo, /sp/para-voce/tim-ultracombo,
-# /sp/para-voce/ultracombo, /sp/para-voce/combos). O combo da TIM e o
-# unico produto de operadora grande que falta no tracker.
+# RESOLVIDO em 07/10/2026: o Ultracombo existe, mas mora sob /internet/
+# e nao sob /para-voce/ - por isso as cinco variacoes testadas em 01/10
+# davam 404. A rota saiu do proprio sitemap.xml da TIM:
+#     https://www.tim.com.br/{uf}/internet/tim-ultracombo
 PAGINAS = {
     "controle": "https://www.tim.com.br/%s/para-voce/planos/controle",
     "movel": "https://www.tim.com.br/%s/para-voce/planos",
+    # O pre vinha de carona na pagina geral, que mostra UM card. A pagina
+    # propria tem tres (6GB/R$20, 8GB/R$25, 16GB/R$30).
+    "prepago": "https://www.tim.com.br/%s/para-voce/planos/pre-pago",
 }
+
+# O combo tem pagina propria, com outro formato - ver ler_combos.
+COMBO = "https://www.tim.com.br/%s/internet/tim-ultracombo"
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "deezer"}
@@ -206,6 +212,101 @@ def ler_ofertas(op, url, uf):
     return saida, None
 
 
+# O Ultracombo nao cabe no ler_ofertas: o drupalSettings dele traz os
+# titulos certos mas o PRECO ERRADO - os tres cards de SP vem todos com
+# "R$ 129,99", e o field_destaque_gigas diz "300 MEGA" em cima de ofertas
+# de 500MEGA e 1GIGA. Sao restos de uma campanha anterior que ficaram no
+# JSON. O preco de verdade esta no HTML renderizado, um por card:
+#
+#   TIM Ultracombo 7  500MEGA + 65GB  ... (10GB do plano + 50GB promo)
+#   Aproveite com seu plano Ultracombo  Por R$89,99/mes
+#
+# Ler o texto e menos elegante que ler o JSON, mas aqui e o JSON que
+# mente. O mesmo trecho ja separa franquia contratual de bonus.
+CARD_COMBO = re.compile(
+    r"TIM Ultracombo\s+(\d+)\s+"           # o numero do combo (5, 6, 7)
+    r"(\d+)\s*(MEGA|GIGA)\s*\+\s*(\d+)\s*GB"   # 500MEGA + 65GB
+    r"(.*?)"                                # a composicao, nao gulosa
+    r"Por\s*R\$\s?(\d{1,3},\d{2})",         # Por R$89,99/mes
+    re.I)
+
+
+def beneficios_do_json(h):
+    """titulo da oferta -> o que vem junto, declarado card a card.
+
+    Os beneficios sao imagens, e o nome do arquivo e o unico lugar onde o
+    nome do servico aparece: ".../Paramount%2B%20Icon%20(1).png". Entao a
+    leitura e do caminho, com o %XX desfeito.
+    """
+    m = re.search(r'<script[^>]*drupal-settings-json[^>]*>(.*?)</script>', h, re.S)
+    if not m:
+        return {}
+    try:
+        ofs = json.loads(m.group(1)).get("ofertas", [])
+    except Exception:
+        return {}
+    mapa = {}
+    for o in ofs:
+        titulo = texto(o.get("field_titulo"))
+        if not titulo:
+            continue
+        pedacos = [texto(o.get("field_desc_beneficios_destaque")),
+                   texto(o.get("field_desc_outros_beneficios"))]
+        for campo in ("field_beneficios_destaque", "field_outros_beneficios",
+                      "field_servico_destaque", "field_servicos_adicionais"):
+            for item in (o.get(campo) or []):
+                if not isinstance(item, dict):
+                    continue
+                pedacos.append(urllib.parse.unquote(str(item.get("value") or "")))
+                for n in (item.get("name") or []):
+                    if isinstance(n, dict):
+                        pedacos.append(str(n.get("value") or ""))
+        mapa[titulo.lower()] = " ".join(p for p in pedacos if p)
+    return mapa
+
+
+def ler_combos(op, url):
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    extras = beneficios_do_json(h)
+    t = re.sub(r"<script.*?</script>", " ", h, flags=re.S)
+    t = re.sub(r"<style.*?</style>", " ", t, flags=re.S)
+    t = re.sub(r"<[^>]+>", " ", t).replace("&nbsp;", " ")
+    t = re.sub(r"\s+", " ", t)
+
+    saida, vistos = [], set()
+    for m in CARD_COMBO.finditer(t):
+        n_combo, vel, unid, gigas, meio, preco = m.groups()
+        if len(meio) > 400:
+            continue          # casou atravessando dois cards
+        mbps_ = int(vel) * (1000 if unid.upper() == "GIGA" else 1)
+        nome = "TIM Ultracombo %s" % n_combo
+        if nome in vistos:
+            continue          # a pagina repete os cards no layout mobile
+        vistos.add(nome)
+        # "(10GB do plano + 50GB promo)": o primeiro numero e o que o
+        # contrato garante; o resto e promocao, que pode cair na revisao
+        mc = re.search(r"\((\d+)\s*GB do plano", meio, re.I)
+        # o texto do card para o preco e a franquia; o JSON para o que
+        # vem junto, que no texto so existe numa galeria compartilhada
+        chave = ("%s%s + %sGB" % (vel, unid.upper(), gigas)).lower()
+        junto = extras.get(chave, "")
+        saida.append({
+            "nome_oferta": "%s %s%s + %sGB" % (nome, vel, unid.upper(), gigas),
+            "destaque": "%s%s + %sGB" % (vel, unid.upper(), gigas),
+            "degrau_mbps": mbps_,
+            "franquia_anunciada_gb": int(gigas),
+            "franquia_contratual_gb": int(mc.group(1)) if mc else None,
+            "preco_promocional": numero(preco),
+            "nivel_bundle": nivel_bundle(meio + " " + junto),
+            "composicao": (meio.strip() + (" | inclui: " + junto if junto else ""))[:400],
+        })
+    if not saida:
+        return None, "nenhum card de combo reconhecido - a pagina mudou"
+    return saida, None
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op = navegador()
@@ -241,12 +342,42 @@ def coletar(cidade, uf, verbose=True):
             print("  %-9s %d ofertas" % (produto, len(ofertas)))
         time.sleep(PAUSA)
 
+    # O combo, da pagina propria. Nao entra no laco acima porque o
+    # formato e outro: texto renderizado em vez do array do drupalSettings.
+    combos, err = ler_combos(op, COMBO % uf.lower())
+    if err:
+        saida["avisos"].append("combo: %s" % err)
+        if verbose:
+            print("  %-9s FALHOU (%s)" % ("combo", err))
+    else:
+        for o in combos:
+            o.update({"operadora": "TIM", "produto": "combo", "praca": praca,
+                      "pagina": "combo",
+                      "capturado_em": agora.isoformat(),
+                      "preco_cheio": None,
+                      "codigo_anatel": None, "campanha": None})
+            saida["ofertas"].append(o)
+        if verbose:
+            print("  %-9s %d ofertas" % ("combo", len(combos)))
+    time.sleep(PAUSA)
+
     # A pagina geral repete ofertas da pagina de controle, com nid diferente
     # para o mesmo produto. Deduplica pelo que o cliente ve - nome, franquia
     # e preco - e nao pelo identificador interno do CMS.
+    #
+    # O nome precisa ser normalizado antes de comparar: a pagina geral
+    # anuncia "TIM Pre XIP Plus - 16GB" e a pagina de pre anuncia o mesmo
+    # plano como "TIM Pre XIP Plus". Com o sufixo, as duas passavam, e o
+    # pre aparecia com uma oferta a mais do que existe.
+    def identidade(o):
+        nome = re.sub(r"\s*[-–]\s*\d+\s*GB\s*$", "", o["nome_oferta"] or "",
+                      flags=re.I).strip().lower()
+        return (nome, o["produto"], o.get("franquia_anunciada_gb"),
+                o["preco_promocional"])
+
     vistos, unicas = set(), []
     for o in saida["ofertas"]:
-        assinatura = (o["nome_oferta"], o["destaque"], o["preco_promocional"])
+        assinatura = identidade(o)
         if assinatura in vistos:
             continue
         vistos.add(assinatura)

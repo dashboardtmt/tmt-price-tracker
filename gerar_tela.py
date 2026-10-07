@@ -398,7 +398,7 @@ MOLDE = r"""<!DOCTYPE html>
       </div>
     </div>
     <div class="tabela-wrap" id="matriz"></div>
-    <div class="fonte" data-t="fonte"></div>
+    <div class="fonte" data-t="fonte_tabela"></div>
   </div>
 
     </div>
@@ -418,28 +418,28 @@ MOLDE = r"""<!DOCTYPE html>
       </div>
       <div class="tabela-wrap" id="t-player"></div>
       <div class="nota" id="n-player"></div>
-      <div class="fonte" data-t="fonte"></div>
+      <div class="fonte" data-t="fonte_tabela"></div>
     </div>
 
     <div class="bloco">
       <h2 data-t="cmp_t">Comparação entre operadoras</h2>
       <p class="descricao" data-t="cmp_x"></p>
       <div class="tabela-wrap" id="t-comparacao"></div>
-      <div class="fonte" data-t="fonte"></div>
+      <div class="fonte" data-t="fonte_tabela"></div>
     </div>
 
     <div class="bloco">
       <h2 data-t="top_t">Topo de linha, operadora a operadora</h2>
       <p class="descricao" data-t="top_x"></p>
       <div class="tabela-wrap" id="t-topo"></div>
-      <div class="fonte" data-t="fonte"></div>
+      <div class="fonte" data-t="fonte_tabela"></div>
     </div>
 
     <div class="bloco">
       <h2 data-t="fx_t">Comparação por faixa de entrega</h2>
       <p class="descricao" data-t="fx_x"></p>
       <div id="t-faixas"></div>
-      <div class="fonte" data-t="fonte"></div>
+      <div class="fonte" data-t="fonte_tabela"></div>
     </div>
   </div>
 </div>
@@ -465,7 +465,8 @@ const T = {
       l_apareceu:"aparece nesta praça com", l_saiu:"não aparece mais nesta praça hoje",
       l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
-      fonte:"Na coluna Entrega, o número pequeno abaixo separa o que o contrato garante do que é bônus (ex.: 50+10 significa 50 GB fixos mais 10 de bônus, que pode expirar). Fonte: vitrines públicas, coletadas uma vez por dia; preço cheio, sem desconto condicionado.",
+      fonte:"Vitrines públicas · uma coleta por dia · preço cheio, sem desconto condicionado",
+      fonte_tabela:"Entrega: 50+10 são 50 GB fixos mais 10 de bônus, que pode expirar · vitrines públicas · uma coleta por dia · preço cheio",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       ab_pan:"Panorama", ab_of:"Ofertas",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
@@ -500,7 +501,7 @@ const T = {
                 satelite:"Satélite"},
       q_t:"Onde cada oferta está",
       r_entrada:"Só entrada", r_todos:"Nomes: todos", r_nenhum:"Nenhum",
-      q_x:"A disposição do dia: cada bolinha é uma oferta, à direita entrega mais e acima custa mais. Para ver o movimento entre datas, use a matriz e o gráfico de evolução mais abaixo.",
+      q_x:"Cada bolinha é uma oferta do dia: mais à direita entrega mais, mais acima custa mais. As melhores relações ficam embaixo e à direita.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse. Linha tracejada significa que ela coincide com outra — o preço é praticamente o mesmo.",
       sobre:"praticamente sobre a",
@@ -533,7 +534,8 @@ const T = {
       l_apareceu:"shows up in this city at", l_saiu:"is not in this city today",
       l_spread:"End to end:", l_a:"at", l_acima:"apart",
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
-      fonte:"In the Delivers column, the small figure below splits what the contract guarantees from bonus data (e.g. 50+10 means 50 GB fixed plus 10 GB of bonus, which can expire). Source: public websites, collected once a day; list price, before conditional discounts.",
+      fonte:"Public websites · collected once a day · list price, before conditional discounts",
+      fonte_tabela:"Delivers: 50+10 means 50 GB fixed plus 10 GB of bonus, which can expire · public websites · once a day · list price",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       ab_pan:"Overview", ab_of:"Offers",
       sec_pan:"Market overview", sec_of:"Today's offers",
@@ -565,7 +567,7 @@ const T = {
                 satelite:"Satellite"},
       q_t:"Where each offer sits",
       r_entrada:"Entry only", r_todos:"Labels: all", r_nenhum:"None",
-      q_x:"Today's layout: each dot is an offer, further right delivers more and higher up costs more. To see movement between dates, use the matrix and the evolution chart below.",
+      q_x:"Each dot is an offer on the day: further right delivers more, higher up costs more. The best deals sit low and to the right.",
       g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised. A dashed line means it coincides with another — the price is practically the same.",
       sobre:"practically on top of",
@@ -878,9 +880,31 @@ function porDegrau(dia){
 }
 
 const EIXO = {
-  grade: "rgba(0,0,0,0.07)",
+  grade: "rgba(0,0,0,0.055)",     // so o suficiente para guiar o olho
   borda: "#000512",
 };
+
+// Um eixo com marcas em numero redondo E espacadas por igual.
+//
+// Arredondar cada ponta pela SUA magnitude nao basta: de 25 a 150 as
+// pontas ficam redondas e as marcas saem "25, 50, 100, 150", com o
+// primeiro salto valendo metade dos outros. O passo tem de vir da
+// FAIXA, e as pontas tem de ser multiplos dele.
+function passoBonito(vao, alvo){
+  const bruto = (vao || 1) / (alvo || 5);
+  const mag = Math.pow(10, Math.floor(Math.log10(bruto)));
+  const n = bruto / mag;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag;
+}
+
+function faixaRedonda(lo, hi, alvo){
+  const passo = passoBonito(hi - lo, alvo);
+  const min = Math.floor(lo / passo) * passo;
+  const max = Math.ceil(hi / passo) * passo;
+  // pontas iguais (um unico valor na serie) abririam um eixo de altura 0
+  return max > min ? {min, max, passo}
+                   : {min, max: min + passo, passo};
+}
 
 // Legenda com bolinha da cor da serie. Sem ela o leitor ve tres linhas
 // coloridas e nenhuma pista de quem e quem - foi o que o usuario apontou.
@@ -975,7 +999,8 @@ function faixaEixo(valores){
   const lo = Math.min(...vs), hi = Math.max(...vs);
   const vao = Math.max(hi - lo, hi * 0.15) || 1;
   const centro = (lo + hi) / 2;
-  return {min: Math.max(0, centro - vao * 0.8), max: centro + vao * 0.8};
+  const f = faixaRedonda(Math.max(0, centro - vao * 0.8), centro + vao * 0.8, 5);
+  return {min: f.min, max: f.max, passo: f.passo};
 }
 
 function eixos(rotuloY){
@@ -1273,8 +1298,8 @@ function grafQuadrante(){
   const series = [];
   for (const [op, pts] of Object.entries(pontos(dia, true))) {
     series.push({label:op, data:pts, backgroundColor:CORES[op] || "#999",
-      borderColor:"#FCFBF7", borderWidth:1.5,
-      pointRadius:7, pointHoverRadius:9, ordem:1});
+      borderColor:"#FCFBF7", borderWidth:2,
+      pointRadius:6.5, pointHoverRadius:9, ordem:1});
   }
 
   const alvo = document.getElementById("c-quadrante");
@@ -1291,7 +1316,14 @@ function grafQuadrante(){
   faixa.vao = (faixa.max - faixa.min) || faixa.max || 1;
 
   const escalaY = faixaEixo(series.flatMap(s2=>s2.data.map(p=>p.y)));
+  // 12% de folga de cada lado, para o rotulo caber ao lado do ponto
+  const escalaX = faixaRedonda(Math.max(0, faixa.min - faixa.vao * 0.12),
+                               faixa.max + faixa.vao * 0.12, 6);
 
+
+  // o titulo diz as duas unidades, ja que os eixos nao as dizem mais
+  const h2q = document.querySelector('[data-t="q_t"]');
+  if (h2q) h2q.textContent = t("q_t") + " (R$/" + t("mes") + " × " + u + ")";
 
   trocar("c-quadrante", {
     type:"scatter",
@@ -1330,14 +1362,21 @@ function grafQuadrante(){
         },
       },
       scales:{
-        x:{...eixos().x, title:{display:true, text:u, color:"#7C7468",
-           font:{size:11}}, ticks:{...eixos().x.ticks, maxTicksLimit:10},
-           // 12% de folga de cada lado para o rotulo caber ao lado do ponto
-           min: Math.max(0, faixa.min - faixa.vao * 0.12),
-           max: faixa.max + faixa.vao * 0.12},
-        y:{...eixos(v=>reais(v).replace("R$ ","")).y,
+        // Sem titulo de eixo: o do eixo vertical saia DEITADO, e a regra
+        // da casa e que nada no eixo se le de lado. A unidade de cada eixo
+        // esta no titulo do bloco, como nos quadros do deck.
+        x:{...eixos().x,
+           ticks:{...eixos().x.ticks, stepSize:escalaX.passo,
+                  callback:v=>Number(v).toLocaleString("pt-BR",
+                    {maximumFractionDigits:0})},
+           min:escalaX.min, max:escalaX.max},
+        // sem centavos: num eixo de R$ 15 a R$ 35 o ",00" se repete em
+        // toda marca e nao distingue nada
+        y:{...eixos(v=>Number(v).toLocaleString("pt-BR",
+             {maximumFractionDigits:0})).y,
            beginAtZero:false, min:escalaY.min, max:escalaY.max,
-           title:{display:true, text:"R$", color:"#7C7468", font:{size:11}}}},
+           ticks:{...eixos(v=>Number(v).toLocaleString("pt-BR",
+             {maximumFractionDigits:0})).y.ticks, stepSize:escalaY.passo}}},
     },
     plugins:[ChartDataLabels,
       // cada atualizacao (filtro, legenda, redimensionar) refaz o

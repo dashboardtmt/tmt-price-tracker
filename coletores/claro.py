@@ -45,7 +45,7 @@ PAGINAS = {
 
 # Montadas em Storyblok, sem os cards do movel: a leitura e pelo texto que
 # a Claro exibe ao cliente.
-POR_TEXTO = {"fibra", "combo", "prepago"}
+POR_TEXTO = {"fibra", "combo"}
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "deezer"}
@@ -226,6 +226,74 @@ def ler_por_texto(op, url, produto):
     return achados, None
 
 
+# O Prezao NAO pode usar a varredura generica de "N GB ... R$ X,XX".
+#
+# A pagina tem uma pergunta frequente sobre bonus de recarga: "ao
+# recarregar R$20,00 ganhe 1GB de bonus, R$25,00 ganhe 2GB de bonus,
+# R$30,00 ganhe 3GB de bonus". A varredura casava o bonus de um degrau
+# com o preco do degrau SEGUINTE e gravava "Claro Pre 1 GB por R$ 25" e
+# "Claro Pre 2 GB por R$ 30" - dois planos que nao existem, com R$/GB de
+# 25,00 e 15,00. O usuario viu na tela e estranhou, com razao.
+#
+# A oferta de verdade esta numa tabela de quatro degraus, onde os precos
+# e as franquias aparecem em listas paralelas, da maior para a menor:
+#
+#   Valor do saldo  R$ 30,00  R$ 25,00  R$ 20,00  R$ 15,00
+#   PREZAO R$1 POR DIA  17GB + 3GB Youtube / 30 dias
+#                       10GB + 2GB Youtube / 25 dias
+#                       8GB + 2GB Youtube / 20 dias
+#                       5GB / 15 dias
+#
+# So o degrau de 30 DIAS entra no tracker. Os outros valem 25, 20 e 15
+# dias, e o tracker compara preco MENSAL - gravar R$ 15 por 5GB ao lado
+# de um plano mensal diria que a Claro e tres vezes mais barata do que e.
+# Os quatro degraus ficam registrados na composicao.
+FAIXA_PREZAO = re.compile(
+    r"Valor do saldo\s*((?:R\$\s?\d{1,3},\d{2}\s*){2,6})"
+    r"(.{0,80}?)"
+    r"((?:\d{1,3}\s*GB[^/]{0,40}?/\s*\d{1,3}\s*dias\s*){2,6})", re.I)
+
+
+def ler_prezao(op, url):
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    t = re.sub(r"<script.*?</script>", " ", h, flags=re.S)
+    t = re.sub(r"<style.*?</style>", " ", t, flags=re.S)
+    t = re.sub(r"<[^>]+>", " ", t).replace("&nbsp;", " ")
+    t = re.sub(r"\s+", " ", t)
+
+    m = FAIXA_PREZAO.search(t)
+    if not m:
+        return None, "a escada do Prezao nao foi reconhecida - a pagina mudou"
+    precos = re.findall(r"R\$\s?(\d{1,3},\d{2})", m.group(1))
+    degraus = re.findall(r"(\d{1,3})\s*GB(.{0,40}?)/\s*(\d{1,3})\s*dias", m.group(3), re.I)
+    if len(precos) != len(degraus):
+        return None, ("escada desalinhada: %d precos para %d degraus"
+                      % (len(precos), len(degraus)))
+
+    escada = "; ".join("R$ %s = %sGB%s/%s dias" % (p, g, extra.strip(), d)
+                       for p, (g, extra, d) in zip(precos, degraus))
+    for preco, (gigas, extra, dias) in zip(precos, degraus):
+        if int(dias) != 30:
+            continue
+        # "17GB + 3GB Youtube": o total e 17, dos quais 3 so valem no
+        # YouTube. O que serve para qualquer coisa e a diferenca.
+        app = re.search(r"\+\s*(\d{1,3})\s*GB", extra)
+        total = int(gigas)
+        return [{
+            "id_catalogo": None,
+            "nome_oferta": "Claro Prezao %sGB" % total,
+            "destaque": "%s GB" % total,
+            "franquia_anunciada_gb": total,
+            "franquia_contratual_gb": total - int(app.group(1)) if app else None,
+            "preco_promocional": numero(preco),
+            "composicao": ("Prezao R$1 por dia, renovacao a cada %s dias. "
+                           "Escada completa: %s" % (dias, escada))[:400],
+        }], None
+    return None, "a escada nao tem degrau de 30 dias"
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op, _ = navegador()
@@ -253,8 +321,12 @@ def coletar(cidade, uf, verbose=True):
     time.sleep(PAUSA)
 
     for produto, url in PAGINAS.items():
-        cards, erro = (ler_por_texto(op, url, produto) if produto in POR_TEXTO
-                       else ler_cards(op, url, produto))
+        if produto == "prepago":
+            cards, erro = ler_prezao(op, url)
+        elif produto in POR_TEXTO:
+            cards, erro = ler_por_texto(op, url, produto)
+        else:
+            cards, erro = ler_cards(op, url, produto)
         if erro:
             saida["avisos"].append("%s: %s" % (produto, erro))
             if verbose:
@@ -263,7 +335,9 @@ def coletar(cidade, uf, verbose=True):
             continue
         for c in cards:
             nome = c["nome_oferta"]
-            if produto in POR_TEXTO:
+            if produto == "prepago":
+                real = "prepago"
+            elif produto in POR_TEXTO:
                 real = produto          # a pagina ja define o produto
             elif "controle" in nome.lower():
                 real = "controle"
@@ -272,8 +346,11 @@ def coletar(cidade, uf, verbose=True):
             c.update({
                 "operadora": "Claro", "produto": real, "praca": praca,
                 "capturado_em": agora.isoformat(),
-                "franquia_anunciada_gb": gb(c["destaque"]) if real not in ("fibra", "combo") else None,
-                "franquia_contratual_gb": franquia_contratual(c["composicao"]),
+                # o Prezao ja chega com as duas franquias resolvidas
+                "franquia_anunciada_gb": c.get("franquia_anunciada_gb") if real == "prepago"
+                    else (gb(c["destaque"]) if real not in ("fibra", "combo") else None),
+                "franquia_contratual_gb": c.get("franquia_contratual_gb") if real == "prepago"
+                    else franquia_contratual(c["composicao"]),
                 "degrau_mbps": mbps(c["destaque"]) if real in ("fibra", "combo") else None,
                 "nivel_bundle": nivel_bundle(c["composicao"]),
                 "preco_cheio": None, "codigo_anatel": None, "campanha": None,
