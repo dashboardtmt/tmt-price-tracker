@@ -69,19 +69,19 @@ MOLDE = r"""<!DOCTYPE html>
   /* fixo no topo, como no Dashboard TMT: a tela tem tabela longa e rolar
      nao pode custar a referencia de onde se esta */
   header{background:var(--preto);border-bottom:3px solid var(--laranja);
-         padding:14px 0 12px;position:sticky;top:0;z-index:200;
+         padding:9px 0 8px;position:sticky;top:0;z-index:200;
          box-shadow:0 2px 10px rgba(45,38,30,.10)}
   .dentro{max-width:1440px;margin:0 auto;padding:0 28px}
   header .dentro{display:flex;justify-content:space-between;align-items:flex-end;
                  gap:14px;flex-wrap:wrap}
   /* a barra laranja a esquerda do titulo e a assinatura do dashboard */
-  header h1{margin:0;font-size:19px;font-weight:800;color:#fff;letter-spacing:-.2px;
-    border-left:5px solid var(--laranja);padding-left:12px;line-height:1.25}
-  header .sub{color:#B9B2A6;font-size:12px;margin-top:5px;padding-left:17px}
+  header h1{margin:0;font-size:16.5px;font-weight:800;color:#fff;letter-spacing:-.2px;
+    border-left:4px solid var(--laranja);padding-left:10px;line-height:1.2}
+  header .sub{color:#B9B2A6;font-size:11px;margin-top:2px;padding-left:14px}
   .idioma{display:flex;gap:7px}
-  .bandeira{display:flex;align-items:center;gap:6px;font:inherit;font-size:11.5px;
-    font-weight:600;padding:5px 10px;cursor:pointer;border:1px solid #4A443C;
-    border-radius:8px;background:transparent;color:#B9B2A6}
+  .bandeira{display:flex;align-items:center;gap:5px;font:inherit;font-size:11px;
+    font-weight:600;padding:3px 8px;cursor:pointer;border:1px solid #4A443C;
+    border-radius:7px;background:transparent;color:#B9B2A6}
   .bandeira.on{background:rgba(255,80,0,.14);border-color:var(--laranja);color:#fff}
   .bandeira .flag{width:19px;height:13px;display:block;overflow:hidden;
     border-radius:2px;line-height:0}
@@ -92,24 +92,24 @@ MOLDE = r"""<!DOCTYPE html>
   /* grade regular: com flex-wrap cada campo achava seu lugar e sobravam
      orfaos em linhas diferentes, o que deixava o cabecalho irregular */
   .controles{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-left:3px solid var(--laranja);border-radius:10px;padding:13px 18px 14px;
-    margin:16px 0 14px;display:grid;gap:12px 18px;
+    border-left:3px solid var(--laranja);border-radius:10px;padding:8px 14px 9px;
+    margin:11px 0 10px;display:grid;gap:7px 14px;
     grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
     position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
     box-shadow:0 2px 8px rgba(45,38,30,.06)}
   .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
-    padding-top:11px;margin-top:1px}
+    padding-top:7px;margin-top:0}
   .abas{position:sticky;top:calc(var(--topo-h, 86px) + var(--filtros-h, 92px));
         z-index:28;background:var(--cor-fundo)}
-  .campo label{display:block;font-size:10px;text-transform:uppercase;
-    letter-spacing:.7px;color:var(--cor-texto-suave);margin-bottom:4px;font-weight:600}
-  .campo select{font:inherit;font-size:13px;padding:8px 11px;border-radius:8px;
+  .campo label{display:block;font-size:9px;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--cor-texto-suave);margin-bottom:2px;font-weight:700}
+  .campo select{font:inherit;font-size:12.5px;padding:5px 9px;border-radius:7px;
     border:1px solid var(--cor-borda);background:#fff;color:var(--cor-texto);
     width:100%;cursor:pointer}
   .campo select:focus{outline:2px solid rgba(255,80,0,.35);outline-offset:1px}
-  .chips{display:flex;gap:6px;flex-wrap:wrap}
-  .chip{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;
-    padding:6px 12px;border:1px solid var(--cor-borda);border-radius:20px;
+  .chips{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{display:flex;align-items:center;gap:5px;font-size:11.5px;cursor:pointer;
+    padding:3px 9px;border:1px solid var(--cor-borda);border-radius:20px;
     background:#fff;user-select:none;font-weight:600;
     transition:border-color .12s, opacity .12s}
   .chip:hover{border-color:var(--cinza)}
@@ -129,8 +129,8 @@ MOLDE = r"""<!DOCTYPE html>
     border-radius:12px;padding:17px 24px 19px;margin-bottom:16px;
     box-shadow:0 1px 3px rgba(45,38,30,.05)}
   /* titulo de secao: laranja, forte, com fio - como no dashboard */
-  .secao{font-size:20px;font-weight:800;color:var(--laranja);margin:4px 0 14px;
-    padding-bottom:6px;border-bottom:2px solid rgba(255,80,0,.22);
+  .secao{font-size:17px;font-weight:800;color:var(--laranja);margin:2px 0 10px;
+    padding-bottom:5px;border-bottom:2px solid rgba(255,80,0,.22);
     letter-spacing:-.3px}
   .bloco h2{margin:0;font-size:15.5px;font-weight:700;letter-spacing:-.15px}
   td.vazia{color:var(--cinza)}
@@ -152,7 +152,7 @@ MOLDE = r"""<!DOCTYPE html>
     box-shadow:0 1px 4px rgba(45,38,30,.05)}
   nav.abas ul{display:flex;list-style:none;gap:4px;margin:0;padding:0;
     overflow-x:auto;-webkit-overflow-scrolling:touch}
-  nav.abas a{display:block;padding:11px 14px;text-decoration:none;
+  nav.abas a{display:block;padding:8px 13px;text-decoration:none;
     color:var(--cor-texto-suave);font-weight:bold;font-size:13px;
     border-bottom:3px solid transparent;white-space:nowrap}
   nav.abas a:hover{color:var(--cor-texto)}
@@ -175,8 +175,8 @@ MOLDE = r"""<!DOCTYPE html>
   .metricas button.on{background:var(--preto);border-color:var(--preto);color:#fff}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
-  .grafico-wrap.alto{height:400px}
-  @media(max-width:860px){.grafico-wrap.alto{height:330px}}
+  .grafico-wrap.alto{height:450px}
+  @media(max-width:860px){.grafico-wrap.alto{height:340px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
                  color:var(--cor-texto-suave)}
   .legenda-ponto i{width:9px;height:9px;border-radius:50%;display:inline-block}
@@ -988,11 +988,32 @@ function grafQuadrante(){
           color:"#4A443C", font:{size:9.5, weight:"600"},
           textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
           formatter:(v, ctx) => {
-            const n = ctx.dataset.label.split(" · ")[0];
-            // tira TODA repeticao do nome da operadora: "Claro Day Claro
-            // Controle" virava "Claro Day Claro Cont"
-            const nome = (v.nome || "").split(n).join(" ").replace(/\s+/g, " ").trim();
-            return nome ? n + " " + nome.slice(0, 16) : n;
+            // O rotulo fica SO com o que diferencia a oferta. A cor da
+            // bolinha ja diz a operadora e o filtro ja diz o produto, entao
+            // repetir os dois em cada ponto so aumenta a chance de um texto
+            // cobrir o vizinho: "TIM Controle Smart" ocupa tres vezes a
+            // largura de "Smart" para dizer a mesma coisa.
+            const op = ctx.dataset.label.split(" · ")[0];
+            const prod = nomeProduto(filtro().produto);
+            let nome = (v.nome || "").split(op).join(" ");
+            for (const palavra of prod.split(/[\s(]+/)) {
+              if (palavra.length > 3) nome = nome.split(palavra).join(" ");
+            }
+            nome = nome.replace(/\s+/g, " ").trim();
+            // sobrou nada (a oferta se chama so "Vivo Controle")? usa a
+            // entrega, que e o que a distingue das irmas
+            if (!nome) return (v.x + " " + v.u);
+            // duas ofertas com o mesmo nome curto - as duas "Claro Day" -
+            // ficam indistinguiveis; a entrega desempata
+            const iguais = ctx.dataset.data.filter(o => {
+              let n2 = (o.nome || "").split(op).join(" ");
+              for (const w of prod.split(/[\s(]+/)) {
+                if (w.length > 3) n2 = n2.split(w).join(" ");
+              }
+              return n2.replace(/\s+/g, " ").trim() === nome;
+            }).length;
+            if (iguais > 1) nome += " " + v.x + " " + v.u;
+            return nome.slice(0, 20);
           },
         },
       },

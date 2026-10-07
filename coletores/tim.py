@@ -30,6 +30,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+from . import rede
 from datetime import datetime, timedelta, timezone
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -75,14 +77,16 @@ def navegador():
     return op
 
 
-def buscar(op, url, timeout=45):
-    try:
-        with op.open(urllib.request.Request(url), timeout=timeout) as r:
-            return r.status, r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        return e.code, ""
-    except Exception as e:
-        return 0, "ERRO: %s" % e
+def buscar(op, url, timeout=45, avisos=None):
+    def uma():
+        try:
+            with op.open(urllib.request.Request(url), timeout=timeout) as r:
+                return r.status, r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.code, ""
+        except Exception as e:
+            return 0, "ERRO: %s" % e
+    return rede.insistir(uma, url, avisos=avisos)
 
 
 def texto(campo):

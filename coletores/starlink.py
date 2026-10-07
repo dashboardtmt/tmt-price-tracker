@@ -35,6 +35,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+from . import rede
 from datetime import datetime, timedelta, timezone
 
 API = ("https://www.starlink.com/api/webagg/v1/public/marketing/availability"
@@ -58,19 +60,21 @@ FAMILIAS = {
 }
 
 
-def _http(url, timeout=45):
-    req = urllib.request.Request(url)
-    req.add_header("User-Agent", UA)
-    req.add_header("Accept", "application/json")
-    req.add_header("Accept-Language", "pt-BR,pt;q=0.9")
-    req.add_header("Referer", "https://www.starlink.com/br")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        return e.code, e.read().decode("utf-8", "replace")[:300]
-    except Exception as e:
-        return 0, str(e)
+def _http(url, timeout=45, avisos=None):
+    def uma():
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", UA)
+        req.add_header("Accept", "application/json")
+        req.add_header("Accept-Language", "pt-BR,pt;q=0.9")
+        req.add_header("Referer", "https://www.starlink.com/br")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status, r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.code, e.read().decode("utf-8", "replace")[:300]
+        except Exception as e:
+            return 0, str(e)
+    return rede.insistir(uma, url, avisos=avisos)
 
 
 def velocidade(texto):

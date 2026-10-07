@@ -29,6 +29,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from . import rede
 import zipfile
 from datetime import datetime, timedelta, timezone
 
@@ -83,17 +85,20 @@ def cabecalhos_api(origem):
             "Sec-Fetch-Dest": "empty"}
 
 
-def buscar(op, url, metodo="GET", extras=None, timeout=45):
-    req = urllib.request.Request(url, method=metodo)
-    for k, v in (extras or {}).items():
-        req.add_header(k, v)
-    try:
-        with op.open(req, timeout=timeout) as r:
-            return r.status, r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        return e.code, ""
-    except Exception as e:
-        return 0, "ERRO: %s" % e
+def buscar(op, url, metodo="GET", extras=None, timeout=45, avisos=None):
+    def uma():
+        req = urllib.request.Request(url, method=metodo)
+        for k, v in (extras or {}).items():
+            req.add_header(k, v)
+        try:
+            with op.open(req, timeout=timeout) as r:
+                return r.status, r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.code, ""
+        except Exception as e:
+            return 0, "ERRO: %s" % e
+    # soluco de rede nao pode custar o produto do dia (ver coletores/rede.py)
+    return rede.insistir(uma, url, avisos=avisos)
 
 
 # ----------------------------------------------------------- normalizacao

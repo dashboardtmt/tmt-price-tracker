@@ -26,6 +26,8 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
+
+from . import rede
 from datetime import datetime, timedelta, timezone
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -59,13 +61,31 @@ def sem_acento(s):
                    if unicodedata.category(c) != "Mn").upper()
 
 
-def _http(url, dados=None, cabecalhos=None, timeout=45):
-    req = urllib.request.Request(url, data=dados, method="POST" if dados else "GET")
-    req.add_header("User-Agent", UA)
-    for k, v in (cabecalhos or {}).items():
-        req.add_header(k, v)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", "replace")
+def _http(url, dados=None, cabecalhos=None, timeout=45, avisos=None):
+    """Devolve o corpo, e levanta se nao conseguir - como antes.
+
+    A retentativa entra por dentro: quem chama continua tratando a falha
+    do mesmo jeito, so que ela agora significa "nao respondeu em tres
+    tentativas" em vez de "nao respondeu de primeira".
+    """
+    def uma():
+        req = urllib.request.Request(url, data=dados,
+                                     method="POST" if dados else "GET")
+        req.add_header("User-Agent", UA)
+        for k, v in (cabecalhos or {}).items():
+            req.add_header(k, v)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status, r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.code, ""
+        except Exception as e:
+            return 0, "ERRO: %s" % e
+
+    status, corpo = rede.insistir(uma, url, avisos=avisos)
+    if status == 0 or status >= 400:
+        raise RuntimeError("HTTP %s em %s" % (status, url))
+    return corpo
 
 
 def descobrir_token():

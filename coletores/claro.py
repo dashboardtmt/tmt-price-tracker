@@ -24,6 +24,8 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from . import rede
 from datetime import datetime, timedelta, timezone
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -71,20 +73,24 @@ def navegador():
     return op, cj
 
 
-def buscar(op, url, metodo="GET", dados=None, extras=None, timeout=45):
-    corpo = urllib.parse.urlencode(dados).encode() if dados else None
-    req = urllib.request.Request(url, data=corpo, method=metodo)
-    for k, v in (extras or {}).items():
-        req.add_header(k, v)
-    if dados:
-        req.add_header("Content-Type", "application/x-www-form-urlencoded")
-    try:
-        with op.open(req, timeout=timeout) as r:
-            return r.status, r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        return e.code, ""
-    except Exception as e:
-        return 0, "ERRO: %s" % e
+def buscar(op, url, metodo="GET", dados=None, extras=None, timeout=45,
+           avisos=None):
+    def uma():
+        corpo = urllib.parse.urlencode(dados).encode() if dados else None
+        req = urllib.request.Request(url, data=corpo, method=metodo)
+        for k, v in (extras or {}).items():
+            req.add_header(k, v)
+        if dados:
+            req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        try:
+            with op.open(req, timeout=timeout) as r:
+                return r.status, r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            return e.code, ""
+        except Exception as e:
+            return 0, "ERRO: %s" % e
+    # foi a Claro que mostrou a necessidade disto, em 07/10
+    return rede.insistir(uma, url, avisos=avisos)
 
 
 def sem_acento(s):
