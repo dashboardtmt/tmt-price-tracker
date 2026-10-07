@@ -440,6 +440,15 @@ def ler_lite(op, hoje, avisos=None):
         if not _vigente(reg, hoje):
             vencidos += 1
             continue
+        nome = reg.get("nomeOferta") or ""
+        # "Vivo Lite + Celular" e o MESMO plano vendido junto com um
+        # aparelho em 21x - a vitrine mostra R$ 100 a R$ 330 por mes, mas
+        # o regulamento registra so a parte do servico, R$ 30. Gravar
+        # assim criaria uma segunda linha de R$ 30 por 30 GB, identica a
+        # do Lite Anual, e ainda esconderia o aparelho. O tracker compara
+        # preco de SERVICO; pacote com aparelho fica de fora.
+        if re.search(r"\+\s*celular|celular\s*\+", nome, re.I):
+            continue
         produto = _produto_do_regulamento(reg)
         scm = reg.get("SCM") or {}
         smp = reg.get("SMP") or {}
