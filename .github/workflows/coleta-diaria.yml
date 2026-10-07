@@ -44,8 +44,9 @@ jobs:
           python-version: '3.12'
 
       - name: Instalar o navegador
-        # Unifique e NuCel escondem os precos atras de JavaScript e exigem
-        # navegador de verdade. As outras quatro nao usam isto.
+        # Unifique, NuCel e Claro Flex escondem os precos atras de
+        # JavaScript e exigem navegador de verdade. O pypdf e para o TIM
+        # Controle FIT, cujo preco so existe na etiqueta da Anatel, em PDF.
         run: |
           python -m pip install --quiet playwright pypdf
           python -m playwright install --with-deps chromium
