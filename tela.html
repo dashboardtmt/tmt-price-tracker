@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Price Tracker TMT</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2324201B'/%3E%3Cpath d='M7 22 L13 15 L19 18 L25 9' stroke='%23FF5000' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2324201B'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
@@ -23,8 +23,11 @@
   body{margin:0;background:var(--cor-fundo);color:var(--cor-texto);
        font-family:var(--fonte);font-size:14px;line-height:1.5}
 
+  /* fixo no topo, como no Dashboard TMT: a tela tem tabela longa e rolar
+     nao pode custar a referencia de onde se esta */
   header{background:var(--preto);border-bottom:3px solid var(--laranja);
-         padding:14px 0 12px}
+         padding:14px 0 12px;position:sticky;top:0;z-index:200;
+         box-shadow:0 2px 10px rgba(45,38,30,.10)}
   .dentro{max-width:1440px;margin:0 auto;padding:0 28px}
   header .dentro{display:flex;justify-content:space-between;align-items:flex-end;
                  gap:14px;flex-wrap:wrap}
@@ -41,9 +44,15 @@
     border-radius:2px;line-height:0}
   .bandeira .flag svg{width:19px;height:13px;display:block}
 
+  /* grudam logo abaixo do cabecalho: trocar de praca ou de data no meio
+     de uma tabela longa nao deve exigir voltar ao topo */
   .controles{background:var(--cor-superficie);border:1px solid var(--cor-borda);
     border-left:3px solid var(--laranja);border-radius:10px;padding:11px 16px;
-    margin:16px 0 14px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+    margin:16px 0 14px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;
+    position:sticky;top:var(--topo-h, 86px);z-index:30;
+    box-shadow:0 2px 8px rgba(45,38,30,.06)}
+  .abas{position:sticky;top:calc(var(--topo-h, 86px) + var(--filtros-h, 92px));
+        z-index:28;background:var(--cor-fundo)}
   .campo label{display:block;font-size:10px;text-transform:uppercase;
     letter-spacing:.7px;color:var(--cor-texto-suave);margin-bottom:4px;font-weight:600}
   .campo select{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;
@@ -91,12 +100,17 @@
     border-bottom:3px solid transparent;margin-bottom:-2px}
   .aba.on{color:var(--cor-texto);border-bottom-color:var(--laranja)}
   #pg-ofertas{padding-top:15px} #pg-panorama{padding-top:15px}
+  .faixa{margin-bottom:20px}
+  .faixa:last-child{margin-bottom:0}
+  .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
+    text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
   .grupo-op{background:var(--cor-fundo);font-weight:600}
   .grupo-op td{padding-top:9px;padding-bottom:7px}
   .destaque-linha td{background:#FFF4EC}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
           gap:14px;flex-wrap:wrap}
   .metricas{display:flex;gap:12px;flex:none;align-items:center}
+  .metricas{flex-wrap:wrap}
   .metricas button{font:inherit;font-size:11.5px;padding:5px 11px;cursor:pointer;
     border:1px solid var(--cor-borda);border-radius:7px;background:#fff;
     color:var(--cor-texto-suave)}
@@ -206,7 +220,14 @@
         <h2 data-t="q_t">Onde cada oferta está</h2>
         <p class="descricao" data-t="q_x"></p>
       </div>
-      <div class="metricas" id="legenda-datas"></div>
+      <div class="metricas">
+        <span id="legenda-datas" style="display:flex;gap:12px"></span>
+        <span style="display:flex;gap:5px">
+          <button id="bt-r-entrada" class="on" onclick="rotulos('entrada')" data-t="r_entrada">Nomes: entrada</button>
+          <button id="bt-r-todos" onclick="rotulos('todos')" data-t="r_todos">Todos</button>
+          <button id="bt-r-nenhum" onclick="rotulos('nenhum')" data-t="r_nenhum">Nenhum</button>
+        </span>
+      </div>
     </div>
     <div class="grafico-wrap alto"><canvas id="c-quadrante"></canvas></div>
     <div class="fonte" data-t="fonte"></div>
@@ -276,6 +297,13 @@
       <div class="tabela-wrap" id="t-comparacao"></div>
       <div class="fonte" data-t="fonte"></div>
     </div>
+
+    <div class="bloco">
+      <h2 data-t="fx_t">Comparação por faixa de entrega</h2>
+      <p class="descricao" data-t="fx_x"></p>
+      <div id="t-faixas"></div>
+      <div class="fonte" data-t="fonte"></div>
+    </div>
   </div>
 </div>
 
@@ -289,7 +317,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 10:34";
+const GERADO = "07/10/2026 10:41";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -305,6 +333,9 @@ const T = {
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
       of_x:"A lista completa do dia, agrupada por operadora e ordenada do mais barato ao mais caro. Use o seletor para ver uma operadora de cada vez.",
+      fx_t:"Comparação por faixa de entrega",
+      fx_x:"A escada cortada em três faixas. Dentro de cada uma, a oferta mais barata de cada operadora — porque quem é barato na porta nem sempre é barato no degrau de cima, que é onde está a receita.",
+      fx_baixa:"Faixa de entrada", fx_media:"Faixa intermediária", fx_alta:"Faixa alta",
       cmp_t:"Comparação entre operadoras",
       cmp_x:"A oferta de entrada de cada operadora, lado a lado. A linha destacada é a mais barata por unidade entregue — que nem sempre é a mais barata em reais.",
       f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
@@ -316,6 +347,7 @@ const T = {
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Planos",
       e_todos:"Todos", e_entrada:"Só o de entrada",
       q_t:"Onde cada oferta está",
+      r_entrada:"Nomes: entrada", r_todos:"Todos", r_nenhum:"Nenhum",
       q_x:"Cada bolinha é uma oferta: à direita entrega mais, acima custa mais. Escolha uma segunda data para ver as ofertas daquele dia vazadas por baixo — é assim que a grade inteira se deslocando fica visível.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse.",
@@ -354,6 +386,9 @@ const T = {
       sec_pan:"Market overview", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
       of_x:"The full list for the day, grouped by carrier and sorted cheapest first. Use the selector to see one carrier at a time.",
+      fx_t:"Comparison by delivery tier",
+      fx_x:"The ladder cut into three tiers. Within each one, the cheapest offer of each carrier — because whoever is cheap at the door is not always cheap on the next step, which is where the revenue sits.",
+      fx_baixa:"Entry tier", fx_media:"Mid tier", fx_alta:"Top tier",
       cmp_t:"Carrier comparison",
       cmp_x:"Each carrier's entry offer, side by side. The highlighted row is the cheapest per unit delivered — which is not always the cheapest in reais.",
       f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
@@ -365,6 +400,7 @@ const T = {
       f_data:"Date", f_contra:"Compare with", f_escopo:"Plans",
       e_todos:"All", e_entrada:"Entry only",
       q_t:"Where each offer sits",
+      r_entrada:"Labels: entry", r_todos:"All", r_nenhum:"None",
       q_x:"Each dot is an offer: further right delivers more, higher up costs more. Pick a second date to see that day's offers outlined underneath — that is how a whole grid shifting becomes visible.",
       g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised.",
@@ -401,6 +437,19 @@ let metricaAtual = "mes";
 // "todos" mostra o portfolio inteiro; "entrada" so o plano mais barato de
 // cada operadora, que e a espinha dorsal da serie (decisao 7)
 let escopoAtual = "todos";
+// Rotular as 21 ofertas de uma praca cobre os pontos vizinhos - o
+// display:auto do plugin so evita colisao entre textos, nao entre texto e
+// ponto. O padrao passa a ser rotular so a oferta de entrada de cada
+// operadora: da referencia sem virar mancha, e o resto sai no hover.
+let rotulosAtual = "entrada";
+
+function rotulos(v){
+  rotulosAtual = v;
+  for (const k of ["entrada", "todos", "nenhum"]) {
+    document.getElementById("bt-r-" + k).className = (k === v ? "on" : "");
+  }
+  grafQuadrante();
+}
 
 function aba(qual){
   const pan = qual === "panorama";
@@ -673,11 +722,15 @@ function grafQuadrante(){
 
   const pontos = (d, atual) => {
     const por = {};
+    const entrada = entradaPorOperadora(d);
     for (const o of doFiltro(d)) {
       const e = entregaDe(o), p = precoDe(o);
       if (e.v == null || p == null) continue;
+      const ent = entrada[o.operadora];
       (por[o.operadora] = por[o.operadora] || []).push(
-        {x:e.v, y:p, nome:o.nome_oferta || "", u:e.u, atual:atual});
+        {x:e.v, y:p, nome:o.nome_oferta || "", u:e.u, atual:atual,
+         // marca a de entrada para o modo de rotulo enxuto
+         ehEntrada: !!ent && precoDe(ent) === p && entregaDe(ent).v === e.v});
     }
     return por;
   };
@@ -734,7 +787,13 @@ function grafQuadrante(){
         datalabels:{
           // so a data escolhida recebe rotulo: rotular as duas viraria
           // uma mancha de texto sobre o grafico
-          display: ctx => ctx.dataset.ordem === 1 ? "auto" : false,
+          display: ctx => {
+            if (ctx.dataset.ordem !== 1) return false;      // data de comparacao
+            if (rotulosAtual === "nenhum") return false;
+            if (rotulosAtual === "entrada")
+              return ctx.dataset.data[ctx.dataIndex].ehEntrada ? "auto" : false;
+            return "auto";
+          },
           // o ponto na metade direita recebe o rotulo A ESQUERDA, senao o
           // texto corre para fora da area e e cortado na borda
           align: ctx => {
@@ -1182,11 +1241,83 @@ function tabelaComparacao(){
     <tbody>${linhas}</tbody></table>`;
 }
 
+// Comparar so a entrada e pouco: a operadora pode ser barata na porta e
+// cara no degrau de cima, que e onde esta a receita. Aqui a escada e
+// cortada em faixas e, dentro de cada uma, compara-se a oferta mais
+// barata de cada operadora - mesmo criterio da entrada, aplicado faixa a
+// faixa.
+function tabelaFaixas(){
+  const alvo = document.getElementById("t-faixas");
+  const dia = document.getElementById("f-data").value;
+
+  const ofertas = DADOS.filter(o =>
+    (o.praca === filtro().praca || o.praca === PRACA_NACIONAL)
+    && o.produto === filtro().produto && diaDe(o) === dia
+    && !desligadas.has(o.operadora)
+    && precoDe(o) != null && entregaDe(o).v != null);
+  if (ofertas.length < 2) { alvo.innerHTML = ""; return; }
+
+  const vals = ofertas.map(o => entregaDe(o).v).sort((a, b) => a - b);
+  const u = entregaDe(ofertas[0]).u;
+  // tercis: tres faixas com numero parecido de ofertas, em vez de cortes
+  // redondos que deixariam uma faixa vazia
+  const c1 = vals[Math.floor(vals.length / 3)];
+  const c2 = vals[Math.floor(vals.length * 2 / 3)];
+  const faixas = [
+    {nome: t("fx_baixa") + " — até " + c1 + " " + u, min: -Infinity, max: c1},
+    {nome: t("fx_media") + " — " + c1 + " a " + c2 + " " + u, min: c1, max: c2},
+    {nome: t("fx_alta") + " — acima de " + c2 + " " + u, min: c2, max: Infinity},
+  ];
+
+  const c = t("col_cmp");
+  let html = "";
+  for (const f of faixas) {
+    const dentro = ofertas.filter(o => {
+      const v = entregaDe(o).v;
+      return f.min === -Infinity ? v <= f.max
+           : f.max === Infinity ? v > f.min
+           : (v > f.min && v <= f.max);
+    });
+    if (!dentro.length) continue;
+    // a mais barata de cada operadora dentro da faixa
+    const por = {};
+    for (const o of dentro) {
+      const p = precoDe(o);
+      if (!por[o.operadora] || p < precoDe(por[o.operadora])) por[o.operadora] = o;
+    }
+    const itens = Object.entries(por).map(([op, o]) => {
+      const e = entregaDe(o), p = precoDe(o);
+      return {op, o, e, p, unit: e.v ? p / e.v : null};
+    }).sort((a, b) => a.unit - b.unit);
+    if (itens.length < 2) continue;      // faixa com uma operadora so nao compara
+
+    const melhor = itens[0].unit;
+    const linhas = itens.map(i => {
+      const contr = i.o.franquia_contratual_gb;
+      const marca = i.unit === melhor ? ' class="destaque-linha"' : "";
+      return `<tr${marca}>
+        <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
+        <td>${i.o.nome_oferta || "—"}</td>
+        <td class="num">${i.e.v} ${i.e.u}</td>
+        <td class="num">${contr != null ? contr + " " + t("gb") : "—"}</td>
+        <td class="num">${reais(i.p)}</td>
+        <td class="num">${i.unit.toLocaleString("pt-BR",
+          {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+        <td>${vantagem(i.o)}</td></tr>`;
+    }).join("");
+    html += `<div class="faixa"><div class="faixa-rot">${f.nome}</div>
+      <div class="tabela-wrap"><table><thead><tr>${c.map(x=>`<th>${x}</th>`).join("")}</tr></thead>
+      <tbody>${linhas}</tbody></table></div></div>`;
+  }
+  alvo.innerHTML = html || `<div class="vazio">${t("sem_dado")}</div>`;
+}
+
 function desenhar(){
   const emOfertas = !document.getElementById("pg-ofertas").hidden;
   if (emOfertas) {
     tabelaPorPlayer();
     tabelaComparacao();
+    tabelaFaixas();
     return;        // nao desenha grafico escondido: Chart.js mede errado
   }
   grafQuadrante();
@@ -1201,10 +1332,23 @@ function desenhar(){
     + " · " + DADOS.length + (lang==="pt" ? " capturas" : " captures");
 }
 
+// A altura do cabecalho muda com a largura da tela, porque o conteudo
+// quebra em duas linhas no celular. Medir e melhor que chutar um valor
+// fixo: com chute, os filtros grudam sobrepondo o cabecalho ou flutuando
+// longe dele.
+function medirTopo(){
+  const h = document.querySelector("header");
+  const f = document.querySelector(".controles");
+  if (h) document.documentElement.style.setProperty("--topo-h", h.offsetHeight + "px");
+  if (f) document.documentElement.style.setProperty("--filtros-h", (f.offsetHeight + 14) + "px");
+}
+addEventListener("resize", medirTopo);
+
 function iniciar(){
   derivar();
   montarFiltros();
   idioma(lang);
+  medirTopo();
 }
 
 function recado(txt){
