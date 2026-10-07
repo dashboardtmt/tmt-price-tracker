@@ -98,7 +98,15 @@ def coletar(cidade="Brasil", uf="BR", verbose=True, pagina=None):
 
         for o in extrair(texto):
             o.update({
-                "operadora": "NuCel", "produto": "movel", "praca": praca,
+                "operadora": "NuCel",
+                # CONTROLE, nao "movel". A NuCel vende plano hibrido - franquia
+                # mensal, sem fatura aberta - que e o que o mercado chama de
+                # controle, e e nessa categoria que XP e J.P. Morgan a comparam:
+                # "Nucel has the lowest entry price (R$45/month)", na secao de
+                # Control do price tracker da XP. Classifica-la como movel puro
+                # a escondia justamente da comparacao onde ela briga.
+                "produto": "controle",
+                "praca": praca,
                 "capturado_em": agora.isoformat(),
                 "franquia_contratual_gb": None, "degrau_mbps": None,
                 "preco_cheio": None, "nivel_bundle": 0,

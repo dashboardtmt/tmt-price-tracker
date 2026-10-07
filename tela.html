@@ -25,15 +25,21 @@
 
   header{background:var(--preto);border-bottom:3px solid var(--laranja);
          padding:14px 0 12px}
-  .dentro{max-width:1240px;margin:0 auto;padding:0 20px}
+  .dentro{max-width:1440px;margin:0 auto;padding:0 28px}
   header .dentro{display:flex;justify-content:space-between;align-items:flex-end;
                  gap:14px;flex-wrap:wrap}
-  header h1{margin:0;font-size:19px;font-weight:600;color:#fff;letter-spacing:-.2px}
-  header .sub{color:#B9B2A6;font-size:12px;margin-top:3px}
-  .idioma{display:flex;gap:6px}
-  .idioma button{font:inherit;font-size:12px;padding:5px 11px;cursor:pointer;
-    border:1px solid #4A443C;border-radius:7px;background:transparent;color:#B9B2A6}
-  .idioma button.on{background:var(--laranja);border-color:var(--laranja);color:#fff}
+  /* a barra laranja a esquerda do titulo e a assinatura do dashboard */
+  header h1{margin:0;font-size:19px;font-weight:800;color:#fff;letter-spacing:-.2px;
+    border-left:5px solid var(--laranja);padding-left:12px;line-height:1.25}
+  header .sub{color:#B9B2A6;font-size:12px;margin-top:5px;padding-left:17px}
+  .idioma{display:flex;gap:7px}
+  .bandeira{display:flex;align-items:center;gap:6px;font:inherit;font-size:11.5px;
+    font-weight:600;padding:5px 10px;cursor:pointer;border:1px solid #4A443C;
+    border-radius:8px;background:transparent;color:#B9B2A6}
+  .bandeira.on{background:rgba(255,80,0,.14);border-color:var(--laranja);color:#fff}
+  .bandeira .flag{width:19px;height:13px;display:block;overflow:hidden;
+    border-radius:2px;line-height:0}
+  .bandeira .flag svg{width:19px;height:13px;display:block}
 
   .controles{background:var(--cor-superficie);border:1px solid var(--cor-borda);
     border-left:3px solid var(--laranja);border-radius:10px;padding:11px 16px;
@@ -55,13 +61,17 @@
     border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(45,38,30,.04)}
   .kpi .rot{font-size:10px;text-transform:uppercase;letter-spacing:.7px;
     color:var(--cor-texto-suave);font-weight:600}
-  .kpi .val{font-size:23px;font-weight:600;margin-top:3px;letter-spacing:-.5px}
+  .kpi .val{font-size:26px;font-weight:700;margin-top:4px;letter-spacing:-.7px}
   .kpi .pe{font-size:11.5px;color:var(--cor-texto-suave);margin-top:1px}
 
   .bloco{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-radius:12px;padding:14px 22px 16px;margin-bottom:15px;
-    box-shadow:0 1px 2px rgba(45,38,30,.04)}
-  .bloco h2{margin:0;font-size:15px;font-weight:600}
+    border-radius:12px;padding:17px 24px 19px;margin-bottom:16px;
+    box-shadow:0 1px 3px rgba(45,38,30,.05)}
+  /* titulo de secao: laranja, forte, com fio - como no dashboard */
+  .secao{font-size:20px;font-weight:800;color:var(--laranja);margin:4px 0 14px;
+    padding-bottom:6px;border-bottom:2px solid rgba(255,80,0,.22);
+    letter-spacing:-.3px}
+  .bloco h2{margin:0;font-size:15.5px;font-weight:700;letter-spacing:-.15px}
   td.vazia{color:var(--cinza)}
   td.sobe{color:var(--negativo);font-weight:600}
   td.desce{color:var(--positivo);font-weight:600}
@@ -101,11 +111,13 @@
   .legenda-ponto i.vazado{background:transparent;border:2px solid var(--cinza)}
   .dupla{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 
-  table{border-collapse:collapse;width:100%;font-size:12.5px}
-  th{background:var(--preto);color:#fff;text-align:left;padding:7px 10px;
-     font-weight:600;white-space:nowrap}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  th{background:var(--preto);color:#fff;text-align:left;padding:9px 12px;
+     font-weight:600;white-space:nowrap;font-size:11.5px;
+     text-transform:uppercase;letter-spacing:.5px}
   th:first-child{border-radius:7px 0 0 0} th:last-child{border-radius:0 7px 0 0}
-  td{border-bottom:1px solid var(--cor-borda);padding:6px 10px}
+  td{border-bottom:1px solid var(--cor-borda);padding:8px 12px}
+  tbody tr:hover td{background:rgba(255,80,0,.045)}
   tbody tr:last-child td{border-bottom:none}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -114,8 +126,8 @@
   .vazio{color:var(--cor-texto-suave);font-style:italic;padding:26px 0;
          text-align:center;font-size:13px}
   .nota{font-size:11.5px;color:var(--cor-texto-suave);margin-top:10px}
-  footer{border-top:1px solid var(--cor-borda);margin-top:8px;padding:16px 0 30px;
-         font-size:11.5px;color:var(--cor-texto-suave)}
+  footer{border-top:1px solid var(--cor-borda);margin-top:14px;padding:20px 0 34px;
+         font-size:11.5px;color:var(--cor-texto-suave);text-align:center}
 
   @media(max-width:860px){
     .dupla{grid-template-columns:1fr}
@@ -142,8 +154,10 @@
       <div class="sub" id="sub"></div>
     </div>
     <div class="idioma">
-      <button id="bt-pt" class="on" onclick="idioma('pt')">PT</button>
-      <button id="bt-en" onclick="idioma('en')">EN</button>
+      <button id="bt-pt" class="bandeira on" onclick="idioma('pt')" title="Português">
+        <span class="flag"><svg viewBox='0 0 24 16' aria-hidden='true'><rect width='24' height='16' fill='#009C3B'/><polygon points='12,2 22,8 12,14 2,8' fill='#FFDF00'/><circle cx='12' cy='8' r='3.2' fill='#002776'/><path d='M9 7.5Q12 6.5 15 7.5' stroke='#fff' stroke-width='.4' fill='none'/></svg></span><span>PT</span></button>
+      <button id="bt-en" class="bandeira" onclick="idioma('en')" title="English">
+        <span class="flag"><svg viewBox='0 0 24 16' aria-hidden='true'><defs><clipPath id='ukc'><rect width='24' height='16'/></clipPath></defs><g clip-path='url(#ukc)'><rect width='24' height='16' fill='#012169'/><path d='M0 0 24 16M24 0 0 16' stroke='#fff' stroke-width='3.2'/><path d='M0 0 24 16M24 0 0 16' stroke='#C8102E' stroke-width='1.6'/><path d='M12 0V16M0 8H24' stroke='#fff' stroke-width='5'/><path d='M12 0V16M0 8H24' stroke='#C8102E' stroke-width='3'/></g></svg></span><span>EN</span></button>
     </div>
   </div>
 </header>
@@ -185,6 +199,7 @@
   </div>
 
   <div id="pg-panorama">
+  <div class="secao" data-t="sec_pan">Panorama do mercado</div>
   <div class="bloco">
     <div class="cabeca">
       <div>
@@ -235,16 +250,10 @@
     <div class="fonte" data-t="fonte"></div>
   </div>
 
-  <div class="bloco">
-    <h2 data-t="tab_t">As ofertas de entrada de cada operadora</h2>
-    <p class="descricao" data-t="tab_x"></p>
-    <div class="tabela-wrap" id="tabela"></div>
-    <div class="nota" id="n-tabela"></div>
-    <div class="fonte" data-t="fonte"></div>
-  </div>
-  </div>
+    </div>
 
   <div id="pg-ofertas" hidden>
+    <div class="secao" data-t="sec_of">As ofertas de hoje</div>
     <div class="bloco">
       <div class="cabeca">
         <div>
@@ -280,7 +289,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 10:27";
+const GERADO = "07/10/2026 10:34";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -293,6 +302,7 @@ const T = {
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
       fonte:"Fonte: vitrines públicas das operadoras, coletadas uma vez por dia. Preço cheio, sem desconto condicionado.",
       ab_pan:"Panorama", ab_of:"Ofertas",
+      sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
       of_x:"A lista completa do dia, agrupada por operadora e ordenada do mais barato ao mais caro. Use o seletor para ver uma operadora de cada vez.",
       cmp_t:"Comparação entre operadoras",
@@ -316,6 +326,7 @@ const T = {
       mat_t:"Preço por degrau, dia a dia", mes:"mês",
       mat_x:"Uma linha por degrau de cada operadora, uma coluna por dia. ▲▼ é o preço da mesma oferta mudando; ◆ é outra oferta assumindo o degrau, que não é mudança de preço. Dentro do degrau vale o menor nível de bundle, e só então o menor preço.",
       m_trocou:"Outra oferta assumiu o degrau",
+      m_grade:"A operadora manteve os preços e mudou as franquias — a grade inteira andou, não é mudança de preço",
       tab_t:"As ofertas de entrada de cada operadora",
       tab_x:"Uma linha por operadora: a oferta mais barata de hoje, com o que ela entrega e o que o contrato garante.",
       rodape:"Documento de trabalho interno. Preços coletados das vitrines públicas das operadoras, uma vez por dia.",
@@ -340,6 +351,7 @@ const T = {
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
       fonte:"Source: carriers' public websites, collected once a day. List price, before conditional discounts.",
       ab_pan:"Overview", ab_of:"Offers",
+      sec_pan:"Market overview", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
       of_x:"The full list for the day, grouped by carrier and sorted cheapest first. Use the selector to see one carrier at a time.",
       cmp_t:"Carrier comparison",
@@ -363,6 +375,7 @@ const T = {
       mat_t:"Price by tier, day by day", mes:"month",
       mat_x:"One row per tier of each carrier, one column per day. ▲▼ is the same offer changing price; ◆ is a different offer taking over the tier, which is not a price change. Within a tier the lowest bundle level wins, then the lowest price.",
       m_trocou:"A different offer took over this tier",
+      m_grade:"The carrier kept its prices and changed the allowances — the whole grid shifted, this is not a price change",
       tab_t:"Each carrier's entry offer",
       tab_x:"One row per carrier: today's cheapest offer, what it delivers and what the contract guarantees.",
       rodape:"Internal working document. Prices collected once a day from carriers' public websites.",
@@ -423,7 +436,19 @@ function metrica(m){
 let OPERADORAS = [], PRACAS = [], PRODUTOS = [], DIAS = [];
 const diaDe = o => o.data_captura || (o.capturado_em||"").slice(0,10);
 
+// A NuCel foi gravada como "movel" ate 06/10/2026 e passou a "controle"
+// no coletor. O produto sempre foi o mesmo - plano hibrido, com franquia
+// e sem fatura aberta - e so a etiqueta estava errada, entao a correcao
+// vale para tras tambem. Sem isto a serie dela partiria em duas no dia da
+// mudanca, e ela sumiria da comparacao de controle no historico.
+function corrigirHistorico(){
+  for (const o of DADOS) {
+    if (o.operadora === "NuCel" && o.produto === "movel") o.produto = "controle";
+  }
+}
+
 function derivar(){
+  corrigirHistorico();
   OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort();
   PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
   PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort();
@@ -450,8 +475,8 @@ function precoDe(o){ return num(o.preco_promocional); }
 
 function idioma(l){
   lang = l;
-  document.getElementById("bt-pt").className = l==="pt"?"on":"";
-  document.getElementById("bt-en").className = l==="en"?"on":"";
+  document.getElementById("bt-pt").className = "bandeira" + (l==="pt"?" on":"");
+  document.getElementById("bt-en").className = "bandeira" + (l==="en"?" on":"");
   document.documentElement.lang = l==="pt"?"pt-BR":"en";
   document.querySelectorAll("[data-t]").forEach(e=>{
     const k = e.dataset.t; if (T[l][k]) e.textContent = T[l][k];
@@ -571,12 +596,26 @@ const EIXO = {
   borda: "#24201B",
 };
 
+// Legenda com bolinha da cor da serie. Sem ela o leitor ve tres linhas
+// coloridas e nenhuma pista de quem e quem - foi o que o usuario apontou.
+function legenda(extra){
+  return Object.assign({
+    display:true, position:"bottom", align:"start",
+    labels:{usePointStyle:true, pointStyle:"circle", boxWidth:7, boxHeight:7,
+            padding:14, color:"#2B2621", font:{size:11.5, weight:"600"}},
+  }, extra || {});
+}
+
 function eixos(rotuloY){
   return {
     x: { grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
          ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10,
                 color:"#7C7468", font:{size:11}} },
-    y: { grid:{display:true, color:EIXO.grade, drawTicks:false},
+    // Comeca no zero. Tres planos entre R$ 58,99 e R$ 59,90 abriam um eixo
+    // de um real, e a diferenca de centavos ocupava a tela inteira como se
+    // fossem precos distantes. Sao quase iguais, e o grafico tem de dizer isso.
+    y: { beginAtZero:true,
+         grid:{display:true, color:EIXO.grade, drawTicks:false},
          border:{display:true, color:EIXO.borda, width:1},
          ticks:{padding:8, color:"#7C7468", font:{size:11},
                 callback:v=>rotuloY?rotuloY(v):v} },
@@ -618,7 +657,7 @@ function grafTempo(){
     data:{labels:DIAS.map(dataCurta), datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
       interaction:{mode:"index", intersect:false},
-      plugins:{legend:{display:false},
+      plugins:{legend:legenda(),
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
           c.dataset.label+": "+reais(c.parsed.y)}}},
       scales:eixos(v=>reais(v).replace("R$ ",""))},
@@ -683,7 +722,12 @@ function grafQuadrante(){
       // ela o texto do ponto mais a direita sai da area e e cortado
       layout:{padding:{right:10, top:12, bottom:4}},
       plugins:{
-        legend:{display:false},
+        // uma entrada por operadora: os datasets da data de comparacao
+        // repetiriam os mesmos nomes
+        legend:legenda({labels:{usePointStyle:true, pointStyle:"circle",
+          boxWidth:7, boxHeight:7, padding:14, color:"#2B2621",
+          font:{size:11.5, weight:"600"},
+          filter:item=>!item.text.includes(" · ")}}),
         tooltip:{callbacks:{label:c=>
           c.dataset.label + " · " + c.raw.nome + ": " + reais(c.parsed.y)
           + " · " + c.parsed.x + " " + c.raw.u}},
@@ -698,14 +742,30 @@ function grafQuadrante(){
             const esc = ctx.chart.scales.x;
             return (x > (esc.min + esc.max) / 2) ? "left" : "right";
           },
-          anchor:"center", offset:8, clamp:true, clip:false,
+          anchor:"center", offset:9, clamp:true, clip:false,
+          // pontos quase no mesmo lugar - Vivo a 59,00 e TIM a 58,99 -
+          // ganham rotulo acima e abaixo, senao um cobre o outro
+          verticalAlign: ctx => {
+            const d = ctx.dataset.data[ctx.dataIndex];
+            const ex = ctx.chart.scales.x, ey = ctx.chart.scales.y;
+            let ordem = 0;
+            ctx.chart.data.datasets.forEach((ds, i) => {
+              if (ds.ordem !== 1 || i >= ctx.datasetIndex) return;
+              ds.data.forEach(p => {
+                const perto = Math.abs(ex.getPixelForValue(p.x) - ex.getPixelForValue(d.x)) < 60
+                           && Math.abs(ey.getPixelForValue(p.y) - ey.getPixelForValue(d.y)) < 16;
+                if (perto) ordem++;
+              });
+            });
+            return ordem % 2 ? "top" : "bottom";
+          },
           color:"#2B2621", font:{size:10, weight:"600"},
           formatter:(v, ctx) => {
             const n = ctx.dataset.label.split(" · ")[0];
-            const nome = (v.nome || "").replace(n, "").trim();
-            // nome curto: o quadrante tem dezenas de pontos e o texto
-            // longo cobre os vizinhos
-            return nome ? n + " " + nome.slice(0, 14) : n;
+            // tira TODA repeticao do nome da operadora: "Claro Day Claro
+            // Controle" virava "Claro Day Claro Cont"
+            const nome = (v.nome || "").split(n).join(" ").replace(/\s+/g, " ").trim();
+            return nome ? n + " " + nome.slice(0, 16) : n;
           },
         },
       },
@@ -716,6 +776,11 @@ function grafQuadrante(){
            min: Math.max(0, faixa.min - faixa.vao * 0.12),
            max: faixa.max + faixa.vao * 0.12},
         y:{...eixos(v=>reais(v).replace("R$ ","")).y,
+           // Comeca no zero. Sem isso, tres planos entre R$ 58,99 e R$ 59,90
+           // abriam um eixo de um real e a diferenca de centavos ocupava a
+           // tela inteira, como se fossem precos distantes - sao quase iguais,
+           // e o grafico tem de mostrar isso.
+           beginAtZero:true,
            title:{display:true, text:"R$", color:"#7C7468", font:{size:11}}}},
     },
     plugins:[ChartDataLabels],
@@ -743,7 +808,7 @@ function grafDispersao(){
     type:"scatter",
     data:{datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false},
+      plugins:{legend:legenda(),
         tooltip:{callbacks:{label:c=>
           c.dataset.label+" · "+c.raw.nome+": "+reais(c.parsed.y)
           +" · "+c.parsed.x+" "+c.raw.u}}},
@@ -808,6 +873,28 @@ function grafUnitario(){
 // A nossa e por dia e por DEGRAU: acompanhar so a entrada escondia o que
 // a Claro fez em 05/10, quando mexeu no 600 e no 750 Mega e deixou a
 // entrada parada.
+// Dias em que a operadora manteve TODOS os precos e trocou os degraus.
+// E o caso da NuCel em 06/10: 25/30/40 GB viraram 35/40/45 pelos mesmos
+// 45/60/70 reais. Pareado por degrau, o "40 GB" de ontem (topo, R$ 70) vira
+// o "40 GB" de hoje (meio, R$ 60) e a celula ganharia seta de queda - a
+// mesma leitura errada que o aviso do Telegram deu e foi corrigida la.
+function gradeDeslizou(operadora, dia, anterior){
+  const conj = d => {
+    const por = {};
+    for (const o of doFiltro(d)) {
+      if (o.operadora !== operadora) continue;
+      const p = precoDe(o), e = entregaDe(o);
+      if (p == null || e.v == null) continue;
+      if (por[p] == null || e.v < por[p]) por[p] = e.v;
+    }
+    return por;
+  };
+  const a = conj(anterior), b = conj(dia);
+  const pa = Object.keys(a).sort(), pb = Object.keys(b).sort();
+  if (!pa.length || pa.join() !== pb.join()) return false;
+  return pa.some(p => a[p] !== b[p]);
+}
+
 function matriz(){
   const alvo = document.getElementById("matriz");
   const dias = DIAS.slice(-12);
@@ -856,10 +943,18 @@ function matriz(){
           cls = " trocou";
           dica = t("m_trocou") + ": " + anterior.nome + " → " + c.nome;
         } else if (anterior.p !== c.p) {
-          const sobe = c.p > anterior.p;
-          marca = sobe ? " ▲" : " ▼";
-          cls = sobe ? " sobe" : " desce";
-          dica = c.nome + ": " + reais(anterior.p) + " → " + reais(c.p);
+          if (gradeDeslizou(l.operadora, d, dias[dias.indexOf(d) - 1])) {
+            // a grade inteira andou: nao e preco mudando, e outro degrau
+            // ocupando a mesma linha
+            marca = " ◆";
+            cls = " trocou";
+            dica = t("m_grade");
+          } else {
+            const sobe = c.p > anterior.p;
+            marca = sobe ? " ▲" : " ▼";
+            cls = sobe ? " sobe" : " desce";
+            dica = c.nome + ": " + reais(anterior.p) + " → " + reais(c.p);
+          }
         }
       }
       anterior = c;
@@ -1100,7 +1195,6 @@ function desenhar(){
   grafDispersao();
   grafUnitario();
   matriz();
-  tabela();
   const ultimo = DIAS.length ? dataCurta(DIAS[DIAS.length-1]) : "—";
   document.getElementById("sub").textContent =
     (lang==="pt" ? "Última coleta: " : "Last collection: ") + ultimo
