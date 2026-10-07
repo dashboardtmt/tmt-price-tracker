@@ -44,12 +44,16 @@ CORES = {
     "Claro": "#FF5000",
     "TIM": "#1D4080",        # o azul-marinho da TIM
     "Vivo": "#8258A0",       # o roxo da Vivo
-    # a NuCel e MVNO do Nubank, que tambem e roxo - mas o roxo ja e da
-    # Vivo, e duas marcas roxas no mesmo quadro era o problema. Fica com
-    # o verde-petroleo, longe de todo o resto.
-    "NuCel": "#398478",
+    # A NuCel e MVNO do Nubank e tem de ser roxa como ele. Duas marcas
+    # roxas no mesmo quadro se distinguem porque os dois roxos sao
+    # diferentes de verdade: o da paleta e claro e dessaturado, o do
+    # Nubank e escuro e saturado. Medido em CIE76, a distancia entre os
+    # dois da 58,7 - mais que o dobro do par mais apertado da tela, que e
+    # TIM x Vivo com 26,7. Unica cor que sai da paleta primaria; aqui a
+    # cor identifica uma marca, e a marca e roxa.
+    "NuCel": "#820AD1",
     "Brisanet": "#FFAE66",   # laranja da marca, no tom claro da paleta
-    "Unifique": "#5282D8",   # o azul da marca
+    "Unifique": "#398478",   # verde-petroleo: longe do azul-marinho da TIM
     "Starlink": "#6E6E6E",   # marca preta e branca; o cinza medio da paleta
 }
 
