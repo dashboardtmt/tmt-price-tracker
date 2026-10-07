@@ -95,7 +95,7 @@ MOLDE = r"""<!DOCTYPE html>
     border-left:3px solid var(--laranja);border-radius:10px;padding:13px 18px 14px;
     margin:16px 0 14px;display:grid;gap:12px 18px;
     grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
-    position:sticky;top:var(--topo-h, 86px);z-index:30;
+    position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
     box-shadow:0 2px 8px rgba(45,38,30,.06)}
   .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
     padding-top:11px;margin-top:1px}
@@ -146,12 +146,18 @@ MOLDE = r"""<!DOCTYPE html>
   .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
          padding-top:7px;border-top:1px solid var(--cor-borda)}
   .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
-  .abas{display:flex;gap:3px;margin:16px 0 0;border-bottom:2px solid var(--cor-borda)}
-  .aba{font:inherit;font-size:13.5px;font-weight:600;padding:9px 18px;cursor:pointer;
-    border:none;background:transparent;color:var(--cor-texto-suave);
-    border-bottom:3px solid transparent;margin-bottom:-2px}
-  .aba.on{color:var(--cor-texto);border-bottom-color:var(--laranja)}
-  #pg-ofertas{padding-top:15px} #pg-panorama{padding-top:15px}
+  /* abas no topo, coladas ao cabecalho, como no Dashboard TMT */
+  nav.abas{background:var(--cor-superficie);border-bottom:1px solid var(--cor-borda);
+    position:sticky;top:var(--topo-h, 86px);z-index:150;
+    box-shadow:0 1px 4px rgba(45,38,30,.05)}
+  nav.abas ul{display:flex;list-style:none;gap:4px;margin:0;padding:0;
+    overflow-x:auto;-webkit-overflow-scrolling:touch}
+  nav.abas a{display:block;padding:11px 14px;text-decoration:none;
+    color:var(--cor-texto-suave);font-weight:bold;font-size:13px;
+    border-bottom:3px solid transparent;white-space:nowrap}
+  nav.abas a:hover{color:var(--cor-texto)}
+  nav.abas a.ativa{color:var(--laranja);border-bottom-color:var(--laranja)}
+  #pg-ofertas{padding-top:4px} #pg-panorama{padding-top:4px}
   .faixa{margin-bottom:20px}
   .faixa:last-child{margin-bottom:0}
   .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
@@ -169,8 +175,8 @@ MOLDE = r"""<!DOCTYPE html>
   .metricas button.on{background:var(--preto);border-color:var(--preto);color:#fff}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
-  .grafico-wrap.alto{height:560px}
-  @media(max-width:860px){.grafico-wrap.alto{height:420px}}
+  .grafico-wrap.alto{height:400px}
+  @media(max-width:860px){.grafico-wrap.alto{height:330px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
                  color:var(--cor-texto-suave)}
   .legenda-ponto i{width:9px;height:9px;border-radius:50%;display:inline-block}
@@ -232,6 +238,15 @@ MOLDE = r"""<!DOCTYPE html>
   </div>
 </header>
 
+<nav class="abas">
+  <div class="dentro">
+    <ul>
+      <li><a href="#" class="ativa" id="ab-panorama" onclick="aba('panorama');return false" data-t="ab_pan">Panorama</a></li>
+      <li><a href="#" id="ab-ofertas" onclick="aba('ofertas');return false" data-t="ab_of">Ofertas</a></li>
+    </ul>
+  </div>
+</nav>
+
 <div class="dentro">
   <div class="controles">
     <div class="campo">
@@ -257,11 +272,6 @@ MOLDE = r"""<!DOCTYPE html>
       <label data-t="f_operadora">Operadoras</label>
       <div class="chips" id="f-ops"></div>
     </div>
-  </div>
-
-  <div class="abas">
-    <button class="aba on" id="ab-panorama" onclick="aba('panorama')" data-t="ab_pan">Panorama</button>
-    <button class="aba" id="ab-ofertas" onclick="aba('ofertas')" data-t="ab_of">Ofertas</button>
   </div>
 
   <div id="pg-panorama">
@@ -292,6 +302,13 @@ MOLDE = r"""<!DOCTYPE html>
     <p class="descricao" data-t="g1_x"></p>
     <div class="grafico-wrap"><canvas id="c-tempo"></canvas></div>
     <div class="nota" id="n-tempo"></div>
+    <div class="fonte" data-t="fonte"></div>
+  </div>
+
+  <div class="bloco">
+    <h2 data-t="g5_t">Preço por unidade entregue, dia a dia</h2>
+    <p class="descricao" data-t="g5_x"></p>
+    <div class="grafico-wrap"><canvas id="c-tempo-unit"></canvas></div>
     <div class="fonte" data-t="fonte"></div>
   </div>
 
@@ -409,10 +426,12 @@ const T = {
       q_x:"A disposição do dia: cada bolinha é uma oferta, à direita entrega mais e acima custa mais. Para ver o movimento entre datas, use a matriz e o gráfico de evolução mais abaixo.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse.",
+      g5_t:"Preço por unidade entregue, dia a dia",
+      g5_x:"A mesma série de cima, dividida pelo que cada plano entrega. É aqui que aparece o que o preço nominal esconde: quem manteve o preço e aumentou a franquia fica reto lá em cima e desce aqui.",
       g2_t:"Quanto custa o que entrega (R$/mês × entrega)",
       g2_x:"Cada ponto é uma oferta de hoje. À direita entrega mais; acima custa mais.",
-      g3_t:"Preço por unidade entregue",
-      g3_x:"O preço de entrada dividido pelo que ele entrega. Normaliza ofertas de franquia diferente — R$ 59 com 45 GB não é o mesmo que R$ 59 com 40 GB.",
+      g3_t:"Quem entrega mais barato hoje",
+      g3_x:"O preço de entrada de hoje dividido pelo que ele entrega, do mais barato ao mais caro. Normaliza ofertas de franquia diferente — R$ 59 com 45 GB não é o mesmo que R$ 59 com 40 GB.",
       mat_t:"Preço por degrau, dia a dia", mes:"mês",
       mat_x:"Uma linha por degrau de cada operadora, uma coluna por dia. ▲▼ é o preço da mesma oferta mudando; ◆ é outra oferta assumindo o degrau, que não é mudança de preço. Dentro do degrau vale o menor nível de bundle, e só então o menor preço.",
       m_trocou:"Outra oferta assumiu o degrau",
@@ -468,10 +487,12 @@ const T = {
       q_x:"Today's layout: each dot is an offer, further right delivers more and higher up costs more. To see movement between dates, use the matrix and the evolution chart below.",
       g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised.",
+      g5_t:"Price per unit delivered, day by day",
+      g5_x:"The same series above, divided by what each plan delivers. This is where what the nominal price hides shows up: whoever kept the price and raised the allowance stays flat up there and drops here.",
       g2_t:"What you pay for what you get (R$/month × delivery)",
       g2_x:"Each dot is an offer from today. Further right delivers more; higher up costs more.",
-      g3_t:"Price per unit delivered",
-      g3_x:"Entry price divided by what it delivers. Normalises offers with different allowances — R$ 59 with 45 GB is not the same as R$ 59 with 40 GB.",
+      g3_t:"Cheapest per unit today",
+      g3_x:"Today's entry price divided by what it delivers, cheapest first. Normalises offers with different allowances — R$ 59 with 45 GB is not the same as R$ 59 with 40 GB.",
       mat_t:"Price by tier, day by day", mes:"month",
       mat_x:"One row per tier of each carrier, one column per day. ▲▼ is the same offer changing price; ◆ is a different offer taking over the tier, which is not a price change. Within a tier the lowest bundle level wins, then the lowest price.",
       m_trocou:"A different offer took over this tier",
@@ -519,8 +540,8 @@ function aba(qual){
   const pan = qual === "panorama";
   document.getElementById("pg-panorama").hidden = !pan;
   document.getElementById("pg-ofertas").hidden = pan;
-  document.getElementById("ab-panorama").className = "aba" + (pan ? " on" : "");
-  document.getElementById("ab-ofertas").className = "aba" + (pan ? "" : " on");
+  document.getElementById("ab-panorama").className = pan ? "ativa" : "";
+  document.getElementById("ab-ofertas").className = pan ? "" : "ativa";
   desenhar();
 }
 
@@ -742,6 +763,21 @@ function legenda(extra){
   }, extra || {});
 }
 
+// A faixa de um eixo de valor, com piso. Comecar em zero deixa metade do
+// quadro vazio e espreme os pontos no topo - a ponto de tres planos a
+// 58,99, 59,00 e 59,90 cairem no mesmo pixel e os nomes sumirem por
+// colisao. Colar na faixa real tem o defeito oposto: a mesma diferenca de
+// centavos vira a tela inteira. A saida e uma faixa minima proporcional,
+// 15% do maior valor.
+function faixaEixo(valores){
+  const vs = valores.filter(v => v != null && isFinite(v));
+  if (!vs.length) return {};
+  const lo = Math.min(...vs), hi = Math.max(...vs);
+  const vao = Math.max(hi - lo, hi * 0.15) || 1;
+  const centro = (lo + hi) / 2;
+  return {min: Math.max(0, centro - vao * 0.8), max: centro + vao * 0.8};
+}
+
 function eixos(rotuloY){
   return {
     x: { grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
@@ -796,7 +832,56 @@ function grafTempo(){
       plugins:{legend:legenda(),
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
           c.dataset.label+": "+reais(c.parsed.y)}}},
-      scales:eixos(v=>reais(v).replace("R$ ",""))},
+      scales:{x:eixos().x,
+              y:Object.assign(eixos(v=>reais(v).replace("R$ ","")).y,
+                              {beginAtZero:false},
+                              faixaEixo(series.flatMap(s2=>s2.data)))}},
+  });
+}
+
+// O mesmo historico, em preco por unidade entregue. Separa o que o preco
+// nominal esconde: a NuCel manteve os tres precos em 06/10 e subiu a
+// franquia, entao a linha dela fica reta la em cima e despenca aqui.
+function grafTempoUnitario(){
+  const series = OPERADORAS.filter(o=>!desligadas.has(o)).map(op=>{
+    const pontos = DIAS.map(d=>{
+      const e = entradaPorOperadora(d)[op];
+      if (!e) return null;
+      const ent = entregaDe(e), p = precoDe(e);
+      return (ent.v && p != null) ? +(p / ent.v).toFixed(4) : null;
+    });
+    return {label:op, data:pontos, borderColor:CORES[op]||"#999",
+            backgroundColor:CORES[op]||"#999",
+            tension:0.3, pointRadius:2, pointHoverRadius:4, borderWidth:2,
+            spanGaps:true};
+  }).filter(s2=>s2.data.some(v=>v!=null));
+
+  if (!series.length) {
+    if (graficos["c-tempo-unit"]) {
+      graficos["c-tempo-unit"].destroy();
+      delete graficos["c-tempo-unit"];
+    }
+    return;
+  }
+  // a unidade segue o produto: GB no movel, Mbps na fixa
+  const amostra = doFiltro(DIAS[DIAS.length-1])[0];
+  const u = amostra ? entregaDe(amostra).u : "";
+  const titulo = document.querySelector('[data-t="g5_t"]');
+  if (titulo) titulo.textContent = t("g5_t") + (u ? " (R$/" + u + ")" : "");
+
+  const fmt = v => Number(v).toLocaleString("pt-BR",
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+  trocar("c-tempo-unit", {
+    type:"line",
+    data:{labels:DIAS.map(dataCurta), datasets:series},
+    options:{responsive:true, maintainAspectRatio:false,
+      interaction:{mode:"index", intersect:false},
+      plugins:{legend:legenda(),
+        tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
+          c.dataset.label+": R$ "+fmt(c.parsed.y)+"/"+u}}},
+      scales:{x:eixos().x,
+              y:Object.assign(eixos(fmt).y, {beginAtZero:false},
+                              faixaEixo(series.flatMap(s2=>s2.data)))}},
   });
 }
 
@@ -843,6 +928,8 @@ function grafQuadrante(){
   const xs = series.flatMap(s2=>s2.data.map(p=>p.x));
   const faixa = {min: Math.min(...xs), max: Math.max(...xs)};
   faixa.vao = (faixa.max - faixa.min) || faixa.max || 1;
+
+  const escalaY = faixaEixo(series.flatMap(s2=>s2.data.map(p=>p.y)));
 
 
   trocar("c-quadrante", {
@@ -916,11 +1003,7 @@ function grafQuadrante(){
            min: Math.max(0, faixa.min - faixa.vao * 0.12),
            max: faixa.max + faixa.vao * 0.12},
         y:{...eixos(v=>reais(v).replace("R$ ","")).y,
-           // Comeca no zero. Sem isso, tres planos entre R$ 58,99 e R$ 59,90
-           // abriam um eixo de um real e a diferenca de centavos ocupava a
-           // tela inteira, como se fossem precos distantes - sao quase iguais,
-           // e o grafico tem de mostrar isso.
-           beginAtZero:true,
+           beginAtZero:false, min:escalaY.min, max:escalaY.max,
            title:{display:true, text:"R$", color:"#7C7468", font:{size:11}}}},
     },
     plugins:[ChartDataLabels],
@@ -1404,6 +1487,7 @@ function desenhar(){
   grafQuadrante();
   kpis();
   grafTempo();
+  grafTempoUnitario();
   grafDispersao();
   grafUnitario();
   matriz();
@@ -1420,7 +1504,9 @@ function desenhar(){
 function medirTopo(){
   const h = document.querySelector("header");
   const f = document.querySelector(".controles");
+  const n = document.querySelector("nav.abas");
   if (h) document.documentElement.style.setProperty("--topo-h", h.offsetHeight + "px");
+  if (n) document.documentElement.style.setProperty("--abas-h", n.offsetHeight + "px");
   if (f) document.documentElement.style.setProperty("--filtros-h", (f.offsetHeight + 14) + "px");
 }
 addEventListener("resize", medirTopo);
