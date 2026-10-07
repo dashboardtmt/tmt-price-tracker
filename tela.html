@@ -89,25 +89,50 @@
   td.sobe{color:var(--negativo);font-weight:600}
   td.desce{color:var(--positivo);font-weight:600}
   #matriz th.num{text-align:right}
-  /* divisao entre operadoras, no padrao das tabelas do Dashboard TMT: as
-     duas primeiras colunas ficam fixas ao rolar na horizontal, a troca de
-     operadora ganha fio forte e cada bloco alterna de fundo */
+  /* no padrao das tabelas do Dashboard TMT: as duas primeiras colunas
+     ficam fixas ao rolar na horizontal e cada bloco alterna de fundo */
+  /* background-COLOR, nao o atalho: o atalho apagaria a barra colorida
+     da operadora, que e um background-image nesta mesma celula */
   #matriz td.op-col{position:sticky;left:0;z-index:2;font-weight:700;
-    min-width:108px;background:var(--cor-superficie)}
+    min-width:108px;background-color:var(--cor-superficie);border-bottom:none}
   #matriz td.degrau{position:sticky;left:108px;z-index:2;
     color:var(--cor-texto-suave);white-space:nowrap;
-    background:var(--cor-superficie);border-right:1px solid var(--cor-borda)}
+    background-color:var(--cor-superficie);border-right:1px solid var(--cor-borda)}
   #matriz thead th:nth-child(1){position:sticky;left:0;z-index:3}
   #matriz thead th:nth-child(2){position:sticky;left:108px;z-index:3}
   #matriz tr.bloco-alt td{background:rgba(45,38,30,.04)}
-  #matriz tr.bloco-alt td.op-col, #matriz tr.bloco-alt td.degrau{background:#F3F0E9}
+  #matriz tr.bloco-alt td.op-col,
+  #matriz tr.bloco-alt td.degrau{background-color:#F3F0E9}
   #matriz tbody tr:hover td{background:#FFF6F2}
-  #matriz tbody tr:hover td.op-col, #matriz tbody tr:hover td.degrau{background:#FFF0E8}
+  #matriz tbody tr:hover td.op-col,
+  #matriz tbody tr:hover td.degrau{background-color:#FFF0E8}
   #matriz td.trocou{color:var(--cor-texto);font-weight:600}
   .legenda-matriz{font-size:11px;color:var(--cor-texto-suave);margin-top:9px;
                   display:flex;gap:16px;flex-wrap:wrap}
-  #matriz tr.troca-op td{border-top:2px solid var(--preto)}
-  #matriz tbody tr:first-child td{border-top:none}
+  /* Divisao entre operadoras SEM fio preto atravessando o quadro: o bloco
+     ganha ar em cima e uma barra fina na cor da propria operadora, que
+     desce pela coluna fixa. O fio forte virava uma cicatriz no meio da
+     tabela - e a cor ja diz de quem e o bloco, como nos chips e no
+     grafico. */
+  /* A barra e um gradiente, nao um box-shadow: a sombra interna para na
+     borda da celula e a barra saia picotada, um pedaco por linha. */
+  #matriz tbody td.op-col{background-repeat:no-repeat;
+    background-position:left top;background-size:3px 100%;
+    background-image:linear-gradient(var(--cor-op, transparent),
+                                     var(--cor-op, transparent))}
+  #matriz tbody tr.troca-op:not(:first-child) td{padding-top:13px}
+  /* a barra comeca depois do ar e acaba antes do proximo bloco, para as
+     duas cores nao se encostarem */
+  #matriz tbody tr.troca-op:not(:first-child) td.op-col{
+    background-position:left 13px;background-size:3px calc(100% - 13px)}
+  #matriz tbody tr:has(+ tr.troca-op) td.op-col,
+  #matriz tbody tr:last-child td.op-col{background-size:3px calc(100% - 7px)}
+  /* bloco de uma linha so: precisa dos dois recuos ao mesmo tempo */
+  #matriz tbody tr.troca-op:not(:first-child):has(+ tr.troca-op) td.op-col{
+    background-position:left 13px;background-size:3px calc(100% - 20px)}
+  /* a ultima linha do bloco abre mao do seu fio: o ar embaixo basta, e
+     dois tracos colados (o dela e o do bloco seguinte) pesavam */
+  #matriz tbody tr:has(+ tr.troca-op) td{border-bottom:none}
   .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
          padding-top:7px;border-top:1px solid var(--cor-borda)}
   .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
@@ -130,7 +155,7 @@
   .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
     text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
   .grupo-op{background:var(--cor-fundo);font-weight:600}
-  .grupo-op td{padding-top:9px;padding-bottom:7px}
+  .grupo-op td{padding-top:8px;padding-bottom:5px}
   .destaque-linha td{background:#FFF4EC}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
           gap:14px;flex-wrap:wrap}
@@ -155,11 +180,42 @@
      font-weight:600;white-space:nowrap;font-size:11.5px;
      text-transform:uppercase;letter-spacing:.5px}
   th:first-child{border-radius:7px 0 0 0} th:last-child{border-radius:0 7px 0 0}
-  td{border-bottom:1px solid var(--cor-borda);padding:8px 12px}
+  table{line-height:1.35}
+  td{border-bottom:1px solid var(--cor-borda);padding:5px 12px}
   tbody tr:hover td{background:rgba(255,80,0,.045)}
   tbody tr:last-child td{border-bottom:none}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
+  /* Nas listas de oferta o numero fica CENTRADO na coluna: alinhado a
+     direita ele descolava do titulo e a coluna lia torta. Na matriz o
+     alinhamento continua a direita, que e serie temporal e se compara
+     digito com digito. */
+  #pg-ofertas td.num{text-align:center}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Barra horizontal flutuante e cabecalho preso no topo: o mesmo par de
+     solucoes do Dashboard da Anatel. O thead ja poderia ser sticky, mas
+     o .tabela-wrap tem overflow-x:auto e isso faz dele um contexto de
+     rolagem proprio - o sticky grudaria dentro do wrap, que nunca rola
+     na vertical, e nunca contra a pagina. Por isso o cabecalho e um
+     CLONE em position:fixed, com o scroll horizontal espelhado para a
+     coluna fixa continuar no lugar. */
+  .tabela-wrap.tem-barra-flutuante{scrollbar-width:none}
+  .tabela-wrap.tem-barra-flutuante::-webkit-scrollbar{display:none}
+  .scroll-flutuante{position:sticky;bottom:8px;z-index:5;overflow-x:auto;
+    overflow-y:hidden;height:10px;margin-top:2px}
+  .scroll-flutuante > div{height:1px}
+  .scroll-flutuante::-webkit-scrollbar{height:8px}
+  .scroll-flutuante::-webkit-scrollbar-track{background:transparent}
+  .scroll-flutuante::-webkit-scrollbar-thumb{background:rgba(255,80,0,.30);
+    border-radius:8px;transition:background .15s}
+  .scroll-flutuante:hover::-webkit-scrollbar-thumb{background:rgba(255,80,0,.55)}
+  .scroll-flutuante::-webkit-scrollbar-button{display:none;width:0;height:0}
+  .scroll-flutuante{scrollbar-width:thin;
+    scrollbar-color:rgba(255,80,0,.30) transparent}
+  .cab-flutuante{position:fixed;z-index:30;overflow:hidden;display:none;
+    border-radius:8px 8px 0 0;box-shadow:0 8px 16px rgba(45,38,30,.16)}
+  .cab-flutuante::-webkit-scrollbar{display:none}
+  .cab-flutuante{scrollbar-width:none}
+  .cab-flutuante table{margin:0}
   .op-tag{display:inline-flex;align-items:center;gap:6px;font-weight:600}
   .op-tag .marcador{width:8px;height:8px;border-radius:50%}
   .vazio{color:var(--cor-texto-suave);font-style:italic;padding:26px 0;
@@ -330,6 +386,13 @@
     </div>
 
     <div class="bloco">
+      <h2 data-t="top_t">Topo de linha, operadora a operadora</h2>
+      <p class="descricao" data-t="top_x"></p>
+      <div class="tabela-wrap" id="t-topo"></div>
+      <div class="fonte" data-t="fonte"></div>
+    </div>
+
+    <div class="bloco">
       <h2 data-t="fx_t">Comparação por faixa de entrega</h2>
       <p class="descricao" data-t="fx_x"></p>
       <div id="t-faixas"></div>
@@ -348,7 +411,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 12:39";
+const GERADO = "07/10/2026 14:33";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -368,6 +431,9 @@ const T = {
       fx_t:"Comparação por faixa de entrega",
       fx_x:"A escada cortada em três faixas. Dentro de cada uma, a oferta mais barata de cada operadora — porque quem é barato na porta nem sempre é barato no degrau de cima, que é onde está a receita.",
       fx_baixa:"Faixa de entrada", fx_media:"Faixa intermediária", fx_alta:"Faixa alta",
+      top_t:"Topo de linha, operadora a operadora",
+      top_x:"O plano mais caro que cada operadora vende hoje, do mais caro para o menos caro. A tabela de entrada diz por quanto se abre a porta; esta diz até onde cada uma vai — e é no degrau de cima que está a receita. A linha destacada entrega mais por real.",
+      col_topo:["Operadora","Plano mais caro","Entrega","Preço","R$/un.","Serviços inclusos"],
       cmp_t:"Comparação entre operadoras",
       cmp_x:"A oferta de entrada de cada operadora, lado a lado. A linha destacada é a mais barata por unidade entregue — que nem sempre é a mais barata em reais.",
       f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
@@ -433,6 +499,9 @@ const T = {
       fx_t:"Comparison by delivery tier",
       fx_x:"The ladder cut into three tiers. Within each one, the cheapest offer of each carrier — because whoever is cheap at the door is not always cheap on the next step, which is where the revenue sits.",
       fx_baixa:"Entry tier", fx_media:"Mid tier", fx_alta:"Top tier",
+      top_t:"Top of the range, carrier by carrier",
+      top_x:"The most expensive plan each carrier sells today, priciest first. The entry table says what it costs to walk in; this one says how far each carrier goes — and the upper step is where the revenue sits. The highlighted row delivers the most per real.",
+      col_topo:["Carrier","Priciest plan","Delivers","Price","R$/unit","Included services"],
       cmp_t:"Carrier comparison",
       cmp_x:"Each carrier's entry offer, side by side. The highlighted row is the cheapest per unit delivered — which is not always the cheapest in reais.",
       f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
@@ -710,6 +779,24 @@ function entradaPorOperadora(dia){
     if (p == null) continue;
     const atual = por[o.operadora];
     if (!atual || p < precoDe(atual)) por[o.operadora] = o;
+  }
+  return por;
+}
+
+// O oposto da entrada: o plano mais CARO que cada operadora vende no dia.
+// Empate em preco desempata pela entrega, porque entre dois planos de
+// R$ 120 o topo de linha e o que entrega mais.
+function topoPorOperadora(dia){
+  const por = {};
+  for (const o of doFiltro(dia)) {
+    const p = precoDe(o);
+    if (p == null) continue;
+    const atual = por[o.operadora];
+    if (!atual) { por[o.operadora] = o; continue; }
+    const pa = precoDe(atual);
+    if (p > pa || (p === pa && (entregaDe(o).v || 0) > (entregaDe(atual).v || 0))) {
+      por[o.operadora] = o;
+    }
   }
   return por;
 }
@@ -1407,7 +1494,9 @@ function matriz(){
     // linha: assim o olho segue o conjunto e nao perde onde um acaba
     const classes = [novaOp ? "troca-op" : "", bloco % 2 === 0 ? "bloco-alt" : ""]
       .filter(Boolean).join(" ");
-    return `<tr class="${classes}"><td class="op-col">${rotuloOp}</td>`
+    const cor = CORES[l.operadora] || "#999";
+    return `<tr class="${classes}" style="--cor-op:${cor}">`
+         + `<td class="op-col">${rotuloOp}</td>`
          + `<td class="degrau">${l.degrau} ${l.unidade}</td>${celulas}</tr>`;
   }).join("");
 
@@ -1586,6 +1675,43 @@ function tabelaComparacao(){
     <tbody>${linhas}</tbody></table>`;
 }
 
+function tabelaTopo(){
+  const alvo = document.getElementById("t-topo");
+  const dia = document.getElementById("f-data").value;
+  const itens = Object.entries(topoPorOperadora(dia))
+    .filter(([, o]) => precoDe(o) != null)
+    .map(([op, o]) => {
+      const e = entregaDe(o), p = precoDe(o);
+      return {op, o, e, p, unit: e.v ? p / e.v : null};
+    })
+    // do mais caro para o menos caro: a pergunta aqui e quem vai mais longe
+    .sort((a, b) => b.p - a.p);
+
+  if (itens.length < 2) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    return;
+  }
+  // mesmo destaque da tabela de entrada: quem entrega mais por real.
+  // No topo de linha isso costuma inverter a leitura do preco - o plano
+  // mais caro e com frequencia o mais eficiente por unidade.
+  const comUnit = itens.filter(i => i.unit != null);
+  const melhor = comUnit.length ? Math.min(...comUnit.map(i => i.unit)) : null;
+  const c = colunas("col_topo", itens.map(i => i.o));
+  const linhas = itens.map(i => {
+    const marca = (melhor != null && i.unit === melhor) ? ' class="destaque-linha"' : "";
+    return `<tr${marca}>
+      <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
+      <td>${i.o.nome_oferta || "—"}</td>
+      ${celulaEntrega(i.o)}
+      <td class="num">${reais(i.p)}</td>
+      <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
+        {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
+      <td>${vantagem(i.o)}</td></tr>`;
+  }).join("");
+  alvo.innerHTML = `<table><thead><tr>${c.map(x=>`<th>${x}</th>`).join("")}</tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+}
+
 // Comparar so a entrada e pouco: a operadora pode ser barata na porta e
 // cara no degrau de cima, que e onde esta a receita. Aqui a escada e
 // cortada em faixas e, dentro de cada uma, compara-se a oferta mais
@@ -1661,7 +1787,9 @@ function desenhar(){
   if (emOfertas) {
     tabelaPorPlayer();
     tabelaComparacao();
+    tabelaTopo();
     tabelaFaixas();
+    ajustarTabelas();
     return;        // nao desenha grafico escondido: Chart.js mede errado
   }
   grafQuadrante();
@@ -1670,6 +1798,7 @@ function desenhar(){
   grafDispersao();
   grafUnitario();
   matriz();
+  ajustarTabelas();
   const ultimo = DIAS.length ? dataCurta(DIAS[DIAS.length-1]) : "—";
   document.getElementById("sub").textContent =
     (lang==="pt" ? "Última coleta: " : "Last collection: ") + ultimo
@@ -1680,6 +1809,163 @@ function desenhar(){
 // quebra em duas linhas no celular. Medir e melhor que chutar um valor
 // fixo: com chute, os filtros grudam sobrepondo o cabecalho ou flutuando
 // longe dele.
+// ---------------- barra e cabecalho flutuantes ----------------
+// Portado do Dashboard da Anatel, onde este par ja esta em producao.
+
+// Ate onde vai o que esta grudado no topo: cabecalho, abas e filtros.
+// O cabecalho clonado para logo abaixo disso.
+function offsetTopoGrudado(){
+  let b = 0;
+  for (const sel of ["header", "nav.abas", ".controles"]) {
+    const e = document.querySelector(sel);
+    if (!e || !e.offsetParent) continue;
+    const pos = getComputedStyle(e).position;
+    if (pos !== "sticky" && pos !== "fixed") continue;
+    const r = e.getBoundingClientRect();
+    if (r.bottom > b) b = r.bottom;
+  }
+  return Math.round(b);
+}
+
+function atualizarBarraFlut(wrap, ancorar){
+  const bar = wrap._barraFlut;
+  if (!bar) return;
+  const transborda = wrap.scrollWidth > wrap.clientWidth + 2;
+  bar.style.display = transborda ? "block" : "none";
+  wrap.classList.toggle("tem-barra-flutuante", transborda);
+  if (!transborda) return;
+  wrap._spacerFlut.style.width = wrap.scrollWidth + "px";
+  // abre mostrando o dia mais recente, que fica na ponta direita
+  if (ancorar) wrap.scrollLeft = wrap.scrollWidth;
+  bar.scrollLeft = wrap.scrollLeft;
+}
+
+function iniciarBarrasFlut(){
+  document.querySelectorAll(".tabela-wrap").forEach(wrap => {
+    if (wrap._barraFlut) { atualizarBarraFlut(wrap, true); return; }
+    const bar = document.createElement("div");
+    bar.className = "scroll-flutuante";
+    bar.style.display = "none";
+    const spacer = document.createElement("div");
+    bar.appendChild(spacer);
+    wrap.after(bar);
+    wrap._barraFlut = bar;
+    wrap._spacerFlut = spacer;
+    // a trava evita o pingue-pongue de um scroll disparando o outro
+    let trava = false;
+    bar.addEventListener("scroll", () => {
+      if (trava) return; trava = true; wrap.scrollLeft = bar.scrollLeft; trava = false;
+    });
+    wrap.addEventListener("scroll", () => {
+      if (trava) return; trava = true; bar.scrollLeft = wrap.scrollLeft; trava = false;
+    });
+    new MutationObserver(() => atualizarBarraFlut(wrap, true))
+      .observe(wrap, {childList:true, subtree:true});
+    atualizarBarraFlut(wrap, true);
+  });
+}
+
+function montarCabFlut(wrap, tab){
+  const clone = document.createElement("table");
+  clone.className = tab.className;
+  // colgroup com as larguras medidas: sem isso o clone remonta a tabela
+  // do zero e as colunas saem com outra largura que as de baixo
+  const cg = document.createElement("colgroup");
+  [...tab.tHead.rows[0].cells].forEach(th => {
+    const c = document.createElement("col");
+    c.style.width = th.getBoundingClientRect().width + "px";
+    cg.appendChild(c);
+  });
+  clone.appendChild(cg);
+  clone.appendChild(tab.tHead.cloneNode(true));
+  clone.style.tableLayout = "fixed";
+  clone.style.width = tab.getBoundingClientRect().width + "px";
+  wrap._cabFlut.innerHTML = "";
+  wrap._cabFlut.appendChild(clone);
+  wrap._cabSujo = false;
+}
+
+function atualizarCabFlut(wrap){
+  const cab = wrap._cabFlut;
+  if (!cab) return;
+  const tab = wrap.querySelector("table");
+  if (!tab || !tab.tHead || !tab.tHead.rows.length || !wrap.offsetParent) {
+    cab.style.display = "none";
+    return;
+  }
+  const topo = offsetTopoGrudado();
+  const rT = tab.getBoundingClientRect();
+  const alt = tab.tHead.getBoundingClientRect().height;
+  // aparece so quando o cabecalho de verdade ja passou do topo e ainda
+  // sobra corpo de tabela na tela
+  if (rT.top >= topo || rT.bottom <= topo + alt) {
+    cab.style.display = "none";
+    return;
+  }
+  if (wrap._cabSujo || !cab.firstChild) montarCabFlut(wrap, tab);
+  const rW = wrap.getBoundingClientRect();
+  cab.style.display = "block";
+  cab.style.top = topo + "px";
+  cab.style.left = rW.left + "px";
+  cab.style.width = wrap.clientWidth + "px";
+  cab.style.height = alt + "px";
+  cab.scrollLeft = wrap.scrollLeft;
+}
+
+function todosCabsFlut(){
+  document.querySelectorAll(".tabela-wrap").forEach(atualizarCabFlut);
+}
+
+function iniciarCabsFlut(){
+  document.querySelectorAll(".tabela-wrap").forEach(wrap => {
+    if (wrap._cabFlut) { wrap._cabSujo = true; return; }
+    const cab = document.createElement("div");
+    cab.className = "cab-flutuante";
+    document.body.appendChild(cab);
+    wrap._cabFlut = cab;
+    wrap._cabSujo = true;
+    wrap.addEventListener("scroll", () => { cab.scrollLeft = wrap.scrollLeft; });
+    new MutationObserver(() => { wrap._cabSujo = true; })
+      .observe(wrap, {childList:true, subtree:true});
+  });
+  todosCabsFlut();
+}
+
+let cabFlutAgendado = false;
+function agendarCabsFlut(){
+  if (cabFlutAgendado) return;
+  cabFlutAgendado = true;
+  requestAnimationFrame(() => { cabFlutAgendado = false; todosCabsFlut(); });
+}
+addEventListener("scroll", agendarCabsFlut, {passive:true});
+addEventListener("resize", () => {
+  document.querySelectorAll(".tabela-wrap").forEach(w => { w._cabSujo = true; });
+  document.querySelectorAll(".tabela-wrap").forEach(w => atualizarBarraFlut(w, false));
+  agendarCabsFlut();
+});
+
+// O titulo da coluna segue o alinhamento do que esta embaixo dele. Com o
+// numero centrado e o titulo a esquerda a coluna lia torta, e marcar
+// coluna por coluna na mao quebraria quando a lista de colunas mudasse.
+function alinharCabecalhos(){
+  document.querySelectorAll(".tabela-wrap table").forEach(tab => {
+    if (!tab.tHead || !tab.tHead.rows.length || !tab.tBodies.length) return;
+    const linhas = [...tab.tBodies[0].rows];
+    [...tab.tHead.rows[0].cells].forEach((th, i) => {
+      if (th.classList.contains("num")) return;   // a matriz ja se resolve
+      const td = linhas.map(r => r.cells.length === th.parentNode.cells.length
+                                 ? r.cells[i] : null).find(Boolean);
+      if (td) th.style.textAlign = getComputedStyle(td).textAlign;
+    });
+  });
+}
+
+function ajustarTabelas(){
+  iniciarBarrasFlut();
+  iniciarCabsFlut();
+  alinharCabecalhos();
+}
+
 function medirTopo(){
   const h = document.querySelector("header");
   const f = document.querySelector(".controles");
