@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coletores import (armazenamento, brisanet, claro, nucel, starlink,  # noqa: E402
+from coletores import (armazenamento, brisanet, claro, claro_flex, nucel, starlink,  # noqa: E402
                        tim, unifique, vivo)
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
 
@@ -38,6 +38,12 @@ BRT = timezone(timedelta(hours=-3))
 # a serie comeca desigual de proposito (decisao 18) porque esperar custa
 # historico que nao volta.
 COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
+             # A linha below-the-line da Claro tem dominio proprio e nao
+             # aparece em nenhuma pagina de claro.com.br, entao e modulo
+             # separado. As ofertas saem gravadas como "Claro" - o nome
+             # aqui so rotula a rodada. (O Lite da Vivo nao precisa
+             # disto: mora no mesmo site e entrou no coletor dela.)
+             "Claro Flex": claro_flex,
              "Brisanet": brisanet, "Unifique": unifique, "NuCel": nucel,
              # satelite, produto proprio: nao e comparavel com fibra e nao
              # disputa degrau com ela (ver coletores/starlink.py)

@@ -32,7 +32,7 @@ import urllib.request
 
 from . import rede
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
@@ -49,6 +49,11 @@ VITRINE = {
     "combo": "https://vivo.com.br/para-voce/produtos-e-servicos/combos/vivo-total",
     "prepago": "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/pre-pago/vivo-pre",
 }
+
+# A linha de defesa, fora da vitrine principal: preco menor, sem
+# aparecer no portfolio anunciado. Ler junto e o que impede o tracker de
+# dizer que a Vivo entra a R$ 59 quando ela entra a R$ 45.
+LITE = "https://vivo.com.br/para-voce/produtos-e-servicos/planos-lite"
 
 APPS_CATALOGO = {"skeelo", "goread", "nba", "hube", "super comics", "atma",
                  "btfit", "mcafee", "ubook", "forbes", "casa do saber",
@@ -377,6 +382,95 @@ def trocar_praca(op, cidade, uf):
     return s == 200 and '"success":true' in corpo
 
 
+def _vigente(reg, hoje):
+    """A oferta ainda vale hoje?
+
+    A pagina do Lite serve codigo vencido junto com os vigentes - sem
+    esta conferencia, o tracker gravaria como preco de hoje uma oferta
+    que acabou ha tres meses.
+    """
+    fim = (reg or {}).get("dataFimOferta")
+    if not fim:
+        return True          # sem data declarada, vale o que a pagina mostra
+    try:
+        d, m, a = [int(x) for x in str(fim).split("/")]
+    except (ValueError, TypeError):
+        return True
+    return date(a, m, d) >= hoje
+
+
+def _produto_do_regulamento(reg):
+    """Em que degrau do tracker esta oferta compete.
+
+    A linha Lite e "Pos pago" na modalidade declarada, mas nao compete
+    com o pos-pago: ela compete ABAIXO do Controle de entrada - e a
+    oferta que segura o cliente sem mexer no portfolio anunciado. Posta
+    no balde do pos, um plano de R$ 30 sumiria entre planos de R$ 150 e
+    ninguem veria o piso real do mercado. Por isso e produto proprio.
+
+    A de fibra continua em fibra: ali a Lite e so um degrau mais barato
+    da mesma escada, com a mesma unidade de comparacao.
+    """
+    scm = reg.get("SCM") or {}
+    if (scm.get("velocidade") or {}).get("download"):
+        return "fibra"
+    return "btl"
+
+
+def ler_lite(op, hoje, avisos=None):
+    """As ofertas Lite, pelo codigo Anatel que a pagina publica.
+
+    Os cards vem por JavaScript e nao estao no HTML; o codigo Anatel
+    esta. Como o regulamento traz preco, franquia, fidelidade e multa,
+    ele basta - e e fonte melhor que card, porque e o que a operadora
+    registrou na agencia.
+    """
+    status, html = buscar(op, LITE)
+    if status != 200:
+        return None, "HTTP %s" % status
+    codigos = sorted(set(re.findall(r"VIV\d{12,}", html)))
+    if not codigos:
+        return None, "nenhum codigo Anatel na pagina - o formato mudou"
+
+    ofertas, vencidos = [], 0
+    for cod in codigos:
+        reg = regulamento(op, cod)
+        if not reg:
+            continue
+        if not _vigente(reg, hoje):
+            vencidos += 1
+            continue
+        produto = _produto_do_regulamento(reg)
+        scm = reg.get("SCM") or {}
+        smp = reg.get("SMP") or {}
+        vel = (scm.get("velocidade") or {})
+        franquia = (smp.get("franquiaDados") or {}).get("franquia")
+        preco = _num(reg.get("precoSemDescontos"))
+        if preco is None:
+            continue
+        mbps = None
+        if vel.get("download"):
+            mbps = int((_num(vel["download"]) or 0)
+                       * (1000 if "g" in (vel.get("unidadeDownload") or "").lower() else 1))
+        ofertas.append({
+            "nome_oferta": reg.get("nomeOferta"),
+            "destaque": ("%s Mbps" % mbps) if mbps else
+                        ("%s GB" % franquia if franquia else None),
+            "produto": produto,
+            "degrau_mbps": mbps,
+            "franquia_anunciada_gb": int(_num(franquia) or 0) or None,
+            "preco_promocional": preco,
+            "codigo_anatel": cod,
+            # a marca que separa esta linha da vitrine anunciada
+            "linha": "lite",
+        })
+    if vencidos and avisos is not None:
+        avisos.append("lite: %d codigo(s) com vigencia encerrada, ignorados" % vencidos)
+    if not ofertas:
+        return None, "nenhuma oferta Lite vigente"
+    return ofertas, None
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op, _ = navegador()
@@ -442,6 +536,31 @@ def coletar(cidade, uf, verbose=True):
 
         if verbose:
             print("  vitrine %-9s %d ofertas" % (produto, len(cards)))
+        time.sleep(PAUSA)
+
+    # A linha Lite, depois da vitrine. Nao entra no laco acima porque a
+    # fonte e outra: o regulamento Anatel, e nao o card da pagina.
+    lites, err = ler_lite(op, agora.date(), saida["avisos"])
+    if err:
+        saida["avisos"].append("lite: %s" % err)
+        if verbose:
+            print("  lite      FALHOU (%s)" % err)
+    else:
+        for o in lites:
+            oferta = {
+                "operadora": "Vivo",
+                "praca": "%s/%s" % (cidade, uf),
+                "capturado_em": agora.isoformat(),
+                "preco_cheio": None,
+                "nivel_bundle": 0,     # a linha Lite nao traz app incluso
+                "campanha": None,
+                "id_catalogo": None,
+            }
+            oferta.update(o)
+            oferta = aplicar_regulamento(oferta, regulamento(op, o["codigo_anatel"]))
+            saida["ofertas"].append(oferta)
+        if verbose:
+            print("  lite      %d ofertas" % len(lites))
         time.sleep(PAUSA)
 
     if _falhas_regulamento:
