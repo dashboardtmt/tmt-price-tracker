@@ -988,11 +988,11 @@ function grafQuadrante(){
           color:"#4A443C", font:{size:9.5, weight:"600"},
           textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
           formatter:(v, ctx) => {
-            // O rotulo fica SO com o que diferencia a oferta. A cor da
-            // bolinha ja diz a operadora e o filtro ja diz o produto, entao
-            // repetir os dois em cada ponto so aumenta a chance de um texto
-            // cobrir o vizinho: "TIM Controle Smart" ocupa tres vezes a
-            // largura de "Smart" para dizer a mesma coisa.
+            // Operadora + o que diferencia a oferta. O nome do PRODUTO sai,
+            // porque o filtro ja o diz e ele e quem mais ocupa espaco:
+            // "TIM Controle Smart" vira "TIM Smart". A operadora fica,
+            // porque sem ela "35 GB" aparece duas vezes no mesmo quadro -
+            // uma da Claro, outra da NuCel - e so a cor distinguiria.
             const op = ctx.dataset.label.split(" · ")[0];
             const prod = nomeProduto(filtro().produto);
             let nome = (v.nome || "").split(op).join(" ");
@@ -1002,7 +1002,7 @@ function grafQuadrante(){
             nome = nome.replace(/\s+/g, " ").trim();
             // sobrou nada (a oferta se chama so "Vivo Controle")? usa a
             // entrega, que e o que a distingue das irmas
-            if (!nome) return (v.x + " " + v.u);
+            if (!nome) return op + " " + v.x + " " + v.u;
             // duas ofertas com o mesmo nome curto - as duas "Claro Day" -
             // ficam indistinguiveis; a entrega desempata
             const iguais = ctx.dataset.data.filter(o => {
@@ -1013,7 +1013,7 @@ function grafQuadrante(){
               return n2.replace(/\s+/g, " ").trim() === nome;
             }).length;
             if (iguais > 1) nome += " " + v.x + " " + v.u;
-            return nome.slice(0, 20);
+            return op + " " + nome.slice(0, 18);
           },
         },
       },
