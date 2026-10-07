@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Price Tracker TMT</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2324201B'/%3E%3Cpath d='M7 22 L13 15 L19 18 L25 9' stroke='%23FF5000' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     /* os mesmos tokens do Dashboard TMT - identidade clean, bege quente */
@@ -73,15 +75,30 @@
   .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
          padding-top:7px;border-top:1px solid var(--cor-borda)}
   .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
+  .abas{display:flex;gap:3px;margin:16px 0 0;border-bottom:2px solid var(--cor-borda)}
+  .aba{font:inherit;font-size:13.5px;font-weight:600;padding:9px 18px;cursor:pointer;
+    border:none;background:transparent;color:var(--cor-texto-suave);
+    border-bottom:3px solid transparent;margin-bottom:-2px}
+  .aba.on{color:var(--cor-texto);border-bottom-color:var(--laranja)}
+  #pg-ofertas{padding-top:15px} #pg-panorama{padding-top:15px}
+  .grupo-op{background:var(--cor-fundo);font-weight:600}
+  .grupo-op td{padding-top:9px;padding-bottom:7px}
+  .destaque-linha td{background:#FFF4EC}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
           gap:14px;flex-wrap:wrap}
-  .metricas{display:flex;gap:5px;flex:none}
+  .metricas{display:flex;gap:12px;flex:none;align-items:center}
   .metricas button{font:inherit;font-size:11.5px;padding:5px 11px;cursor:pointer;
     border:1px solid var(--cor-borda);border-radius:7px;background:#fff;
     color:var(--cor-texto-suave)}
   .metricas button.on{background:var(--preto);border-color:var(--preto);color:#fff}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
+  .grafico-wrap.alto{height:470px}
+  @media(max-width:860px){.grafico-wrap.alto{height:380px}}
+  .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+                 color:var(--cor-texto-suave)}
+  .legenda-ponto i{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .legenda-ponto i.vazado{background:transparent;border:2px solid var(--cinza)}
   .dupla{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 
   table{border-collapse:collapse;width:100%;font-size:12.5px}
@@ -141,10 +158,43 @@
       <label data-t="f_produto">Produto</label>
       <select id="f-produto" onchange="desenhar()"></select>
     </div>
-    <div class="campo" style="flex:1 1 260px">
+    <div class="campo">
+      <label data-t="f_escopo">Planos</label>
+      <select id="f-escopo" onchange="escopo(this.value)">
+        <option value="todos" data-t="e_todos">Todos</option>
+        <option value="entrada" data-t="e_entrada">Só o de entrada</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label data-t="f_data">Data</label>
+      <select id="f-data" onchange="desenhar()"></select>
+    </div>
+    <div class="campo">
+      <label data-t="f_contra">Comparar com</label>
+      <select id="f-contra" onchange="desenhar()"></select>
+    </div>
+    <div class="campo" style="flex:1 1 220px">
       <label data-t="f_operadora">Operadoras</label>
       <div class="chips" id="f-ops"></div>
     </div>
+  </div>
+
+  <div class="abas">
+    <button class="aba on" id="ab-panorama" onclick="aba('panorama')" data-t="ab_pan">Panorama</button>
+    <button class="aba" id="ab-ofertas" onclick="aba('ofertas')" data-t="ab_of">Ofertas</button>
+  </div>
+
+  <div id="pg-panorama">
+  <div class="bloco">
+    <div class="cabeca">
+      <div>
+        <h2 data-t="q_t">Onde cada oferta está</h2>
+        <p class="descricao" data-t="q_x"></p>
+      </div>
+      <div class="metricas" id="legenda-datas"></div>
+    </div>
+    <div class="grafico-wrap alto"><canvas id="c-quadrante"></canvas></div>
+    <div class="fonte" data-t="fonte"></div>
   </div>
 
   <div class="kpis" id="kpis"></div>
@@ -192,6 +242,32 @@
     <div class="nota" id="n-tabela"></div>
     <div class="fonte" data-t="fonte"></div>
   </div>
+  </div>
+
+  <div id="pg-ofertas" hidden>
+    <div class="bloco">
+      <div class="cabeca">
+        <div>
+          <h2 data-t="of_t">Todas as ofertas, por operadora</h2>
+          <p class="descricao" data-t="of_x"></p>
+        </div>
+        <div class="campo" style="flex:none">
+          <label data-t="f_player">Operadora</label>
+          <select id="f-player" onchange="desenhar()"></select>
+        </div>
+      </div>
+      <div class="tabela-wrap" id="t-player"></div>
+      <div class="nota" id="n-player"></div>
+      <div class="fonte" data-t="fonte"></div>
+    </div>
+
+    <div class="bloco">
+      <h2 data-t="cmp_t">Comparação entre operadoras</h2>
+      <p class="descricao" data-t="cmp_x"></p>
+      <div class="tabela-wrap" id="t-comparacao"></div>
+      <div class="fonte" data-t="fonte"></div>
+    </div>
+  </div>
 </div>
 
 <footer>
@@ -204,7 +280,7 @@ let DADOS = [];
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "06/10/2026 16:23";
+const GERADO = "07/10/2026 10:27";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -216,6 +292,21 @@ const T = {
       l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
       fonte:"Fonte: vitrines públicas das operadoras, coletadas uma vez por dia. Preço cheio, sem desconto condicionado.",
+      ab_pan:"Panorama", ab_of:"Ofertas",
+      of_t:"Todas as ofertas, por operadora",
+      of_x:"A lista completa do dia, agrupada por operadora e ordenada do mais barato ao mais caro. Use o seletor para ver uma operadora de cada vez.",
+      cmp_t:"Comparação entre operadoras",
+      cmp_x:"A oferta de entrada de cada operadora, lado a lado. A linha destacada é a mais barata por unidade entregue — que nem sempre é a mais barata em reais.",
+      f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
+      n_player:"{n} ofertas capturadas em {d}, em {p}.",
+      col_player:["Oferta","Entrega","Contrato","Preço","R$/un.","Vem junto"],
+      col_cmp:["Operadora","Oferta de entrada","Entrega","Contrato","Preço","R$/un.","Vem junto"],
+      bundles:["Só conectividade","Apps de catálogo","Um streaming premium",
+               "Vários streamings","TV inclusa"],
+      f_data:"Data", f_contra:"Comparar com", f_escopo:"Planos",
+      e_todos:"Todos", e_entrada:"Só o de entrada",
+      q_t:"Onde cada oferta está",
+      q_x:"Cada bolinha é uma oferta: à direita entrega mais, acima custa mais. Escolha uma segunda data para ver as ofertas daquele dia vazadas por baixo — é assim que a grade inteira se deslocando fica visível.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse.",
       g2_t:"Quanto custa o que entrega (R$/mês × entrega)",
@@ -248,6 +339,21 @@ const T = {
       l_spread:"End to end:", l_a:"at", l_acima:"apart",
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
       fonte:"Source: carriers' public websites, collected once a day. List price, before conditional discounts.",
+      ab_pan:"Overview", ab_of:"Offers",
+      of_t:"All offers, by carrier",
+      of_x:"The full list for the day, grouped by carrier and sorted cheapest first. Use the selector to see one carrier at a time.",
+      cmp_t:"Carrier comparison",
+      cmp_x:"Each carrier's entry offer, side by side. The highlighted row is the cheapest per unit delivered — which is not always the cheapest in reais.",
+      f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
+      n_player:"{n} offers captured on {d}, in {p}.",
+      col_player:["Offer","Delivers","Contract","Price","R$/unit","Included"],
+      col_cmp:["Carrier","Entry offer","Delivers","Contract","Price","R$/unit","Included"],
+      bundles:["Connectivity only","Catalogue apps","One premium streaming",
+               "Several streamings","TV included"],
+      f_data:"Date", f_contra:"Compare with", f_escopo:"Plans",
+      e_todos:"All", e_entrada:"Entry only",
+      q_t:"Where each offer sits",
+      q_x:"Each dot is an offer: further right delivers more, higher up costs more. Pick a second date to see that day's offers outlined underneath — that is how a whole grid shifting becomes visible.",
       g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised.",
       g2_t:"What you pay for what you get (R$/month × delivery)",
@@ -279,6 +385,33 @@ let graficos = {};
 // pelo que ele entrega, que e a metrica que a XP usa em todo o tracker
 // para comparar operadoras com franquias diferentes.
 let metricaAtual = "mes";
+// "todos" mostra o portfolio inteiro; "entrada" so o plano mais barato de
+// cada operadora, que e a espinha dorsal da serie (decisao 7)
+let escopoAtual = "todos";
+
+function aba(qual){
+  const pan = qual === "panorama";
+  document.getElementById("pg-panorama").hidden = !pan;
+  document.getElementById("pg-ofertas").hidden = pan;
+  document.getElementById("ab-panorama").className = "aba" + (pan ? " on" : "");
+  document.getElementById("ab-ofertas").className = "aba" + (pan ? "" : " on");
+  desenhar();
+}
+
+// O nivel de bundle vira texto: e o que a tabela chama de "vantagens".
+// Sai da decisao 10 da metodologia, que e a mesma regra usada para
+// comparar nivel com nivel.
+function vantagem(o){
+  const n = o.nivel_bundle;
+  const t_ = T[lang];
+  if (n == null) return "—";
+  return (t_.bundles[n] || "—");
+}
+
+function escopo(v){
+  escopoAtual = v;
+  desenhar();
+}
 
 function metrica(m){
   metricaAtual = m;
@@ -333,6 +466,19 @@ function montarFiltros(){
   const fd = document.getElementById("f-produto");
   fd.innerHTML = PRODUTOS.map(p=>`<option value="${p}">${p}</option>`).join("");
   if (PRODUTOS.includes("controle")) fd.value = "controle";          // decisao 2
+  const fdata = document.getElementById("f-data");
+  fdata.innerHTML = DIAS.slice().reverse()
+    .map(d=>`<option value="${d}">${dataCurta(d)}</option>`).join("");
+  const fcontra = document.getElementById("f-contra");
+  // a comparacao e opcional: sem ela o quadrante mostra so um dia
+  fcontra.innerHTML = `<option value="">—</option>` + DIAS.slice().reverse()
+    .map(d=>`<option value="${d}">${dataCurta(d)}</option>`).join("");
+  if (DIAS.length > 1) fcontra.value = DIAS[0];
+
+  const fplayer = document.getElementById("f-player");
+  fplayer.innerHTML = `<option value="">${t("todas")}</option>`
+    + OPERADORAS.map(o=>`<option value="${o}">${o}</option>`).join("");
+
   document.getElementById("f-ops").innerHTML = OPERADORAS.map(o=>
     `<span class="chip" id="chip-${o}" onclick="alternar('${o}')">
        <span class="marcador" style="background:${CORES[o]||"#999"}"></span>${o}</span>`).join("");
@@ -349,10 +495,28 @@ function filtro(){
     produto: document.getElementById("f-produto").value,
   };
 }
+// NuCel e Starlink vendem no pais inteiro e sao gravadas em "Brasil/BR".
+// Filtrar so pela praca escolhida as fazia sumir de Sao Paulo, como se
+// nao vendessem la - o oposto da verdade.
+const PRACA_NACIONAL = "Brasil/BR";
+
 function doFiltro(dia){
   const f = filtro();
-  return DADOS.filter(o => o.praca===f.praca && o.produto===f.produto
-    && !desligadas.has(o.operadora) && (!dia || diaDe(o)===dia));
+  const base = DADOS.filter(o =>
+    (o.praca === f.praca || o.praca === PRACA_NACIONAL)
+    && o.produto === f.produto
+    && !desligadas.has(o.operadora)
+    && (!dia || diaDe(o) === dia));
+  if (escopoAtual !== "entrada") return base;
+  // so a oferta de entrada de cada operadora
+  const por = {};
+  for (const o of base) {
+    const p = precoDe(o);
+    if (p == null) continue;
+    const k = o.operadora + "|" + diaDe(o);
+    if (!por[k] || p < precoDe(por[k])) por[k] = o;
+  }
+  return Object.values(por);
 }
 
 // A oferta de entrada: a mais barata da operadora naquele dia. E a
@@ -458,6 +622,103 @@ function grafTempo(){
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:
           c.dataset.label+": "+reais(c.parsed.y)}}},
       scales:eixos(v=>reais(v).replace("R$ ",""))},
+  });
+}
+
+// O quadrante da Figure 27: uma bolinha por OFERTA, preco contra entrega,
+// com o nome ao lado. Duas datas convivem - a escolhida cheia e a de
+// comparacao vazada - e e ai que se ve a grade inteira se deslocar.
+function grafQuadrante(){
+  const dia = document.getElementById("f-data").value;
+  const contra = document.getElementById("f-contra").value;
+
+  const pontos = (d, atual) => {
+    const por = {};
+    for (const o of doFiltro(d)) {
+      const e = entregaDe(o), p = precoDe(o);
+      if (e.v == null || p == null) continue;
+      (por[o.operadora] = por[o.operadora] || []).push(
+        {x:e.v, y:p, nome:o.nome_oferta || "", u:e.u, atual:atual});
+    }
+    return por;
+  };
+
+  const series = [];
+  if (contra) {
+    for (const [op, pts] of Object.entries(pontos(contra, false))) {
+      series.push({label:op + " · " + dataCurta(contra), data:pts,
+        backgroundColor:"transparent", borderColor:CORES[op] || "#999",
+        borderWidth:2, pointRadius:5, pointHoverRadius:7, ordem:0});
+    }
+  }
+  for (const [op, pts] of Object.entries(pontos(dia, true))) {
+    series.push({label:op, data:pts, backgroundColor:CORES[op] || "#999",
+      borderColor:CORES[op] || "#999", pointRadius:6, pointHoverRadius:8, ordem:1});
+  }
+
+  const alvo = document.getElementById("c-quadrante");
+  if (!series.length) {
+    if (graficos["c-quadrante"]) graficos["c-quadrante"].destroy(),
+      delete graficos["c-quadrante"];
+    return;
+  }
+  const u = series[series.length-1].data[0].u;
+
+  // a faixa real dos pontos, para dar margem e nao encostar na borda
+  const xs = series.flatMap(s2=>s2.data.map(p=>p.x));
+  const faixa = {min: Math.min(...xs), max: Math.max(...xs)};
+  faixa.vao = (faixa.max - faixa.min) || faixa.max || 1;
+
+  // a legenda explica as duas formas sem precisar de texto corrido
+  document.getElementById("legenda-datas").innerHTML = contra
+    ? `<span class="legenda-ponto"><i style="background:var(--cinza)"></i>${dataCurta(dia)}</span>`
+      + `<span class="legenda-ponto"><i class="vazado"></i>${dataCurta(contra)}</span>`
+    : "";
+
+  trocar("c-quadrante", {
+    type:"scatter",
+    data:{datasets:series},
+    options:{responsive:true, maintainAspectRatio:false,
+      // folga generosa a direita: o rotulo fica ao lado do ponto e sem
+      // ela o texto do ponto mais a direita sai da area e e cortado
+      layout:{padding:{right:10, top:12, bottom:4}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>
+          c.dataset.label + " · " + c.raw.nome + ": " + reais(c.parsed.y)
+          + " · " + c.parsed.x + " " + c.raw.u}},
+        datalabels:{
+          // so a data escolhida recebe rotulo: rotular as duas viraria
+          // uma mancha de texto sobre o grafico
+          display: ctx => ctx.dataset.ordem === 1 ? "auto" : false,
+          // o ponto na metade direita recebe o rotulo A ESQUERDA, senao o
+          // texto corre para fora da area e e cortado na borda
+          align: ctx => {
+            const x = ctx.dataset.data[ctx.dataIndex].x;
+            const esc = ctx.chart.scales.x;
+            return (x > (esc.min + esc.max) / 2) ? "left" : "right";
+          },
+          anchor:"center", offset:8, clamp:true, clip:false,
+          color:"#2B2621", font:{size:10, weight:"600"},
+          formatter:(v, ctx) => {
+            const n = ctx.dataset.label.split(" · ")[0];
+            const nome = (v.nome || "").replace(n, "").trim();
+            // nome curto: o quadrante tem dezenas de pontos e o texto
+            // longo cobre os vizinhos
+            return nome ? n + " " + nome.slice(0, 14) : n;
+          },
+        },
+      },
+      scales:{
+        x:{...eixos().x, title:{display:true, text:u, color:"#7C7468",
+           font:{size:11}}, ticks:{...eixos().x.ticks, maxTicksLimit:10},
+           // 12% de folga de cada lado para o rotulo caber ao lado do ponto
+           min: Math.max(0, faixa.min - faixa.vao * 0.12),
+           max: faixa.max + faixa.vao * 0.12},
+        y:{...eixos(v=>reais(v).replace("R$ ","")).y,
+           title:{display:true, text:"R$", color:"#7C7468", font:{size:11}}}},
+    },
+    plugins:[ChartDataLabels],
   });
 }
 
@@ -734,7 +995,106 @@ function tabela(){
   nota.textContent = t("mostrando").replace("{a}", itens.length).replace("{b}", totalPraca);
 }
 
+// Todas as ofertas do dia, agrupadas por operadora. Responde "o que este
+// player vende", que e pergunta de lista e nao de grafico.
+function tabelaPorPlayer(){
+  const alvo = document.getElementById("t-player");
+  const nota = document.getElementById("n-player");
+  const dia = document.getElementById("f-data").value;
+  const player = document.getElementById("f-player").value;
+
+  let ofertas = DADOS.filter(o =>
+    (o.praca === filtro().praca || o.praca === PRACA_NACIONAL)
+    && o.produto === filtro().produto && diaDe(o) === dia
+    && precoDe(o) != null);
+  if (player) ofertas = ofertas.filter(o => o.operadora === player);
+
+  if (!ofertas.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    nota.textContent = "";
+    return;
+  }
+  ofertas.sort((a, b) => a.operadora.localeCompare(b.operadora)
+    || precoDe(a) - precoDe(b));
+
+  const c = t("col_player");
+  let opAnterior = null, linhas = "";
+  for (const o of ofertas) {
+    if (o.operadora !== opAnterior) {
+      opAnterior = o.operadora;
+      const quantos = ofertas.filter(x => x.operadora === o.operadora).length;
+      linhas += `<tr class="grupo-op"><td colspan="${c.length}">
+        <span class="op-tag"><span class="marcador" style="background:${CORES[o.operadora]||"#999"}"></span>
+        ${o.operadora}</span> · ${quantos} ${quantos === 1 ? t("oferta") : t("ofertas")}</td></tr>`;
+    }
+    const e = entregaDe(o), p = precoDe(o);
+    const contr = o.franquia_contratual_gb;
+    linhas += `<tr>
+      <td>${o.nome_oferta || "—"}</td>
+      <td class="num">${e.v != null ? e.v + " " + e.u : "—"}</td>
+      <td class="num">${contr != null ? contr + " " + t("gb") : "—"}</td>
+      <td class="num">${reais(p)}</td>
+      <td class="num">${e.v ? (p / e.v).toLocaleString("pt-BR",
+        {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
+      <td>${vantagem(o)}</td></tr>`;
+  }
+  alvo.innerHTML = `<table><thead><tr>${c.map(x=>`<th>${x}</th>`).join("")}</tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+  nota.textContent = t("n_player")
+    .replace("{n}", ofertas.length)
+    .replace("{d}", dataCurta(dia))
+    .replace("{p}", filtro().praca);
+}
+
+// A comparacao entre players: a oferta de entrada de cada um, lado a lado.
+// E a segunda tabela que o usuario pediu no chat - GB, preco, R$ por GB e
+// o que vem junto.
+function tabelaComparacao(){
+  const alvo = document.getElementById("t-comparacao");
+  const dia = document.getElementById("f-data").value;
+  const entrada = entradaPorOperadora(dia);
+  const itens = Object.entries(entrada)
+    .filter(([, o]) => precoDe(o) != null)
+    .map(([op, o]) => {
+      const e = entregaDe(o), p = precoDe(o);
+      return {op, o, e, p, unit: e.v ? p / e.v : null};
+    })
+    .sort((a, b) => (a.unit == null) - (b.unit == null)
+      || (a.unit - b.unit) || (a.p - b.p));
+
+  if (!itens.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    return;
+  }
+  // o melhor preco por unidade ganha destaque: e a leitura que a tabela
+  // existe para dar, e procurar o menor numero na coluna custa atencao
+  const melhor = itens[0].unit;
+  const c = t("col_cmp");
+  const linhas = itens.map(i => {
+    const contr = i.o.franquia_contratual_gb;
+    const marca = (i.unit != null && i.unit === melhor) ? ' class="destaque-linha"' : "";
+    return `<tr${marca}>
+      <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
+      <td>${i.o.nome_oferta || "—"}</td>
+      <td class="num">${i.e.v != null ? i.e.v + " " + i.e.u : "—"}</td>
+      <td class="num">${contr != null ? contr + " " + t("gb") : "—"}</td>
+      <td class="num">${reais(i.p)}</td>
+      <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
+        {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
+      <td>${vantagem(i.o)}</td></tr>`;
+  }).join("");
+  alvo.innerHTML = `<table><thead><tr>${c.map(x=>`<th>${x}</th>`).join("")}</tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+}
+
 function desenhar(){
+  const emOfertas = !document.getElementById("pg-ofertas").hidden;
+  if (emOfertas) {
+    tabelaPorPlayer();
+    tabelaComparacao();
+    return;        // nao desenha grafico escondido: Chart.js mede errado
+  }
+  grafQuadrante();
   kpis();
   grafTempo();
   grafDispersao();
