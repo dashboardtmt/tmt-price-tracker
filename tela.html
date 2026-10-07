@@ -94,11 +94,24 @@
   td.sobe{color:var(--negativo);font-weight:600}
   td.desce{color:var(--positivo);font-weight:600}
   #matriz th.num{text-align:right}
-  #matriz td.degrau{color:var(--cor-texto-suave);white-space:nowrap}
+  /* divisao entre operadoras, no padrao das tabelas do Dashboard TMT: as
+     duas primeiras colunas ficam fixas ao rolar na horizontal, a troca de
+     operadora ganha fio forte e cada bloco alterna de fundo */
+  #matriz td.op-col{position:sticky;left:0;z-index:2;font-weight:700;
+    min-width:108px;background:var(--cor-superficie)}
+  #matriz td.degrau{position:sticky;left:108px;z-index:2;
+    color:var(--cor-texto-suave);white-space:nowrap;
+    background:var(--cor-superficie);border-right:1px solid var(--cor-borda)}
+  #matriz thead th:nth-child(1){position:sticky;left:0;z-index:3}
+  #matriz thead th:nth-child(2){position:sticky;left:108px;z-index:3}
+  #matriz tr.bloco-alt td{background:rgba(45,38,30,.04)}
+  #matriz tr.bloco-alt td.op-col, #matriz tr.bloco-alt td.degrau{background:#F3F0E9}
+  #matriz tbody tr:hover td{background:#FFF6F2}
+  #matriz tbody tr:hover td.op-col, #matriz tbody tr:hover td.degrau{background:#FFF0E8}
   #matriz td.trocou{color:var(--cor-texto);font-weight:600}
   .legenda-matriz{font-size:11px;color:var(--cor-texto-suave);margin-top:9px;
                   display:flex;gap:16px;flex-wrap:wrap}
-  #matriz tr.troca-op td{border-top:1px solid var(--cinza-claro)}
+  #matriz tr.troca-op td{border-top:2px solid var(--preto)}
   #matriz tbody tr:first-child td{border-top:none}
   .fonte{font-size:10.5px;color:var(--cor-texto-suave);margin-top:9px;
          padding-top:7px;border-top:1px solid var(--cor-borda)}
@@ -115,6 +128,8 @@
   nav.abas a:hover{color:var(--cor-texto)}
   nav.abas a.ativa{color:var(--laranja);border-bottom-color:var(--laranja)}
   #pg-ofertas{padding-top:4px} #pg-panorama{padding-top:4px}
+  .bonus{display:block;font-size:10px;color:var(--cor-texto-suave);
+         font-weight:600;margin-top:1px}
   .faixa{margin-bottom:20px}
   .faixa:last-child{margin-bottom:0}
   .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
@@ -343,7 +358,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 12:13";
+const GERADO = "07/10/2026 12:22";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -354,7 +369,8 @@ const T = {
       l_apareceu:"aparece nesta praça com", l_saiu:"não aparece mais nesta praça hoje",
       l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
-      fonte:"Anunciado é o que a vitrine destaca; garantido é o que o regulamento da Anatel assegura — a diferença é bônus, que pode expirar. Traço significa que a operadora não publica o regulamento. Fonte: vitrines públicas, coletadas uma vez por dia; preço cheio, sem desconto condicionado.",
+      fonte:"Na coluna Entrega, o número pequeno abaixo separa o que o contrato garante do que é bônus (ex.: 50+10 significa 50 GB fixos mais 10 de bônus, que pode expirar). Fonte: vitrines públicas, coletadas uma vez por dia; preço cheio, sem desconto condicionado.",
+      d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       ab_pan:"Panorama", ab_of:"Ofertas",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
@@ -366,13 +382,18 @@ const T = {
       cmp_x:"A oferta de entrada de cada operadora, lado a lado. A linha destacada é a mais barata por unidade entregue — que nem sempre é a mais barata em reais.",
       f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
       n_player:"{n} ofertas capturadas em {d}, em {p}.",
-      col_player:["Oferta","Anunciado","Garantido","Preço","R$/un.","Vem junto"],
-      col_cmp:["Operadora","Oferta de entrada","Anunciado","Garantido","Preço","R$/un.","Vem junto"],
-      dicas_col:{"Anunciado":"O que a vitrine mostra em destaque, franquia mais bônus",
-                 "Garantido":"O que o regulamento da Anatel assegura. A diferença para o anunciado é bônus, que pode expirar",
-                 "Vem junto":"Nível de bundle: do plano pelado ao que inclui TV"},
-      bundles:["Só conectividade","Apps de catálogo","Um streaming premium",
-               "Vários streamings","TV inclusa"],
+      col_player:["Oferta","Entrega","Preço","R$/un.","Serviços inclusos"],
+      col_cmp:["Operadora","Oferta de entrada","Entrega","Preço","R$/un.","Serviços inclusos"],
+      dicas_col:{"Entrega":"O que a oferta entrega. O número pequeno separa o que o contrato garante do que é bônus",
+                 "Serviços inclusos":"O que acompanha a conectividade, do plano sem nada ao que inclui TV"},
+      // Exemplos reais em vez de jargão: "apps de catálogo" não diz nada a
+      // quem não montou a escala. Os nomes citados são os que de fato
+      // aparecem nas vitrines.
+      bundles:["Só internet e ligações",
+               "Apps menores (Skeelo, McAfee, GoRead)",
+               "Um streaming (Netflix, Amazon ou Disney+)",
+               "Vários streamings juntos",
+               "TV por assinatura inclusa"],
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
       e_todos:"Todos os planos", e_entrada:"Só o mais barato de cada operadora",
       produtos:{controle:"Controle", movel:"Pós-pago", fibra:"Fibra",
@@ -416,7 +437,8 @@ const T = {
       l_apareceu:"shows up in this city at", l_saiu:"is not in this city today",
       l_spread:"End to end:", l_a:"at", l_acima:"apart",
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
-      fonte:"Advertised is what the website highlights; guaranteed is what the Anatel filing assures — the gap is bonus data, which can expire. A dash means the carrier does not publish a filing. Source: public websites, collected once a day; list price, before conditional discounts.",
+      fonte:"In the Delivers column, the small figure below splits what the contract guarantees from bonus data (e.g. 50+10 means 50 GB fixed plus 10 GB of bonus, which can expire). Source: public websites, collected once a day; list price, before conditional discounts.",
+      d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       ab_pan:"Overview", ab_of:"Offers",
       sec_pan:"Market overview", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
@@ -428,13 +450,15 @@ const T = {
       cmp_x:"Each carrier's entry offer, side by side. The highlighted row is the cheapest per unit delivered — which is not always the cheapest in reais.",
       f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
       n_player:"{n} offers captured on {d}, in {p}.",
-      col_player:["Offer","Advertised","Guaranteed","Price","R$/unit","Included"],
-      col_cmp:["Carrier","Entry offer","Advertised","Guaranteed","Price","R$/unit","Included"],
-      dicas_col:{"Advertised":"What the website highlights: allowance plus bonus",
-                 "Guaranteed":"What the Anatel filing assures. The gap to advertised is bonus, which can expire",
-                 "Included":"Bundle level, from bare connectivity to TV included"},
-      bundles:["Connectivity only","Catalogue apps","One premium streaming",
-               "Several streamings","TV included"],
+      col_player:["Offer","Delivers","Price","R$/unit","Included services"],
+      col_cmp:["Carrier","Entry offer","Delivers","Price","R$/unit","Included services"],
+      dicas_col:{"Delivers":"What the offer delivers. The small figure splits contract-guaranteed from bonus",
+                 "Included services":"Bundle level, from bare connectivity to TV included"},
+      bundles:["Data and calls only",
+               "Minor apps (Skeelo, McAfee, GoRead)",
+               "One streaming (Netflix, Amazon or Disney+)",
+               "Several streamings together",
+               "Pay TV included"],
       f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
       e_todos:"All plans", e_entrada:"Cheapest of each carrier only",
       produtos:{controle:"Hybrid (Controle)", movel:"Postpaid", fibra:"Fibre",
@@ -555,6 +579,23 @@ function t(k){ return T[lang][k]; }
 // tambem sao moveis. A tela mostra o nome de mercado; o banco nao muda.
 // A coluna de preco unitario diz a unidade de verdade - R$/GB no movel,
 // R$/Mbps na fixa - em vez de "R$/un.", que nao diz nada.
+// Uma celula para a entrega, com o bonus explicado na dica. Duas colunas
+// - anunciado e garantido - obrigavam o leitor a montar a conta sozinho e
+// confundiam mais do que informavam.
+function celulaEntrega(o){
+  const e = entregaDe(o), contr = o.franquia_contratual_gb;
+  if (e.v == null) return `<td class="num">—</td>`;
+  const txt = e.v + " " + e.u;
+  // so faz sentido comparar quando a unidade e a mesma (GB com GB)
+  if (contr == null || e.u !== t("gb") || contr >= e.v) {
+    return `<td class="num">${txt}</td>`;
+  }
+  const bonus = e.v - contr;
+  return `<td class="num" title="${t("d_bonus")
+    .replace("{f}", contr).replace("{b}", bonus)}">${txt}`
+    + `<span class="bonus">${contr}+${bonus}</span></td>`;
+}
+
 function colunas(chave, ofertas){
   const c = t(chave).slice();
   // a dica no cabecalho explica a diferenca sem ocupar linha na tabela
@@ -1230,7 +1271,7 @@ function matriz(){
   const cab = `<tr><th>${t("col")[0]}</th><th>${t("col")[2]}</th>` +
     dias.map(d=>`<th class="num">${dataCurta(d)}</th>`).join("") + `</tr>`;
 
-  let opAnterior = null;
+  let opAnterior = null, bloco = 0;
   const corpo = ordenadas.map(l=>{
     let anterior = null;
     const celulas = dias.map(d=>{
@@ -1278,11 +1319,16 @@ function matriz(){
     // o nome da operadora so na primeira linha dela: repetir seis vezes
     // "Claro" rouba a atencao do que importa, que e o degrau e o preco
     const novaOp = l.operadora !== opAnterior;
+    if (novaOp) bloco++;
     opAnterior = l.operadora;
     const rotuloOp = novaOp
       ? `<span class="op-tag"><span class="marcador" style="background:${CORES[l.operadora]||"#999"}"></span>${l.operadora}</span>`
       : "";
-    return `<tr class="${novaOp ? "troca-op" : ""}"><td>${rotuloOp}</td>`
+    // o bloco inteiro da operadora alterna de fundo, em vez da zebra por
+    // linha: assim o olho segue o conjunto e nao perde onde um acaba
+    const classes = [novaOp ? "troca-op" : "", bloco % 2 === 0 ? "bloco-alt" : ""]
+      .filter(Boolean).join(" ");
+    return `<tr class="${classes}"><td class="op-col">${rotuloOp}</td>`
          + `<td class="degrau">${l.degrau} ${l.unidade}</td>${celulas}</tr>`;
   }).join("");
 
@@ -1426,17 +1472,15 @@ function tabelaPorPlayer(){
   for (const o of ofertas) {
     if (o.operadora !== opAnterior) {
       opAnterior = o.operadora;
-      const quantos = ofertas.filter(x => x.operadora === o.operadora).length;
       linhas += `<tr class="grupo-op"><td colspan="${c.length}">
         <span class="op-tag"><span class="marcador" style="background:${CORES[o.operadora]||"#999"}"></span>
-        ${o.operadora}</span> · ${quantos} ${quantos === 1 ? t("oferta") : t("ofertas")}</td></tr>`;
+        ${o.operadora}</span></td></tr>`;
     }
     const e = entregaDe(o), p = precoDe(o);
     const contr = o.franquia_contratual_gb;
     linhas += `<tr>
       <td>${o.nome_oferta || "—"}</td>
-      <td class="num">${e.v != null ? e.v + " " + e.u : "—"}</td>
-      <td class="num">${contr != null ? contr + " " + t("gb") : "—"}</td>
+      ${celulaEntrega(o)}
       <td class="num">${reais(p)}</td>
       <td class="num">${e.v ? (p / e.v).toLocaleString("pt-BR",
         {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
@@ -1480,8 +1524,7 @@ function tabelaComparacao(){
     return `<tr${marca}>
       <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
       <td>${i.o.nome_oferta || "—"}</td>
-      <td class="num">${i.e.v != null ? i.e.v + " " + i.e.u : "—"}</td>
-      <td class="num">${contr != null ? contr + " " + t("gb") : "—"}</td>
+      ${celulaEntrega(i.o)}
       <td class="num">${reais(i.p)}</td>
       <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
         {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
@@ -1548,8 +1591,7 @@ function tabelaFaixas(){
       return `<tr${marca}>
         <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
         <td>${i.o.nome_oferta || "—"}</td>
-        <td class="num">${i.e.v} ${i.e.u}</td>
-        <td class="num">${contr != null ? contr + " " + t("gb") : "—"}</td>
+        ${celulaEntrega(i.o)}
         <td class="num">${reais(i.p)}</td>
         <td class="num">${i.unit.toLocaleString("pt-BR",
           {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
