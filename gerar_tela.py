@@ -89,21 +89,30 @@ MOLDE = r"""<!DOCTYPE html>
 
   /* grudam logo abaixo do cabecalho: trocar de praca ou de data no meio
      de uma tabela longa nao deve exigir voltar ao topo */
+  /* grade regular: com flex-wrap cada campo achava seu lugar e sobravam
+     orfaos em linhas diferentes, o que deixava o cabecalho irregular */
   .controles{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-left:3px solid var(--laranja);border-radius:10px;padding:11px 16px;
-    margin:16px 0 14px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;
+    border-left:3px solid var(--laranja);border-radius:10px;padding:13px 18px 14px;
+    margin:16px 0 14px;display:grid;gap:12px 18px;
+    grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
     position:sticky;top:var(--topo-h, 86px);z-index:30;
     box-shadow:0 2px 8px rgba(45,38,30,.06)}
+  .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
+    padding-top:11px;margin-top:1px}
   .abas{position:sticky;top:calc(var(--topo-h, 86px) + var(--filtros-h, 92px));
         z-index:28;background:var(--cor-fundo)}
   .campo label{display:block;font-size:10px;text-transform:uppercase;
     letter-spacing:.7px;color:var(--cor-texto-suave);margin-bottom:4px;font-weight:600}
-  .campo select{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;
-    border:1px solid var(--cor-borda);background:#fff;color:var(--cor-texto);min-width:150px}
+  .campo select{font:inherit;font-size:13px;padding:8px 11px;border-radius:8px;
+    border:1px solid var(--cor-borda);background:#fff;color:var(--cor-texto);
+    width:100%;cursor:pointer}
+  .campo select:focus{outline:2px solid rgba(255,80,0,.35);outline-offset:1px}
   .chips{display:flex;gap:6px;flex-wrap:wrap}
-  .chip{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;
-    padding:5px 10px;border:1px solid var(--cor-borda);border-radius:20px;
-    background:#fff;user-select:none}
+  .chip{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;
+    padding:6px 12px;border:1px solid var(--cor-borda);border-radius:20px;
+    background:#fff;user-select:none;font-weight:600;
+    transition:border-color .12s, opacity .12s}
+  .chip:hover{border-color:var(--cinza)}
   .chip.off{opacity:.4}
   .chip .marcador{width:9px;height:9px;border-radius:50%}
 
@@ -186,6 +195,9 @@ MOLDE = r"""<!DOCTYPE html>
   footer{border-top:1px solid var(--cor-borda);margin-top:14px;padding:20px 0 34px;
          font-size:11.5px;color:var(--cor-texto-suave);text-align:center}
 
+  @media(max-width:980px){
+    .controles{grid-template-columns:repeat(2, minmax(0, 1fr))}
+  }
   @media(max-width:860px){
     .dupla{grid-template-columns:1fr}
     /* dois KPIs por linha: em 375px, quatro cartoes em quatro linhas
@@ -196,9 +208,10 @@ MOLDE = r"""<!DOCTYPE html>
     .bloco{padding:13px 15px 15px}
     .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
-    .controles{gap:12px}
-    .campo select{min-width:0;width:100%}
-    .campo{flex:1 1 140px}
+    /* no celular os quatro seletores viram uma coluna: dois lado a lado em
+       375px deixam o texto da opcao cortado no meio */
+    .controles{grid-template-columns:1fr;gap:10px;padding:12px 14px}
+    .controles .campo-largo{padding-top:9px}
   }
 </style>
 </head>
@@ -240,7 +253,7 @@ MOLDE = r"""<!DOCTYPE html>
       <label data-t="f_data">Data</label>
       <select id="f-data" onchange="desenhar()"></select>
     </div>
-    <div class="campo" style="flex:1 1 220px">
+    <div class="campo campo-largo">
       <label data-t="f_operadora">Operadoras</label>
       <div class="chips" id="f-ops"></div>
     </div>
@@ -367,7 +380,7 @@ const T = {
       l_apareceu:"aparece nesta praça com", l_saiu:"não aparece mais nesta praça hoje",
       l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
-      fonte:"Fonte: vitrines públicas das operadoras, coletadas uma vez por dia. Preço cheio, sem desconto condicionado.",
+      fonte:"Anunciado é o que a vitrine destaca; garantido é o que o regulamento da Anatel assegura — a diferença é bônus, que pode expirar. Traço significa que a operadora não publica o regulamento. Fonte: vitrines públicas, coletadas uma vez por dia; preço cheio, sem desconto condicionado.",
       ab_pan:"Panorama", ab_of:"Ofertas",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
@@ -379,8 +392,11 @@ const T = {
       cmp_x:"A oferta de entrada de cada operadora, lado a lado. A linha destacada é a mais barata por unidade entregue — que nem sempre é a mais barata em reais.",
       f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
       n_player:"{n} ofertas capturadas em {d}, em {p}.",
-      col_player:["Oferta","Entrega","Contrato","Preço","R$/un.","Vem junto"],
-      col_cmp:["Operadora","Oferta de entrada","Entrega","Contrato","Preço","R$/un.","Vem junto"],
+      col_player:["Oferta","Anunciado","Garantido","Preço","R$/un.","Vem junto"],
+      col_cmp:["Operadora","Oferta de entrada","Anunciado","Garantido","Preço","R$/un.","Vem junto"],
+      dicas_col:{"Anunciado":"O que a vitrine mostra em destaque, franquia mais bônus",
+                 "Garantido":"O que o regulamento da Anatel assegura. A diferença para o anunciado é bônus, que pode expirar",
+                 "Vem junto":"Nível de bundle: do plano pelado ao que inclui TV"},
       bundles:["Só conectividade","Apps de catálogo","Um streaming premium",
                "Vários streamings","TV inclusa"],
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
@@ -423,7 +439,7 @@ const T = {
       l_apareceu:"shows up in this city at", l_saiu:"is not in this city today",
       l_spread:"End to end:", l_a:"at", l_acima:"apart",
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
-      fonte:"Source: carriers' public websites, collected once a day. List price, before conditional discounts.",
+      fonte:"Advertised is what the website highlights; guaranteed is what the Anatel filing assures — the gap is bonus data, which can expire. A dash means the carrier does not publish a filing. Source: public websites, collected once a day; list price, before conditional discounts.",
       ab_pan:"Overview", ab_of:"Offers",
       sec_pan:"Market overview", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
@@ -435,8 +451,11 @@ const T = {
       cmp_x:"Each carrier's entry offer, side by side. The highlighted row is the cheapest per unit delivered — which is not always the cheapest in reais.",
       f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
       n_player:"{n} offers captured on {d}, in {p}.",
-      col_player:["Offer","Delivers","Contract","Price","R$/unit","Included"],
-      col_cmp:["Carrier","Entry offer","Delivers","Contract","Price","R$/unit","Included"],
+      col_player:["Offer","Advertised","Guaranteed","Price","R$/unit","Included"],
+      col_cmp:["Carrier","Entry offer","Advertised","Guaranteed","Price","R$/unit","Included"],
+      dicas_col:{"Advertised":"What the website highlights: allowance plus bonus",
+                 "Guaranteed":"What the Anatel filing assures. The gap to advertised is bonus, which can expire",
+                 "Included":"Bundle level, from bare connectivity to TV included"},
       bundles:["Connectivity only","Catalogue apps","One premium streaming",
                "Several streamings","TV included"],
       f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
@@ -554,6 +573,21 @@ function t(k){ return T[lang][k]; }
 // O banco guarda "movel", que no nosso esquema e o pos-pago PURO - mas o
 // rotulo fazia pensar em tudo que e celular, sendo que controle e pre-pago
 // tambem sao moveis. A tela mostra o nome de mercado; o banco nao muda.
+// A coluna de preco unitario diz a unidade de verdade - R$/GB no movel,
+// R$/Mbps na fixa - em vez de "R$/un.", que nao diz nada.
+function colunas(chave, ofertas){
+  const c = t(chave).slice();
+  // a dica no cabecalho explica a diferenca sem ocupar linha na tabela
+  const dicas = t("dicas_col") || {};
+  for (let i = 0; i < c.length; i++) {
+    if (dicas[c[i]]) c[i] = `<span title="${dicas[c[i]]}">${c[i]}</span>`;
+  }
+  const u = ofertas && ofertas.length ? entregaDe(ofertas[0]).u : "";
+  const i = c.findIndex(x => x.indexOf("R$/") === 0);
+  if (i >= 0 && u) c[i] = "R$/" + u;
+  return c;
+}
+
 function nomeProduto(p){
   return (T[lang].produtos || {})[p] || p;
 }
@@ -1218,7 +1252,7 @@ function tabelaPorPlayer(){
   ofertas.sort((a, b) => a.operadora.localeCompare(b.operadora)
     || precoDe(a) - precoDe(b));
 
-  const c = t("col_player");
+  const c = colunas("col_player", ofertas);
   let opAnterior = null, linhas = "";
   for (const o of ofertas) {
     if (o.operadora !== opAnterior) {
@@ -1270,7 +1304,7 @@ function tabelaComparacao(){
   // o melhor preco por unidade ganha destaque: e a leitura que a tabela
   // existe para dar, e procurar o menor numero na coluna custa atencao
   const melhor = itens[0].unit;
-  const c = t("col_cmp");
+  const c = colunas("col_cmp", itens.map(i => i.o));
   const linhas = itens.map(i => {
     const contr = i.o.franquia_contratual_gb;
     const marca = (i.unit != null && i.unit === melhor) ? ' class="destaque-linha"' : "";
@@ -1316,7 +1350,7 @@ function tabelaFaixas(){
     {nome: t("fx_alta") + " — acima de " + c2 + " " + u, min: c2, max: Infinity},
   ];
 
-  const c = t("col_cmp");
+  const c = colunas("col_cmp", ofertas);
   let html = "";
   for (const f of faixas) {
     const dentro = ofertas.filter(o => {
