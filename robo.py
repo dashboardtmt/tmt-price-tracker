@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from coletores import (armazenamento, brisanet, claro, claro_flex, nucel, starlink,  # noqa: E402
+from coletores import (armazenamento, brisanet, claro, claro_flex, nucel, starlink, tim_fit,  # noqa: E402
                        tim, unifique, vivo)
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
 
@@ -44,6 +44,9 @@ COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
              # aqui so rotula a rodada. (O Lite da Vivo nao precisa
              # disto: mora no mesmo site e entrou no coletor dela.)
              "Claro Flex": claro_flex,
+             # O FIT da TIM tambem nao aparece na vitrine: o dado sai das
+             # etiquetas da Anatel linkadas na pagina de Controle.
+             "TIM FIT": tim_fit,
              "Brisanet": brisanet, "Unifique": unifique, "NuCel": nucel,
              # satelite, produto proprio: nao e comparavel com fibra e nao
              # disputa degrau com ela (ver coletores/starlink.py)

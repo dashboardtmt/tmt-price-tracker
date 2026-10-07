@@ -42,7 +42,7 @@ jobs:
           python-version: '3.12'
       - name: Instalar o navegador (Unifique e NuCel)
         run: |
-          pip install playwright
+          pip install playwright pypdf
           playwright install --with-deps chromium
       - name: Coletar
         env:
@@ -67,7 +67,7 @@ jobs:
           python-version: '3.12'
       - name: Instalar o navegador
         run: |
-          pip install playwright
+          pip install playwright pypdf
           playwright install --with-deps chromium
       - name: Repicar
         env:

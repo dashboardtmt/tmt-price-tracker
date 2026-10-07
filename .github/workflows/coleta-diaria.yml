@@ -47,7 +47,7 @@ jobs:
         # Unifique e NuCel escondem os precos atras de JavaScript e exigem
         # navegador de verdade. As outras quatro nao usam isto.
         run: |
-          python -m pip install --quiet playwright
+          python -m pip install --quiet playwright pypdf
           python -m playwright install --with-deps chromium
 
       - name: Coletar e gravar
