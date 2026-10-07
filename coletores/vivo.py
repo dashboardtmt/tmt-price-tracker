@@ -335,16 +335,43 @@ def aplicar_regulamento(oferta, reg):
     smp = reg.get("SMP") or {}
     scm = reg.get("SCM") or {}
 
-    # precoSemDescontos e o preco de tabela oficial - o campo que faltava
-    oferta["preco_cheio"] = _num(reg.get("precoSemDescontos")) or oferta.get("preco_cheio")
+    # precoSemDescontos e o preco de tabela oficial - o campo que faltava.
+    #
+    # So entra se for MAIOR OU IGUAL ao que a vitrine cobra. O regulamento
+    # as vezes cobre uma variante mais basica que o card: em "Vivo Familia
+    # 2 + TV" ele traz R$ 270 contra R$ 290 do card, e gravado como "preco
+    # cheio" isso inventaria um desconto de R$ 20 que nao existe. Quando as
+    # duas fontes se contradizem, o campo fica vazio - nada e inventado.
+    tabela = _num(reg.get("precoSemDescontos"))
+    prom = oferta.get("preco_promocional")
+    if tabela is not None and prom is not None and tabela < prom:
+        oferta.setdefault("avisos_oferta", []).append(
+            "regulamento diz R$ %.2f de tabela, abaixo dos R$ %.2f da vitrine"
+            % (tabela, prom))
+        tabela = None
+    oferta["preco_cheio"] = tabela or oferta.get("preco_cheio")
     oferta["fidelidade_meses"] = int(_num(fid.get("tempoFidelizacao")) or 0) or None
     oferta["multa_fidelidade"] = _num(fid.get("multaFidelizacao"))
     oferta["taxa_instalacao"] = _num(custo.get("instalacao"))
     oferta["taxa_adesao"] = _num(custo.get("adesao"))
 
+    # A franquia do regulamento so vale se nao contradisser o card.
+    #
+    # Os tres cards do Vivo Pre (5, 15 e 25 GB) dividem UM codigo Anatel:
+    # o regulamento declara 20 GB, e carimbar isso nos tres dava ao plano
+    # de 5 GB uma franquia contratual de 20 - mais do que ele anuncia.
+    # Franquia garantida nao pode ser maior que a anunciada.
     franquia = (smp.get("franquiaDados") or {}).get("franquia")
     if franquia:
-        oferta["franquia_contratual_gb"] = int(_num(franquia) or 0) or None
+        v = int(_num(franquia) or 0) or None
+        anunciada = oferta.get("franquia_anunciada_gb")
+        if v and anunciada and v > anunciada:
+            oferta.setdefault("avisos_oferta", []).append(
+                "regulamento declara %s GB para um card de %s GB - codigo "
+                "compartilhado entre variantes; franquia contratual nao gravada"
+                % (v, anunciada))
+        elif v:
+            oferta["franquia_contratual_gb"] = v
     velo = (scm.get("velocidade") or {})
     if velo.get("download"):
         oferta["download_mbps"] = int(_num(velo["download"]) or 0) or None

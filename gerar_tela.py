@@ -215,8 +215,6 @@ MOLDE = r"""<!DOCTYPE html>
   nav.abas a:hover{color:var(--cor-texto)}
   nav.abas a.ativa{color:var(--laranja);border-bottom-color:var(--laranja)}
   #pg-ofertas{padding-top:4px} #pg-panorama{padding-top:4px}
-  .bonus{display:block;font-size:10px;color:var(--cor-texto-suave);
-         font-weight:600;margin-top:1px}
   .faixa{margin-bottom:20px}
   .faixa:last-child{margin-bottom:0}
   .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
@@ -490,7 +488,7 @@ const T = {
       l_spread:"Da ponta à ponta:", l_a:"a", l_acima:"de diferença",
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
       fonte:"Source: site das companhias / vitrines virtuais de cada região.",
-      fonte_tabela:"Entrega: 50+10 são 50 GB fixos mais 10 de bônus, que pode expirar. Source: site das companhias / vitrines virtuais de cada região.",
+      fonte_tabela:"Source: site das companhias / vitrines virtuais de cada região.",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       ab_pan:"Panorama", ab_of:"Ofertas",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
@@ -560,7 +558,7 @@ const T = {
       l_spread:"End to end:", l_a:"at", l_acima:"apart",
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
       fonte:"Source: carrier websites / regional online storefronts.",
-      fonte_tabela:"Delivers: 50+10 means 50 GB fixed plus 10 GB of bonus, which can expire. Source: carrier websites / regional online storefronts.",
+      fonte_tabela:"Source: carrier websites / regional online storefronts.",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       ab_pan:"Overview", ab_of:"Offers",
       sec_pan:"Market overview", sec_of:"Today's offers",
@@ -729,10 +727,12 @@ function celulaEntrega(o){
   if (contr == null || e.u !== t("gb") || contr >= e.v) {
     return `<td class="num">${txt}</td>`;
   }
+  // A quebra "12+4" vivia embaixo do numero, em corpo menor. Atrapalhava
+  // mais do que ajudava - dobrava a altura da linha e competia com o
+  // numero que importa. Continua no tooltip, para quem quiser saber.
   const bonus = e.v - contr;
   return `<td class="num" title="${t("d_bonus")
-    .replace("{f}", contr).replace("{b}", bonus)}">${txt}`
-    + `<span class="bonus">${contr}+${bonus}</span></td>`;
+    .replace("{f}", contr).replace("{b}", bonus)}">${txt}</td>`;
 }
 
 function colunas(chave, ofertas){
