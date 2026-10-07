@@ -411,7 +411,7 @@ let DADOS = [];
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 14:53";
+const GERADO = "07/10/2026 15:49";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -458,6 +458,7 @@ const T = {
                 satelite:"Satélite"},
       q_t:"Onde cada oferta está",
       r_entrada:"Só entrada", r_todos:"Nomes: todos", r_nenhum:"Nenhum",
+      escala_log:"preço em escala logarítmica",
       q_x:"Cada bolinha é uma oferta do dia: mais à direita entrega mais, mais acima custa mais. As melhores relações ficam embaixo e à direita.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia. É a linha que responde se houve repasse. Linha tracejada significa que ela coincide com outra — o preço é praticamente o mesmo.",
@@ -524,6 +525,7 @@ const T = {
                 satelite:"Satellite"},
       q_t:"Where each offer sits",
       r_entrada:"Entry only", r_todos:"Labels: all", r_nenhum:"None",
+      escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day: further right delivers more, higher up costs more. The best deals sit low and to the right.",
       g1_t:"Entry price, by carrier (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day. This is the line that answers whether prices were raised. A dashed line means it coincides with another — the price is practically the same.",
@@ -836,6 +838,18 @@ function porDegrau(dia){
   return por;
 }
 
+// A cor da bolinha nao serve como cor de TEXTO: #FF5000 em 9,5px sobre
+// off-white rende pouco contraste. Escurecer mantem o vinculo com a
+// operadora e devolve a legibilidade.
+function escurecer(hex, f){
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return "#4A443C";
+  const v = parseInt(m[1], 16);
+  const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+    .map(x => Math.max(0, Math.round(x * f)));
+  return "#" + c.map(x => x.toString(16).padStart(2, "0")).join("");
+}
+
 const EIXO = {
   grade: "rgba(0,0,0,0.055)",     // so o suficiente para guiar o olho
   borda: "#000512",
@@ -851,7 +865,48 @@ function passoBonito(vao, alvo){
   const bruto = (vao || 1) / (alvo || 5);
   const mag = Math.pow(10, Math.floor(Math.log10(bruto)));
   const n = bruto / mag;
-  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag;
+  return (n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10) * mag;
+}
+
+// Numa escala log as marcas uteis sao 1, 2 e 5 vezes cada potencia de
+// dez - 100, 200, 500, 1.000, 2.000. O gerador do Chart.js solta todas
+// as unidades de cada decada e o eixo vira uma regua ilegivel.
+function limiteLog(v, paraCima){
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / mag;
+  const escala = [1, 2, 5, 10];
+  if (paraCima) {
+    for (const e of escala) if (n <= e * 1.0001) return e * mag;
+    return 10 * mag;
+  }
+  for (let i = escala.length - 1; i >= 0; i--) {
+    if (n >= escala[i] * 0.9999) return escala[i] * mag;
+  }
+  return mag;
+}
+
+function marcasLog(lo, hi){
+  const saida = [];
+  let mag = Math.pow(10, Math.floor(Math.log10(lo)));
+  while (mag <= hi * 1.0001 && saida.length < 24) {
+    for (const m of [1, 2, 5]) {
+      const v = m * mag;
+      if (v >= lo * 0.9999 && v <= hi * 1.0001) saida.push(v);
+    }
+    mag *= 10;
+  }
+  return saida;
+}
+
+// Vale a pena trocar de escala? So quando a ponta de cima e multiplas
+// vezes a de baixo. Abaixo disso o log so atrapalha: ele comprime
+// diferencas que, em preco, o leitor quer ver do jeito que sao.
+const SALTO_LOG = 6;
+
+function pedeLog(valores){
+  const vs = valores.filter(v => v != null && isFinite(v) && v > 0);
+  if (vs.length < 3) return false;
+  return Math.max(...vs) / Math.min(...vs) >= SALTO_LOG;
 }
 
 function faixaRedonda(lo, hi, alvo){
@@ -954,10 +1009,17 @@ function faixaEixo(valores){
   const vs = valores.filter(v => v != null && isFinite(v));
   if (!vs.length) return {};
   const lo = Math.min(...vs), hi = Math.max(...vs);
+  // vao minimo de 15% do topo: tres planos entre R$ 58,99 e R$ 59,90
+  // abriam um eixo de um real, e a diferenca de centavos ocupava a tela
+  // como se fossem precos distantes
   const vao = Math.max(hi - lo, hi * 0.15) || 1;
-  const centro = (lo + hi) / 2;
-  const f = faixaRedonda(Math.max(0, centro - vao * 0.8), centro + vao * 0.8, 5);
-  return {min: f.min, max: f.max, passo: f.passo};
+  const passo = passoBonito(vao, 5);
+  let min = Math.floor(lo / passo) * passo;
+  let max = Math.ceil(hi / passo) * passo;
+  // ponto encostado na moldura fica cortado pela metade
+  if (lo - min < passo * 0.15) min -= passo;
+  if (max - hi < passo * 0.15) max += passo;
+  return {min: Math.max(0, min), max, passo};
 }
 
 function eixos(rotuloY){
@@ -1142,6 +1204,33 @@ function sobreposicao(c1, c2){
 // perdedor, e foi assim que sobraram bolinhas sem nome. Aqui ninguem
 // some: o rotulo gira em volta do seu ponto ate achar lugar livre, e so
 // aceita o menos pior quando nao existe nenhum.
+// A unidade de cada eixo, na horizontal, na ponta onde o olho chega:
+// a do preco em cima do eixo vertical, a da entrega no fim do
+// horizontal. O `title` do Chart.js escreveria a do eixo vertical
+// DEITADA, e aqui nada se le de lado.
+const UNIDADE_EIXO = {
+  id: "unidadeEixo",
+  afterDatasetsDraw(ch, _args, opcoes){
+    if (!opcoes || !ch.chartArea) return;
+    const c = ch.ctx, a = ch.chartArea;
+    c.save();
+    c.font = "700 10px ui-sans-serif, system-ui, -apple-system, "
+           + "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    c.fillStyle = "#7C7468";
+    if (opcoes.y) {
+      c.textAlign = "left";
+      c.textBaseline = "bottom";
+      c.fillText(opcoes.y, a.left, a.top - 6);
+    }
+    if (opcoes.x) {
+      c.textAlign = "right";
+      c.textBaseline = "top";
+      c.fillText(opcoes.x, a.right, a.bottom + 26);
+    }
+    c.restore();
+  },
+};
+
 function posicionarRotulos(ch){
   const ex = ch.scales.x, ey = ch.scales.y;
   const pincel = ch.ctx;
@@ -1272,7 +1361,13 @@ function grafQuadrante(){
   const faixa = {min: Math.min(...xs), max: Math.max(...xs)};
   faixa.vao = (faixa.max - faixa.min) || faixa.max || 1;
 
-  const escalaY = faixaEixo(series.flatMap(s2=>s2.data.map(p=>p.y)));
+  const precos = series.flatMap(s2=>s2.data.map(p=>p.y));
+  const log = pedeLog(precos);
+  const escalaY = faixaEixo(precos);
+  const faixaLog = log
+    ? {min: limiteLog(Math.min(...precos.filter(v=>v>0)), false),
+       max: limiteLog(Math.max(...precos), true)}
+    : null;
   // 12% de folga de cada lado, para o rotulo caber ao lado do ponto
   const escalaX = faixaRedonda(Math.max(0, faixa.min - faixa.vao * 0.12),
                                faixa.max + faixa.vao * 0.12, 6);
@@ -1280,7 +1375,9 @@ function grafQuadrante(){
 
   // o titulo diz as duas unidades, ja que os eixos nao as dizem mais
   const h2q = document.querySelector('[data-t="q_t"]');
-  if (h2q) h2q.textContent = t("q_t") + " (R$/" + t("mes") + " × " + u + ")";
+  // as unidades agora estao nos eixos; o titulo so avisa quando a escala
+  // de preco deixa de ser linear
+  if (h2q) h2q.textContent = t("q_t") + (log ? " · " + t("escala_log") : "");
 
   trocar("c-quadrante", {
     type:"scatter",
@@ -1288,13 +1385,15 @@ function grafQuadrante(){
     options:{responsive:true, maintainAspectRatio:false,
       // folga generosa a direita: o rotulo fica ao lado do ponto e sem
       // ela o texto do ponto mais a direita sai da area e e cortado
-      layout:{padding:{right:10, top:12, bottom:4}},
+      // folga em cima para a unidade do preco e embaixo para a da entrega
+      layout:{padding:{right:10, top:20, bottom:30}},
       plugins:{
         // uma entrada por operadora: os datasets da data de comparacao
         // repetiriam os mesmos nomes
         legend:legenda({labels:{usePointStyle:true, pointStyle:"circle",
           boxWidth:7, boxHeight:7, padding:14, color:"#2B2621",
           font:{size:11.5, weight:"600"}}}),
+        unidadeEixo:{y:"R$/" + t("mes") + (log ? " (log)" : ""), x:u},
         tooltip:{callbacks:{label:c=>{
           const base = reais(c.parsed.y) + " · " + c.parsed.x + " " + c.raw.u;
           const nomes = c.raw.nomes || [c.raw.nome];
@@ -1313,7 +1412,10 @@ function grafQuadrante(){
           align: ctx => posto(ctx).a,
           offset: ctx => posto(ctx).d,
           anchor:"center", clamp:true, clip:false,
-          color:"#4A443C", font:{size:9.5, weight:"600"},
+          // o nome na cor da propria operadora: liga o texto a bolinha
+          // sem depender de o leitor seguir a linha ate ela
+          color: ctx => escurecer(CORES[ctx.dataset.label] || "#4A443C", 0.62),
+          font:{size:9.5, weight:"700"},
           textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
           formatter:textoRotulo,
         },
@@ -1327,15 +1429,28 @@ function grafQuadrante(){
                   callback:v=>Number(v).toLocaleString("pt-BR",
                     {maximumFractionDigits:0})},
            min:escalaX.min, max:escalaX.max},
-        // sem centavos: num eixo de R$ 15 a R$ 35 o ",00" se repete em
-        // toda marca e nao distingue nada
-        y:{...eixos(v=>Number(v).toLocaleString("pt-BR",
-             {maximumFractionDigits:0})).y,
-           beginAtZero:false, min:escalaY.min, max:escalaY.max,
-           ticks:{...eixos(v=>Number(v).toLocaleString("pt-BR",
-             {maximumFractionDigits:0})).y.ticks, stepSize:escalaY.passo}}},
+        // Sem centavos: num eixo de R$ 15 a R$ 35 o ",00" se repete em
+        // toda marca e nao distingue nada.
+        //
+        // E, quando a faixa e larga demais para o olho (Fibra vai de
+        // R$ 100 a R$ 2.000), o eixo passa a crescer por multiplos. O
+        // titulo do bloco diz quando isso acontece.
+        y: log
+          ? {...eixos(v=>Number(v).toLocaleString("pt-BR",
+               {maximumFractionDigits:0})).y,
+             type:"logarithmic", min:faixaLog.min, max:faixaLog.max,
+             afterBuildTicks: ax => {
+               ax.ticks = marcasLog(faixaLog.min, faixaLog.max).map(v=>({value:v}));
+             },
+             ticks:{...eixos(v=>Number(v).toLocaleString("pt-BR",
+               {maximumFractionDigits:0})).y.ticks, autoSkip:false}}
+          : {...eixos(v=>Number(v).toLocaleString("pt-BR",
+               {maximumFractionDigits:0})).y,
+             beginAtZero:false, min:escalaY.min, max:escalaY.max,
+             ticks:{...eixos(v=>Number(v).toLocaleString("pt-BR",
+               {maximumFractionDigits:0})).y.ticks, stepSize:escalaY.passo}}},
     },
-    plugins:[ChartDataLabels,
+    plugins:[ChartDataLabels, UNIDADE_EIXO,
       // cada atualizacao (filtro, legenda, redimensionar) refaz o
       // arranjo: os pontos mudaram de lugar, os rotulos tambem
       {id:"posicionador", beforeUpdate:ch => { ch.$rotulos = null; }}],
