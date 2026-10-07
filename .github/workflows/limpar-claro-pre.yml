@@ -67,7 +67,9 @@ jobs:
 
           st, antes, erro = contar()
           print("ANTES: HTTP %s, linhas que casam o filtro: %s" % (st, antes))
-          if st != 200:
+          # 206 e o normal aqui: com count=exact e limit, o PostgREST
+          # responde Partial Content, nao 200
+          if st not in (200, 206):
               print("falhou ao contar:", erro)
               raise SystemExit(1)
           if antes in ("0", "?"):
