@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Price Tracker TMT</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2324201B'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2324201B'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
@@ -343,7 +343,7 @@ let DADOS = [{"operadora": "Brisanet", "produto": "combo", "praca": "Aracaju/SE"
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "";
 const CORES = {"Vivo": "#8258A0", "TIM": "#5282D8", "Claro": "#FF5000", "Brisanet": "#73C6A1", "Unifique": "#398478", "NuCel": "#809BC4", "Starlink": "#1D4080"};
-const GERADO = "07/10/2026 11:33";
+const GERADO = "07/10/2026 12:10";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -714,11 +714,55 @@ const EIXO = {
 
 // Legenda com bolinha da cor da serie. Sem ela o leitor ve tres linhas
 // coloridas e nenhuma pista de quem e quem - foi o que o usuario apontou.
+// "#8258A0" -> "rgba(130,88,160,.18)". Serve para esmaecer as series que
+// nao estao sendo apontadas na legenda.
+function comAlfa(cor, alfa){
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(cor || "");
+  if (!m) return cor;
+  return "rgba(" + parseInt(m[1], 16) + "," + parseInt(m[2], 16) + ","
+         + parseInt(m[3], 16) + "," + alfa + ")";
+}
+
+// Apontar um nome na legenda realca a linha dele e apaga as outras. Com
+// quatro series quase coladas - Vivo e TIM diferem um centavo - achar a
+// sua no meio do emaranhado era trabalho de quem le.
+function realcar(chart, alvo){
+  chart.data.datasets.forEach((d, i) => {
+    if (d._corBase === undefined) {
+      d._corBase = d.borderColor;
+      d._fundoBase = d.backgroundColor;
+      d._larguraBase = d.borderWidth;
+      d._raioBase = d.pointRadius;
+    }
+    const neutro = alvo == null;
+    const este = i === alvo;
+    const apagar = !neutro && !este;
+    d.borderColor = apagar ? comAlfa(d._corBase, 0.16) : d._corBase;
+    d.backgroundColor = apagar
+      ? comAlfa(typeof d._fundoBase === "string" ? d._fundoBase : d._corBase, 0.16)
+      : d._fundoBase;
+    d.borderWidth = este ? (d._larguraBase || 2) + 1.6 : d._larguraBase;
+    if (d._raioBase !== undefined && d._raioBase !== null) {
+      d.pointRadius = este ? d._raioBase + 1.5 : d._raioBase;
+    }
+    d.order = este ? -1 : 0;     // a realcada vai para a frente
+  });
+  chart.update("none");
+}
+
 function legenda(extra){
   return Object.assign({
-    display:true, position:"bottom", align:"start",
+    display:true, position:"bottom", align:"center",
     labels:{usePointStyle:true, pointStyle:"circle", boxWidth:7, boxHeight:7,
             padding:14, color:"#2B2621", font:{size:11.5, weight:"600"}},
+    onHover:(e, item, leg) => {
+      e.native.target.style.cursor = "pointer";
+      realcar(leg.chart, item.datasetIndex);
+    },
+    onLeave:(e, item, leg) => {
+      e.native.target.style.cursor = "default";
+      realcar(leg.chart, null);
+    },
   }, extra || {});
 }
 
@@ -940,8 +984,7 @@ function grafQuadrante(){
         // repetiriam os mesmos nomes
         legend:legenda({labels:{usePointStyle:true, pointStyle:"circle",
           boxWidth:7, boxHeight:7, padding:14, color:"#2B2621",
-          font:{size:11.5, weight:"600"},
-          filter:item=>!item.text.includes(" · ")}}),
+          font:{size:11.5, weight:"600"}}}),
         tooltip:{callbacks:{label:c=>
           c.dataset.label + " · " + c.raw.nome + ": " + reais(c.parsed.y)
           + " · " + c.parsed.x + " " + c.raw.u}},
