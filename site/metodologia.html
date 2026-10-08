@@ -68,14 +68,14 @@
 <div class="wrap">
 <nav>
   <a href="#s1">1. O que é</a>
-  <a href="#s2">2. As 28 decisões</a>
+  <a href="#s2">2. As 35 decisões</a>
   <a href="#s3">3. Escopo</a>
   <a href="#s4">4. As 20 praças</a>
   <a href="#s5">5. Como a série funciona</a>
   <a href="#s6">6. Como comparar</a>
   <a href="#s7">7. Houve repasse?</a>
   <a href="#s8">8. Falhas e alertas</a>
-  <a href="#s9">9. As sete fontes</a>
+  <a href="#s9">9. As dez fontes</a>
   <a href="#s10">10. Onde o robô roda</a>
   <a href="#s11">11. A tela</a>
   <a href="#s12">12. Em aberto</a>
@@ -105,7 +105,7 @@
 </section>
 
 <section id="s2">
-  <h2><span class="num">2.</span> As 28 decisões</h2>
+  <h2><span class="num">2.</span> As 35 decisões</h2>
   <table class="decisoes">
     <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
     <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
@@ -136,6 +136,13 @@
     <tr><td>26</td><td>Mudanças de preço</td><td>Marcadas na própria linha do gráfico</td></tr>
     <tr><td>27</td><td>Filtros</td><td>Praça, produto, operadora e período</td></tr>
     <tr><td>28</td><td>Idioma</td><td>PT e EN desde o começo</td></tr>
+    <tr><td>29</td><td>Oferta fora da vitrine</td><td>Entra como produto próprio, "below-the-line", e não como degrau do pós</td></tr>
+    <tr><td>30</td><td>Onde ela mora</td><td>Vivo Lite por código Anatel, Claro Flex em domínio próprio, TIM Controle FIT por etiqueta em PDF</td></tr>
+    <tr><td>31</td><td>Oferta vencida na página</td><td>A vigência é conferida antes de gravar — a página serve código velho junto com o vigente</td></tr>
+    <tr><td>32</td><td>Regulamento contradiz o card</td><td>O campo fica vazio e a oferta leva aviso. Não inventar é melhor que preencher</td></tr>
+    <tr><td>33</td><td>Prezão da Claro</td><td>Só o degrau de 30 dias; os outros valem 25, 20 e 15 dias e não são preço mensal</td></tr>
+    <tr><td>34</td><td>Preço só para quem já é cliente</td><td>Fica de fora, como todo desconto condicionado</td></tr>
+    <tr><td>35</td><td>Plano vendido com aparelho</td><td>Fica de fora: o tracker compara preço de serviço</td></tr>
   </table>
   <div class="box">
     <span class="rotulo">Por que começar só com a Vivo</span>
@@ -156,8 +163,9 @@
     <tr><td>4</td><td>Combo</td><td>fibra mais móvel; onde aparece a maior diferença regional</td></tr>
     <tr><td>5</td><td>Pré-pago</td><td>piso do mercado</td></tr>
     <tr><td>6</td><td><b>Satélite</b></td><td>só a Starlink; produto à parte, não comparável com fibra</td></tr>
+    <tr><td>7</td><td>Below-the-line</td><td>a linha de defesa: mais barata que o Controle de entrada e vendida fora da vitrine</td></tr>
   </table>
-  <p>Ficam de fora fibra com TV linear e a criação de categoria separada para planos digitais.</p>
+  <p>Fica de fora fibra com TV linear. A categoria separada para planos digitais, descartada no começo, foi criada em 07/10/2026 como <strong>below-the-line</strong>: as três grandes vendem uma linha mais barata que o Controle de entrada, fora da vitrine anunciada, e sem ela o tracker dizia que a Vivo entra a R$ 59 e a Claro a R$ 59,90 quando as duas entram abaixo disso.</p>
   <div class="box neutro">
     <p>O controle entra <b>sem custo relevante de coleta</b>: está na mesma vitrine do pós-pago, nas
     mesmas páginas que o robô já vai abrir.</p>
@@ -558,8 +566,8 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
 </section>
 
 <section id="s9">
-  <h2><span class="num">9.</span> As sete fontes</h2>
-  <p>Investigadas em 02 e 23/09/2026, mais a Starlink em 06/10. <b>Todas coletáveis.</b></p>
+  <h2><span class="num">9.</span> As dez fontes</h2>
+  <p>Investigadas em 02 e 23/09/2026, a Starlink em 06/10 e a linha below-the-line em 07/10. <b>Todas coletáveis.</b></p>
   <table>
     <tr><th>Operadora</th><th>Como os dados saem</th><th>Troca de praça</th><th>Dificuldade</th></tr>
     <tr><td><b>TIM</b></td><td>HTML com JSON embutido</td><td><b>estado na URL</b> — /sp/, /rj/</td><td>Baixa</td></tr>
@@ -569,7 +577,29 @@ Controle, entrada (SP): Vivo 45GB R$ 59,00 | Claro 40GB R$ 59,90 | TIM 38GB R$ 4
     <tr><td><b>Claro</b></td><td>HTML pronto (SAP Hybris)</td><td>cookie de região</td><td>Média</td></tr>
     <tr><td><b>Unifique</b></td><td>só mostra preço após escolher cidade</td><td>obrigatória, por JavaScript</td><td><b>Alta</b></td></tr>
     <tr><td><b>Starlink</b></td><td><b>API pública e estruturada</b></td><td>não tem, é nacional</td><td><b>Muito baixa</b></td></tr>
+    <tr><td><b>Vivo Lite</b></td><td>a página não traz preço; ele vem do regulamento, pelo código Anatel que está no HTML</td><td>a mesma da Vivo</td><td>Baixa</td></tr>
+    <tr><td><b>Claro Flex</b></td><td>domínio próprio, SPA em Vue <b>sem API por trás</b> — exige navegador</td><td>não tem, é nacional</td><td><b>Alta</b></td></tr>
+    <tr><td><b>TIM Controle FIT</b></td><td>não aparece em página alguma: só nos links das <b>etiquetas da Anatel</b>, lidas em PDF</td><td>não tem, é nacional</td><td>Média</td></tr>
   </table>
+
+  <h3>A fonte se elege por campo, não por operadora</h3>
+  <p>A mesma operadora publica o mesmo plano em mais de um lugar, e os lugares
+  discordam. Nenhum deles é confiável inteiro:</p>
+  <ul>
+    <li><b>O JSON da página do TIM Ultracombo</b> traz os títulos certos e o preço
+    errado — os três cards de São Paulo vinham todos com R$ 129,99, resto de uma
+    campanha anterior. O preço de verdade só existe no HTML renderizado.</li>
+    <li><b>O texto da mesma página</b> lista os serviços inclusos numa galeria de
+    ícones compartilhada por todos os cards. Ler dali daria Netflix a toda oferta.
+    No JSON o benefício é por card.</li>
+  </ul>
+  <p>Então o preço sai do texto e os serviços saem do JSON. A regra geral:
+  <strong>para cada campo, a fonte que é confiável naquele campo</strong>. Sinal de
+  alerta: valor idêntico repetido em ofertas diferentes.</p>
+  <p>Quando duas fontes se contradizem e não há como decidir, o campo fica
+  <strong>vazio</strong> e a oferta leva um aviso — foi assim que saíram da base uma
+  franquia contratual de 20 GB num plano de 5 GB e um preço de tabela abaixo do
+  preço da vitrine. Não inventar é melhor que preencher.</p>
   <div class="box">
     <span class="rotulo">A aposta que não se confirmou</span>
     <p>Esperava-se que todas publicassem o regulamento da Anatel no mesmo formato estruturado da
