@@ -62,5 +62,10 @@ jobs:
             echo "tela sem mudanca - nada a guardar"
           else
             git commit -m "Tela atualizada com a coleta de $(date -u +%d/%m/%Y)"
+            # puxa antes de empurrar: sem isto, qualquer push concorrente
+            # derruba a rodada no ultimo passo, DEPOIS de a exportacao ja
+            # ter publicado - e o job termina em vermelho como se tudo
+            # tivesse falhado. A rotina diaria ja fazia isso.
+            git pull --rebase --autostash
             git push
           fi
