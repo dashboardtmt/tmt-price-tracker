@@ -32,6 +32,7 @@ import sys
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
+from . import apps
 from . import rede
 
 # A pagina que linka as etiquetas. E a de Controle porque o FIT e uma
@@ -195,6 +196,10 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
             "capturado_em": agora.isoformat(),
             "degrau_mbps": None,
             "nivel_bundle": 1 if o.get("aplicativos") else 0,
+            # a etiqueta lista os apps por extenso: "Aya Books Light,
+            # Aya Ensinah Light e EXA Seguranca"
+            "apps": apps.apps_do_texto(o.get("aplicativos")),
+            "apps_rotulo": apps.rotulo(apps.apps_do_texto(o.get("aplicativos"))),
             "campanha": None, "id_catalogo": None,
         })
         saida["ofertas"].append(o)

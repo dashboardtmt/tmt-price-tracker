@@ -28,6 +28,8 @@ import argparse
 import json
 import re
 import sys
+
+from . import apps
 from datetime import datetime, timedelta, timezone
 
 PAGINA = "https://flex.claro.com.br/"
@@ -104,6 +106,8 @@ def extrair(texto):
             "preco_cheio": _num(cheio),
             "preco_primeiro_mes": _num(promo),
             "nivel_bundle": nivel_bundle(meio),
+            "apps": apps.apps_do_texto(meio),
+            "apps_rotulo": apps.rotulo(apps.apps_do_texto(meio)),
             "composicao": meio.strip()[:400],
         })
     return ofertas

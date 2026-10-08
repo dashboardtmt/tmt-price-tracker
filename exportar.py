@@ -27,8 +27,13 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           "franquia_contratual_gb,preco_cheio,preco_promocional,"
           "fidelidade_meses,multa_fidelidade,taxa_instalacao,nivel_bundle,"
           "meses_desconto,preco_pos_promocao,"
-          # extraida do jsonb, por nao ter coluna propria
-          "assinatura_sva:bruto->>assinatura_sva")
+          # extraidos do jsonb, por nao terem coluna propria
+          "assinatura_sva:bruto->>assinatura_sva,"
+          # QUAL app vem junto. Sem isto a tela so sabe o NIVEL de bundle
+          # e escreve "uma assinatura" em quatro ofertas que se
+          # distinguem exatamente pelo app.
+          "apps_rotulo:bruto->>apps_rotulo,"
+          "apps:bruto->apps")
 
 def exportar(dias):
     desde = (date.today() - timedelta(days=dias)).isoformat()

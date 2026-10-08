@@ -84,6 +84,43 @@ APPS = {
     "vivo_musica": {"nome": "Vivo Música", "plano": None, "preco_avulso": None,
                     "fonte": None, "conferido_em": None,
                     "evidencia": "servico da propria Vivo; nao ha preco avulso"},
+
+    # --- apps de catalogo: aparecem no TEXTO da oferta, nao no nome.
+    # Sao o conteudo tipico do nivel 1, e o leitor merece saber quais
+    # sao em vez de ler "apps menores".
+    "paramount": {"nome": "Paramount+", "plano": None, "preco_avulso": None,
+                  "fonte": None, "conferido_em": None,
+                  "evidencia": "ainda nao conferido"},
+    "max": {"nome": "Max", "plano": None, "preco_avulso": None,
+            "fonte": None, "conferido_em": None,
+            "evidencia": "ainda nao conferido"},
+    "telecine": {"nome": "Telecine", "plano": None, "preco_avulso": None,
+                 "fonte": None, "conferido_em": None,
+                 "evidencia": "ainda nao conferido"},
+    "deezer": {"nome": "Deezer", "plano": None, "preco_avulso": None,
+               "fonte": None, "conferido_em": None,
+               "evidencia": "ainda nao conferido"},
+    "skeelo": {"nome": "Skeelo", "plano": None, "preco_avulso": None,
+               "fonte": None, "conferido_em": None,
+               "evidencia": "app de catalogo, sem preco avulso relevante"},
+    "mcafee": {"nome": "McAfee", "plano": None, "preco_avulso": None,
+               "fonte": None, "conferido_em": None,
+               "evidencia": "app de catalogo, sem preco avulso relevante"},
+    "aya_books": {"nome": "Aya Books", "plano": None, "preco_avulso": None,
+                  "fonte": None, "conferido_em": None,
+                  "evidencia": "app de catalogo da TIM"},
+    "aya_ensinah": {"nome": "Aya Ensinah", "plano": None, "preco_avulso": None,
+                    "fonte": None, "conferido_em": None,
+                    "evidencia": "app de catalogo da TIM"},
+    "exa": {"nome": "EXA Segurança", "plano": None, "preco_avulso": None,
+            "fonte": None, "conferido_em": None,
+            "evidencia": "app de catalogo da TIM"},
+    "goread": {"nome": "GoRead", "plano": None, "preco_avulso": None,
+               "fonte": None, "conferido_em": None,
+               "evidencia": "app de catalogo"},
+    "claro_musica": {"nome": "Claro Música", "plano": None,
+                     "preco_avulso": None, "fonte": None, "conferido_em": None,
+                     "evidencia": "servico da propria Claro"},
 }
 
 # A ordem importa: "YouTube Premium" tem de ser testado antes de
@@ -102,6 +139,92 @@ DO_NOME = (
     (r"\btravel\b", "vivo_travel"),
     (r"\bm[úu]sica\b", "vivo_musica"),
 )
+
+
+# Os mesmos apps, procurados num TEXTO livre - a descricao da oferta.
+# Claro e TIM nao nomeiam o app no nome da oferta, mas descrevem no
+# texto. Aqui a regra tem de ser mais exigente que no nome: texto de
+# pagina mistura o que a oferta tem com o que a operadora vende ao lado.
+# Nao herda DO_NOME: "Musica", "Saude", "Educacao", "Entretenimento" e
+# "Travel" sao sufixos com que a VIVO batiza a oferta, e nao nomes de
+# app. Soltos num texto livre casam com qualquer coisa - "Claro Musica e
+# Skeelo inclusos" virava "Vivo Musica + Skeelo + Claro Musica". Aqui so
+# entra nome proprio de app.
+DO_TEXTO = (
+    (r"youtube\s*premium", "youtube"),
+    (r"\bnetflix\b", "netflix"),
+    (r"\bdisney", "disney"),
+    (r"\bspotify\b", "spotify"),
+    (r"\bgloboplay\b", "globoplay"),
+    (r"amazon\s*prime", "amazon"),
+    (r"\bpremiere\b", "premiere"),
+    (r"vale\s*sa[úu]de", "vale_saude"),
+    (r"\bvivae\b", "vivae"),
+    (r"\bparamount\b", "paramount"),
+    (r"\bmax\b", "max"),
+    (r"\btelecine\b", "telecine"),
+    (r"\bdeezer\b", "deezer"),
+    (r"\bskeelo\b", "skeelo"),
+    (r"\bmcafee\b", "mcafee"),
+    (r"aya\s*books", "aya_books"),
+    (r"aya\s*ensinah", "aya_ensinah"),
+    (r"\bexa\b", "exa"),
+    (r"\bgoread\b", "goread"),
+    (r"claro\s*m[úu]sica", "claro_musica"),
+)
+
+
+# Marcas de que o app e DEGUSTACAO, e nao assinatura inclusa. A Claro
+# escreve "Disney+: 3 meses por conta da Claro. Apos, R$24,60 por mes" no
+# meio da descricao do plano; lido como incluso, o plano parecia muito
+# melhor do que e. Beneficio que acaba e desconto condicionado ao tempo,
+# e a decisao 9 ja o exclui.
+DEGUSTACAO = re.compile(
+    r"por conta d[ao]|ap[óo]s,?\s*r\$|gr[áa]tis por|"
+    r"\d+\s*(?:m[êe]s|meses)\s*(?:gr[áa]tis|de cortesia|por conta)|"
+    r"cortesia|degusta[çc][ãa]o|experimente|primeiros?\s+\d+\s*(?:m[êe]s|meses)",
+    re.I)
+
+# Quanto texto em volta do app conta para decidir se e degustacao. Uma
+# frase de vitrine cabe nisso; dois paragrafos, nao - e ai a janela
+# comecaria a pegar oferta vizinha.
+JANELA = 110
+
+
+def apps_do_texto(texto, limite=6):
+    """Os apps nomeados num texto de oferta, fora os em degustacao.
+
+    O limite existe porque pagina de operadora lista o portfolio inteiro
+    em rodape e menu: um texto que "contem" oito streamings quase nunca
+    e uma oferta com oito streamings, e sim um trecho que pegou a
+    vitrine junto. Acima do limite, a leitura e descartada.
+    """
+    t = (texto or "").lower()
+
+    # onde cada app e citado, para uma janela nao invadir a do vizinho
+    posicoes = []
+    for padrao, app in DO_TEXTO:
+        m = re.search(padrao, t)
+        if m:
+            posicoes.append((m.start(), m.end(), app))
+    posicoes.sort()
+
+    achados = []
+    for i, (ini, fim, app) in enumerate(posicoes):
+        if app in achados:
+            continue
+        # a janela vai do nome ate o que vier primeiro: o proximo app,
+        # um ponto, um ponto-e-virgula, ou o limite de caracteres
+        corte = posicoes[i + 1][0] if i + 1 < len(posicoes) else len(t)
+        trecho = t[fim:min(corte, fim + JANELA)]
+        for p in (".", ";"):
+            k = trecho.find(p)
+            if k >= 0:
+                trecho = trecho[:k]
+        if DEGUSTACAO.search(t[max(0, ini - 24):ini] + trecho):
+            continue
+        achados.append(app)
+    return [] if len(achados) > limite else achados
 
 
 def apps_da_oferta(nome):

@@ -25,6 +25,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import apps
 from . import rede
 from datetime import datetime, timedelta, timezone
 
@@ -422,6 +423,9 @@ def coletar(cidade, uf, verbose=True):
                     else franquia_contratual(c["composicao"]),
                 "degrau_mbps": mbps(c["destaque"]) if real in ("fibra", "combo") else None,
                 "nivel_bundle": nivel_bundle(c["composicao"]),
+                # a frase da vitrine nomeia o que acompanha a oferta
+                "apps": apps.apps_do_texto(c.get("composicao")),
+                "apps_rotulo": apps.rotulo(apps.apps_do_texto(c.get("composicao"))),
                 "preco_cheio": None, "codigo_anatel": None, "campanha": None,
                 "ibge": ibge,
             })

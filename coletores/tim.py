@@ -32,6 +32,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import apps
 from . import rede
 from datetime import datetime, timedelta, timezone
 
@@ -353,6 +354,9 @@ def coletar(cidade, uf, verbose=True):
             print("  %-9s FALHOU (%s)" % ("combo", err))
     else:
         for o in combos:
+            # o "inclui:" da composicao nomeia o que vem junto
+            o["apps"] = apps.apps_do_texto(o.get("composicao"))
+            o["apps_rotulo"] = apps.rotulo(o["apps"])
             o.update({"operadora": "TIM", "produto": "combo", "praca": praca,
                       "pagina": "combo",
                       "capturado_em": agora.isoformat(),
