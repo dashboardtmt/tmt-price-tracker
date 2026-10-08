@@ -188,6 +188,19 @@
      alinhamento continua a direita, que e serie temporal e se compara
      digito com digito. */
   #pg-ofertas td.num{text-align:center}
+  /* a coluna da praca fica fixa ao rolar na horizontal: com 7 colunas
+     de operadora mais a data, o nome da cidade sai da tela e o leitor
+     perde a linha */
+  #tab-pracas td.praca-col, #tab-pracas-tempo td.praca-col{
+    position:sticky;left:0;z-index:2;font-weight:700;white-space:nowrap;
+    background-color:var(--cor-superficie);min-width:124px}
+  #tab-pracas thead th:first-child,
+  #tab-pracas-tempo thead th:first-child{position:sticky;left:0;z-index:3}
+  td.praca-col .uf{font-size:10px;font-weight:600;margin-left:5px;
+    color:var(--cor-texto-suave)}
+  /* quem abre o mercado na praca */
+  td.destaque-cel{background:rgba(255,80,0,.10);font-weight:700}
+  td.forte{font-weight:700}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   /* Barra horizontal flutuante e cabecalho preso no topo: o mesmo par de
      solucoes do Dashboard da Anatel. O thead ja poderia ser sticky, mas
@@ -261,6 +274,7 @@
     <ul>
       <li><a href="#" class="ativa" id="ab-panorama" onclick="aba('panorama');return false" data-t="ab_pan">Overview</a></li>
       <li><a href="#" id="ab-ofertas" onclick="aba('ofertas');return false" data-t="ab_of">Detalhes por player</a></li>
+      <li><a href="#" id="ab-pracas" onclick="aba('pracas');return false" data-t="ab_pr">Praças</a></li>
     </ul>
   </div>
 </nav>
@@ -358,6 +372,25 @@
 
     </div>
 
+  <div id="pg-pracas" hidden>
+    <div class="secao" data-t="sec_pr">As 20 praças lado a lado</div>
+
+    <div class="bloco">
+      <h2 data-t="pr_t">Preço de entrada por praça</h2>
+      <p class="descricao" data-t="pr_x"></p>
+      <div class="tabela-wrap" id="t-pracas"></div>
+      <div class="nota" id="n-pracas"></div>
+      <div class="fonte" data-t="fonte_tabela"></div>
+    </div>
+
+    <div class="bloco">
+      <h2 data-t="pr2_t">Como cada praça se moveu</h2>
+      <p class="descricao" data-t="pr2_x"></p>
+      <div class="tabela-wrap" id="t-pracas-tempo"></div>
+      <div class="fonte" data-t="fonte_tabela"></div>
+    </div>
+  </div>
+
   <div id="pg-ofertas" hidden>
     <div class="secao" data-t="sec_of">As ofertas de hoje</div>
     <div class="bloco">
@@ -409,7 +442,9 @@ let DADOS = [];
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json";
 const CORES = {"Claro": "#FF5000", "TIM": "#1D4080", "Vivo": "#398478", "NuCel": "#820AD1", "Brisanet": "#AD7645", "Unifique": "#5282D8", "Starlink": "#6E6E6E"};
-const GERADO = "08/10/2026 14:05";
+// so referencia: o preco avulso aparece na dica e nunca entra em conta
+const PRECOS_APPS = {"netflix": {"nome": "Netflix", "plano": "Padrão", "preco_avulso": 44.9, "fonte": "https://help.netflix.com/pt/node/24926", "conferido_em": "2026-10-08", "evidencia": "Padrão : R$ 44,90/mês"}, "disney": {"nome": "Disney+", "plano": "Padrão", "preco_avulso": 49.9, "fonte": "https://www.disneyplus.com/pt-br", "conferido_em": "2026-10-08", "evidencia": "colunas Premium / Padrão / Padrão com anúncios sobre R$ 69,90 / R$ 49,90 / R$ 29,90"}, "spotify": {"nome": "Spotify", "plano": "Premium Individual", "preco_avulso": 23.9, "fonte": "https://www.spotify.com/br-pt/premium/", "conferido_em": "2026-10-08", "evidencia": "Premium Individual. R$ 0 por 1 mês, depois R$ 23,90 por mês"}, "youtube": {"nome": "YouTube Premium", "plano": "Lite", "preco_avulso": 16.9, "fonte": "https://www.youtube.com/premium", "conferido_em": "2026-10-08", "evidencia": "Premium Lite ... Monthly R$16.90/month"}, "globoplay": {"nome": "Globoplay", "plano": null, "preco_avulso": null, "fonte": "https://globoplay.globo.com/assine/", "conferido_em": "2026-10-08", "evidencia": "a Vivo nao diz qual plano inclui, e Globoplay tem Padrao com anuncios e Premium com precos diferentes"}, "amazon": {"nome": "Amazon Prime", "plano": null, "preco_avulso": null, "fonte": "https://www.amazon.com.br/amazonprime", "conferido_em": "2026-10-08", "evidencia": "a pagina responde 503 a leitura automatica"}, "premiere": {"nome": "Premiere", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "vale_saude": {"nome": "Vale Saúde Sempre", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "telemedicina, nao streaming"}, "vivae": {"nome": "Vivae", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "educacao, nao streaming"}, "vivo_tv": {"nome": "Vivo TV Inicial", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "vivo_travel": {"nome": "Vivo Travel", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "roaming, nao e app de assinatura"}, "vivo_musica": {"nome": "Vivo Música", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "paramount": {"nome": "Paramount+", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "max": {"nome": "Max", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "telecine": {"nome": "Telecine", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "deezer": {"nome": "Deezer", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "skeelo": {"nome": "Skeelo", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "mcafee": {"nome": "McAfee", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "aya_books": {"nome": "Aya Books", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "aya_ensinah": {"nome": "Aya Ensinah", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "exa": {"nome": "EXA Segurança", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "goread": {"nome": "GoRead", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo"}, "claro_musica": {"nome": "Claro Música", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Claro"}};
+const GERADO = "08/10/2026 16:57";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -423,7 +458,17 @@ const T = {
       fonte:"Source: site das companhias / vitrines virtuais de cada região.",
       fonte_tabela:"Source: site das companhias / vitrines virtuais de cada região.",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
-      ab_pan:"Overview", ab_of:"Detalhes por player",
+      ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Praças",
+      sec_pr:"As 20 praças lado a lado",
+      pr_t:"Preço de entrada por praça",
+      pr_x:"O plano mais barato de cada operadora, praça a praça. Célula vazia quer dizer que a operadora não vende ali — o que não é o mesmo que vender caro. O filtro de praça não vale aqui: esta aba compara todas.",
+      pr2_t:"Como cada praça se moveu",
+      pr2_x:"O preço de entrada do mercado em cada praça — a oferta mais barata entre as operadoras presentes — dia a dia. É onde se vê qual praça reagiu e qual ficou parada.",
+      pr_mercado:"Mercado", pr_espalha:"Distância",
+      pr_piso_igual:"O preço de entrada do mercado é o mesmo nas 20 praças.",
+      pr_piso:"Entrada do mercado, da ponta à ponta:",
+      pr_variam:"Variam por praça:",
+      pr_nenhuma_varia:"Nenhuma operadora muda de preço entre praças.",
       sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
       of_x:"A lista completa do dia, agrupada por operadora e ordenada do mais barato ao mais caro. Use o seletor para ver uma operadora de cada vez.",
@@ -477,6 +522,7 @@ const T = {
       serie_jovem:"A série tem {n} dia(s). A linha se forma conforme os dias passam.",
       parcial:"Atenção: {d} tem {a} operadora(s) contra {b} no dia anterior — a coleta desse dia está incompleta ou ainda rodando. Os números de hoje podem subir.",
       sem_dado:"Nenhuma oferta capturada com este filtro.",
+      sem_preco_avulso:"preço avulso não conferido",
       sem_praca:"Esta operadora não vende este produto nesta praça — célula vazia, nunca zero.",
       de:"de", preco:"Preço", entrega:"Entrega", contrato:"Contrato",
       col:["Operadora","Oferta","Entrega","Contrato","Preço"],
@@ -493,7 +539,17 @@ const T = {
       fonte:"Source: carrier websites / regional online storefronts.",
       fonte_tabela:"Source: carrier websites / regional online storefronts.",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
-      ab_pan:"Overview", ab_of:"Detail by player",
+      ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Cities",
+      sec_pr:"The 20 cities side by side",
+      pr_t:"Entry price by city",
+      pr2_t:"How each city moved",
+      pr_x:"Each carrier's cheapest plan, city by city. An empty cell means the carrier does not sell there — which is not the same as selling dear. The city filter does not apply here: this tab compares them all.",
+      pr2_x:"The market entry price in each city — the cheapest offer among the carriers present — day by day.",
+      pr_mercado:"Market", pr_espalha:"Spread",
+      pr_piso_igual:"The market entry price is the same in all 20 cities.",
+      pr_piso:"Market entry, end to end:",
+      pr_variam:"Vary by city:",
+      pr_nenhuma_varia:"No carrier changes price between cities.",
       sec_pan:"Market overview", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
       of_x:"The full list for the day, grouped by carrier and sorted cheapest first. Use the selector to see one carrier at a time.",
@@ -544,6 +600,7 @@ const T = {
       serie_jovem:"The series has {n} day(s). The line builds as days go by.",
       parcial:"Heads up: {d} has {a} carrier(s) against {b} the day before — that day's collection is incomplete or still running. Today's figures may rise.",
       sem_dado:"No offer captured with this filter.",
+      sem_preco_avulso:"retail price not verified",
       sem_praca:"This carrier does not sell this product here — blank cell, never zero.",
       de:"of", preco:"Price", entrega:"Delivers", contrato:"Contract",
       col:["Carrier","Offer","Delivers","Contract","Price"],
@@ -575,22 +632,57 @@ function rotulos(v){
 }
 
 function aba(qual){
-  const pan = qual === "panorama";
-  document.getElementById("pg-panorama").hidden = !pan;
-  document.getElementById("pg-ofertas").hidden = pan;
-  document.getElementById("ab-panorama").className = pan ? "ativa" : "";
-  document.getElementById("ab-ofertas").className = pan ? "" : "ativa";
+  for (const k of ["panorama", "ofertas", "pracas"]) {
+    document.getElementById("pg-" + k).hidden = (k !== qual);
+    document.getElementById("ab-" + k).className = (k === qual) ? "ativa" : "";
+  }
+  // o filtro de praca nao faz sentido comparando todas: fica apagado
+  // em vez de sumir, para nao parecer que ele quebrou
+  const campoPraca = document.getElementById("f-praca");
+  if (campoPraca) {
+    campoPraca.disabled = (qual === "pracas");
+    campoPraca.closest(".campo").style.opacity = (qual === "pracas") ? ".45" : "";
+  }
   desenhar();
 }
 
 // O nivel de bundle vira texto: e o que a tabela chama de "vantagens".
 // Sai da decisao 10 da metodologia, que e a mesma regra usada para
 // comparar nivel com nivel.
+// O que vem junto, pelo nome quando o coletor conseguiu identificar.
+//
+// Antes esta celula escrevia so o rotulo do NIVEL de bundle - "Uma
+// assinatura (Netflix, YouTube, Vale Saude...)" - que e uma lista de
+// exemplos e nao o conteudo da oferta: duas de R$ 85 ficavam identicas
+// quando uma traz Netflix e a outra, telemedicina.
+//
+// O preco avulso entra na DICA, como referencia do que o assinante
+// recebe. Ele nunca e descontado do preco do plano.
 function vantagem(o){
   const n = o.nivel_bundle;
   const t_ = T[lang];
+  const rotulo = o.apps_rotulo || (o.bruto && o.bruto.apps_rotulo) || "";
+  if (rotulo) {
+    const dica = detalheApps(o);
+    return dica ? `<span title="${dica}">${rotulo}</span>` : rotulo;
+  }
   if (n == null) return "—";
   return (t_.bundles[n] || "—");
+}
+
+// "Netflix Padrão custa R$ 44,90 por mês avulso" - referencia, nunca
+// parcela de conta.
+function detalheApps(o){
+  const lista = o.apps || (o.bruto && o.bruto.apps) || [];
+  const partes = [];
+  for (const a of lista) {
+    const e = PRECOS_APPS[a];
+    if (!e) continue;
+    partes.push(e.preco_avulso != null
+      ? `${e.nome}${e.plano ? " " + e.plano : ""}: ${reais(e.preco_avulso)}/${t("mes")} avulso`
+      : `${e.nome}: ${t("sem_preco_avulso")}`);
+  }
+  return partes.join(" · ");
 }
 
 function escopo(v){
@@ -1757,6 +1849,169 @@ function tabela(){
 
 // Todas as ofertas do dia, agrupadas por operadora. Responde "o que este
 // player vende", que e pergunta de lista e nao de grafico.
+// ---------------- as pracas lado a lado ----------------
+
+// Toda praca que existe na base, fora a nacional. Sai dos DADOS e nao
+// de uma lista fixa: praca nova entra sozinha.
+function todasPracas(){
+  return [...new Set(DADOS.filter(o => o.praca && o.praca !== PRACA_NACIONAL)
+                          .map(o => o.praca))].sort();
+}
+
+// A oferta de entrada de uma operadora numa praca, no dia e produto do
+// filtro. Operadora nacional vale em toda praca - e o mesmo criterio do
+// resto da tela.
+function entradaNaPraca(dia, praca, operadora){
+  let menor = null;
+  for (const o of DADOS) {
+    if (o.produto !== filtro().produto) continue;
+    if (o.operadora !== operadora) continue;
+    if (diaDe(o) !== dia) continue;
+    if (o.praca !== praca && o.praca !== PRACA_NACIONAL) continue;
+    const p = precoDe(o);
+    if (p == null) continue;
+    if (!menor || p < menor.preco) menor = {preco:p, oferta:o};
+  }
+  return menor;
+}
+
+// 1. praca x operadora. Celula vazia quer dizer que a operadora nao
+// vende ali - informacao diferente de "vende caro".
+function tabelaPracas(){
+  const alvo = document.getElementById("t-pracas");
+  const nota = document.getElementById("n-pracas");
+  const dia = document.getElementById("f-data").value;
+  const pracas = todasPracas();
+  const ops = OPERADORAS.filter(o => !desligadas.has(o));
+
+  if (!pracas.length || !ops.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    nota.textContent = "";
+    return;
+  }
+
+  // quem nao aparece em praca nenhuma neste produto sai da tabela: uma
+  // coluna inteira vazia so rouba largura
+  const presentes = ops.filter(op =>
+    pracas.some(p => entradaNaPraca(dia, p, op)));
+  if (!presentes.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    nota.textContent = "";
+    return;
+  }
+
+  const cab = `<tr><th>${t("f_praca")}</th>`
+    + presentes.map(o => `<th class="num">${o}</th>`).join("")
+    + `<th class="num">${t("pr_mercado")}</th>`
+    + `<th class="num">${t("pr_espalha")}</th></tr>`;
+
+  const linhas = [];
+  const mercados = [];
+  for (const praca of pracas) {
+    const valores = presentes.map(op => entradaNaPraca(dia, praca, op));
+    const comPreco = valores.filter(Boolean).map(v => v.preco);
+    if (!comPreco.length) continue;
+    const barato = Math.min(...comPreco);
+    const caro = Math.max(...comPreco);
+    mercados.push(barato);
+    const celulas = valores.map((v, i) => {
+      if (!v) return `<td class="num vazia">—</td>`;
+      // quem abre o mercado na praca fica marcado: e a leitura que a
+      // tabela existe para dar
+      const marca = v.preco === barato && comPreco.length > 1 ? " destaque-cel" : "";
+      return `<td class="num${marca}" title="${(v.oferta.nome_oferta || "")
+        .replace(/"/g, "")}">${reais(v.preco).replace("R$ ", "")}</td>`;
+    }).join("");
+    const dist = comPreco.length > 1
+      ? `<td class="num">${(caro - barato).toLocaleString("pt-BR",
+          {minimumFractionDigits:2, maximumFractionDigits:2})}</td>`
+      : `<td class="num vazia">—</td>`;
+    linhas.push(`<tr><td class="praca-col">${praca.split("/")[0]}`
+      + `<span class="uf">${praca.split("/")[1] || ""}</span></td>`
+      + celulas
+      + `<td class="num forte">${reais(barato).replace("R$ ", "")}</td>`
+      + dist + `</tr>`);
+  }
+
+  alvo.innerHTML = `<table id="tab-pracas"><thead>${cab}</thead>`
+    + `<tbody>${linhas.join("")}</tbody></table>`;
+
+  // A nota olha DUAS coisas, porque elas podem discordar: o piso do
+  // mercado e o preco de cada operadora.
+  //
+  // Em Fibra o piso e a Claro, que e nacional e a mais barata em toda
+  // parte - entao o piso e identico nas 20 pracas enquanto a TIM varia
+  // de R$ 79,99 a R$ 89,99 na mesma tabela. Dizer so "preco identico"
+  // seria verdade sobre o piso e mentira sobre o que o leitor veio ver.
+  const faixa = mercados.length ? Math.max(...mercados) - Math.min(...mercados) : 0;
+  const variam = [];
+  for (const op of presentes) {
+    const vs = pracas.map(p => entradaNaPraca(dia, p, op))
+                     .filter(Boolean).map(v => v.preco);
+    if (vs.length > 1 && Math.max(...vs) - Math.min(...vs) >= 0.01) {
+      variam.push(op + " " + reais(Math.min(...vs)).replace("R$ ", "")
+                  + "–" + reais(Math.max(...vs)).replace("R$ ", ""));
+    }
+  }
+
+  const partes = [];
+  partes.push(faixa < 0.01
+    ? t("pr_piso_igual")
+    : t("pr_piso") + " " + reais(Math.min(...mercados)) + " " + t("l_a") + " "
+      + reais(Math.max(...mercados)));
+  partes.push(variam.length
+    ? t("pr_variam") + " " + variam.join(" · ")
+    : t("pr_nenhuma_varia"));
+  nota.textContent = partes.join("  ");
+
+  document.querySelector('[data-t="pr_t"]').textContent =
+    t("pr_t") + " (" + nomeProduto(filtro().produto) + ")";
+}
+
+// 2. praca x dia: o preco de entrada DO MERCADO em cada praca, que e a
+// oferta mais barata entre as operadoras presentes nela.
+function tabelaPracasTempo(){
+  const alvo = document.getElementById("t-pracas-tempo");
+  const dias = DIAS.slice(-12);
+  const pracas = todasPracas();
+  const ops = OPERADORAS.filter(o => !desligadas.has(o));
+  if (!dias.length || !pracas.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    return;
+  }
+
+  const cab = `<tr><th>${t("f_praca")}</th>`
+    + dias.map(d => `<th class="num">${dataCurta(d)}</th>`).join("") + `</tr>`;
+
+  const linhas = [];
+  for (const praca of pracas) {
+    const serie = dias.map(d => {
+      const vs = ops.map(op => entradaNaPraca(d, praca, op))
+                    .filter(Boolean).map(v => v.preco);
+      return vs.length ? Math.min(...vs) : null;
+    });
+    if (serie.every(v => v == null)) continue;
+    const celulas = serie.map((v, i) => {
+      if (v == null) return `<td class="num vazia">—</td>`;
+      const antes = i > 0 ? serie[i - 1] : null;
+      // so marca quando mudou de verdade: centavo de arredondamento nao
+      // e repasse
+      const dif = antes != null && Math.abs(v - antes) >= 0.01;
+      const cls = !dif ? "" : (v > antes ? " sobe" : " desce");
+      const seta = !dif ? "" : (v > antes ? " \u25b2" : " \u25bc");
+      return `<td class="num${cls}">${reais(v).replace("R$ ", "")}${seta}</td>`;
+    }).join("");
+    linhas.push(`<tr><td class="praca-col">${praca.split("/")[0]}`
+      + `<span class="uf">${praca.split("/")[1] || ""}</span></td>`
+      + celulas + `</tr>`);
+  }
+
+  alvo.innerHTML = `<table id="tab-pracas-tempo"><thead>${cab}</thead>`
+    + `<tbody>${linhas.join("")}</tbody></table>`;
+  document.querySelector('[data-t="pr2_t"]').textContent =
+    t("pr2_t") + " (" + nomeProduto(filtro().produto) + ")";
+}
+
 function tabelaPorPlayer(){
   const alvo = document.getElementById("t-player");
   const nota = document.getElementById("n-player");
@@ -1952,6 +2207,12 @@ function tabelaFaixas(){
 }
 
 function desenhar(){
+  if (!document.getElementById("pg-pracas").hidden) {
+    tabelaPracas();
+    tabelaPracasTempo();
+    ajustarTabelas();
+    return;        // nao desenha grafico escondido: Chart.js mede errado
+  }
   const emOfertas = !document.getElementById("pg-ofertas").hidden;
   if (emOfertas) {
     tabelaPorPlayer();
