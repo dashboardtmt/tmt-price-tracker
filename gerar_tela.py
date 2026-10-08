@@ -27,6 +27,9 @@ Uso:
 import argparse
 import io
 import json
+
+# a tabela de referencia dos apps inclusos, embutida no HTML
+from coletores import apps
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -476,6 +479,8 @@ let DADOS = __DADOS__;
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "__FONTE__";
 const CORES = __CORES__;
+// so referencia: o preco avulso aparece na dica e nunca entra em conta
+const PRECOS_APPS = __APPS__;
 const GERADO = "__GERADO__";
 
 const T = {
@@ -544,6 +549,7 @@ const T = {
       serie_jovem:"A série tem {n} dia(s). A linha se forma conforme os dias passam.",
       parcial:"Atenção: {d} tem {a} operadora(s) contra {b} no dia anterior — a coleta desse dia está incompleta ou ainda rodando. Os números de hoje podem subir.",
       sem_dado:"Nenhuma oferta capturada com este filtro.",
+      sem_preco_avulso:"preço avulso não conferido",
       sem_praca:"Esta operadora não vende este produto nesta praça — célula vazia, nunca zero.",
       de:"de", preco:"Preço", entrega:"Entrega", contrato:"Contrato",
       col:["Operadora","Oferta","Entrega","Contrato","Preço"],
@@ -611,6 +617,7 @@ const T = {
       serie_jovem:"The series has {n} day(s). The line builds as days go by.",
       parcial:"Heads up: {d} has {a} carrier(s) against {b} the day before — that day's collection is incomplete or still running. Today's figures may rise.",
       sem_dado:"No offer captured with this filter.",
+      sem_preco_avulso:"retail price not verified",
       sem_praca:"This carrier does not sell this product here — blank cell, never zero.",
       de:"of", preco:"Price", entrega:"Delivers", contrato:"Contract",
       col:["Carrier","Offer","Delivers","Contract","Price"],
@@ -653,11 +660,40 @@ function aba(qual){
 // O nivel de bundle vira texto: e o que a tabela chama de "vantagens".
 // Sai da decisao 10 da metodologia, que e a mesma regra usada para
 // comparar nivel com nivel.
+// O que vem junto, pelo nome quando o coletor conseguiu identificar.
+//
+// Antes esta celula escrevia so o rotulo do NIVEL de bundle - "Uma
+// assinatura (Netflix, YouTube, Vale Saude...)" - que e uma lista de
+// exemplos e nao o conteudo da oferta: duas de R$ 85 ficavam identicas
+// quando uma traz Netflix e a outra, telemedicina.
+//
+// O preco avulso entra na DICA, como referencia do que o assinante
+// recebe. Ele nunca e descontado do preco do plano.
 function vantagem(o){
   const n = o.nivel_bundle;
   const t_ = T[lang];
+  const rotulo = o.apps_rotulo || (o.bruto && o.bruto.apps_rotulo) || "";
+  if (rotulo) {
+    const dica = detalheApps(o);
+    return dica ? `<span title="${dica}">${rotulo}</span>` : rotulo;
+  }
   if (n == null) return "—";
   return (t_.bundles[n] || "—");
+}
+
+// "Netflix Padrão custa R$ 44,90 por mês avulso" - referencia, nunca
+// parcela de conta.
+function detalheApps(o){
+  const lista = o.apps || (o.bruto && o.bruto.apps) || [];
+  const partes = [];
+  for (const a of lista) {
+    const e = PRECOS_APPS[a];
+    if (!e) continue;
+    partes.push(e.preco_avulso != null
+      ? `${e.nome}${e.plano ? " " + e.plano : ""}: ${reais(e.preco_avulso)}/${t("mes")} avulso`
+      : `${e.nome}: ${t("sem_preco_avulso")}`);
+  }
+  return partes.join(" · ");
 }
 
 function escopo(v){
@@ -2263,6 +2299,9 @@ def main():
             .replace("__DADOS__", json.dumps(embutidos, ensure_ascii=False))
             .replace("__FONTE__", a.remoto)
             .replace("__CORES__", json.dumps(CORES, ensure_ascii=False))
+            # a tabela de apps vai junto: a tela escreve a dica a
+            # partir dela, e o preco avulso e so referencia
+            .replace("__APPS__", json.dumps(apps.APPS, ensure_ascii=False))
             .replace("__GERADO__", agora))
     io.open(a.saida, "w", encoding="utf-8").write(html)
     print("tela gerada: %s (%d KB)%s"

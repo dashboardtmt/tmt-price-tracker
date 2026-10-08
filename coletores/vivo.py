@@ -30,6 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import apps
 from . import rede
 import zipfile
 from datetime import date, datetime, timedelta, timezone
@@ -558,6 +559,12 @@ def coletar(cidade, uf, verbose=True):
                 "preco_cheio": None,
                 "preco_promocional": c["preco"],
                 "nivel_bundle": nivel_bundle(c["texto"]),
+                # QUAIS apps, e nao so quantos: o nome da oferta e onde a
+                # Vivo nomeia o app ("Vivo Controle Netflix", "Vivo Pos
+                # com Disney+"). O codigo SVA nao distingue - vem igual
+                # em todas as ofertas.
+                "apps": apps.apps_da_oferta(c["plano"]),
+                "apps_rotulo": apps.rotulo(apps.apps_da_oferta(c["plano"])),
                 # o texto do card alimenta o cruzamento que deduz quais
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],
