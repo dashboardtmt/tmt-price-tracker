@@ -216,10 +216,17 @@ def _identidade(l):
     return l["chave"], l["praca"], " ".join(nome.lower().split())
 
 
-def _rotulo(l):
-    """Operadora e nome, sem repetir: "Vivo Vivo Controle" ficava feio."""
+def _rotulo(l, sem_operadora=False):
+    """Operadora e nome, sem repetir: "Vivo Vivo Controle" ficava feio.
+
+    Com sem_operadora devolve so o nome da oferta: a linha do recado ja
+    abre com a operadora, e repetir ali ficaria pior ainda.
+    """
     nome = l.get("nome_oferta") or l.get("produto") or ""
     op = l.get("operadora") or ""
+    if sem_operadora:
+        corte = nome[len(op):].strip() if nome.lower().startswith(op.lower()) else nome
+        return corte or nome or op
     return nome if nome.lower().startswith(op.lower()) else ("%s %s" % (op, nome)).strip()
 
 
@@ -369,111 +376,41 @@ def _renomeadas(h, o):
     return list(achados.values())
 
 
+def _operadora_da_rodada(nome):
+    """"Claro Flex" -> "Claro". O coletor e separado; a operadora e a mesma."""
+    for op in ("Claro", "TIM", "Vivo", "NuCel", "Brisanet", "Unifique", "Starlink"):
+        if nome == op or nome.startswith(op + " "):
+            return op
+    return nome
+
+
+def _onde(pracas):
+    """"em todas as 20 praças" ou "em 3 de 20: SP, RJ, BH"."""
+    n = len(pracas)
+    if n >= len(PRACAS):
+        return "em todas as %d praças" % len(PRACAS)
+    nomes = sorted({p.split("/")[0] for p in pracas})[:3]
+    return "em %d de %d: %s" % (n, len(PRACAS), ", ".join(nomes))
+
+
+def _variacao(de, para):
+    if not de or para is None:
+        return ""
+    return "  %+.0f%%" % ((para - de) / de * 100)
+
+
 def montar_mensagem(hoje, ontem):
-    linhas = ["Price Tracker - %s" % datetime.fromisoformat(hoje).strftime("%d/%m")]
-
-    # 1. mudanca sobe para o topo, com detalhe
+    """O recado do dia: o mercado primeiro, o robo so quando falha."""
+    dia = datetime.fromisoformat(hoje).strftime("%d/%m")
     mud, comp, renom, grades, erro_cmp = mudancas(hoje, ontem)
-    if erro_cmp:
-        linhas.append("")
-        linhas.append("COMPARACAO COM ONTEM FALHOU: %s" % erro_cmp[:120])
-        linhas.append("  Nao da para dizer se algo mudou hoje.")
-    if mud:
-        linhas.append("")
-        for m in mud[:6]:
-            a, d = m["antes"], m["atual"]
-            de, para = a["preco_promocional"], d["preco_promocional"]
-            var = (para - de) / de * 100 if de else 0
-            linhas.append("MUDOU: %s R$ %s -> R$ %s (%+.0f%%)" % (
-                _rotulo(d), _reais(de), _reais(para), var))
-            linhas.append("  Onde: %s (%d de %d pracas)" % (
-                ", ".join(sorted({p.split("/")[0] for p in m["pracas"]})[:4]),
-                len(m["pracas"]), len(PRACAS)))
-            mesma_franquia = a.get("franquia_anunciada_gb") == d.get("franquia_anunciada_gb")
-            mesmo_bundle = a.get("nivel_bundle") == d.get("nivel_bundle")
-            linhas.append("  Franquia: %s | Bundle: %s" % (
-                "igual" if mesma_franquia else "MUDOU",
-                "igual" if mesmo_bundle else "MUDOU"))
-        if len(mud) > 6:
-            linhas.append("  (+%d outras mudancas)" % (len(mud) - 6))
 
-    # 1b. preco parado e composicao mexida: o repasse que nao aparece na
-    # etiqueta. Vem depois das mudancas de preco porque e mais raro, e
-    # antes do estado da coleta porque e noticia, nao diagnostico.
-    if comp:
-        linhas.append("")
-        for m in comp[:4]:
-            d = m["atual"]
-            antes_sva = set((m["antes"]["assinatura_sva"] or "").split("+"))
-            agora_sva = set((d["assinatura_sva"] or "").split("+"))
-            preco = d["preco_promocional"]
-            linhas.append("COMPOSICAO MUDOU, PRECO PARADO: %s (R$ %s)" % (
-                _rotulo(d), _reais(preco)))
-            saiu, entrou = sorted(antes_sva - agora_sva), sorted(agora_sva - antes_sva)
-            if saiu:
-                linhas.append("  Saiu: %s" % ", ".join(saiu))
-            if entrou:
-                linhas.append("  Entrou: %s" % ", ".join(entrou))
-            linhas.append("  Onde: %s (%d de %d pracas)" % (
-                ", ".join(sorted({p.split("/")[0] for p in m["pracas"]})[:4]),
-                len(m["pracas"]), len(PRACAS)))
-        if len(comp) > 4:
-            linhas.append("  (+%d outras)" % (len(comp) - 4))
-
-    # 1c. renomeacao: evento por si, e o unico lugar onde um preco novo
-    # chegaria sem passar pelos blocos acima
-    if renom:
-        linhas.append("")
-        for m in renom[:4]:
-            a, d = m["antes"], m["atual"]
-            de, para = a["preco_promocional"], d["preco_promocional"]
-            if de is not None and para is not None and de != para:
-                var = (para - de) / de * 100 if de else 0
-                cauda = "e o preco foi de R$ %s para R$ %s (%+.0f%%)" % (
-                    _reais(de), _reais(para), var)
-            else:
-                cauda = "com o mesmo preco (R$ %s)" % _reais(para)
-            linhas.append("RENOMEOU: %s -> %s" % (
-                a["nome_oferta"] or "?", d["nome_oferta"] or "?"))
-            linhas.append("  %s" % cauda)
-            linhas.append("  Onde: %s (%d de %d pracas)" % (
-                ", ".join(sorted({p.split("/")[0] for p in m["pracas"]})[:4]),
-                len(m["pracas"]), len(PRACAS)))
-        if len(renom) > 4:
-            linhas.append("  (+%d outras)" % (len(renom) - 4))
-
-    # 1d. grade reorganizada: mesmo preco, outra franquia. E o espelho do
-    # "composicao mudou, preco parado" - aqui o que muda e o que se leva
-    # pelo mesmo dinheiro.
-    if grades:
-        linhas.append("")
-        for g in grades[:4]:
-            linhas.append("GRADE REORGANIZADA: %s %s - mesmos precos, franquia nova"
-                          % (g["operadora"], g["produto"]))
-            for preco, antes_v, agora_v in g["saltos"]:
-                pc = (agora_v - antes_v) / float(antes_v) * 100 if antes_v else 0
-                linhas.append("  R$ %s: %s -> %s (%+.0f%%)"
-                              % (_reais(preco), antes_v, agora_v, pc))
-            linhas.append("  Onde: %s (%d de %d pracas)" % (
-                ", ".join(sorted({p.split("/")[0] for p in g["pracas"]})[:4]),
-                len(g["pracas"]), len(PRACAS)))
-        if len(grades) > 4:
-            linhas.append("  (+%d outras)" % (len(grades) - 4))
-
-    # Nada mudou tem de ser dito, e com o tamanho da base por tras:
-    # "sem novidade" sozinho nao diz se o robo olhou 10 ofertas ou 1400.
-    if not (mud or comp or renom or grades or erro_cmp):
-        linhas.append("")
-        linhas.append("Nenhuma mudanca de preco, composicao ou nome.")
-
-    # 2. estado da coleta, operadora por operadora
+    # o estado da coleta, que pode virar manchete
     col, _ = armazenamento.consultar(
         "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"
         "ofertas,sucesso,iniciada_em&order=iniciada_em.desc" % hoje)
-    # Em dia de repique ou de correcao, a mesma operadora tem varios
-    # registros. Vale o ultimo: somar todos contaria a mesma coleta duas
-    # vezes e transformaria uma rodada que falhou em numero no relatorio.
     if col:
+        # em dia de repique a mesma operadora tem varios registros; vale o
+        # ultimo, senao a mesma coleta conta duas vezes
         ultima, vistos = [], set()
         for c in col:
             if c["operadora"] in vistos:
@@ -482,70 +419,126 @@ def montar_mensagem(hoje, ontem):
             ultima.append(c)
         col = ultima
 
-    linhas.append("")
-    linhas.append("--- A COLETA ---")
-    if col:
-        ok = sum(1 for c in col if c["sucesso"])
-        tot = sum(c["ofertas"] for c in col)
-        linhas.append("%d de %d operadoras | %d ofertas" % (ok, len(col), tot))
-        for c in sorted(col, key=lambda x: -x["ofertas"]):
-            marca = "" if c["sucesso"] else "   <-- INCOMPLETA"
-            linhas.append("  %-9s %5d ofertas  %d/%d pracas%s" % (
-                c["operadora"], c["ofertas"], c["pracas_ok"],
-                c["pracas_pedidas"], marca))
-        if ok < len(col):
-            linhas.append("  Operadora incompleta deixa buraco, nunca zero.")
-        if len(col) < len(COLETORES):
-            faltam = sorted(set(COLETORES) - {c["operadora"] for c in col})
-            linhas.append("  SEM REGISTRO AINDA: %s" % ", ".join(faltam))
+    falhas = [c for c in col if not c["sucesso"]] if col else []
+    sem_registro = (sorted(set(COLETORES) - {c["operadora"] for c in col})
+                    if col else sorted(COLETORES))
+    total_ofertas = sum(c["ofertas"] for c in col) if col else 0
 
-    else:
-        linhas.append("NENHUM REGISTRO HOJE - o robo nao rodou")
+    linhas = ["Price Tracker \u00b7 %s" % dia]
 
-    # 3. a saude da comparacao. Sem isto, "nada mudou" nao se sustenta:
-    # pode ser mercado parado ou pode ser comparacao sem par para comparar.
-    h, e1 = _indexar(hoje)
-    o, e2 = _indexar(ontem)
-    if not (e1 or e2):
-        comuns = len(set(h) & set(o))
+    # 1. falha e manchete, nao rodape
+    if not col:
+        linhas += ["", "O ROB\u00d4 N\u00c3O RODOU HOJE.",
+                   "Nenhum registro de coleta. Nada do que vem abaixo \u00e9 de hoje."]
+    elif falhas or sem_registro:
+        linhas += ["", "ATEN\u00c7\u00c3O: a coleta de hoje est\u00e1 incompleta."]
+        for c in falhas:
+            linhas.append("  %s: %d de %d pra\u00e7as" % (
+                c["operadora"], c["pracas_ok"], c["pracas_pedidas"]))
+        if sem_registro:
+            linhas.append("  sem registro: %s" % ", ".join(sem_registro))
+        linhas.append("  Operadora incompleta deixa buraco, nunca zero.")
+
+    if erro_cmp:
+        linhas += ["", "N\u00e3o deu para comparar com ontem: %s" % erro_cmp[:100],
+                   "Ent\u00e3o n\u00e3o d\u00e1 para dizer o que mudou."]
+
+    # 2. o que mudou
+    total_mud = len(mud) + len(comp) + len(renom) + len(grades)
+    if not erro_cmp:
         linhas.append("")
-        linhas.append("--- A COMPARACAO ---")
-        linhas.append("%d ofertas hoje, %d ontem, %d com par nos dois"
-                      % (len(h), len(o), comuns))
-        if h:
-            linhas.append("Cobertura: %.0f%%" % (100.0 * comuns / len(h)))
-        com_sva = sum(1 for l in h.values() if l.get("assinatura_sva"))
-        if com_sva:
-            linhas.append("Assinatura de composicao: %d ofertas"
-                          " (so a Vivo publica os codigos)" % com_sva)
+        if not total_mud:
+            linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
+        else:
+            linhas.append("%d mudan\u00e7a%s hoje"
+                          % (total_mud, "" if total_mud == 1 else "s"))
 
-    # 4. o plano de entrada, por produto, na praca de referencia
-    for produto, titulo in (("controle", "CONTROLE"), ("fibra", "FIBRA"),
-                            ("movel", "POS-PAGO")):
+    for m in mud[:6]:
+        a, d = m["antes"], m["atual"]
+        de, para = a["preco_promocional"], d["preco_promocional"]
+        linhas += ["", "%s \u00b7 %s" % (d["operadora"], _rotulo(d, sem_operadora=True))]
+        linhas.append("  %s \u2192 %s%s   %s" % (
+            _reais(de), _reais(para), _variacao(de, para), _onde(m["pracas"])))
+        avisos = []
+        if a.get("franquia_anunciada_gb") != d.get("franquia_anunciada_gb"):
+            avisos.append("a franquia tamb\u00e9m mudou")
+        if a.get("nivel_bundle") != d.get("nivel_bundle"):
+            avisos.append("o que vem junto tamb\u00e9m mudou")
+        if avisos:
+            linhas.append("  (%s)" % " e ".join(avisos))
+    if len(mud) > 6:
+        linhas.append("  e mais %d mudan\u00e7a(s) de pre\u00e7o" % (len(mud) - 6))
+
+    for m in comp[:3]:
+        d = m["atual"]
+        antes_sva = set((m["antes"]["assinatura_sva"] or "").split("+"))
+        agora_sva = set((d["assinatura_sva"] or "").split("+"))
+        saiu = sorted(x for x in antes_sva - agora_sva if x)
+        entrou = sorted(x for x in agora_sva - antes_sva if x)
+        linhas += ["", "%s \u00b7 %s \u2014 mesmo pre\u00e7o, outra composi\u00e7\u00e3o"
+                   % (d["operadora"], _rotulo(d, sem_operadora=True))]
+        if saiu:
+            linhas.append("  saiu: %s" % ", ".join(saiu))
+        if entrou:
+            linhas.append("  entrou: %s" % ", ".join(entrou))
+        linhas.append("  %s" % _onde(m["pracas"]))
+    if len(comp) > 3:
+        linhas.append("  e mais %d de composi\u00e7\u00e3o" % (len(comp) - 3))
+
+    for g in grades[:3]:
+        linhas += ["", "%s \u00b7 %s \u2014 mesmos pre\u00e7os, franquia nova"
+                   % (g["operadora"], g["produto"])]
+        for preco, antes_v, agora_v in g["saltos"][:3]:
+            linhas.append("  %s: %s \u2192 %s GB" % (_reais(preco), antes_v, agora_v))
+        linhas.append("  %s" % _onde(g["pracas"]))
+    if len(grades) > 3:
+        linhas.append("  e mais %d de grade" % (len(grades) - 3))
+
+    for m in renom[:3]:
+        a, d = m["antes"], m["atual"]
+        de, para = a["preco_promocional"], d["preco_promocional"]
+        linhas += ["", "%s \u00b7 mudou de nome" % d["operadora"]]
+        linhas.append("  %s \u2192 %s" % (a["nome_oferta"] or "?", d["nome_oferta"] or "?"))
+        if de is not None and para is not None and de != para:
+            linhas.append("  e o pre\u00e7o foi de %s para %s%s"
+                          % (_reais(de), _reais(para), _variacao(de, para)))
+        else:
+            linhas.append("  pelo mesmo pre\u00e7o (%s)" % _reais(para))
+    if len(renom) > 3:
+        linhas.append("  e mais %d renomeada(s)" % (len(renom) - 3))
+
+    # quem nao mexeu em nada tambem e informacao
+    if not erro_cmp and total_mud and col:
+        mexeram = ({m["atual"]["operadora"] for m in mud}
+                   | {m["atual"]["operadora"] for m in comp}
+                   | {m["atual"]["operadora"] for m in renom}
+                   | {g["operadora"] for g in grades})
+        # o nome da rodada nao e o nome da operadora: "Claro Flex" e
+        # "TIM FIT" sao coletores a parte, mas gravam como Claro e TIM
+        paradas = sorted({_operadora_da_rodada(c["operadora"]) for c in col}
+                         - mexeram)
+        if paradas:
+            linhas += ["", "Sem mudan\u00e7a: %s" % ", ".join(paradas)]
+
+    # 3. o preco de entrada, uma linha por produto
+    blocos = []
+    for produto, titulo in (("controle", "Controle"), ("fibra", "Fibra"),
+                            ("movel", "P\u00f3s-pago"), ("btl", "Below-the-line")):
         entrada, _ = entrada_do_produto(hoje, produto)
         if not entrada:
             continue
-        linhas.append("")
-        linhas.append("--- %s, ENTRADA EM SP ---" % titulo)
-        for e in entrada:
-            linhas.append("  %-9s %-10s R$ %s" % (
-                e["operadora"], (e["destaque"] or "-")[:10],
-                _reais(e["preco_promocional"])))
+        itens = ["%s %s" % (e["operadora"], _reais(e["preco_promocional"]))
+                 for e in entrada]
+        blocos.append("  %-15s %s" % (titulo, " \u00b7 ".join(itens)))
+    if blocos:
+        linhas += ["", "Entrada em SP"] + blocos
 
-    # 5. o tamanho da serie: o ativo do projeto e o historico acumulado
-    primeiro, _ = armazenamento.consultar(
-        "capturas?select=data_captura&order=data_captura.asc&limit=1")
-    if primeiro:
-        inicio = primeiro[0]["data_captura"]
-        n = (datetime.fromisoformat(hoje).date()
-             - datetime.fromisoformat(inicio).date()).days + 1
-        linhas.append("")
-        linhas.append("--- A SERIE ---")
-        linhas.append("%d dia(s) desde %s" % (
-            n, datetime.fromisoformat(inicio).strftime("%d/%m")))
+    # 4. a telemetria, em uma linha quando esta tudo bem
+    if col and not falhas and not sem_registro:
+        linhas += ["", "%d ofertas \u00b7 %d coletores \u00b7 %d pra\u00e7as \u00b7 tudo ok"
+                   % (total_ofertas, len(col), len(PRACAS))]
 
     return "\n".join(linhas)
-
 
 def rodar_aviso(simular=False):
     hoje = agora().date()
