@@ -172,8 +172,22 @@ def consultar_tudo(caminho, pagina=PAGINA):
     sobreviveu aqui porque o numero pedido parecia grande demais para
     importar.
     """
-    tudo, inicio = [], 0
+    # ORDEM TOTAL, sempre. Sem ORDER BY o Postgres nao promete a mesma
+    # ordem entre duas consultas, e a fronteira entre as paginas anda: a
+    # linha da ponta de uma pagina reaparece na seguinte, ou some. Medido
+    # em 08/10/2026: 273 linhas duplicadas no arquivo publicado, em cinco
+    # dias. A duplicata se ve; o que foi PULADO, nao - e e o mesmo bug.
+    #
+    # Ordenar por uma coluna qualquer nao basta: no empate a ordem volta a
+    # ser livre. Por isso a chave primaria entra como ultimo desempate.
     sep = "&" if "?" in caminho else "?"
+    if "order=" in caminho:
+        caminho = caminho + ",id.asc"
+    else:
+        caminho = caminho + sep + "order=id.asc"
+        sep = "&"
+
+    tudo, inicio = [], 0
     while True:
         linhas, erro = consultar("%s%slimit=%d&offset=%d"
                                  % (caminho, sep, pagina, inicio))
