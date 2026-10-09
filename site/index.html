@@ -201,6 +201,33 @@
   /* quem abre o mercado na praca */
   td.destaque-cel{background:rgba(255,80,0,.10);font-weight:700}
   td.forte{font-weight:700}
+  /* ---- mapa de calor das pracas ---- */
+  /* largura AUTOMATICA, nao esticada: com width:100% a celula de um
+     numero de seis caracteres virava um bloco de 223px, e o mapa ficava
+     com mais vao do que cor */
+  .mapa{border-collapse:separate;border-spacing:2px;font-size:12px;
+    width:auto;table-layout:fixed}
+  .mapa th{background:transparent;color:var(--cor-texto-suave);
+    font-size:10px;text-transform:uppercase;letter-spacing:.6px;
+    font-weight:700;padding:0 6px 6px;text-align:center;white-space:nowrap}
+  .mapa th.praca{text-align:left;padding-left:2px}
+  .mapa td.praca{text-align:left;font-weight:600;white-space:nowrap;
+    color:var(--cor-texto);padding:0 10px 0 2px;font-size:12px;
+    background:transparent;border:none;width:146px;min-width:146px}
+  .mapa td.praca .uf{font-size:9.5px;color:var(--cor-texto-suave);
+    margin-left:4px;font-weight:600}
+  .mapa td.cel{padding:6px 4px;border-radius:4px;text-align:center;
+    font-variant-numeric:tabular-nums;font-weight:600;border:none;
+    width:78px;min-width:78px;transition:outline-color .1s}
+  .mapa td.cel.fora{background:transparent;color:var(--cinza);
+    box-shadow:inset 0 0 0 1px var(--cor-borda)}
+  .mapa tr:hover td.cel{outline:2px solid rgba(0,5,18,.28);outline-offset:-2px}
+  .mapa tr:hover td.praca{color:var(--laranja)}
+  /* a legenda da rampa, que diz o que claro e escuro querem dizer */
+  .rampa{display:flex;align-items:center;gap:8px;margin:12px 0 2px;
+    font-size:11px;color:var(--cor-texto-suave)}
+  .rampa .passos{display:flex;gap:2px}
+  .rampa .passos i{width:26px;height:11px;border-radius:2px;display:block}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   /* Barra horizontal flutuante e cabecalho preso no topo: o mesmo par de
      solucoes do Dashboard da Anatel. O thead ja poderia ser sticky, mas
@@ -444,7 +471,7 @@ const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public
 const CORES = {"Claro": "#FF5000", "TIM": "#1D4080", "Vivo": "#398478", "NuCel": "#820AD1", "Brisanet": "#AD7645", "Unifique": "#5282D8", "Starlink": "#6E6E6E"};
 // so referencia: o preco avulso aparece na dica e nunca entra em conta
 const PRECOS_APPS = {"netflix": {"nome": "Netflix", "plano": "Padrão", "preco_avulso": 44.9, "fonte": "https://help.netflix.com/pt/node/24926", "conferido_em": "2026-10-08", "evidencia": "Padrão : R$ 44,90/mês"}, "disney": {"nome": "Disney+", "plano": "Padrão", "preco_avulso": 49.9, "fonte": "https://www.disneyplus.com/pt-br", "conferido_em": "2026-10-08", "evidencia": "colunas Premium / Padrão / Padrão com anúncios sobre R$ 69,90 / R$ 49,90 / R$ 29,90"}, "spotify": {"nome": "Spotify", "plano": "Premium Individual", "preco_avulso": 23.9, "fonte": "https://www.spotify.com/br-pt/premium/", "conferido_em": "2026-10-08", "evidencia": "Premium Individual. R$ 0 por 1 mês, depois R$ 23,90 por mês"}, "youtube": {"nome": "YouTube Premium", "plano": "Lite", "preco_avulso": 16.9, "fonte": "https://www.youtube.com/premium", "conferido_em": "2026-10-08", "evidencia": "Premium Lite ... Monthly R$16.90/month"}, "globoplay": {"nome": "Globoplay", "plano": null, "preco_avulso": null, "fonte": "https://globoplay.globo.com/assine/", "conferido_em": "2026-10-08", "evidencia": "a Vivo nao diz qual plano inclui, e Globoplay tem Padrao com anuncios e Premium com precos diferentes"}, "amazon": {"nome": "Amazon Prime", "plano": null, "preco_avulso": null, "fonte": "https://www.amazon.com.br/amazonprime", "conferido_em": "2026-10-08", "evidencia": "a pagina responde 503 a leitura automatica"}, "premiere": {"nome": "Premiere", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "vale_saude": {"nome": "Vale Saúde Sempre", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "telemedicina, nao streaming"}, "vivae": {"nome": "Vivae", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "educacao, nao streaming"}, "vivo_tv": {"nome": "Vivo TV Inicial", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "vivo_travel": {"nome": "Vivo Travel", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "roaming, nao e app de assinatura"}, "vivo_musica": {"nome": "Vivo Música", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "paramount": {"nome": "Paramount+", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "max": {"nome": "Max", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "telecine": {"nome": "Telecine", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "deezer": {"nome": "Deezer", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "skeelo": {"nome": "Skeelo", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "mcafee": {"nome": "McAfee", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "aya_books": {"nome": "Aya Books", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "aya_ensinah": {"nome": "Aya Ensinah", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "exa": {"nome": "EXA Segurança", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "goread": {"nome": "GoRead", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo"}, "claro_musica": {"nome": "Claro Música", "plano": null, "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Claro"}};
-const GERADO = "08/10/2026 16:58";
+const GERADO = "09/10/2026 08:35";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -466,6 +493,10 @@ const T = {
       pr2_x:"O preço de entrada do mercado em cada praça — a oferta mais barata entre as operadoras presentes — dia a dia. É onde se vê qual praça reagiu e qual ficou parada.",
       pr_mercado:"Mercado", pr_espalha:"Distância",
       pr_piso_igual:"O preço de entrada do mercado é o mesmo nas 20 praças.",
+      pr_mais_barato:"mais barato", pr_mais_caro:"mais caro",
+      pr_por_operadora:"Cor comparando cada operadora consigo mesma:",
+      pr_no_quadro:"Cor comparando o quadro inteiro:",
+      pr_ausente:"não vende nesta praça",
       pr_piso:"Entrada do mercado, da ponta à ponta:",
       pr_variam:"Variam por praça:",
       pr_nenhuma_varia:"Nenhuma operadora muda de preço entre praças.",
@@ -547,6 +578,10 @@ const T = {
       pr2_x:"The market entry price in each city — the cheapest offer among the carriers present — day by day.",
       pr_mercado:"Market", pr_espalha:"Spread",
       pr_piso_igual:"The market entry price is the same in all 20 cities.",
+      pr_mais_barato:"cheapest", pr_mais_caro:"dearest",
+      pr_por_operadora:"Colour compares each carrier with itself:",
+      pr_no_quadro:"Colour compares the whole grid:",
+      pr_ausente:"does not sell in this city",
       pr_piso:"Market entry, end to end:",
       pr_variam:"Vary by city:",
       pr_nenhuma_varia:"No carrier changes price between cities.",
@@ -941,6 +976,20 @@ function escurecer(hex, f){
     .map(x => Math.max(0, Math.round(x * f)));
   return "#" + c.map(x => x.toString(16).padStart(2, "0")).join("");
 }
+
+// Rampa SEQUENCIAL do laranja Itau: um matiz so, do claro ao escuro.
+// Gerada em OKLCH com matiz fixo e luminosidade monotona, e validada:
+// monotonia, distancia entre passos (>=0.06 de L), contraste da ponta
+// clara (2,05:1 sobre o cartao) e matiz unico (8 graus de dispersao).
+const RAMPA = ["#f59b80", "#f3764f", "#eb4d0f", "#d82400", "#b90f00"];
+
+// Texto branco a partir do terceiro passo, onde o fundo escurece.
+const RAMPA_TINTA = ["#2B2621", "#2B2621", "#fff", "#fff", "#fff"];
+
+// Abaixo disso a coluna e considerada PLANA e fica toda no passo claro.
+// A Brisanet varia R$ 0,09 entre pracas: espalhar isso pela rampa
+// inteira pintaria 0,1% como se fosse enorme.
+const VARIACAO_MINIMA = 0.02;
 
 const EIXO = {
   grade: "rgba(0,0,0,0.055)",     // so o suficiente para guiar o olho
@@ -1875,8 +1924,43 @@ function entradaNaPraca(dia, praca, operadora){
   return menor;
 }
 
-// 1. praca x operadora. Celula vazia quer dizer que a operadora nao
-// vende ali - informacao diferente de "vende caro".
+// Em que passo da rampa um valor cai, dentro de uma faixa.
+//
+// Faixa estreita devolve sempre o passo claro: a Brisanet varia R$ 0,09
+// entre pracas, e espalhar isso pela rampa inteira pintaria 0,1% de
+// diferenca como se fosse enorme - a armadilha classica do mapa de
+// calor, que faz ruido parecer sinal.
+function passoRampa(v, lo, hi){
+  if (v == null || hi == null || lo == null) return 0;
+  if (!lo || (hi - lo) / lo < VARIACAO_MINIMA) return 0;
+  const f = (v - lo) / (hi - lo);
+  return Math.min(RAMPA.length - 1, Math.max(0, Math.round(f * (RAMPA.length - 1))));
+}
+
+function celulaMapa(valor, passo, dica){
+  if (valor == null) {
+    return `<td class="cel fora" title="${dica}">—</td>`;
+  }
+  return `<td class="cel" style="background:${RAMPA[passo]};`
+       + `color:${RAMPA_TINTA[passo]}" title="${dica}">`
+       + reais(valor).replace("R$ ", "") + `</td>`;
+}
+
+// A legenda tem de existir: cor sozinha nao diz o que e mais caro.
+function legendaRampa(rotulo){
+  return `<div class="rampa"><span>${rotulo}</span>`
+       + `<span>${t("pr_mais_barato")}</span>`
+       + `<span class="passos">${RAMPA.map(c =>
+            `<i style="background:${c}"></i>`).join("")}</span>`
+       + `<span>${t("pr_mais_caro")}</span></div>`;
+}
+
+// 1. praca x operadora, em mapa de calor.
+//
+// CADA COLUNA SE NORMALIZA SOZINHA porque a pergunta e "onde ESTA
+// operadora cobra mais". Operadora nacional vira uma coluna de cor
+// unica, que e a leitura "aqui nao muda nada" sem precisar ler 20
+// numeros iguais.
 function tabelaPracas(){
   const alvo = document.getElementById("t-pracas");
   const nota = document.getElementById("n-pracas");
@@ -1884,92 +1968,77 @@ function tabelaPracas(){
   const pracas = todasPracas();
   const ops = OPERADORAS.filter(o => !desligadas.has(o));
 
-  if (!pracas.length || !ops.length) {
+  const presentes = ops.filter(op => pracas.some(p => entradaNaPraca(dia, p, op)));
+  if (!pracas.length || !presentes.length) {
     alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
     nota.textContent = "";
     return;
   }
 
-  // quem nao aparece em praca nenhuma neste produto sai da tabela: uma
-  // coluna inteira vazia so rouba largura
-  const presentes = ops.filter(op =>
-    pracas.some(p => entradaNaPraca(dia, p, op)));
-  if (!presentes.length) {
-    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
-    nota.textContent = "";
-    return;
-  }
-
-  const cab = `<tr><th>${t("f_praca")}</th>`
-    + presentes.map(o => `<th class="num">${o}</th>`).join("")
-    + `<th class="num">${t("pr_mercado")}</th>`
-    + `<th class="num">${t("pr_espalha")}</th></tr>`;
-
-  const linhas = [];
-  const mercados = [];
-  for (const praca of pracas) {
-    const valores = presentes.map(op => entradaNaPraca(dia, praca, op));
-    const comPreco = valores.filter(Boolean).map(v => v.preco);
-    if (!comPreco.length) continue;
-    const barato = Math.min(...comPreco);
-    const caro = Math.max(...comPreco);
-    mercados.push(barato);
-    const celulas = valores.map((v, i) => {
-      if (!v) return `<td class="num vazia">—</td>`;
-      // quem abre o mercado na praca fica marcado: e a leitura que a
-      // tabela existe para dar
-      const marca = v.preco === barato && comPreco.length > 1 ? " destaque-cel" : "";
-      return `<td class="num${marca}" title="${(v.oferta.nome_oferta || "")
-        .replace(/"/g, "")}">${reais(v.preco).replace("R$ ", "")}</td>`;
-    }).join("");
-    const dist = comPreco.length > 1
-      ? `<td class="num">${(caro - barato).toLocaleString("pt-BR",
-          {minimumFractionDigits:2, maximumFractionDigits:2})}</td>`
-      : `<td class="num vazia">—</td>`;
-    linhas.push(`<tr><td class="praca-col">${praca.split("/")[0]}`
-      + `<span class="uf">${praca.split("/")[1] || ""}</span></td>`
-      + celulas
-      + `<td class="num forte">${reais(barato).replace("R$ ", "")}</td>`
-      + dist + `</tr>`);
-  }
-
-  alvo.innerHTML = `<table id="tab-pracas"><thead>${cab}</thead>`
-    + `<tbody>${linhas.join("")}</tbody></table>`;
-
-  // A nota olha DUAS coisas, porque elas podem discordar: o piso do
-  // mercado e o preco de cada operadora.
-  //
-  // Em Fibra o piso e a Claro, que e nacional e a mais barata em toda
-  // parte - entao o piso e identico nas 20 pracas enquanto a TIM varia
-  // de R$ 79,99 a R$ 89,99 na mesma tabela. Dizer so "preco identico"
-  // seria verdade sobre o piso e mentira sobre o que o leitor veio ver.
-  const faixa = mercados.length ? Math.max(...mercados) - Math.min(...mercados) : 0;
-  const variam = [];
+  // a faixa de cada operadora, para normalizar a coluna dela
+  const faixa = {};
   for (const op of presentes) {
     const vs = pracas.map(p => entradaNaPraca(dia, p, op))
                      .filter(Boolean).map(v => v.preco);
-    if (vs.length > 1 && Math.max(...vs) - Math.min(...vs) >= 0.01) {
-      variam.push(op + " " + reais(Math.min(...vs)).replace("R$ ", "")
-                  + "–" + reais(Math.max(...vs)).replace("R$ ", ""));
-    }
+    faixa[op] = vs.length ? {lo: Math.min(...vs), hi: Math.max(...vs)} : null;
   }
 
-  const partes = [];
-  partes.push(faixa < 0.01
-    ? t("pr_piso_igual")
-    : t("pr_piso") + " " + reais(Math.min(...mercados)) + " " + t("l_a") + " "
-      + reais(Math.max(...mercados)));
-  partes.push(variam.length
-    ? t("pr_variam") + " " + variam.join(" · ")
-    : t("pr_nenhuma_varia"));
-  nota.textContent = partes.join("  ");
+  // praca mais barata primeiro: ordem alfabetica nao mostra estrutura
+  const linhas = pracas.map(p => {
+    const vs = presentes.map(op => entradaNaPraca(dia, p, op));
+    const comPreco = vs.filter(Boolean).map(v => v.preco);
+    return {praca: p, vs, piso: comPreco.length ? Math.min(...comPreco) : null};
+  }).filter(l => l.piso != null).sort((a, b) => a.piso - b.piso);
+
+  const cab = `<tr><th class="praca">${t("f_praca")}</th>`
+    + presentes.map(o => `<th>${o}</th>`).join("") + `</tr>`;
+
+  const corpo = linhas.map(l => {
+    const celulas = l.vs.map((v, i) => {
+      const op = presentes[i];
+      const f = faixa[op] || {};
+      const dica = v
+        ? `${op} · ${(v.oferta.nome_oferta || "").replace(/"/g, "")} · ${reais(v.preco)}`
+        : `${op} ${t("pr_ausente")}`;
+      return celulaMapa(v ? v.preco : null, passoRampa(v ? v.preco : null, f.lo, f.hi), dica);
+    }).join("");
+    return `<tr><td class="praca">${l.praca.split("/")[0]}`
+         + `<span class="uf">${l.praca.split("/")[1] || ""}</span></td>`
+         + celulas + `</tr>`;
+  }).join("");
+
+  alvo.innerHTML = `<table class="mapa" id="tab-pracas"><thead>${cab}</thead>`
+    + `<tbody>${corpo}</tbody></table>` + legendaRampa(t("pr_por_operadora"));
+
+  // A nota olha duas coisas, porque elas discordam. Em Fibra o piso e a
+  // Claro, que e nacional e a mais barata em toda parte: o piso e
+  // identico nas 20 pracas enquanto a TIM varia de R$ 79,99 a R$ 89,99
+  // na mesma tela.
+  const pisos = linhas.map(l => l.piso);
+  const vaoPiso = Math.max(...pisos) - Math.min(...pisos);
+  const variam = presentes.filter(op => {
+    const f = faixa[op];
+    return f && f.lo && (f.hi - f.lo) / f.lo >= VARIACAO_MINIMA;
+  }).map(op => `${op} ${reais(faixa[op].lo).replace("R$ ", "")}–`
+              + `${reais(faixa[op].hi).replace("R$ ", "")}`);
+
+  nota.textContent = (vaoPiso < 0.01
+      ? t("pr_piso_igual")
+      : t("pr_piso") + " " + reais(Math.min(...pisos)) + " " + t("l_a") + " "
+        + reais(Math.max(...pisos)))
+    + "  " + (variam.length ? t("pr_variam") + " " + variam.join(" · ")
+                            : t("pr_nenhuma_varia"));
 
   document.querySelector('[data-t="pr_t"]').textContent =
     t("pr_t") + " (" + nomeProduto(filtro().produto) + ")";
 }
 
-// 2. praca x dia: o preco de entrada DO MERCADO em cada praca, que e a
-// oferta mais barata entre as operadoras presentes nela.
+// 2. praca x dia: o piso do mercado em cada praca, dia a dia.
+//
+// Aqui a normalizacao e GLOBAL, e nao por linha: com faixa por linha,
+// uma praca que andou dez centavos ficaria tao colorida quanto uma que
+// andou sessenta reais. Global, a cor significa a mesma coisa em todo o
+// quadro, e a praca parada aparece como faixa lisa.
 function tabelaPracasTempo(){
   const alvo = document.getElementById("t-pracas-tempo");
   const dias = DIAS.slice(-12);
@@ -1980,34 +2049,51 @@ function tabelaPracasTempo(){
     return;
   }
 
-  const cab = `<tr><th>${t("f_praca")}</th>`
-    + dias.map(d => `<th class="num">${dataCurta(d)}</th>`).join("") + `</tr>`;
-
-  const linhas = [];
-  for (const praca of pracas) {
-    const serie = dias.map(d => {
-      const vs = ops.map(op => entradaNaPraca(d, praca, op))
-                    .filter(Boolean).map(v => v.preco);
+  const series = [];
+  for (const p of pracas) {
+    const v = dias.map(d => {
+      const vs = ops.map(op => entradaNaPraca(d, p, op))
+                    .filter(Boolean).map(x => x.preco);
       return vs.length ? Math.min(...vs) : null;
     });
-    if (serie.every(v => v == null)) continue;
-    const celulas = serie.map((v, i) => {
-      if (v == null) return `<td class="num vazia">—</td>`;
-      const antes = i > 0 ? serie[i - 1] : null;
-      // so marca quando mudou de verdade: centavo de arredondamento nao
-      // e repasse
-      const dif = antes != null && Math.abs(v - antes) >= 0.01;
-      const cls = !dif ? "" : (v > antes ? " sobe" : " desce");
-      const seta = !dif ? "" : (v > antes ? " \u25b2" : " \u25bc");
-      return `<td class="num${cls}">${reais(v).replace("R$ ", "")}${seta}</td>`;
-    }).join("");
-    linhas.push(`<tr><td class="praca-col">${praca.split("/")[0]}`
-      + `<span class="uf">${praca.split("/")[1] || ""}</span></td>`
-      + celulas + `</tr>`);
+    if (v.some(x => x != null)) series.push({praca: p, v});
+  }
+  if (!series.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    return;
   }
 
-  alvo.innerHTML = `<table id="tab-pracas-tempo"><thead>${cab}</thead>`
-    + `<tbody>${linhas.join("")}</tbody></table>`;
+  const todos = series.flatMap(s2 => s2.v).filter(x => x != null);
+  const lo = Math.min(...todos), hi = Math.max(...todos);
+
+  // ordena pelo preco do ultimo dia: o quadro abre pela praca mais
+  // barata hoje, e o olho desce para as mais caras
+  series.sort((a, b) => {
+    const ua = [...a.v].reverse().find(x => x != null);
+    const ub = [...b.v].reverse().find(x => x != null);
+    return (ua == null) - (ub == null) || ua - ub;
+  });
+
+  const cab = `<tr><th class="praca">${t("f_praca")}</th>`
+    + dias.map(d => `<th>${dataCurta(d)}</th>`).join("") + `</tr>`;
+
+  const corpo = series.map(s2 => {
+    const celulas = s2.v.map((x, i) => {
+      const antes = i > 0 ? s2.v[i - 1] : null;
+      const mexeu = x != null && antes != null && Math.abs(x - antes) >= 0.01;
+      const dica = x == null ? t("sem_dado")
+        : `${s2.praca.split("/")[0]} · ${dataCurta(dias[i])} · ${reais(x)}`
+          + (mexeu ? ` (${x > antes ? "+" : ""}${reais(x - antes).replace("R$ ", "")})` : "");
+      return celulaMapa(x, passoRampa(x, lo, hi), dica);
+    }).join("");
+    return `<tr><td class="praca">${s2.praca.split("/")[0]}`
+         + `<span class="uf">${s2.praca.split("/")[1] || ""}</span></td>`
+         + celulas + `</tr>`;
+  }).join("");
+
+  alvo.innerHTML = `<table class="mapa" id="tab-pracas-tempo"><thead>${cab}</thead>`
+    + `<tbody>${corpo}</tbody></table>` + legendaRampa(t("pr_no_quadro"));
+
   document.querySelector('[data-t="pr2_t"]').textContent =
     t("pr2_t") + " (" + nomeProduto(filtro().produto) + ")";
 }
