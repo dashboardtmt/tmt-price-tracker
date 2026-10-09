@@ -271,6 +271,36 @@ MOLDE = r"""<!DOCTYPE html>
   /* quem abre o mercado na praca */
   td.destaque-cel{background:rgba(255,80,0,.10);font-weight:700}
   td.forte{font-weight:700}
+  /* ---- o catalogo de cada praca ---- */
+  .cat{border-top:1px solid var(--cor-borda);padding:16px 0 4px}
+  .cat:first-child{border-top:none;padding-top:2px}
+  .cat-cab{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+    margin-bottom:9px}
+  .cat-cab .op-tag{font-size:14.5px;font-weight:700}
+  .cat-nota{font-size:11.5px;color:var(--cor-texto-suave)}
+  /* operadora com catalogo unico nao merece tabela: vira uma fileira de
+     fichas, que e o tamanho da informacao que ela tem */
+  .cat-lista{display:flex;gap:6px;flex-wrap:wrap}
+  .cat-item{display:inline-flex;align-items:baseline;gap:6px;
+    border:1px solid var(--cor-borda);background:#fff;border-radius:7px;
+    padding:3px 9px;font-size:11.5px;color:var(--cor-texto-suave)}
+  .cat-item b{font-size:12.5px;color:var(--cor-texto);
+    font-variant-numeric:tabular-nums}
+  .cat-tab{font-size:12.5px}
+  .cat-tab th{font-size:10px;padding:7px 10px}
+  .cat-tab th .cat-sub{display:block;font-size:9px;font-weight:600;
+    opacity:.7;letter-spacing:.3px;margin-top:1px}
+  .cat-tab td{padding:5px 10px}
+  .cat-tab td.cat-nome{font-weight:600;white-space:nowrap}
+  /* a oferta que so existe num grupo e o achado da tabela */
+  .cat-tab tr.so-aqui td{background:rgba(255,80,0,.07)}
+  .cat-tab .selo{font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.5px;color:var(--laranja);border:1px solid rgba(255,80,0,.4);
+    border-radius:20px;padding:1px 7px;margin-left:8px;vertical-align:1px}
+  .cat-rodape{display:flex;flex-direction:column;gap:3px;margin-top:9px;
+    font-size:11px;color:var(--cor-texto-suave);line-height:1.45}
+  .cat-quais b{color:var(--cor-texto);font-weight:700}
+
   /* ---- mapa de calor das pracas ---- */
   /* largura AUTOMATICA, nao esticada: com width:100% a celula de um
      numero de seis caracteres virava um bloco de 223px, e o mapa ficava
@@ -557,13 +587,22 @@ const T = {
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Praças",
       sec_pr:"As 20 praças lado a lado",
-      pr_t:"Preço de entrada por praça",
-      pr_x:"O plano mais barato de cada operadora, praça a praça. Célula vazia quer dizer que a operadora não vende ali — o que não é o mesmo que vender caro. O filtro de praça não vale aqui: esta aba compara todas.",
+      pr_t:"O catálogo de cada praça",
+      pr_x:"A diferença entre praças quase nunca é o preço do mesmo plano: é a prateleira. São Paulo tem uma geração do Ultracombo que o resto do país não tem; seis praças do Nordeste têm um Vivo Total que não existe em outro lugar. Célula vazia quer dizer que aquele plano não é vendido ali. O filtro de praça não vale aqui: esta aba compara todas.",
       pr2_t:"Como cada praça se moveu",
       pr2_x:"O preço de entrada do mercado em cada praça — a oferta mais barata entre as operadoras presentes — dia a dia. É onde se vê qual praça reagiu e qual ficou parada.",
       pr_mercado:"Mercado", pr_espalha:"Distância",
       pr_piso_igual:"O preço de entrada do mercado é o mesmo nas 20 praças.",
       pr_mais_barato:"mais barato", pr_mais_caro:"mais caro",
+      pr_oferta:"Oferta",
+      pr_todas:"as {n} praças", pr_n_pracas:"{n} praças",
+      pr_praca_1:"praça", pr_praca_n:"praças",
+      pr_unico:"mesmo catálogo nas {n} praças · {o} ofertas",
+      pr_varios:"{n} catálogos diferentes",
+      pr_exclusiva:"só aqui",
+      pr_resumo:"{a} de {b} operadoras vendem catálogo diferente conforme a praça. Nas outras, a prateleira é a mesma no país inteiro.",
+      pr_resumo_zero:"As {b} operadoras vendem o mesmo catálogo em todas as praças.",
+      pr_resumo_uma:"A única operadora deste produto vende o mesmo catálogo em todas as praças.",
       pr_por_operadora:"Cor comparando cada operadora consigo mesma:",
       pr_no_quadro:"Cor comparando o quadro inteiro:",
       pr_ausente:"não vende nesta praça",
@@ -642,13 +681,22 @@ const T = {
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Cities",
       sec_pr:"The 20 cities side by side",
-      pr_t:"Entry price by city",
+      pr_t:"The catalogue of each city",
       pr2_t:"How each city moved",
       pr_x:"Each carrier's cheapest plan, city by city. An empty cell means the carrier does not sell there — which is not the same as selling dear. The city filter does not apply here: this tab compares them all.",
       pr2_x:"The market entry price in each city — the cheapest offer among the carriers present — day by day.",
       pr_mercado:"Market", pr_espalha:"Spread",
       pr_piso_igual:"The market entry price is the same in all 20 cities.",
       pr_mais_barato:"cheapest", pr_mais_caro:"dearest",
+      pr_oferta:"Offer",
+      pr_todas:"all {n} cities", pr_n_pracas:"{n} cities",
+      pr_praca_1:"city", pr_praca_n:"cities",
+      pr_unico:"same catalogue in all {n} cities · {o} offers",
+      pr_varios:"{n} different catalogues",
+      pr_exclusiva:"only here",
+      pr_resumo:"{a} of {b} carriers sell a different catalogue depending on the city. For the others the shelf is the same nationwide.",
+      pr_resumo_zero:"All {b} carriers sell the same catalogue everywhere.",
+      pr_resumo_uma:"The only carrier in this product sells the same catalogue everywhere.",
       pr_por_operadora:"Colour compares each carrier with itself:",
       pr_no_quadro:"Colour compares the whole grid:",
       pr_ausente:"does not sell in this city",
@@ -1994,178 +2042,163 @@ function entradaNaPraca(dia, praca, operadora){
   return menor;
 }
 
-// Em que passo da rampa um valor cai, dentro de uma faixa.
-//
-// Faixa estreita devolve sempre o passo claro: a Brisanet varia R$ 0,09
-// entre pracas, e espalhar isso pela rampa inteira pintaria 0,1% de
-// diferenca como se fosse enorme - a armadilha classica do mapa de
-// calor, que faz ruido parecer sinal.
-function passoRampa(v, lo, hi){
-  if (v == null || hi == null || lo == null) return 0;
-  if (!lo || (hi - lo) / lo < VARIACAO_MINIMA) return 0;
-  const f = (v - lo) / (hi - lo);
-  return Math.min(RAMPA.length - 1, Math.max(0, Math.round(f * (RAMPA.length - 1))));
-}
+// ---------------- o catalogo de cada praca ----------------
 
-function celulaMapa(valor, passo, dica){
-  if (valor == null) {
-    return `<td class="cel fora" title="${dica}">—</td>`;
+// A assinatura do catalogo de uma praca: o conjunto de ofertas que ela
+// enxerga, pelo nome e pelo preco. Pracas com a mesma assinatura veem a
+// mesma prateleira.
+function catalogoDaPraca(dia, praca, operadora){
+  const itens = [];
+  for (const o of DADOS) {
+    if (o.operadora !== operadora || o.produto !== filtro().produto) continue;
+    if (diaDe(o) !== dia) continue;
+    if (o.praca !== praca && o.praca !== PRACA_NACIONAL) continue;
+    const p = precoDe(o);
+    if (p == null) continue;
+    itens.push({nome: o.nome_oferta || "—", preco: p, oferta: o});
   }
-  return `<td class="cel" style="background:${RAMPA[passo]};`
-       + `color:${RAMPA_TINTA[passo]}" title="${dica}">`
-       + reais(valor).replace("R$ ", "") + `</td>`;
+  itens.sort((a, b) => a.preco - b.preco || a.nome.localeCompare(b.nome));
+  return itens;
 }
 
-// A legenda tem de existir: cor sozinha nao diz o que e mais caro.
-function legendaRampa(rotulo){
-  return `<div class="rampa"><span>${rotulo}</span>`
-       + `<span>${t("pr_mais_barato")}</span>`
-       + `<span class="passos">${RAMPA.map(c =>
-            `<i style="background:${c}"></i>`).join("")}</span>`
-       + `<span>${t("pr_mais_caro")}</span></div>`;
+function assinaturaCatalogo(itens){
+  return itens.map(i => i.nome + "|" + i.preco).join("§");
 }
 
-// 1. praca x operadora, em mapa de calor.
-//
-// CADA COLUNA SE NORMALIZA SOZINHA porque a pergunta e "onde ESTA
-// operadora cobra mais". Operadora nacional vira uma coluna de cor
-// unica, que e a leitura "aqui nao muda nada" sem precisar ler 20
-// numeros iguais.
+// Agrupa as pracas pelo catalogo. Devolve os grupos do maior para o
+// menor: o catalogo da maioria abre a tabela, e o que e excecao aparece
+// ao lado dele.
+function gruposDeCatalogo(dia, operadora){
+  const por = {};
+  for (const praca of todasPracas()) {
+    const itens = catalogoDaPraca(dia, praca, operadora);
+    if (!itens.length) continue;
+    const k = assinaturaCatalogo(itens);
+    (por[k] = por[k] || {itens, pracas: []}).pracas.push(praca);
+  }
+  return Object.values(por).sort((a, b) => b.pracas.length - a.pracas.length);
+}
+
+function rotuloGrupo(g, total){
+  const n = g.pracas.length;
+  if (n === total) return t("pr_todas").replace("{n}", n);
+  if (n <= 3) return g.pracas.map(p => p.split("/")[0]).join(", ");
+  return t("pr_n_pracas").replace("{n}", n);
+}
+
+// O quadro de uma operadora: catalogo unico vira uma linha; mais de um
+// vira tabela de ofertas por grupo de pracas.
+function quadroOperadora(dia, operadora){
+  const grupos = gruposDeCatalogo(dia, operadora);
+  if (!grupos.length) return "";
+
+  const totalPracas = grupos.reduce((n, g) => n + g.pracas.length, 0);
+  const cor = CORES[operadora] || "#999";
+  const marca = `<span class="op-tag"><span class="marcador" `
+    + `style="background:${cor}"></span>${operadora}</span>`;
+
+  if (grupos.length === 1) {
+    const g = grupos[0];
+    return `<div class="cat cat-unico">
+      <div class="cat-cab">${marca}
+        <span class="cat-nota">${t("pr_unico")
+          .replace("{n}", totalPracas).replace("{o}", g.itens.length)}</span></div>
+      <div class="cat-lista">${g.itens.map(i =>
+        `<span class="cat-item"><b>${reais(i.preco).replace("R$ ", "")}</b>`
+        + `${(i.nome || "").slice(0, 34)}</span>`).join("")}</div>
+    </div>`;
+  }
+
+  // todas as ofertas vistas em qualquer grupo, do mais barato ao mais caro
+  const todas = [];
+  for (const g of grupos) {
+    for (const i of g.itens) {
+      if (!todas.some(x => x.nome === i.nome && x.preco === i.preco)) todas.push(i);
+    }
+  }
+  todas.sort((a, b) => a.preco - b.preco || a.nome.localeCompare(b.nome));
+
+  const cab = `<tr><th>${t("pr_oferta")}</th>`
+    // a contagem so entra quando o rotulo lista cidades; com "19 pracas"
+    // no rotulo, repetir "19 pracas" embaixo nao acrescenta nada
+    + grupos.map(g => {
+        const rot = rotuloGrupo(g, totalPracas);
+        const conta = g.pracas.length > 3 ? ""
+          : `<span class="cat-sub">${g.pracas.length} ${
+              g.pracas.length === 1 ? t("pr_praca_1") : t("pr_praca_n")}</span>`;
+        return `<th class="num">${rot}${conta}</th>`;
+      }).join("")
+    + `</tr>`;
+
+  const corpo = todas.map(i => {
+    const onde = grupos.map(g =>
+      g.itens.find(x => x.nome === i.nome && x.preco === i.preco));
+    // oferta que so existe em um grupo e o achado da tabela
+    const exclusiva = onde.filter(Boolean).length === 1;
+    const celulas = onde.map(x => x
+      ? `<td class="num">${reais(x.preco).replace("R$ ", "")}</td>`
+      : `<td class="num vazia">—</td>`).join("");
+    return `<tr${exclusiva ? ' class="so-aqui"' : ""}>`
+      + `<td class="cat-nome">${(i.nome || "").slice(0, 44)}`
+      + (exclusiva ? `<span class="selo">${t("pr_exclusiva")}</span>` : "")
+      + `</td>${celulas}</tr>`;
+  }).join("");
+
+  const quais = grupos.map(g =>
+    `<span class="cat-quais"><b>${rotuloGrupo(g, totalPracas)}:</b> `
+    + g.pracas.map(p => p.split("/")[0]).join(", ") + `</span>`).join("");
+
+  return `<div class="cat">
+    <div class="cat-cab">${marca}
+      <span class="cat-nota">${t("pr_varios").replace("{n}", grupos.length)}</span></div>
+    <div class="tabela-wrap"><table class="cat-tab"><thead>${cab}</thead>`
+    + `<tbody>${corpo}</tbody></table></div>
+    <div class="cat-rodape">${quais}</div>
+  </div>`;
+}
+
 function tabelaPracas(){
   const alvo = document.getElementById("t-pracas");
   const nota = document.getElementById("n-pracas");
   const dia = document.getElementById("f-data").value;
-  const pracas = todasPracas();
   const ops = OPERADORAS.filter(o => !desligadas.has(o));
 
-  const presentes = ops.filter(op => pracas.some(p => entradaNaPraca(dia, p, op)));
-  if (!pracas.length || !presentes.length) {
+  const quadros = [];
+  let comVarios = 0, total = 0;
+  for (const op of ops) {
+    const grupos = gruposDeCatalogo(dia, op);
+    if (!grupos.length) continue;
+    total++;
+    if (grupos.length > 1) comVarios++;
+    quadros.push({op, grupos, html: quadroOperadora(dia, op)});
+  }
+  if (!quadros.length) {
     alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
     nota.textContent = "";
     return;
   }
+  // quem tem catalogo diferente vem primeiro: e o que a aba existe para mostrar
+  quadros.sort((a, b) => b.grupos.length - a.grupos.length
+    || porRelevancia(a.op, b.op));
+  alvo.innerHTML = quadros.map(q => q.html).join("");
 
-  // a faixa de cada operadora, para normalizar a coluna dela
-  const faixa = {};
-  for (const op of presentes) {
-    const vs = pracas.map(p => entradaNaPraca(dia, p, op))
-                     .filter(Boolean).map(v => v.preco);
-    faixa[op] = vs.length ? {lo: Math.min(...vs), hi: Math.max(...vs)} : null;
-  }
-
-  // praca mais barata primeiro: ordem alfabetica nao mostra estrutura
-  const linhas = pracas.map(p => {
-    const vs = presentes.map(op => entradaNaPraca(dia, p, op));
-    const comPreco = vs.filter(Boolean).map(v => v.preco);
-    return {praca: p, vs, piso: comPreco.length ? Math.min(...comPreco) : null};
-  }).filter(l => l.piso != null).sort((a, b) => a.piso - b.piso);
-
-  const cab = `<tr><th class="praca">${t("f_praca")}</th>`
-    + presentes.map(o => `<th>${o}</th>`).join("") + `</tr>`;
-
-  const corpo = linhas.map(l => {
-    const celulas = l.vs.map((v, i) => {
-      const op = presentes[i];
-      const f = faixa[op] || {};
-      const dica = v
-        ? `${op} · ${(v.oferta.nome_oferta || "").replace(/"/g, "")} · ${reais(v.preco)}`
-        : `${op} ${t("pr_ausente")}`;
-      return celulaMapa(v ? v.preco : null, passoRampa(v ? v.preco : null, f.lo, f.hi), dica);
-    }).join("");
-    return `<tr><td class="praca">${l.praca.split("/")[0]}`
-         + `<span class="uf">${l.praca.split("/")[1] || ""}</span></td>`
-         + celulas + `</tr>`;
-  }).join("");
-
-  alvo.innerHTML = `<table class="mapa" id="tab-pracas"><thead>${cab}</thead>`
-    + `<tbody>${corpo}</tbody></table>` + legendaRampa(t("pr_por_operadora"));
-
-  // A nota olha duas coisas, porque elas discordam. Em Fibra o piso e a
-  // Claro, que e nacional e a mais barata em toda parte: o piso e
-  // identico nas 20 pracas enquanto a TIM varia de R$ 79,99 a R$ 89,99
-  // na mesma tela.
-  const pisos = linhas.map(l => l.piso);
-  const vaoPiso = Math.max(...pisos) - Math.min(...pisos);
-  const variam = presentes.filter(op => {
-    const f = faixa[op];
-    return f && f.lo && (f.hi - f.lo) / f.lo >= VARIACAO_MINIMA;
-  }).map(op => `${op} ${reais(faixa[op].lo).replace("R$ ", "")}–`
-              + `${reais(faixa[op].hi).replace("R$ ", "")}`);
-
-  nota.textContent = (vaoPiso < 0.01
-      ? t("pr_piso_igual")
-      : t("pr_piso") + " " + reais(Math.min(...pisos)) + " " + t("l_a") + " "
-        + reais(Math.max(...pisos)))
-    + "  " + (variam.length ? t("pr_variam") + " " + variam.join(" · ")
-                            : t("pr_nenhuma_varia"));
+  // concordancia: com uma operadora so, "As 1 operadoras vendem" nao se le
+  nota.textContent = comVarios
+    ? t("pr_resumo").replace("{a}", comVarios).replace("{b}", total)
+    : (total === 1 ? t("pr_resumo_uma")
+                   : t("pr_resumo_zero").replace("{b}", total));
 
   document.querySelector('[data-t="pr_t"]').textContent =
-    t("pr_t") + " (" + nomeProduto(filtro().produto) + ")";
+    t("pr_t") + " — " + nomeProduto(filtro().produto);
 }
 
-// 2. praca x dia: o piso do mercado em cada praca, dia a dia.
-//
-// Aqui a normalizacao e GLOBAL, e nao por linha: com faixa por linha,
-// uma praca que andou dez centavos ficaria tao colorida quanto uma que
-// andou sessenta reais. Global, a cor significa a mesma coisa em todo o
-// quadro, e a praca parada aparece como faixa lisa.
+// A segunda tabela some: a evolucao por praca repetia a mesma linha 20
+// vezes, pelo mesmo motivo que a primeira. O que muda entre pracas e o
+// catalogo, e catalogo nao se acompanha dia a dia em tabela - quando ele
+// muda, vira evento, e evento ja aparece no aviso do Telegram.
 function tabelaPracasTempo(){
-  const alvo = document.getElementById("t-pracas-tempo");
-  const dias = DIAS.slice(-12);
-  const pracas = todasPracas();
-  const ops = OPERADORAS.filter(o => !desligadas.has(o));
-  if (!dias.length || !pracas.length) {
-    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
-    return;
-  }
-
-  const series = [];
-  for (const p of pracas) {
-    const v = dias.map(d => {
-      const vs = ops.map(op => entradaNaPraca(d, p, op))
-                    .filter(Boolean).map(x => x.preco);
-      return vs.length ? Math.min(...vs) : null;
-    });
-    if (v.some(x => x != null)) series.push({praca: p, v});
-  }
-  if (!series.length) {
-    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
-    return;
-  }
-
-  const todos = series.flatMap(s2 => s2.v).filter(x => x != null);
-  const lo = Math.min(...todos), hi = Math.max(...todos);
-
-  // ordena pelo preco do ultimo dia: o quadro abre pela praca mais
-  // barata hoje, e o olho desce para as mais caras
-  series.sort((a, b) => {
-    const ua = [...a.v].reverse().find(x => x != null);
-    const ub = [...b.v].reverse().find(x => x != null);
-    return (ua == null) - (ub == null) || ua - ub;
-  });
-
-  const cab = `<tr><th class="praca">${t("f_praca")}</th>`
-    + dias.map(d => `<th>${dataCurta(d)}</th>`).join("") + `</tr>`;
-
-  const corpo = series.map(s2 => {
-    const celulas = s2.v.map((x, i) => {
-      const antes = i > 0 ? s2.v[i - 1] : null;
-      const mexeu = x != null && antes != null && Math.abs(x - antes) >= 0.01;
-      const dica = x == null ? t("sem_dado")
-        : `${s2.praca.split("/")[0]} · ${dataCurta(dias[i])} · ${reais(x)}`
-          + (mexeu ? ` (${x > antes ? "+" : ""}${reais(x - antes).replace("R$ ", "")})` : "");
-      return celulaMapa(x, passoRampa(x, lo, hi), dica);
-    }).join("");
-    return `<tr><td class="praca">${s2.praca.split("/")[0]}`
-         + `<span class="uf">${s2.praca.split("/")[1] || ""}</span></td>`
-         + celulas + `</tr>`;
-  }).join("");
-
-  alvo.innerHTML = `<table class="mapa" id="tab-pracas-tempo"><thead>${cab}</thead>`
-    + `<tbody>${corpo}</tbody></table>` + legendaRampa(t("pr_no_quadro"));
-
-  document.querySelector('[data-t="pr2_t"]').textContent =
-    t("pr2_t") + " (" + nomeProduto(filtro().produto) + ")";
+  const bloco = document.getElementById("t-pracas-tempo");
+  if (bloco && bloco.closest(".bloco")) bloco.closest(".bloco").hidden = true;
 }
 
 function tabelaPorPlayer(){
