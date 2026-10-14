@@ -269,10 +269,30 @@ def enriquecer(oferta, card):
 
 REGULAMENTO = "https://vivo.com.br/bin/vivo-portal/rgc-offer-json-file?anatelCode=%s"
 
+# O formato de um codigo Anatel da Vivo: VIV e doze digitos ou mais.
+#
+# A vitrine as vezes publica codigo quebrado - em 14/10/2026 o card de
+# "Vivo Pos com Globoplay" trazia "IV202600045258", sem o V inicial.
+# Consultar o regulamento com ele devolve HTTP 400, e isso custava 100
+# requisicoes perdidas por dia e um aviso enganoso ("regulamento
+# falhou") sobre o que e, na verdade, erro de digitacao da fonte.
+#
+# O codigo e gravado como a Vivo publicou - o V que falta nao e nosso
+# para inventar -, mas nao vai ao regulamento.
+CODIGO_VALIDO = re.compile(r"^VIV\d{12,}$")
+
 # Cache da rodada: as 20 pracas compartilham os mesmos ~25 codigos, entao
 # sem isto seriam 500 downloads de 500 KB para baixar 25 documentos.
 _cache_regulamento = {}
 _falhas_regulamento = []
+# codigo que a vitrine publicou fora do padrao: nao e falha nossa nem
+# instabilidade da Vivo, e erro de digitacao deles, e vai dito assim
+_codigos_quebrados = []
+
+
+def codigo_malformado(codigo):
+    """O codigo existe mas nao tem o formato que a Anatel usa?"""
+    return bool(codigo) and not CODIGO_VALIDO.match(codigo)
 
 
 def regulamento(op, codigo):
@@ -286,6 +306,11 @@ def regulamento(op, codigo):
     """
     if codigo in _cache_regulamento:
         return _cache_regulamento[codigo]
+    if codigo_malformado(codigo):
+        # nao adianta perguntar: o codigo nao existe na agencia
+        _cache_regulamento[codigo] = None
+        _codigos_quebrados.append(codigo)
+        return None
 
     extras = cabecalhos_api("https://vivo.com.br")
     extras["Sec-Fetch-Site"] = "same-origin"
@@ -606,6 +631,13 @@ def coletar(cidade, uf, verbose=True):
             print("  lite      %d ofertas" % len(lites))
         time.sleep(PAUSA)
 
+    if _codigos_quebrados:
+        saida["avisos"].append(
+            "a vitrine publicou %d codigo(s) Anatel fora do padrao (%s) - o "
+            "codigo foi gravado como veio, mas sem regulamento nao ha "
+            "fidelidade, multa nem preco de tabela nessas ofertas. Erro da "
+            "fonte, nao ha o que reprocessar"
+            % (len(_codigos_quebrados), ", ".join(_codigos_quebrados[:3])))
     if _falhas_regulamento:
         saida["avisos"].append(
             "regulamento falhou em %d oferta(s) - fidelidade, multa e preco "

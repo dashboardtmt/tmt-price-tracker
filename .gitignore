@@ -37,3 +37,6 @@ dados.json
 
 # Vercel: o link local do projeto e os tokens que o CLI baixa
 .vercel/
+
+# Exportacao local do banco para conferir numeros fora do site
+d.json

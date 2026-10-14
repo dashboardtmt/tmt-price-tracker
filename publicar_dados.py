@@ -24,6 +24,7 @@ import io
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -119,20 +120,42 @@ def main():
     publica = url_publica(url)
     print("publicado em: %s" % publica)
 
-    # conferir que esta mesmo legivel sem credencial nenhuma, que e o
-    # ponto de todo este arquivo existir
-    req = urllib.request.Request(publica)
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            devolta = json.loads(r.read().decode("utf-8", "replace"))
-        print("lido de volta sem credencial: %d ofertas" % len(devolta))
-        if len(devolta) != len(linhas):
-            print("FALHOU: subiu %d e voltou %d" % (len(linhas), len(devolta)))
-            return 1
-    except Exception as e:
-        print("FALHOU ao ler sem credencial: %s" % e)
-        return 1
-    return 0
+    # Conferir que esta mesmo legivel sem credencial nenhuma, que e o
+    # ponto de todo este arquivo existir.
+    #
+    # COM CACHE FURADO E COM REPETICAO. Em 13/10/2026 esta conferencia
+    # devolveu 19.607 linhas logo apos subir 21.234 - era a copia da
+    # vespera ainda no CDN, e a diferenca batia exatamente com as 1.627
+    # capturas daquele dia. O arquivo estava certo; a leitura e que
+    # chegou velha, e o job morreu depois de publicar.
+    ultimo = None
+    for tentativa in range(1, 4):
+        if tentativa > 1:
+            time.sleep(4 * (tentativa - 1))
+        # parametro que muda a cada chamada: o CDN nao tem copia dessa URL
+        req = urllib.request.Request(
+            "%s?conferencia=%d" % (publica, int(time.time() * 1000)))
+        req.add_header("Cache-Control", "no-cache")
+        req.add_header("Pragma", "no-cache")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                devolta = json.loads(r.read().decode("utf-8", "replace"))
+        except Exception as e:
+            ultimo = "erro ao ler: %s" % e
+            print("tentativa %d: %s" % (tentativa, ultimo))
+            continue
+        if len(devolta) == len(linhas):
+            print("lido de volta sem credencial: %d ofertas%s"
+                  % (len(devolta), "" if tentativa == 1
+                     else " (na tentativa %d)" % tentativa))
+            return 0
+        ultimo = "subiu %d e voltou %d" % (len(linhas), len(devolta))
+        print("tentativa %d: %s - pode ser cache, repetindo" % (tentativa, ultimo))
+
+    print("FALHOU a conferencia depois de 3 tentativas: %s" % ultimo)
+    print("  O arquivo PODE estar correto no Storage - confira antes de "
+          "reprocessar, porque a publicacao em si deu certo.")
+    return 1
 
 
 if __name__ == "__main__":
