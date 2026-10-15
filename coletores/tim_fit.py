@@ -199,7 +199,12 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
             # a etiqueta lista os apps por extenso: "Aya Books Light,
             # Aya Ensinah Light e EXA Seguranca"
             "apps": apps.apps_do_texto(o.get("aplicativos")),
-            "apps_rotulo": apps.rotulo(apps.apps_do_texto(o.get("aplicativos"))),
+            "apps_rotulo": apps.rotulo(
+                apps.apps_do_texto(o.get("aplicativos")),
+                o.get("aplicativos"), o.get("nome_oferta")),
+            "apps_planos": apps.planos_dos_apps(
+                apps.apps_do_texto(o.get("aplicativos")),
+                o.get("aplicativos"), o.get("nome_oferta")),
             "campanha": None, "id_catalogo": None,
         })
         saida["ofertas"].append(o)

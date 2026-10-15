@@ -406,6 +406,15 @@ def aplicar_regulamento(oferta, reg):
         oferta["tecnologia"] = scm["listaTecnologia"]
     oferta["nome_regulamento"] = reg.get("nomeOferta")
 
+    # O tier do app costuma estar SO no nome registrado na Anatel: a
+    # vitrine diz "Vivo Pos com Disney+" e a agencia, "VIVO POS COM
+    # DISNEY+ PADRAO". Refaz o rotulo com essa fonte a mais.
+    if oferta.get("apps"):
+        fontes = (oferta.get("nome_regulamento"), oferta.get("nome_oferta"),
+                  oferta.get("bruto_texto"))
+        oferta["apps_rotulo"] = apps.rotulo(oferta["apps"], *fontes)
+        oferta["apps_planos"] = apps.planos_dos_apps(oferta["apps"], *fontes)
+
     # Assinatura da composicao: o conjunto de codigos SVA, ordenado.
     #
     # Nao e preciso saber que app e cada codigo - o cruzamento mostrou que
@@ -589,7 +598,13 @@ def coletar(cidade, uf, verbose=True):
                 # com Disney+"). O codigo SVA nao distingue - vem igual
                 # em todas as ofertas.
                 "apps": apps.apps_da_oferta(c["plano"]),
-                "apps_rotulo": apps.rotulo(apps.apps_da_oferta(c["plano"])),
+                # o tier sai daqui quando a vitrine o escreve; quando
+                # nao, o nome registrado na Anatel ainda pode traze-lo, e
+                # por isso o rotulo e refeito depois do regulamento
+                "apps_rotulo": apps.rotulo(
+                    apps.apps_da_oferta(c["plano"]), c["plano"], c["texto"]),
+                "apps_planos": apps.planos_dos_apps(
+                    apps.apps_da_oferta(c["plano"]), c["plano"], c["texto"]),
                 # o texto do card alimenta o cruzamento que deduz quais
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],

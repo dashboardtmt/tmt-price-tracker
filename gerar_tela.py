@@ -571,6 +571,10 @@ const FONTE = "__FONTE__";
 const CORES = __CORES__;
 // so referencia: o preco avulso aparece na dica e nunca entra em conta
 const PRECOS_APPS = __APPS__;
+// tier -> preco avulso, por app. O preco pertence ao TIER: Globoplay
+// custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
+// so "Globoplay" nao diz o preco.
+const TIERS_APPS = __TIERS__;
 const GERADO = "__GERADO__";
 
 const T = {
@@ -663,6 +667,7 @@ const T = {
       parcial:"Atenção: {d} tem {a} operadora(s) contra {b} no dia anterior — a coleta desse dia está incompleta ou ainda rodando. Os números de hoje podem subir.",
       sem_dado:"Nenhuma oferta capturada com este filtro.",
       sem_preco_avulso:"preço avulso não conferido",
+      sem_tier:"a operadora não declara qual plano do app inclui",
       sem_praca:"Esta operadora não vende este produto nesta praça — célula vazia, nunca zero.",
       de:"de", preco:"Preço", entrega:"Entrega", contrato:"Contrato",
       col:["Operadora","Oferta","Entrega","Contrato","Preço"],
@@ -754,6 +759,7 @@ const T = {
       parcial:"Heads up: {d} has {a} carrier(s) against {b} the day before — that day's collection is incomplete or still running. Today's figures may rise.",
       sem_dado:"No offer captured with this filter.",
       sem_preco_avulso:"retail price not verified",
+      sem_tier:"the carrier does not state which plan of the app is included",
       sem_praca:"This carrier does not sell this product here — blank cell, never zero.",
       de:"of", preco:"Price", entrega:"Delivers", contrato:"Contract",
       col:["Carrier","Offer","Delivers","Contract","Price"],
@@ -823,17 +829,44 @@ function vantagem(o){
   return (t_.bundles[n] || "—");
 }
 
-// "Netflix Padrão custa R$ 44,90 por mês avulso" - referencia, nunca
+// "Disney+ Padrão custa R$ 49,90 por mês avulso" - referencia, nunca
 // parcela de conta.
+//
+// O tier vem da oferta, nao de um padrao nosso: apps_planos guarda o
+// que a operadora declarou. Onde ela nao declarou, nao ha preco a
+// mostrar, porque o preco e do tier. "Vivo Pós com Netflix" nao diz se
+// o Netflix incluso e o de R$ 20,90 ou o de R$ 59,90.
+function precoDoApp(a, tier){
+  const tiers = TIERS_APPS[a];
+  if (!tiers) {                      // app de plano unico
+    const e = PRECOS_APPS[a];
+    return e ? e.preco_avulso : null;
+  }
+  if (!tier) return null;
+  const achado = tiers.find(x => x[0] === tier);
+  return achado ? achado[1] : null;
+}
+
 function detalheApps(o){
   const lista = o.apps || (o.bruto && o.bruto.apps) || [];
+  const planos = o.apps_planos || (o.bruto && o.bruto.apps_planos) || {};
   const partes = [];
   for (const a of lista) {
     const e = PRECOS_APPS[a];
     if (!e) continue;
-    partes.push(e.preco_avulso != null
-      ? `${e.nome}${e.plano ? " " + e.plano : ""}: ${reais(e.preco_avulso)}/${t("mes")} avulso`
-      : `${e.nome}: ${t("sem_preco_avulso")}`);
+    const tier = planos[a] || null;
+    const preco = precoDoApp(a, tier);
+    // "YouTube Premium" + tier "Premium" nao vira "YouTube Premium
+    // Premium": o nome do app ja terminou no tier
+    const repete = tier && e.nome.toLowerCase().endsWith(tier.toLowerCase());
+    const nome = e.nome + (tier && !repete ? " " + tier : "");
+    // sem preco por dois motivos diferentes, e o leitor merece saber
+    // qual: ou a operadora nao disse o plano, ou o plano e conhecido e
+    // o preco e que nao foi conferido
+    const faltaTier = TIERS_APPS[a] && !tier;
+    partes.push(preco != null
+      ? `${nome}: ${reais(preco)}/${t("mes")} avulso`
+      : `${nome}: ${faltaTier ? t("sem_tier") : t("sem_preco_avulso")}`);
   }
   return partes.join(" · ");
 }
@@ -2649,6 +2682,7 @@ def main():
             # a tabela de apps vai junto: a tela escreve a dica a
             # partir dela, e o preco avulso e so referencia
             .replace("__APPS__", json.dumps(apps.APPS, ensure_ascii=False))
+            .replace("__TIERS__", json.dumps(apps.TIERS, ensure_ascii=False))
             .replace("__GERADO__", agora))
     io.open(a.saida, "w", encoding="utf-8").write(html)
     print("tela gerada: %s (%d KB)%s"

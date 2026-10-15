@@ -12,10 +12,20 @@ leitura mais confiavel que ela oferece - os codigos SVA do regulamento
 vem todos no mesmo bloco e nao distinguem uma oferta da outra, e foi por
 isso que o dicionario_sva.py so conseguiu associar 1 de 20 codigos.
 
-QUAL PLANO, quando se sabe. A vitrine declara: "Assinatura Netflix Padrao
-inclusa", "Assinatura YouTube Premium Lite inclusa", "Assinatura Spotify
-Premium inclusa". Onde ela nao declara - "Assinatura Globoplay inclusa" -
-o plano fica sem nome, porque Globoplay tem dois com precos diferentes.
+QUAL PLANO - E SO QUANDO A FONTE DIZ. Medido em 15/10/2026, a Vivo
+declara o tier em tres lugares e cada um conta: o nome na vitrine
+("Vivo Controle YouTube Premium"), o nome registrado na Anatel dentro do
+regulamento ("VIVO POS COM DISNEY+ PADRAO", "VIVO POS COM SPOTIFY
+PREMIUM") e o texto do card. Onde nenhum dos tres declara, o tier fica
+vazio - e com ele o preco de referencia, porque o preco pertence ao
+tier, nao ao app.
+
+Netflix e o caso que obrigou esta regra. A oferta se chama "Vivo Pos com
+Netflix", o nome na Anatel e "VIVO POS COM NETFLIX" e o regulamento
+inteiro - 1.928 caracteres - nao tem a palavra Padrao, Premium nem
+anuncio em lugar nenhum. O tracker vinha escrevendo "Netflix (Padrao)" e
+R$ 44,90 por conta de um padrao no dicionario. Era palpite com cara de
+dado: a Vivo pode estar dando qualquer um dos tres planos.
 
 O QUE ESTE MODULO NAO FAZ: subtrair o preco do app do preco do plano.
 O preco de varejo esta aqui como referencia do que o assinante receberia,
@@ -27,101 +37,241 @@ import re
 # app -> o que se sabe dele. O preco e REFERENCIA, nunca parcela de
 # conta: serve para dizer "este plano inclui Netflix Padrao, que avulso
 # custa R$ 44,90", e so.
+#
+# "preco_avulso" aqui no nivel do app vale para quem tem UM plano so.
+# Quem tem varios guarda preco em TIERS, por tier, e nao recebe preco
+# nenhum quando a fonte nao diz qual deles e.
 APPS = {
     "netflix": {
-        "nome": "Netflix", "plano": "Padrão", "preco_avulso": 44.90,
+        "nome": "Netflix", "preco_avulso": None,
         "fonte": "https://help.netflix.com/pt/node/24926",
         "conferido_em": "2026-10-08",
-        "evidencia": "Padrão : R$ 44,90/mês",
+        "evidencia": "tres planos com precos diferentes; o preco so vale "
+                     "com o tier declarado pela operadora, e nenhuma "
+                     "declara. Padrão: R$ 44,90/mês",
     },
     "disney": {
-        "nome": "Disney+", "plano": "Padrão", "preco_avulso": 49.90,
+        "nome": "Disney+", "preco_avulso": None,
         "fonte": "https://www.disneyplus.com/pt-br",
         "conferido_em": "2026-10-08",
         "evidencia": "colunas Premium / Padrão / Padrão com anúncios "
                      "sobre R$ 69,90 / R$ 49,90 / R$ 29,90",
     },
     "spotify": {
-        "nome": "Spotify", "plano": "Premium Individual", "preco_avulso": 23.90,
+        "nome": "Spotify", "preco_avulso": None,
         "fonte": "https://www.spotify.com/br-pt/premium/",
         "conferido_em": "2026-10-08",
         "evidencia": "Premium Individual. R$ 0 por 1 mês, depois R$ 23,90 por mês",
     },
     "youtube": {
-        "nome": "YouTube Premium", "plano": "Lite", "preco_avulso": 16.90,
+        "nome": "YouTube Premium", "preco_avulso": None,
         "fonte": "https://www.youtube.com/premium",
         "conferido_em": "2026-10-08",
         "evidencia": "Premium Lite ... Monthly R$16.90/month",
     },
     "globoplay": {
-        "nome": "Globoplay", "plano": None, "preco_avulso": None,
+        "nome": "Globoplay", "preco_avulso": None,
         "fonte": "https://globoplay.globo.com/assine/",
-        "conferido_em": "2026-10-08",
-        "evidencia": "a Vivo nao diz qual plano inclui, e Globoplay tem "
-                     "Padrao com anuncios e Premium com precos diferentes",
+        "conferido_em": "2026-10-15",
+        "evidencia": "mensal: Padrão com anúncios R$ 22,90, Premium "
+                     "R$ 39,90. A Vivo nao diz qual inclui, entao nenhum "
+                     "dos dois precos vale para a oferta dela",
     },
     "amazon": {
-        "nome": "Amazon Prime", "plano": None, "preco_avulso": None,
+        "nome": "Amazon Prime", "preco_avulso": None,
         "fonte": "https://www.amazon.com.br/amazonprime",
         "conferido_em": "2026-10-08",
         "evidencia": "a pagina responde 503 a leitura automatica",
     },
-    "premiere": {"nome": "Premiere", "plano": None, "preco_avulso": None,
+    "premiere": {"nome": "Premiere", "preco_avulso": None,
                  "fonte": None, "conferido_em": None,
                  "evidencia": "ainda nao conferido"},
-    "vale_saude": {"nome": "Vale Saúde Sempre", "plano": None,
-                   "preco_avulso": None, "fonte": None, "conferido_em": None,
+    "vale_saude": {"nome": "Vale Saúde Sempre", "preco_avulso": None,
+                   "fonte": None, "conferido_em": None,
                    "evidencia": "telemedicina, nao streaming"},
-    "vivae": {"nome": "Vivae", "plano": None, "preco_avulso": None,
+    "vivae": {"nome": "Vivae", "preco_avulso": None,
               "fonte": None, "conferido_em": None,
               "evidencia": "educacao, nao streaming"},
-    "vivo_tv": {"nome": "Vivo TV Inicial", "plano": None, "preco_avulso": None,
+    "vivo_tv": {"nome": "Vivo TV Inicial", "preco_avulso": None,
                 "fonte": None, "conferido_em": None,
                 "evidencia": "servico da propria Vivo; nao ha preco avulso"},
-    "vivo_travel": {"nome": "Vivo Travel", "plano": None, "preco_avulso": None,
+    "vivo_travel": {"nome": "Vivo Travel", "preco_avulso": None,
                     "fonte": None, "conferido_em": None,
                     "evidencia": "roaming, nao e app de assinatura"},
-    "vivo_musica": {"nome": "Vivo Música", "plano": None, "preco_avulso": None,
+    "vivo_musica": {"nome": "Vivo Música", "preco_avulso": None,
                     "fonte": None, "conferido_em": None,
                     "evidencia": "servico da propria Vivo; nao ha preco avulso"},
 
     # --- apps de catalogo: aparecem no TEXTO da oferta, nao no nome.
     # Sao o conteudo tipico do nivel 1, e o leitor merece saber quais
     # sao em vez de ler "apps menores".
-    "paramount": {"nome": "Paramount+", "plano": None, "preco_avulso": None,
+    "paramount": {"nome": "Paramount+", "preco_avulso": None,
                   "fonte": None, "conferido_em": None,
                   "evidencia": "ainda nao conferido"},
-    "max": {"nome": "Max", "plano": None, "preco_avulso": None,
+    "max": {"nome": "Max", "preco_avulso": None,
             "fonte": None, "conferido_em": None,
             "evidencia": "ainda nao conferido"},
-    "telecine": {"nome": "Telecine", "plano": None, "preco_avulso": None,
+    "telecine": {"nome": "Telecine", "preco_avulso": None,
                  "fonte": None, "conferido_em": None,
                  "evidencia": "ainda nao conferido"},
-    "deezer": {"nome": "Deezer", "plano": None, "preco_avulso": None,
+    "deezer": {"nome": "Deezer", "preco_avulso": None,
                "fonte": None, "conferido_em": None,
                "evidencia": "ainda nao conferido"},
-    "skeelo": {"nome": "Skeelo", "plano": None, "preco_avulso": None,
+    "skeelo": {"nome": "Skeelo", "preco_avulso": None,
                "fonte": None, "conferido_em": None,
                "evidencia": "app de catalogo, sem preco avulso relevante"},
-    "mcafee": {"nome": "McAfee", "plano": None, "preco_avulso": None,
+    "mcafee": {"nome": "McAfee", "preco_avulso": None,
                "fonte": None, "conferido_em": None,
                "evidencia": "app de catalogo, sem preco avulso relevante"},
-    "aya_books": {"nome": "Aya Books", "plano": None, "preco_avulso": None,
+    "aya_books": {"nome": "Aya Books", "preco_avulso": None,
                   "fonte": None, "conferido_em": None,
                   "evidencia": "app de catalogo da TIM"},
-    "aya_ensinah": {"nome": "Aya Ensinah", "plano": None, "preco_avulso": None,
+    "aya_ensinah": {"nome": "Aya Ensinah", "preco_avulso": None,
                     "fonte": None, "conferido_em": None,
                     "evidencia": "app de catalogo da TIM"},
-    "exa": {"nome": "EXA Segurança", "plano": None, "preco_avulso": None,
+    "exa": {"nome": "EXA Segurança", "preco_avulso": None,
             "fonte": None, "conferido_em": None,
             "evidencia": "app de catalogo da TIM"},
-    "goread": {"nome": "GoRead", "plano": None, "preco_avulso": None,
+    "goread": {"nome": "GoRead", "preco_avulso": None,
                "fonte": None, "conferido_em": None,
                "evidencia": "app de catalogo"},
-    "claro_musica": {"nome": "Claro Música", "plano": None,
-                     "preco_avulso": None, "fonte": None, "conferido_em": None,
+    "claro_musica": {"nome": "Claro Música", "preco_avulso": None, "fonte": None, "conferido_em": None,
                      "evidencia": "servico da propria Claro"},
 }
+
+# O tier de cada app, e o preco avulso DAQUELE tier quando conferido.
+#
+# A ordem importa: "Padrão com anúncios" tem de ser testado antes de
+# "Padrão", senao o mais curto casa primeiro e o tier sai errado.
+#
+# Preco None quer dizer tier que existe mas cujo preco eu nao conferi na
+# fonte - entao a oferta mostra o tier e nao mostra preco. App que nao
+# esta aqui tem um plano so, e usa o preco_avulso do dicionario acima.
+TIERS = {
+    "netflix": (
+        ("Padrão com anúncios", None),
+        ("Premium", None),
+        ("Padrão", 44.90),
+    ),
+    "disney": (
+        ("Padrão com anúncios", 29.90),
+        ("Premium", 69.90),
+        ("Padrão", 49.90),
+    ),
+    "globoplay": (
+        ("Padrão com anúncios", 22.90),
+        ("Premium", 39.90),
+    ),
+    "youtube": (
+        ("Lite", 16.90),
+        ("Premium", None),
+    ),
+    # A Vivo registra "SPOTIFY PREMIUM" na Anatel. O Premium tem quatro
+    # assinaturas (Individual, Duo, Familia, Universitario) e um plano de
+    # celular da uma conta, que e a Individual - o preco abaixo e dela, e
+    # isso esta dito na evidencia para quem quiser conferir a leitura.
+    "spotify": (
+        ("Premium", 23.90),
+    ),
+}
+
+# Janela a partir do nome do app: "DISNEY+ PADRAO" tem o tier colado, e
+# "Controle YouTube Premium Lite" tem uma palavra no meio. Mais longe do
+# que isso ja e outra frase, e tier de outra coisa.
+JANELA_TIER = 34
+
+
+def _sem_acento(t):
+    for de, para in (("ã", "a"), ("á", "a"), ("â", "a"), ("é", "e"),
+                     ("ê", "e"), ("í", "i"), ("ó", "o"), ("ô", "o"),
+                     ("õ", "o"), ("ú", "u"), ("ç", "c")):
+        t = t.replace(de, para)
+    return t
+
+
+def _marcas_alheias(app):
+    """A primeira palavra do nome de cada OUTRO app conhecido.
+
+    Serve de parede: "Netflix e Spotify Premium" nao pode dar tier
+    Premium para o Netflix, porque o Premium esta do outro lado do nome
+    do Spotify.
+    """
+    fora = []
+    for chave, e in APPS.items():
+        if chave == app:
+            continue
+        primeira = _sem_acento((e.get("nome") or chave).lower()).split()[0]
+        if len(primeira) >= 4:
+            fora.append(primeira)
+    return fora
+
+
+def tier_do_texto(app, *fontes):
+    """O tier que a FONTE declara para este app, ou None.
+
+    Nunca devolve um tier por padrao. Se a operadora nao escreveu qual
+    plano do app a oferta inclui, a resposta e None - e sem tier nao ha
+    preco de referencia, porque o preco pertence ao tier.
+    """
+    tiers = TIERS.get(app)
+    if not tiers:
+        return None
+    nome = _sem_acento((APPS.get(app, {}).get("nome") or app).lower())
+    marca = nome.split()[0]          # "YouTube Premium" -> "youtube"
+    alheias = _marcas_alheias(app)
+    for fonte in fontes:
+        if not fonte:
+            continue
+        t = _sem_acento(str(fonte).lower())
+        inicio = 0
+        while True:
+            i = t.find(marca, inicio)
+            if i < 0:
+                break
+            # A janela comeca DEPOIS do nome do app, com nome completo
+            # quando ele esta ali: "YouTube Premium" e nome, nao tier, e
+            # so o que vem depois dele pode ser lido como tier.
+            fim_do_nome = i + (len(nome) if t[i:i + len(nome)] == nome
+                               else len(marca))
+            janela = t[fim_do_nome:fim_do_nome + JANELA_TIER]
+            # a janela acaba na frase seguinte ou no proximo app
+            for parada in [janela.find("."), janela.find(";")] + \
+                          [janela.find(m) for m in alheias]:
+                if parada > 0:
+                    janela = janela[:parada]
+            for nome_tier, _preco in tiers:
+                if _sem_acento(nome_tier.lower()) in janela:
+                    return nome_tier
+            inicio = i + len(marca)
+    return None
+
+
+def preco_avulso(app, tier=None):
+    """O preco avulso que vale para este app NESTE tier, ou None."""
+    e = APPS.get(app)
+    if not e:
+        return None
+    tiers = TIERS.get(app)
+    if not tiers:
+        # um plano so: o preco do dicionario vale sem precisar de tier
+        return e.get("preco_avulso")
+    if tier is None:
+        return None
+    for nome_tier, preco in tiers:
+        if nome_tier == tier:
+            return preco
+    return None
+
+
+def planos_dos_apps(lista, *fontes):
+    """{app: tier} para os apps cujo tier a fonte declara."""
+    saida = {}
+    for a in lista or ():
+        t = tier_do_texto(a, *fontes)
+        if t:
+            saida[a] = t
+    return saida or None
+
 
 # A ordem importa: "YouTube Premium" tem de ser testado antes de
 # qualquer regra mais curta que pudesse casar dentro dele.
@@ -237,13 +387,24 @@ def apps_da_oferta(nome):
     return achados
 
 
-def rotulo(apps):
-    """"Netflix (Padrão)" ou "Netflix + Spotify". Vazio se nao houver."""
+def rotulo(apps, *fontes):
+    """"Disney+ (Padrão)" ou "Netflix + Spotify". Vazio se nao houver.
+
+    O tier entre parenteses so aparece quando alguma das fontes passadas
+    o declara - nome da oferta, nome registrado na Anatel ou texto do
+    card. Sem declaracao, sai o nome do app sozinho, que e o que a
+    operadora de fato disse.
+    """
     nomes = []
     for a in apps or ():
         e = APPS.get(a)
         if not e:
             continue
-        nomes.append("%s (%s)" % (e["nome"], e["plano"]) if e.get("plano")
-                     else e["nome"])
+        tier = tier_do_texto(a, *fontes)
+        # "YouTube Premium" + tier "Premium" nao vira "YouTube Premium
+        # (Premium)": o nome do app ja terminou no tier
+        if tier and not e["nome"].lower().endswith(tier.lower()):
+            nomes.append("%s (%s)" % (e["nome"], tier))
+        else:
+            nomes.append(e["nome"])
     return " + ".join(nomes)

@@ -107,7 +107,9 @@ def extrair(texto):
             "preco_primeiro_mes": _num(promo),
             "nivel_bundle": nivel_bundle(meio),
             "apps": apps.apps_do_texto(meio),
-            "apps_rotulo": apps.rotulo(apps.apps_do_texto(meio)),
+            "apps_rotulo": apps.rotulo(apps.apps_do_texto(meio), meio),
+            "apps_planos": apps.planos_dos_apps(
+                apps.apps_do_texto(meio), meio),
             "composicao": meio.strip()[:400],
         })
     return ofertas

@@ -40,3 +40,6 @@ dados.json
 
 # Exportacao local do banco para conferir numeros fora do site
 d.json
+
+# tela de teste gerada no local, nunca versionada
+teste_local.html

@@ -354,9 +354,12 @@ def coletar(cidade, uf, verbose=True):
             print("  %-9s FALHOU (%s)" % ("combo", err))
     else:
         for o in combos:
-            # o "inclui:" da composicao nomeia o que vem junto
+            # o "inclui:" da composicao nomeia o que vem junto, e as
+            # vezes tambem o tier ("Netflix Padrao")
             o["apps"] = apps.apps_do_texto(o.get("composicao"))
-            o["apps_rotulo"] = apps.rotulo(o["apps"])
+            _fontes = (o.get("composicao"), o.get("nome_oferta"))
+            o["apps_rotulo"] = apps.rotulo(o["apps"], *_fontes)
+            o["apps_planos"] = apps.planos_dos_apps(o["apps"], *_fontes)
             o.update({"operadora": "TIM", "produto": "combo", "praca": praca,
                       "pagina": "combo",
                       "capturado_em": agora.isoformat(),

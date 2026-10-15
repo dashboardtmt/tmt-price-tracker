@@ -33,7 +33,11 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           # e escreve "uma assinatura" em quatro ofertas que se
           # distinguem exatamente pelo app.
           "apps_rotulo:bruto->>apps_rotulo,"
-          "apps:bruto->apps")
+          "apps:bruto->apps,"
+          # e QUAL tier de cada app, quando a operadora declarou. O preco
+          # avulso pertence ao tier, nao ao app: sem isto a tela mostraria
+          # o preco de um plano que a oferta pode nao incluir.
+          "apps_planos:bruto->apps_planos")
 
 def exportar(dias):
     desde = (date.today() - timedelta(days=dias)).isoformat()

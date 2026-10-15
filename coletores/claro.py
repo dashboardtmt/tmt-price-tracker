@@ -423,9 +423,15 @@ def coletar(cidade, uf, verbose=True):
                     else franquia_contratual(c["composicao"]),
                 "degrau_mbps": mbps(c["destaque"]) if real in ("fibra", "combo") else None,
                 "nivel_bundle": nivel_bundle(c["composicao"]),
-                # a frase da vitrine nomeia o que acompanha a oferta
+                # a frase da vitrine nomeia o que acompanha a oferta, e
+                # as vezes tambem o tier ("Netflix Padrao")
                 "apps": apps.apps_do_texto(c.get("composicao")),
-                "apps_rotulo": apps.rotulo(apps.apps_do_texto(c.get("composicao"))),
+                "apps_rotulo": apps.rotulo(
+                    apps.apps_do_texto(c.get("composicao")),
+                    c.get("composicao"), c.get("nome_oferta")),
+                "apps_planos": apps.planos_dos_apps(
+                    apps.apps_do_texto(c.get("composicao")),
+                    c.get("composicao"), c.get("nome_oferta")),
                 "preco_cheio": None, "codigo_anatel": None, "campanha": None,
                 "ibge": ibge,
             })
