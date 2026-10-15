@@ -1335,6 +1335,18 @@ function eixos(rotuloY){
   };
 }
 
+// Rotulo de eixo nunca sai da horizontal. O helper eixos() ja travava
+// isso nos graficos que passam por ele; o de barras monta a escala
+// sozinho e herdava o padrao do Chart.js, que inclina 50 graus assim que
+// o espaco aperta. No padrao global a regra vale para todo grafico,
+// inclusive os que ainda nao existem.
+if (window.Chart) {
+  for (const eixo of ["category", "linear", "logarithmic", "time"]) {
+    const d = Chart.defaults.scales[eixo];
+    if (d) { d.ticks = Object.assign({}, d.ticks, {maxRotation: 0, minRotation: 0}); }
+  }
+}
+
 function trocar(id, config){
   if (graficos[id]) graficos[id].destroy();
   graficos[id] = new Chart(document.getElementById(id), config);
