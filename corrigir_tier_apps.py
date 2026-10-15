@@ -78,12 +78,24 @@ def _gravar(url, chave, ident, bruto):
         return 0, str(e)[:160]
 
 
-def recalcular(bruto):
-    """(rotulo, planos) relidos da fonte, ou (None, None) se nao ha app."""
+def recalcular(bruto, por_codigo=None):
+    """(rotulo, planos) relidos da fonte, ou (None, None) se nao da.
+
+    O registro da Anatel esta em metade das linhas, embora seja
+    propriedade da OFERTA e nao da linha: a mesma oferta gravada em
+    outra praca tem o mesmo registro. O por_codigo traz esse nome pelo
+    codigo Anatel, para a linha que nao o guardou ser lida pela mesma
+    fonte que as outras - em vez de perder um tier que a agencia
+    declara.
+    """
     lista = bruto.get("apps")
     if not lista:
         return None, None
     fontes = [bruto.get(k) for k in FONTES]
+    if por_codigo and not bruto.get("nome_regulamento"):
+        emprestado = por_codigo.get(bruto.get("codigo_anatel"))
+        if emprestado:
+            fontes.append(emprestado)
     return (apps.rotulo(lista, *fontes),
             apps.planos_dos_apps(lista, *fontes))
 
@@ -109,14 +121,30 @@ def main():
         inicio += PAGINA
     print("linhas com app: %d" % len(linhas))
 
+    # o nome registrado na Anatel, por codigo de oferta: e da oferta, nao
+    # da linha, e serve para ler as linhas que nao o guardaram
+    por_codigo = {}
+    for x in linhas:
+        b = x["bruto"] or {}
+        cod, nome = b.get("codigo_anatel"), b.get("nome_regulamento")
+        if cod and nome:
+            por_codigo.setdefault(cod, nome)
+    print("registros Anatel conhecidos: %d codigos" % len(por_codigo))
+
     campos = {}
+    sem_apps = 0
     mudar, exemplos = [], {}
     for x in linhas:
         b = x["bruto"] or {}
         for k in FONTES:
             if b.get(k):
                 campos[k] = campos.get(k, 0) + 1
-        rot, planos = recalcular(b)
+        # linha gravada antes do campo "apps" existir: nao ha o que
+        # recalcular, e apagar o rotulo dela seria perder dado bom
+        if not b.get("apps"):
+            sem_apps += 1
+            continue
+        rot, planos = recalcular(b, por_codigo)
         antes_rot = b.get("apps_rotulo")
         antes_planos = b.get("apps_planos")
         if rot == antes_rot and planos == antes_planos:
@@ -127,6 +155,7 @@ def main():
             k = "%s (so apps_planos: %s -> %s)" % (rot, antes_planos, planos)
         exemplos[k] = exemplos.get(k, 0) + 1
 
+    print("\nlinhas sem a lista de apps, intocadas: %d" % sem_apps)
     print("\nfontes de tier presentes no bruto:")
     for k in FONTES:
         print("   %-18s %d linhas" % (k, campos.get(k, 0)))
@@ -173,7 +202,9 @@ def main():
     resta = 0
     for x in linhas:
         b = x["bruto"] or {}
-        rot, planos = recalcular(b)
+        if not b.get("apps"):
+            continue
+        rot, planos = recalcular(b, por_codigo)
         if rot != b.get("apps_rotulo") or planos != b.get("apps_planos"):
             resta += 1
     print("relido: %d linhas, %d ainda divergentes" % (len(linhas), resta))
