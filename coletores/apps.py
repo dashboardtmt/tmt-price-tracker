@@ -341,6 +341,97 @@ DEGUSTACAO = re.compile(
 JANELA = 110
 
 
+# Quais apps contam como STREAMING para o nivel de bundle. O resto do
+# dicionario - telemedicina, educacao, seguranca, leitura - e app de
+# catalogo, e nao faz uma oferta subir de degrau.
+STREAMING = {"netflix", "disney", "globoplay", "amazon", "spotify",
+             "premiere", "max", "paramount", "telecine", "deezer",
+             "youtube", "vivo_tv"}
+
+
+def nivel_por_apps(texto, extras_catalogo=(), piso=0):
+    """A escada de bundle (decisao 10) lida pelos apps que o texto inclui.
+
+    O nivel sai da MESMA leitura que a lista de apps da tela. Antes cada
+    coletor varria o texto cru atras de nome de streaming, sem a regra de
+    degustacao, e os dois campos da mesma oferta se contradiziam.
+
+    extras_catalogo sao nomes que valem nivel 1 e nao estao no dicionario
+    de apps - Google One, iCloud, Claro Banca. piso e o nivel 1 que o
+    coletor ja sabe por outro caminho (a Brisanet tem a lista de produtos
+    contratados).
+    """
+    achados = apps_do_texto(texto)
+    streamings = [a for a in achados if a in STREAMING]
+    if len(streamings) > 1:
+        return 3
+    if len(streamings) == 1:
+        return 2
+    if achados:
+        return 1
+    t = (sem_degustacao(texto) or "").lower()
+    if any(e in t for e in extras_catalogo):
+        return 1
+    return piso
+
+
+def sem_degustacao(texto):
+    """O texto sem as frases de degustacao, para quem conta bundle.
+
+    POR QUE PRECISA EXISTIR. Cada coletor tem seu nivel_bundle, e cada um
+    varria o texto cru procurando nome de streaming. O card da Claro diz
+    "Disney+: 3 meses por conta da Claro. Apos, R$24,60 por mes", e isso
+    virava nivel 2 - "uma assinatura inclusa" - numa oferta que nao
+    inclui assinatura nenhuma. A decisao 38 ja dizia que degustacao nao
+    conta; so o modulo de apps a aplicava.
+
+    Apaga a frase inteira em que a marca de degustacao aparece, do ponto
+    anterior ao proximo. Se o app estiver nessa frase, ele some junto - e
+    e esse o ponto.
+    """
+    if not texto:
+        return texto
+    t = str(texto)
+    if not DEGUSTACAO.search(t):
+        return t
+
+    # onde cada app e nomeado: o corte comeca no app que a degustacao
+    # esta oferecendo, e nao na frase inteira - senao leva o vizinho
+    nomes = []
+    for padrao, _app in DO_TEXTO + DO_NOME:
+        for m in re.finditer(padrao, t, re.I):
+            nomes.append(m.start())
+    nomes.sort()
+
+    cortes = []
+    for m in DEGUSTACAO.finditer(t):
+        # o ultimo nome de app antes da marca, se houver um perto
+        ini = m.start()
+        for pos in nomes:
+            if pos < m.start() and m.start() - pos <= JANELA:
+                ini = min(ini, pos)
+                break
+        # e a pontuacao anterior, quando ela esta mais perto que o app
+        ponto = max(t.rfind(".", 0, m.start()), t.rfind(";", 0, m.start()))
+        if ponto >= 0:
+            ini = max(ini, ponto + 1)
+        fim = len(t)
+        for p in (".", ";"):
+            j = t.find(p, m.end())
+            if j >= 0:
+                fim = min(fim, j + 1)
+        cortes.append((ini, fim))
+    # junta os trechos e remonta o que sobrou
+    cortes.sort()
+    saida, cursor = [], 0
+    for ini, fim in cortes:
+        if ini > cursor:
+            saida.append(t[cursor:ini])
+        cursor = max(cursor, fim)
+    saida.append(t[cursor:])
+    return " ".join(x.strip() for x in saida if x.strip())
+
+
 def apps_do_texto(texto, limite=6):
     """Os apps nomeados num texto de oferta, fora os em degustacao.
 

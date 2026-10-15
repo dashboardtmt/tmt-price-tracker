@@ -633,10 +633,15 @@ const T = {
       // Exemplos reais em vez de jargão: "apps de catálogo" não diz nada a
       // quem não montou a escala. Os nomes citados são os que de fato
       // aparecem nas vitrines.
+      // Este texto so aparece quando o app NAO foi identificado. Antes
+      // ele citava exemplos - "Uma assinatura (Netflix, YouTube, Vale
+      // Saúde...)" - e quem lia a tabela via Netflix na linha de uma
+      // oferta que nao inclui Netflix. Agora diz o nivel e assume que
+      // nao sabe o nome.
       bundles:["Só internet e ligações",
-               "Apps menores (Skeelo, McAfee, GoRead)",
-               "Uma assinatura (Netflix, YouTube, Vale Saúde...)",
-               "Vários streamings juntos",
+               "Apps de catálogo",
+               "Uma assinatura — o site não nomeia qual",
+               "Vários streamings — o site não nomeia quais",
                "TV por assinatura inclusa"],
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
       e_todos:"Todos os planos", e_entrada:"Só o mais barato de cada operadora",
@@ -726,9 +731,9 @@ const T = {
       dicas_col:{"Delivers":"What the offer delivers. The small figure splits contract-guaranteed from bonus",
                  "Included services":"Bundle level, from bare connectivity to TV included"},
       bundles:["Data and calls only",
-               "Minor apps (Skeelo, McAfee, GoRead)",
-               "One subscription (Netflix, YouTube, health...)",
-               "Several streamings together",
+               "Catalogue apps",
+               "One subscription — the site does not name it",
+               "Several streamings — the site does not name them",
                "Pay TV included"],
       f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
       e_todos:"All plans", e_entrada:"Cheapest of each carrier only",

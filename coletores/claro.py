@@ -129,12 +129,7 @@ def nivel_bundle(txt):
     t = (txt or "").lower()
     if "tv por assinatura" in t or "canais" in t:
         return 4
-    achados = {s for s in STREAMINGS if s in t}
-    if len(achados) > 1:
-        return 3
-    if len(achados) == 1:
-        return 2
-    return 1 if any(a in t for a in APPS_CATALOGO) else 0
+    return apps.nivel_por_apps(txt, APPS_CATALOGO)
 
 
 def codigo_cidade(op, cidade, uf):

@@ -172,12 +172,7 @@ def nivel_bundle(texto):
     t = (texto or "").lower()
     if any(m in t for m in TV_INCLUSA):
         return 4
-    achados = {s for s in STREAMINGS if s in t}
-    if len(achados) > 1:
-        return 3
-    if len(achados) == 1:
-        return 2
-    return 1 if any(a in t for a in APPS_CATALOGO) else 0
+    return apps.nivel_por_apps(texto, APPS_CATALOGO)
 
 
 # ------------------------------------------------- parser da vitrine (HTML)

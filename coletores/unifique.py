@@ -25,6 +25,7 @@ import argparse
 import json
 import re
 import sys
+from . import apps
 from datetime import datetime, timedelta, timezone
 
 PAGINA = "https://unifique.com.br/para-voce/internet-fibra"
@@ -51,12 +52,7 @@ def nivel_bundle(texto):
     t = (texto or "").lower()
     if "tv por assinatura" in t or "canais" in t:
         return 4
-    achados = {s for s in STREAMINGS if s in t}
-    if len(achados) > 1:
-        return 3
-    if len(achados) == 1:
-        return 2
-    return 0
+    return apps.nivel_por_apps(texto)
 
 
 def extrair(texto):

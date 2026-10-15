@@ -28,6 +28,7 @@ import urllib.error
 import urllib.request
 
 from . import rede
+from . import apps
 from datetime import datetime, timedelta, timezone
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -158,15 +159,12 @@ def numero(x):
 
 
 def nivel_bundle(texto, produtos):
-    t = (texto or "").lower() + " " + " ".join(p.lower() for p in produtos)
-    if "tv por assinatura" in t or "canais" in t:
+    # a Brisanet nomeia o que vem junto na lista de produtos contratados,
+    # nao so na descricao: as duas coisas sao lidas como um texto so
+    tudo = (texto or "") + " " + " ".join(produtos or ())
+    if "tv por assinatura" in tudo.lower() or "canais" in tudo.lower():
         return 4
-    achados = {s for s in STREAMINGS if s in t}
-    if len(achados) > 1:
-        return 3
-    if len(achados) == 1:
-        return 2
-    return 1 if produtos else 0
+    return apps.nivel_por_apps(tudo, piso=1 if produtos else 0)
 
 
 def fim_da_promocao(nota):

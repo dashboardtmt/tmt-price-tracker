@@ -55,16 +55,9 @@ def _num(txt):
 def nivel_bundle(texto):
     """Mesma escada dos outros coletores (decisao 10)."""
     t = (texto or "").lower()
-    strm = sum(1 for s in STREAMINGS if s in t)
     if "tv por assinatura" in t or "canais" in t:
         return 4
-    if strm >= 2:
-        return 3
-    if strm == 1:
-        return 2
-    if any(a in t for a in APPS_CATALOGO):
-        return 1
-    return 0
+    return apps.nivel_por_apps(texto, APPS_CATALOGO)
 
 
 # Um card do Flex, no texto que a pagina renderiza:
