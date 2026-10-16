@@ -48,7 +48,7 @@ LARGURA = A4[0] - 2 * MARGEM
 ESTILOS = {
     "titulo": ParagraphStyle(
         "titulo", fontName="Helvetica-Bold", fontSize=17, leading=20,
-        textColor=PRETO, alignment=TA_LEFT, spaceAfter=1),
+        textColor=LARANJA, alignment=TA_LEFT, spaceAfter=1),
     "subtitulo": ParagraphStyle(
         "subtitulo", fontName="Helvetica", fontSize=9, leading=12,
         textColor=SUAVE, spaceAfter=10),
@@ -143,16 +143,12 @@ def _cabecalho_pagina(canvas, doc):
     canvas.setFillColor(FUNDO)
     canvas.rect(0, 0, A4[0], A4[1], stroke=0, fill=1)
     canvas.setFillColor(PRETO)
-    canvas.rect(0, A4[1] - 22 * mm, A4[0], 22 * mm, stroke=0, fill=1)
+    canvas.rect(0, A4[1] - 15 * mm, A4[0], 15 * mm, stroke=0, fill=1)
     canvas.setFillColor(LARANJA)
-    canvas.rect(0, A4[1] - 23 * mm, A4[0], 1 * mm, stroke=0, fill=1)
+    canvas.rect(0, A4[1] - 16 * mm, A4[0], 1 * mm, stroke=0, fill=1)
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica-Bold", 13)
-    canvas.drawString(MARGEM, A4[1] - 13 * mm, "Price Tracker TMT")
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(colors.HexColor("#B9B2A6"))
-    canvas.drawString(MARGEM, A4[1] - 18 * mm,
-                      "Monitoramento de preços de varejo · telecomunicações")
+    canvas.drawString(MARGEM, A4[1] - 10 * mm, "Price Tracker TMT")
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(SUAVE)
     canvas.drawRightString(A4[0] - MARGEM, 10 * mm,
@@ -223,23 +219,66 @@ def _bloco_composicao(d):
         vazio="Nenhuma alteração de composição identificada.")
 
 
-def _bloco_entrada(entradas):
+# A ordem da tela: a leitura comeca pelas tres grandes, que e como o
+# mercado se le.
+ORDEM = ("Claro", "TIM", "Vivo", "NuCel", "Brisanet", "Unifique", "Starlink")
+
+
+def _unitario(o):
+    """R$ por GB no movel, R$ por Mbps na fixa. Sem isso, oferta de
+    franquia diferente nao se compara."""
+    p = o.get("preco_promocional")
+    if p is None:
+        return "—", ""
+    mbps = o.get("degrau_mbps")
+    gb = o.get("franquia_anunciada_gb")
+    if mbps:
+        return ("%.2f" % (p / mbps)).replace(".", ","), "R$/Mbps"
+    if gb:
+        return ("%.2f" % (p / gb)).replace(".", ","), "R$/GB"
+    return "—", ""
+
+
+def _entrega(o, produto):
+    """O que a oferta entrega, com as duas pernas do combo.
+
+    Combo e fibra MAIS movel, e mostrar so os Mbps esconde metade da
+    oferta: duas de 600 Mega parecem iguais quando uma traz 60 GB de
+    movel e a outra nao traz movel nenhum.
+    """
+    base = o.get("destaque") or "—"
+    gb = o.get("franquia_anunciada_gb")
+    if produto == "combo" and gb and "GB" not in base.upper():
+        return "%s + %s GB" % (base, gb)
+    return base
+
+
+def _bloco_produto(itens, produto):
+    """Todas as ofertas de um produto, agrupadas por operadora."""
+    def chave(o):
+        op = o.get("operadora")
+        i = ORDEM.index(op) if op in ORDEM else len(ORDEM)
+        return (i, o.get("preco_promocional") or 0)
+
+    unidade = ""
     linhas = []
-    for chave, titulo in PRODUTOS:
-        itens = entradas.get(chave) or []
-        if not itens:
-            continue
-        for i, e in enumerate(itens):
-            linhas.append([
-                titulo if i == 0 else "",
-                e.get("operadora"),
-                _curto(e.get("nome_oferta"), 34),
-                e.get("destaque") or "—",
-                _reais(e.get("preco_promocional")),
-            ])
+    anterior = None
+    for o in sorted(itens, key=chave):
+        valor, un = _unitario(o)
+        unidade = unidade or un
+        op = o.get("operadora")
+        linhas.append([
+            op if op != anterior else "",
+            _curto(o.get("nome_oferta"), 40),
+            _entrega(o, produto),
+            _reais(o.get("preco_promocional")),
+            valor,
+        ])
+        anterior = op
     return _tabela(
-        ["Produto", "Operadora", "Oferta", "Entrega", "Preço"], linhas,
-        [26 * mm, 22 * mm, 60 * mm, 24 * mm, 46 * mm],
+        ["Operadora", "Oferta", "Entrega", "Preço", unidade or "Unitário"],
+        linhas,
+        [24 * mm, 64 * mm, 28 * mm, 26 * mm, 36 * mm],
         vazio="Sem dados disponíveis para a praça de referência.")
 
 
@@ -268,10 +307,10 @@ def gerar(dados, entradas, caminho):
     doc = BaseDocTemplate(
         caminho, pagesize=A4,
         leftMargin=MARGEM, rightMargin=MARGEM,
-        topMargin=28 * mm, bottomMargin=16 * mm,
+        topMargin=22 * mm, bottomMargin=16 * mm,
         title="Price Tracker TMT - relatorio de %s" % dia,
         author="Price Tracker TMT")
-    quadro = Frame(MARGEM, 16 * mm, LARGURA, A4[1] - 44 * mm, id="corpo",
+    quadro = Frame(MARGEM, 16 * mm, LARGURA, A4[1] - 38 * mm, id="corpo",
                    leftPadding=0, rightPadding=0, topPadding=0,
                    bottomPadding=0)
     doc.addPageTemplates([PageTemplate(id="pagina", frames=[quadro],
@@ -312,11 +351,13 @@ def gerar(dados, entradas, caminho):
                       "oferta.", ESTILOS["corpo"]),
             _bloco_composicao(dados)))
 
-    hist += _secao("Preço de entrada por produto (São Paulo)")
-    hist.append(Paragraph(
-        "Menor preço ofertado por operadora em cada categoria de produto, "
-        "na praça de referência.", ESTILOS["corpo"]))
-    hist.append(_bloco_entrada(entradas))
+    for chave, titulo in PRODUTOS:
+        itens = entradas.get(chave) or []
+        if not itens:
+            continue
+        hist.append(_com_titulo(
+            "%s — ofertas em São Paulo" % titulo,
+            _bloco_produto(itens, chave)))
 
     if not (dados.get("falhas") or dados.get("sem_registro")):
         hist.append(_com_titulo("Estado da coleta", _bloco_coleta(dados)))

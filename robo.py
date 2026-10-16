@@ -193,7 +193,7 @@ def _montar_pdf(dados):
         import relatorio
         entradas = {}
         for chave, _rot in relatorio.PRODUTOS:
-            itens, _erro = entrada_do_produto(dados["dia"], chave)
+            itens, _erro = ofertas_do_produto(dados["dia"], chave)
             entradas[chave] = itens
         caminho = "relatorio-%s.pdf" % dados["dia"]
         return relatorio.gerar(dados, entradas, caminho), None
@@ -217,6 +217,40 @@ def entrada_do_produto(hoje, produto, praca="Sao Paulo/SP"):
         vistos.add(l["operadora"])
         saida.append(l)
     return saida, None
+
+
+def ofertas_do_produto(hoje, produto, praca="Sao Paulo/SP"):
+    """Todas as ofertas do produto na praca de referencia.
+
+    O relatorio mostra o catalogo inteiro de cada produto, e nao so o
+    plano de entrada: para comparar player com player e preciso ver o
+    que cada um poe na prateleira, nao so onde ele comeca.
+
+    As ofertas nacionais entram junto. NuCel e Starlink gravam como
+    Brasil/BR por nao terem praca, e sem isto sumiriam da tabela.
+    """
+    campos = ("operadora,nome_oferta,destaque,preco_promocional,"
+              "degrau_mbps,franquia_anunciada_gb")
+    saida = []
+    for p in (praca, "Brasil/BR"):
+        filtro = ("capturas?data_captura=eq.%s&produto=eq.%s&praca=eq.%s"
+                  "&select=%s&order=operadora.asc,preco_promocional.asc"
+                  % (hoje, produto, urllib.parse.quote(p), campos))
+        linhas, erro = armazenamento.consultar(filtro)
+        if erro:
+            return [], erro
+        saida.extend(l for l in (linhas or [])
+                     if l.get("preco_promocional") is not None)
+    # a mesma oferta pode vir duas vezes se a praca for Brasil/BR
+    vistos, unicas = set(), []
+    for l in saida:
+        k = (l.get("operadora"), l.get("nome_oferta"), l.get("destaque"),
+             l.get("preco_promocional"))
+        if k in vistos:
+            continue
+        vistos.add(k)
+        unicas.append(l)
+    return unicas, None
 
 
 def _indexar(dia):
