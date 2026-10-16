@@ -193,6 +193,8 @@ def ler_cards(op, url, produto):
         # o nome vem antes do primeiro numero de franquia/velocidade
         nome = re.split(r"\d+\s*(?:GB|MEGA|Mega|Giga)", txt)[0].strip(' ">-')
         nome, campanha = _sem_campanha(nome)
+        # campanha e text[] no esquema: vai lista, nao string
+        campanha = [campanha] if campanha else None
         destaque = re.search(r"(\d+\s*(?:GB|MEGA|Mega|Giga|Mbps))", txt)
         cards.append({
             "id_catalogo": ident.group(1) if ident else None,

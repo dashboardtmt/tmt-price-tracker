@@ -110,7 +110,8 @@ def main():
     mudar = []
     for l in linhas:
         novo, camp = separar(l.get("nome_oferta"))
-        if novo != l.get("nome_oferta") or (camp and camp != l.get("campanha")):
+        atual = l.get("campanha") or []
+        if novo != l.get("nome_oferta") or (camp and [camp] != atual):
             mudar.append((l, novo, camp))
     print("linhas que mudam: %d" % len(mudar))
 
@@ -152,7 +153,9 @@ def main():
     for l, novo, camp in mudar:
         corpo = {"nome_oferta": novo}
         if camp:
-            corpo["campanha"] = camp
+            # campanha e text[] no esquema, nao texto: PostgREST recusa
+            # a string crua com "malformed array literal"
+            corpo["campanha"] = [camp]
         st, msg = _gravar(url, chave, l["id"], corpo)
         if st in (200, 204):
             feitas += 1
