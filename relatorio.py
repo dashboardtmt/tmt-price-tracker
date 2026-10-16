@@ -42,6 +42,8 @@ BORDA = colors.HexColor("#E7E1D4")
 FUNDO = colors.HexColor("#F0EDE4")
 BRANCO = colors.HexColor("#FCFBF7")
 
+PAINEL = "https://tmt-price-tracker.vercel.app"
+
 MARGEM = 16 * mm
 LARGURA = A4[0] - 2 * MARGEM
 
@@ -353,6 +355,16 @@ def gerar(dados, entradas, caminho):
                       "oferta.", ESTILOS["corpo"]),
             _bloco_composicao(dados)))
 
+    # O link do painel, entre a parte comparativa e as tabelas de
+    # catalogo: quem quiser a serie historica, o grafico ou outra praca
+    # sai daqui. Clicavel no PDF.
+    hist.append(Spacer(1, 4))
+    hist.append(Paragraph(
+        'Link do IBBA TMT Price Tracker: '
+        '<link href="%s"><font color="#FF5000">%s</font></link>'
+        % (PAINEL, PAINEL.replace("https://", "")), ESTILOS["corpo"]))
+    hist.append(Spacer(1, 2))
+
     for chave, titulo in PRODUTOS:
         itens = entradas.get(chave) or []
         if not itens:
@@ -373,7 +385,7 @@ def gerar(dados, entradas, caminho):
     hist.append(Spacer(1, 8))
     hist.append(Paragraph(
         "Relatório gerado automaticamente a partir da coleta diária. "
-        "Série histórica completa em tmt-price-tracker.vercel.app",
+        "Série histórica completa em %s" % PAINEL.replace("https://", ""),
         ESTILOS["nota"]))
 
     doc.build(hist)
