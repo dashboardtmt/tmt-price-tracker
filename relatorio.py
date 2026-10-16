@@ -72,9 +72,11 @@ ESTILOS = {
         textColor=colors.white),
 }
 
-PRODUTOS = (("controle", "Controle"), ("movel", "Pós-pago"),
-            ("fibra", "Fibra"), ("combo", "Combo"), ("prepago", "Pré-pago"),
-            ("btl", "Below-the-line"))
+# Os quatro produtos do relatorio, na ordem pedida. Fibra e pos-pago
+# ficam de fora: o relatorio nao e um espelho do painel, e a serie
+# completa dos seis esta em tmt-price-tracker.vercel.app.
+PRODUTOS = (("controle", "Controle"), ("btl", "Below-the-line"),
+            ("prepago", "Pré-pago"), ("combo", "Combo"))
 
 
 def _reais(v):
