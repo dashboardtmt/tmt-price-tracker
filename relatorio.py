@@ -70,9 +70,6 @@ ESTILOS = {
     "cabecalho": ParagraphStyle(
         "cabecalho", fontName="Helvetica-Bold", fontSize=7.5, leading=9.5,
         textColor=colors.white),
-    "destaque": ParagraphStyle(
-        "destaque", fontName="Helvetica-Bold", fontSize=22, leading=24,
-        textColor=LARANJA),
 }
 
 PRODUTOS = (("controle", "Controle"), ("movel", "Pós-pago"),
@@ -108,7 +105,7 @@ def _p(txt, estilo="celula"):
     return Paragraph(str(txt if txt is not None else "—"), ESTILOS[estilo])
 
 
-def _tabela(cabecalho, linhas, larguras, vazio="não houve"):
+def _tabela(cabecalho, linhas, larguras, vazio="Sem ocorrências."):
     """Uma tabela com a cara da tela: cabecalho preto, zebra discreta."""
     if not linhas:
         return Table([[_p("<i>%s</i>" % vazio)]], colWidths=[sum(larguras)],
@@ -155,7 +152,7 @@ def _cabecalho_pagina(canvas, doc):
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#B9B2A6"))
     canvas.drawString(MARGEM, A4[1] - 18 * mm,
-                      "Relatório diário · preços de varejo de telecom")
+                      "Monitoramento de preços de varejo · telecomunicações")
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(SUAVE)
     canvas.drawRightString(A4[0] - MARGEM, 10 * mm,
@@ -187,32 +184,6 @@ def _secao(titulo):
 
 # ------------------------------------------------------------------ blocos
 
-def _bloco_resumo(d):
-    mud = d.get("mudancas_preco") or []
-    comp = d.get("mudancas_composicao") or []
-    renom = d.get("renomeadas") or []
-    grades = d.get("grades") or []
-    total = len(mud) + len(comp) + len(renom) + len(grades)
-    col = d.get("coletas") or []
-
-    cartoes = [[
-        _p("<b>%d</b>" % total, "destaque"),
-        _p("<b>%d</b>" % len(mud), "destaque"),
-        _p("<b>%d</b>" % d.get("total_ofertas", 0), "destaque"),
-        _p("<b>%d</b>" % len(col), "destaque"),
-    ], [
-        _p("mudanças no dia"), _p("delas, de preço"),
-        _p("ofertas capturadas"), _p("coletores"),
-    ]]
-    larg = [LARGURA / 4.0] * 4
-    return Table(cartoes, colWidths=larg, hAlign="LEFT", style=TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-        ("TOPPADDING", (0, 0), (-1, 0), 2),
-        ("BOTTOMPADDING", (0, 1), (-1, 1), 8),
-        ("LINEBELOW", (0, 1), (-1, 1), 0.5, BORDA),
-    ]))
-
-
 def _bloco_precos(d):
     linhas = []
     for m in sorted(d.get("mudancas_preco") or [],
@@ -229,10 +200,11 @@ def _bloco_precos(d):
             m.get("onde") or "—",
         ])
     return _tabela(
-        ["Operadora", "Oferta", "Entrega", "Ontem", "Hoje", "Var.", "Onde"],
+        ["Operadora", "Oferta", "Entrega", "Anterior", "Atual", "Var.",
+         "Praças"],
         linhas,
         [20 * mm, 46 * mm, 17 * mm, 20 * mm, 20 * mm, 14 * mm, 41 * mm],
-        vazio="Nenhuma oferta mudou de preço de ontem para hoje.")
+        vazio="Nenhuma variação de preço identificada em relação ao dia anterior.")
 
 
 def _bloco_composicao(d):
@@ -246,9 +218,9 @@ def _bloco_composicao(d):
             m.get("onde") or "—",
         ])
     return _tabela(
-        ["Operadora", "Oferta", "Preço (igual)", "Onde"], linhas,
+        ["Operadora", "Oferta", "Preço", "Praças"], linhas,
         [24 * mm, 64 * mm, 26 * mm, 64 * mm],
-        vazio="Nenhuma oferta trocou de conteúdo mantendo o preço.")
+        vazio="Nenhuma alteração de composição identificada.")
 
 
 def _bloco_entrada(entradas):
@@ -268,7 +240,7 @@ def _bloco_entrada(entradas):
     return _tabela(
         ["Produto", "Operadora", "Oferta", "Entrega", "Preço"], linhas,
         [26 * mm, 22 * mm, 60 * mm, 24 * mm, 46 * mm],
-        vazio="Sem dado de entrada para a praça de referência.")
+        vazio="Sem dados disponíveis para a praça de referência.")
 
 
 def _bloco_coleta(d):
@@ -279,13 +251,13 @@ def _bloco_coleta(d):
             c.get("operadora"),
             "%d de %d" % (c.get("pracas_ok") or 0, c.get("pracas_pedidas") or 0),
             str(c.get("ofertas") or 0),
-            "ok" if ok else "FALHOU",
+            "Concluída" if ok else "Falha",
         ])
     for op in d.get("sem_registro") or []:
-        linhas.append([op, "—", "—", "SEM REGISTRO"])
-    return _tabela(["Coletor", "Praças", "Ofertas", "Estado"], linhas,
+        linhas.append([op, "—", "—", "Sem registro"])
+    return _tabela(["Coletor", "Praças", "Ofertas", "Situação"], linhas,
                    [44 * mm, 36 * mm, 36 * mm, 62 * mm],
-                   vazio="Nenhum registro de coleta hoje.")
+                   vazio="Sem registro de coleta para a data.")
 
 
 # ------------------------------------------------------------------ montagem
@@ -308,40 +280,42 @@ def gerar(dados, entradas, caminho):
     hist = []
     hist.append(Paragraph("Relatório de %s" % dia, ESTILOS["titulo"]))
     hist.append(Paragraph(
-        "Comparado com %s. Preços de tabela das vitrines, sem desconto "
-        "condicionado." % datetime.fromisoformat(dados["ontem"]).strftime("%d/%m"),
+        "Comparação com %s. Preços de tabela publicados nas vitrines, "
+        "sem descontos condicionados."
+        % datetime.fromisoformat(dados["ontem"]).strftime("%d/%m"),
         ESTILOS["subtitulo"]))
-    hist.append(_bloco_resumo(dados))
-    hist.append(Spacer(1, 4))
+    hist.append(Spacer(1, 2))
 
     # a coleta vem primeiro quando ela falhou: numero de dia incompleto
     # engana mais do que informa, e o leitor precisa saber antes de ler
     if dados.get("falhas") or dados.get("sem_registro") or not dados.get("coletas"):
-        hist += _secao("Atenção: a coleta de hoje está incompleta")
+        hist += _secao("Cobertura da coleta")
         hist.append(Paragraph(
-            "Operadora incompleta deixa buraco no dia, nunca zero. "
-            "Os números abaixo valem só para o que foi coletado.",
+            "A coleta do dia não cobriu todas as operadoras ou praças "
+            "previstas. Os dados a seguir referem-se exclusivamente ao "
+            "universo efetivamente coletado.",
             ESTILOS["corpo"]))
         hist.append(_bloco_coleta(dados))
 
     if dados.get("erro_comparacao"):
-        hist += _secao("Não deu para comparar com ontem")
+        hist += _secao("Comparação indisponível")
         hist.append(Paragraph(str(dados["erro_comparacao"]), ESTILOS["corpo"]))
     else:
         hist.append(_com_titulo("Mudanças de preço", _bloco_precos(dados)))
 
         hist.append(_com_titulo(
-            "Mudanças de conteúdo com preço parado",
-            Paragraph("A oferta manteve o preço e trocou o que entrega. É "
-                      "repasse disfarçado, e só aparece porque a assinatura "
-                      "dos serviços inclusos é comparada dia a dia.",
-                      ESTILOS["corpo"]),
+            "Alterações de composição sem variação de preço",
+            Paragraph("Ofertas cujo preço permaneceu inalterado em relação "
+                      "ao dia anterior e cuja composição de serviços inclusos "
+                      "foi modificada. A identificação decorre da comparação "
+                      "diária do conjunto de serviços registrado em cada "
+                      "oferta.", ESTILOS["corpo"]),
             _bloco_composicao(dados)))
 
     hist += _secao("Preço de entrada por produto (São Paulo)")
     hist.append(Paragraph(
-        "O plano mais barato que cada operadora vende em cada produto, na "
-        "praça de referência.", ESTILOS["corpo"]))
+        "Menor preço ofertado por operadora em cada categoria de produto, "
+        "na praça de referência.", ESTILOS["corpo"]))
     hist.append(_bloco_entrada(entradas))
 
     if not (dados.get("falhas") or dados.get("sem_registro")):
@@ -350,13 +324,14 @@ def gerar(dados, entradas, caminho):
     if dados.get("ponto_cego"):
         hist.append(Spacer(1, 6))
         hist.append(Paragraph(
-            "<b>Ponto cego.</b> %s" % dados["ponto_cego"], ESTILOS["nota"]))
+            "<b>Nota metodológica.</b> %s" % dados["ponto_cego"],
+            ESTILOS["nota"]))
 
     hist.append(Spacer(1, 8))
     hist.append(Paragraph(
-        "Gerado automaticamente pelo robô do Price Tracker. O painel "
-        "completo, com histórico e gráficos, está em "
-        "tmt-price-tracker.vercel.app", ESTILOS["nota"]))
+        "Relatório gerado automaticamente a partir da coleta diária. "
+        "Série histórica completa em tmt-price-tracker.vercel.app",
+        ESTILOS["nota"]))
 
     doc.build(hist)
     return caminho

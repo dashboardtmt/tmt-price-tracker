@@ -264,9 +264,9 @@ def _indexar(dia):
         # _rotulo evita o "Vivo Vivo Familia 2 + TV": o nome da oferta
         # ja comeca com a marca na maioria das operadoras
         quais = sorted({_rotulo(c) for c in colididas})
-        aviso = ("%d oferta(s) fora da comparacao: tem chave, praca e nome "
-                 "iguais a outra (%s). O preco delas pode ter mudado sem "
-                 "aparecer aqui."
+        aviso = ("%d oferta(s) não foram comparadas por compartilharem "
+                 "chave de série, praça e nome com outra oferta (%s). "
+                 "Não é possível afirmar se houve variação de preço nelas."
                  % (len(colididas), "; ".join(quais[:2])))
     return indice, erro, aviso
 
@@ -315,10 +315,11 @@ def _agrupar(achados, ident, atual, antes):
 def mudancas(hoje, ontem):
     """O que mudou de ontem para hoje, na mesma chave e praca.
 
-    Devolve duas listas: as mudancas de preco e as de composicao com preco
-    parado. A segunda e o repasse disfarcado - tiraram algo da oferta e
-    cobraram o mesmo. Sem a assinatura dos codigos SVA isso passava batido,
-    porque o nome e o preco da oferta continuam identicos.
+    Devolve duas listas: as mudancas de preco e as de composicao com
+    preco parado. A segunda registra oferta cujo preco nao se moveu e
+    cujo conjunto de servicos inclusos mudou. Sem a assinatura dos
+    codigos SVA isso passava batido, porque o nome e o preco da oferta
+    continuam identicos.
     """
     h, erro_h, cego_h = _indexar(hoje)
     o, erro_o, cego_o = _indexar(ontem)
