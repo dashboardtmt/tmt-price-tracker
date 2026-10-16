@@ -196,7 +196,26 @@ def _indexar(dia):
     # ontem: capaz de acusar mudanca onde nao houve e de esconder a que
     # houve, variando de uma execucao para a seguinte. A ordem explicita
     # acima e para nao depender de sorte nem quando ainda houver empate.
-    return {_identidade(l): l for l in (linhas or [])}, erro
+    # DUAS OFERTAS COM A MESMA IDENTIDADE: uma sobrescreve a outra e some
+    # do aviso. Era o caso das duas "Vivo Familia 2 + TV" de 700 Mega, a
+    # R$ 290 e a R$ 390 - 20 capturas por dia que nunca foram comparadas,
+    # e uma diferenca de R$ 100 em ponto cego. A chave de continuidade ja
+    # separa aquele par; isto aqui garante que o proximo nao passe calado.
+    indice, colididas = {}, []
+    for l in (linhas or []):
+        k = _identidade(l)
+        if k in indice:
+            colididas.append(l)
+            continue
+        indice[k] = l
+    if colididas:
+        quais = sorted({"%s %s" % (c.get("operadora"), c.get("nome_oferta"))
+                        for c in colididas})
+        erro = (erro or "") + (
+            "%d oferta(s) ficaram fora da comparacao por terem chave, praca e "
+            "nome iguais a outra: %s. Nao da para dizer se o preco delas mudou."
+            % (len(colididas), "; ".join(quais[:3])))
+    return indice, erro
 
 
 def _identidade(l):

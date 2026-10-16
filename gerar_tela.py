@@ -328,6 +328,9 @@ MOLDE = r"""<!DOCTYPE html>
     font-size:11px;color:var(--cor-texto-suave)}
   .rampa .passos{display:flex;gap:2px}
   .rampa .passos i{width:26px;height:11px;border-radius:2px;display:block}
+  /* a segunda perna do combo: presente, mas sem competir com o numero
+     que ordena a tabela */
+  .perna{color:var(--cor-texto-suave);font-size:11.5px;white-space:nowrap}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   /* Barra horizontal flutuante e cabecalho preso no topo: o mesmo par de
      solucoes do Dashboard da Anatel. O thead ja poderia ser sticky, mas
@@ -673,6 +676,7 @@ const T = {
       sem_dado:"Nenhuma oferta capturada com este filtro.",
       sem_preco_avulso:"preço avulso não conferido",
       sem_tier:"a operadora não declara qual plano do app inclui",
+      d_combo:"Combo: {m} Mbps de fibra e {g} GB de móvel. O R$/Mbps divide só pela fibra, que é a parte comparável entre as ofertas.",
       sem_praca:"Esta operadora não vende este produto nesta praça — célula vazia, nunca zero.",
       de:"de", preco:"Preço", entrega:"Entrega", contrato:"Contrato",
       col:["Operadora","Oferta","Entrega","Contrato","Preço"],
@@ -765,6 +769,7 @@ const T = {
       sem_dado:"No offer captured with this filter.",
       sem_preco_avulso:"retail price not verified",
       sem_tier:"the carrier does not state which plan of the app is included",
+      d_combo:"Bundle: {m} Mbps of fibre plus {g} GB of mobile. R$/Mbps divides by the fibre only, which is the comparable leg.",
       sem_praca:"This carrier does not sell this product here — blank cell, never zero.",
       de:"of", preco:"Price", entrega:"Delivers", contrato:"Contract",
       col:["Carrier","Offer","Delivers","Contract","Price"],
@@ -935,10 +940,21 @@ function t(k){ return T[lang][k]; }
 // Uma celula para a entrega, com o bonus explicado na dica. Duas colunas
 // - anunciado e garantido - obrigavam o leitor a montar a conta sozinho e
 // confundiam mais do que informavam.
+// No COMBO a entrega tem duas pernas, e mostrar so uma engana: "600
+// Mbps" aparecia igual numa oferta que traz 60 GB de movel e noutra que
+// nao traz movel nenhum, com R$ 60 de diferenca entre elas sem
+// explicacao na tela. A perna comparavel segue sendo a fibra - e por ela
+// que o R$/Mbps divide e a tabela ordena -, e o movel entra ao lado.
 function celulaEntrega(o){
   const e = entregaDe(o), contr = o.franquia_contratual_gb;
   if (e.v == null) return `<td class="num">—</td>`;
-  const txt = e.v + " " + e.u;
+  let txt = e.v + " " + e.u;
+  const gbMovel = num(o.franquia_anunciada_gb);
+  if (o.produto === "combo" && e.u === t("mbps") && gbMovel) {
+    txt += ` <span class="perna">+ ${gbMovel} ${t("gb")}</span>`;
+    return `<td class="num" title="${t("d_combo")
+      .replace("{m}", e.v).replace("{g}", gbMovel)}">${txt}</td>`;
+  }
   // so faz sentido comparar quando a unidade e a mesma (GB com GB)
   if (contr == null || e.u !== t("gb") || contr >= e.v) {
     return `<td class="num">${txt}</td>`;

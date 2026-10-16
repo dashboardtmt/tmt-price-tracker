@@ -160,6 +160,7 @@ def ler_cards(op, url, produto):
     if s != 200:
         return None, "HTTP %s" % s
     cards = []
+    sem_preco_real = 0
     for bloco in re.split(r'class="[^"]*card-planos', h)[1:]:
         ident = re.search(r'id="plan-(\d+)"', bloco)
         # 12k porque os cards de pos-pago trazem o seletor de linhas
@@ -172,8 +173,20 @@ def ler_cards(op, url, produto):
         # como se fosse plano e estragaria qualquer media.
         if 'data-link-redirect="/celulares/' in bloco[:12000] or "data-product-name=" in bloco[:12000]:
             continue
-        preco = re.search(r"R\$\s?([\d.]+,\d{2})", txt)
+        # O PRECO NAO PODE SAIR DE UMA FRASE DE DEGUSTACAO. Em
+        # 07/10/2026 tres cards de Controle em Porto Alegre vieram com
+        # R$ 24,60 - o preco avulso do Disney+, citado em "Disney+: 3
+        # meses por conta da Claro. Apos, R$24,60 por mes" - no lugar
+        # dos R$ 99,90 do plano, porque a leitura pega o primeiro "R$"
+        # e naquele dia a frase do beneficio veio antes no markup.
+        # A serie mostrava o preco certo nos outros quinze dias.
+        limpo = apps.sem_degustacao(txt)
+        preco = re.search(r"R\$\s?([\d.]+,\d{2})", limpo or "")
         if not preco:
+            # tinha preco, mas so dentro da frase do beneficio: a oferta
+            # fica de fora em vez de entrar com o preco errado
+            if re.search(r"R\$\s?([\d.]+,\d{2})", txt):
+                sem_preco_real += 1
             continue
         if txt.startswith("data-") or not re.match(r"[A-Za-z]", txt):
             continue   # bloco sem identidade legivel
@@ -187,6 +200,11 @@ def ler_cards(op, url, produto):
             "preco_promocional": numero(preco.group(1)),
             "composicao": txt[:400],
         })
+    if sem_preco_real and cards:
+        cards[0].setdefault("avisos_oferta", []).append(
+            "%d card(s) tinham preco so dentro de frase de degustacao e "
+            "ficaram de fora - e preco do beneficio, nao do plano"
+            % sem_preco_real)
     return cards, None
 
 
@@ -205,6 +223,14 @@ CONDICIONADO = re.compile(
 # Frase que vende fibra e movel junta, dentro da pagina de fibra: e
 # combo, e combo tem pagina propria.
 TEM_MOVEL = re.compile(r"claro\s+p[o\u00f3]s|\d+\s*gb\b", re.I)
+
+# Os GB de movel dentro de um combo: "Oferta de 500 Mega + Pos 60GB por
+# apenas R$129,90". Sem isto o combo chegava na tela so com os Mbps da
+# fibra, e o movel - que e metade da oferta - nao aparecia em lugar
+# nenhum: duas ofertas de 600 Mega pareciam iguais quando uma traz
+# 60 GB de movel e a outra nao traz movel nenhum.
+GB_DO_MOVEL = re.compile(
+    r"p[oó]s\s*(\d{1,4})\s*GB|(\d{1,4})\s*GB\s*(?:de\s*)?p[oó]s", re.I)
 
 
 def _qualificador(frase, velocidade):
@@ -261,10 +287,17 @@ def ler_por_texto(op, url, produto):
             continue
         vistos.add((nome, preco))
         ident = re.findall(r"internetId=([\d,]+)", h[m.start():m.start() + 900])
+        # no combo, os GB do movel estao na mesma frase que a velocidade
+        gb_movel = None
+        if produto == "combo":
+            mg = GB_DO_MOVEL.search(frase)
+            if mg:
+                gb_movel = int(mg.group(1) or mg.group(2))
         achados.append({
             "id_catalogo": ident[0][:40] if ident else None,
             "nome_oferta": nome,
             "destaque": "%s %s" % (mv.group(1), sufixo),
+            "franquia_anunciada_gb": gb_movel,
             "preco_promocional": preco,
             # a frase inteira, que e a fonte do dado e explica a oferta
             "composicao": frase[:400],
@@ -412,7 +445,7 @@ def coletar(cidade, uf, verbose=True):
                 "operadora": "Claro", "produto": real, "praca": praca,
                 "capturado_em": agora.isoformat(),
                 # o Prezao ja chega com as duas franquias resolvidas
-                "franquia_anunciada_gb": c.get("franquia_anunciada_gb") if real == "prepago"
+                "franquia_anunciada_gb": c.get("franquia_anunciada_gb") if real in ("prepago", "combo")
                     else (gb(c["destaque"]) if real not in ("fibra", "combo") else None),
                 "franquia_contratual_gb": c.get("franquia_contratual_gb") if real == "prepago"
                     else franquia_contratual(c["composicao"]),

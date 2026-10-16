@@ -54,7 +54,20 @@ def _variante(o):
              else "_mensal" if "mensal" in nome else "")
 
     if "fam" in nome:
-        return "familia" + ciclo
+        # A VITRINE CHAMA DUAS OFERTAS DIFERENTES PELO MESMO NOME. Em
+        # Sao Paulo, "Vivo Familia 2 + TV" 700 Mega sai a R$ 290 e a
+        # R$ 390, com codigos Anatel diferentes. Quem distingue e o
+        # registro na agencia: so o de R$ 390 traz "+ TV A com SVA".
+        # Sem isto as duas escreviam na mesma serie, e o preco dela
+        # ficava alternando entre 290 e 390 como se fosse reajuste.
+        #
+        # O registro so ACRESCENTA a TV, nunca nega: "Vivo Total Ultra
+        # + TV online" tem registro sem a palavra TV - la ela e SVA, nao
+        # pacote - e trocar aquela serie seria quebrar continuidade por
+        # vocabulario da agencia, nao por diferenca de produto.
+        registro = (o.get("nome_regulamento") or "").lower()
+        com_tv = "_tv" if re.search(r"(^|[^a-z])tv([^a-z]|$)", registro) else ""
+        return "familia" + com_tv + ciclo
     if " tv" in nome or nome.startswith("tv"):
         return "combo_tv" + ciclo
     nivel = o.get("nivel_bundle") or 0

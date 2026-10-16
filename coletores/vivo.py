@@ -264,6 +264,12 @@ def enriquecer(oferta, card):
 
 REGULAMENTO = "https://vivo.com.br/bin/vivo-portal/rgc-offer-json-file?anatelCode=%s"
 
+# Os GB de movel dentro de um combo. O card escreve a composicao inteira
+# numa frase: "Vivo Total Ultra 700 Mega de Vivo Fibra com Wi-Fi 6 100 GB
+# de Vivo Pos". Sem isto o combo entrava na tela so com os Mbps da fibra,
+# e o movel - que e metade da oferta - nao aparecia em lugar nenhum.
+GB_DO_MOVEL = re.compile(r"(\d{1,4})\s*GB\s+de\s+Vivo\s+P[óo]s", re.I)
+
 # O formato de um codigo Anatel da Vivo: VIV e doze digitos ou mais.
 #
 # A vitrine as vezes publica codigo quebrado - em 14/10/2026 o card de
@@ -583,7 +589,17 @@ def coletar(cidade, uf, verbose=True):
                 # 16 ele e acompanhado pelo preco de entrada, entao guarda-se
                 # o que o card destaca e nao se tenta decompor o pacote
                 "degrau_mbps": degrau_mbps(destaque) if produto in ("fibra", "combo") else None,
-                "franquia_anunciada_gb": degrau_gb(destaque) if produto not in ("fibra", "combo") else None,
+                # No combo os GB nao estao no destaque (que traz os Mbps
+                # da fibra), e sim na frase do card: "700 Mega de Vivo
+                # Fibra com Wi-Fi 6 100 GB de Vivo Pos". Sem isto o
+                # combo chegava na tela so com a fibra, e o movel - que e
+                # metade da oferta - nao aparecia.
+                "franquia_anunciada_gb": (
+                    degrau_gb(destaque) if produto not in ("fibra", "combo")
+                    else (int(_gbm.group(1))
+                          if produto == "combo"
+                          and (_gbm := GB_DO_MOVEL.search(c["texto"] or ""))
+                          else None)),
                 # preco cheio fica vazio quando a fonte nao informa (decisao 9)
                 "preco_cheio": None,
                 "preco_promocional": c["preco"],
