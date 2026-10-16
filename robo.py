@@ -38,6 +38,8 @@ BRT = timezone(timedelta(hours=-3))
 # Quais operadoras ja tem coletor. As outras entram conforme ficarem prontas;
 # a serie comeca desigual de proposito (decisao 18) porque esperar custa
 # historico que nao volta.
+PAINEL = "tmt-price-tracker.vercel.app"
+
 COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
              # A linha below-the-line da Claro tem dominio proprio e nao
              # aparece em nenhuma pagina de claro.com.br, entao e modulo
@@ -550,20 +552,21 @@ def montar_mensagem(hoje, ontem):
                     if col else sorted(COLETORES))
     total_ofertas = sum(c["ofertas"] for c in col) if col else 0
 
-    linhas = ["Price Tracker \u00b7 %s" % dia]
+    linhas = ["TMT Price Tracker \u00b7 %s" % dia]
 
     # 1. falha e manchete, nao rodape
     if not col:
         linhas += ["", "O ROB\u00d4 N\u00c3O RODOU HOJE.",
                    "Nenhum registro de coleta. Nada do que vem abaixo \u00e9 de hoje."]
     elif falhas or sem_registro:
-        linhas += ["", "ATEN\u00c7\u00c3O: a coleta de hoje est\u00e1 incompleta."]
-        for c in falhas:
-            linhas.append("  %s: %d de %d pra\u00e7as" % (
-                c["operadora"], c["pracas_ok"], c["pracas_pedidas"]))
-        if sem_registro:
-            linhas.append("  sem registro: %s" % ", ".join(sem_registro))
-        linhas.append("  Operadora incompleta deixa buraco, nunca zero.")
+        # a falha e manchete e cabe em duas linhas: o detalhe por coletor
+        # esta na tabela "Estado da coleta" do relatorio anexo
+        quem = ["%s em %d de %d pra\u00e7as"
+                % (c["operadora"], c["pracas_ok"], c["pracas_pedidas"])
+                for c in falhas]
+        quem += ["%s sem registro" % op for op in sem_registro]
+        linhas += ["", "COLETA INCOMPLETA \u2014 %s." % ", ".join(quem),
+                   "O que vem abaixo vale s\u00f3 para o que foi coletado."]
 
     if erro_cmp:
         linhas += ["", "N\u00e3o deu para comparar com ontem: %s" % erro_cmp[:100],
@@ -571,7 +574,10 @@ def montar_mensagem(hoje, ontem):
 
     # 2. o que mudou
     total_mud = len(mud) + len(comp) + len(renom) + len(grades)
-    if not erro_cmp:
+    # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
+    # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
+    # soa como noticia verificada num dia em que nao se verificou nada.
+    if not erro_cmp and col:
         linhas.append("")
         if not total_mud:
             linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
@@ -579,21 +585,16 @@ def montar_mensagem(hoje, ontem):
             linhas.append("%d mudan\u00e7a%s hoje"
                           % (total_mud, "" if total_mud == 1 else "s"))
 
-    for m in mud[:6]:
+    for m in mud[:3]:
         a, d = m["antes"], m["atual"]
         de, para = a["preco_promocional"], d["preco_promocional"]
         linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
         linhas.append("  %s \u2192 %s%s   %s" % (
             _reais(de), _reais(para), _variacao(de, para), _onde(m["pracas"])))
-        avisos = []
-        if a.get("franquia_anunciada_gb") != d.get("franquia_anunciada_gb"):
-            avisos.append("a franquia tamb\u00e9m mudou")
-        if a.get("nivel_bundle") != d.get("nivel_bundle"):
-            avisos.append("o que vem junto tamb\u00e9m mudou")
-        if avisos:
-            linhas.append("  (%s)" % " e ".join(avisos))
-    if len(mud) > 6:
-        linhas.append("  e mais %d mudan\u00e7a(s) de pre\u00e7o" % (len(mud) - 6))
+    if len(mud) > 3:
+        n = len(mud) - 3
+        linhas += ["", "e mais %d mudan\u00e7a%s de pre\u00e7o no relat\u00f3rio"
+                   % (n, "" if n == 1 else "s")]
 
     for m in comp[:3]:
         d = m["atual"]
@@ -609,7 +610,8 @@ def montar_mensagem(hoje, ontem):
             linhas.append("  entrou: %s" % ", ".join(entrou))
         linhas.append("  %s" % _onde(m["pracas"]))
     if len(comp) > 3:
-        linhas.append("  e mais %d de composi\u00e7\u00e3o" % (len(comp) - 3))
+        linhas += ["", "e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
+                   % (len(comp) - 3)]
 
     for g in grades[:3]:
         linhas += ["", "%s \u00b7 %s \u2014 mesmos pre\u00e7os, franquia nova"
@@ -633,41 +635,15 @@ def montar_mensagem(hoje, ontem):
     if len(renom) > 3:
         linhas.append("  e mais %d renomeada(s)" % (len(renom) - 3))
 
-    # quem nao mexeu em nada tambem e informacao
-    if not erro_cmp and total_mud and col:
-        mexeram = ({m["atual"]["operadora"] for m in mud}
-                   | {m["atual"]["operadora"] for m in comp}
-                   | {m["atual"]["operadora"] for m in renom}
-                   | {g["operadora"] for g in grades})
-        # o nome da rodada nao e o nome da operadora: "Claro Flex" e
-        # "TIM FIT" sao coletores a parte, mas gravam como Claro e TIM
-        paradas = sorted({_operadora_da_rodada(c["operadora"]) for c in col}
-                         - mexeram)
-        if paradas:
-            linhas += ["", "Sem mudan\u00e7a: %s" % ", ".join(paradas)]
+    # O FIM DA MENSAGEM E O LINK, e nao mais a entrada por produto e a
+    # telemetria. Os dois viraram tabela no relatorio anexo, com mais
+    # detalhe do que cabia aqui: o catalogo inteiro de quatro produtos,
+    # e o estado de cada coletor com pracas e ofertas.
+    #
+    # A mensagem e lida no telefone para saber SE mexeram e em QUE.
+    # Consulta se faz no PDF.
+    linhas += ["", "Relat\u00f3rio completo em anexo \u00b7 %s" % PAINEL]
 
-    # 3. o preco de entrada, uma linha por produto
-    blocos = []
-    for produto, titulo in (("controle", "Controle"), ("fibra", "Fibra"),
-                            ("movel", "P\u00f3s-pago"), ("btl", "Below-the-line")):
-        entrada, _ = entrada_do_produto(hoje, produto)
-        if not entrada:
-            continue
-        itens = ["%s %s" % (e["operadora"], _reais(e["preco_promocional"]))
-                 for e in entrada]
-        blocos.append("  %-15s %s" % (titulo, " \u00b7 ".join(itens)))
-    if blocos:
-        linhas += ["", "Entrada em SP"] + blocos
-
-    # 3b. o ponto cego, quando existe. Nao cancela nada: diz que aquelas
-    # ofertas nao puderam ser comparadas, e o resto da mensagem vale.
-    if ponto_cego:
-        linhas += ["", "Ponto cego: %s" % ponto_cego]
-
-    # 4. a telemetria, em uma linha quando esta tudo bem
-    if col and not falhas and not sem_registro:
-        linhas += ["", "%d ofertas \u00b7 %d coletores \u00b7 %d pra\u00e7as \u00b7 tudo ok"
-                   % (total_ofertas, len(col), len(PRACAS))]
 
     # O MESMO LEVANTAMENTO ALIMENTA O PDF. A mensagem e o resumo que
     # cabe na tela do telefone; o relatorio anexo traz as tabelas
