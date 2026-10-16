@@ -1,0 +1,48 @@
+# Limpeza pontual: o marcador de regiao da Vivo no campo campanha.
+#
+# POR QUE EXISTE. O catalogo da Vivo traz "regional", que diz ONDE a
+# oferta vale - "nacional", ou o nome da regiao. O coletor despejava isso
+# no campo campanha. Enquanto campanha nao tinha dono nem saia no export,
+# nao incomodava.
+#
+# Desde 16/10/2026 campanha tem dono - o banner de promocao, como o
+# "Claro Day" - e passou a sair no export. Com o marcador junto, o campo
+# diz que a Vivo roda uma campanha chamada "nacional" todo dia do ano.
+#
+# NAO APAGA LINHA e nao perde o dado: o valor vai para "regional" dentro
+# do bruto. So limpa onde o valor e marcador de regiao; campanha de
+# verdade fica onde esta.
+#
+# ESTE WORKFLOW E DESCARTAVEL. Depois de aplicar, apagar este arquivo e o
+# limpar_campanha_regional.py.
+
+name: Limpar regiao do campo campanha (uso unico)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Vazio = so conferir. Digite APLICAR para gravar.'
+        required: false
+        default: ''
+
+jobs:
+  limpar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Conferir (nao grava)
+        if: ${{ github.event.inputs.confirmar != 'APLICAR' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python limpar_campanha_regional.py
+      - name: Aplicar
+        if: ${{ github.event.inputs.confirmar == 'APLICAR' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python limpar_campanha_regional.py --aplicar

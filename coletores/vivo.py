@@ -252,7 +252,14 @@ def enriquecer(oferta, card):
     if not card:
         return oferta
     oferta["preco_cheio"] = preco_cheio_valido(card.get("oldPrice"))
-    oferta["campanha"] = [r for r in (card.get("regional") or []) if r] or None
+    # O "regional" do catalogo diz ONDE a oferta vale - "nacional", ou o
+    # nome da regiao. Isso nao e campanha, e escopo. Ia para o campo
+    # campanha, que desde 16/10/2026 tem dono: o banner de promocao que
+    # a vitrine cola no card ("Claro Day"). Misturar os dois faria o
+    # campo dizer que a Vivo roda uma campanha chamada "nacional" todo
+    # dia do ano. Vai para chave propria, que o bruto guarda sem precisar
+    # de coluna nova.
+    oferta["regional"] = [r for r in (card.get("regional") or []) if r] or None
     oferta["id_catalogo"] = card.get("id") or card.get("idOffer")
     detalhes = json.dumps(card, ensure_ascii=False)
     if oferta.get("nivel_bundle") in (None, 0):
