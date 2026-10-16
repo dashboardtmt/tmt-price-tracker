@@ -258,6 +258,9 @@
     font-size:11px;color:var(--cor-texto-suave)}
   .rampa .passos{display:flex;gap:2px}
   .rampa .passos i{width:26px;height:11px;border-radius:2px;display:block}
+  /* a segunda perna do combo: presente, mas sem competir com o numero
+     que ordena a tabela */
+  .perna{color:var(--cor-texto-suave);font-size:11.5px;white-space:nowrap}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   /* Barra horizontal flutuante e cabecalho preso no topo: o mesmo par de
      solucoes do Dashboard da Anatel. O thead ja poderia ser sticky, mas
@@ -505,7 +508,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "spotify": [["Premium", 23.9]]};
-const GERADO = "15/10/2026 16:51";
+const GERADO = "16/10/2026 09:31";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -603,6 +606,7 @@ const T = {
       sem_dado:"Nenhuma oferta capturada com este filtro.",
       sem_preco_avulso:"preço avulso não conferido",
       sem_tier:"a operadora não declara qual plano do app inclui",
+      d_combo:"Combo: {m} Mbps de fibra e {g} GB de móvel. O R$/Mbps divide só pela fibra, que é a parte comparável entre as ofertas.",
       sem_praca:"Esta operadora não vende este produto nesta praça — célula vazia, nunca zero.",
       de:"de", preco:"Preço", entrega:"Entrega", contrato:"Contrato",
       col:["Operadora","Oferta","Entrega","Contrato","Preço"],
@@ -695,6 +699,7 @@ const T = {
       sem_dado:"No offer captured with this filter.",
       sem_preco_avulso:"retail price not verified",
       sem_tier:"the carrier does not state which plan of the app is included",
+      d_combo:"Bundle: {m} Mbps of fibre plus {g} GB of mobile. R$/Mbps divides by the fibre only, which is the comparable leg.",
       sem_praca:"This carrier does not sell this product here — blank cell, never zero.",
       de:"of", preco:"Price", entrega:"Delivers", contrato:"Contract",
       col:["Carrier","Offer","Delivers","Contract","Price"],
@@ -865,10 +870,21 @@ function t(k){ return T[lang][k]; }
 // Uma celula para a entrega, com o bonus explicado na dica. Duas colunas
 // - anunciado e garantido - obrigavam o leitor a montar a conta sozinho e
 // confundiam mais do que informavam.
+// No COMBO a entrega tem duas pernas, e mostrar so uma engana: "600
+// Mbps" aparecia igual numa oferta que traz 60 GB de movel e noutra que
+// nao traz movel nenhum, com R$ 60 de diferenca entre elas sem
+// explicacao na tela. A perna comparavel segue sendo a fibra - e por ela
+// que o R$/Mbps divide e a tabela ordena -, e o movel entra ao lado.
 function celulaEntrega(o){
   const e = entregaDe(o), contr = o.franquia_contratual_gb;
   if (e.v == null) return `<td class="num">—</td>`;
-  const txt = e.v + " " + e.u;
+  let txt = e.v + " " + e.u;
+  const gbMovel = num(o.franquia_anunciada_gb);
+  if (o.produto === "combo" && e.u === t("mbps") && gbMovel) {
+    txt += ` <span class="perna">+ ${gbMovel} ${t("gb")}</span>`;
+    return `<td class="num" title="${t("d_combo")
+      .replace("{m}", e.v).replace("{g}", gbMovel)}">${txt}</td>`;
+  }
   // so faz sentido comparar quando a unidade e a mesma (GB com GB)
   if (contr == null || e.u !== t("gb") || contr >= e.v) {
     return `<td class="num">${txt}</td>`;
@@ -1917,35 +1933,6 @@ function matriz(){
       ? " (R$/" + unidade + ")" : " (R$/" + t("mes") + ")");
 }
 
-function grafRanking(){
-  const hoje = DIAS[DIAS.length-1];
-  const entrada = entradaPorOperadora(hoje);
-  const itens = Object.entries(entrada)
-    .map(([op, o])=>({op, p:precoDe(o), nome:o.nome_oferta||""}))
-    .sort((a,b)=>a.p-b.p);
-  if (!itens.length) {
-    if (graficos["c-ranking"]) graficos["c-ranking"].destroy(), delete graficos["c-ranking"];
-    return;
-  }
-  trocar("c-ranking", {
-    type:"bar",
-    data:{labels:itens.map(i=>i.op),
-          datasets:[{data:itens.map(i=>i.p),
-            backgroundColor:itens.map(i=>CORES[i.op]||"#999"),
-            borderRadius:4, barThickness:22}]},
-    options:{indexAxis:"y", responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>itens[c.dataIndex].nome+": "+reais(c.parsed.x)}}},
-      scales:{
-        x:{grid:{display:true, color:EIXO.grade, drawTicks:false},
-           border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#7C7468", font:{size:11},
-                  callback:v=>reais(v).replace("R$ ","")}},
-        y:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}}}},
-  });
-}
-
 // O ultimo dia pode estar PARCIAL: a coleta leva dezenas de minutos e a
 // tela pode ser gerada no meio dela. Aconteceu em 05/10 - o dia tinha so
 // a Vivo quando as outras cinco ainda estavam coletando, e a tela mostrou
@@ -2003,23 +1990,6 @@ function tabela(){
 function todasPracas(){
   return [...new Set(DADOS.filter(o => o.praca && o.praca !== PRACA_NACIONAL)
                           .map(o => o.praca))].sort();
-}
-
-// A oferta de entrada de uma operadora numa praca, no dia e produto do
-// filtro. Operadora nacional vale em toda praca - e o mesmo criterio do
-// resto da tela.
-function entradaNaPraca(dia, praca, operadora){
-  let menor = null;
-  for (const o of DADOS) {
-    if (o.produto !== filtro().produto) continue;
-    if (o.operadora !== operadora) continue;
-    if (diaDe(o) !== dia) continue;
-    if (o.praca !== praca && o.praca !== PRACA_NACIONAL) continue;
-    const p = precoDe(o);
-    if (p == null) continue;
-    if (!menor || p < menor.preco) menor = {preco:p, oferta:o};
-  }
-  return menor;
 }
 
 // ---------------- o catalogo de cada praca ----------------
