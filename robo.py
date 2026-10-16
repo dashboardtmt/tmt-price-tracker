@@ -322,6 +322,22 @@ def _identidade(l):
     return l["chave"], l["praca"], " ".join(nome.lower().split())
 
 
+# Como cada produto se chama na mensagem. A chave e o que o coletor
+# grava; o valor e o que o leitor reconhece.
+CATEGORIA = {"controle": "Controle", "movel": "Pós-pago", "fibra": "Fibra",
+             "combo": "Combo", "prepago": "Pré-pago",
+             "btl": "Below-the-line"}
+
+
+def _categoria(l):
+    """A categoria do produto, para abrir a linha da mudanca.
+
+    Sem ela, "Vivo - Familia 2 + TV" nao diz se aquilo e combo, fibra ou
+    pos-pago - e o nome da oferta nem sempre entrega.
+    """
+    return CATEGORIA.get(l.get("produto"), l.get("produto") or "—")
+
+
 def _rotulo(l, sem_operadora=False):
     """Operadora e nome, sem repetir: "Vivo Vivo Controle" ficava feio.
 
@@ -566,7 +582,7 @@ def montar_mensagem(hoje, ontem):
     for m in mud[:6]:
         a, d = m["antes"], m["atual"]
         de, para = a["preco_promocional"], d["preco_promocional"]
-        linhas += ["", "%s \u00b7 %s" % (d["operadora"], _rotulo(d, sem_operadora=True))]
+        linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
         linhas.append("  %s \u2192 %s%s   %s" % (
             _reais(de), _reais(para), _variacao(de, para), _onde(m["pracas"])))
         avisos = []
@@ -585,8 +601,8 @@ def montar_mensagem(hoje, ontem):
         agora_sva = set((d["assinatura_sva"] or "").split("+"))
         saiu = sorted(x for x in antes_sva - agora_sva if x)
         entrou = sorted(x for x in agora_sva - antes_sva if x)
-        linhas += ["", "%s \u00b7 %s \u2014 mesmo pre\u00e7o, outra composi\u00e7\u00e3o"
-                   % (d["operadora"], _rotulo(d, sem_operadora=True))]
+        linhas += ["", "%s \u00b7 %s \u2014 mesmo pre\u00e7o, outra "
+                   "composi\u00e7\u00e3o" % (_categoria(d), _rotulo(d))]
         if saiu:
             linhas.append("  saiu: %s" % ", ".join(saiu))
         if entrou:
