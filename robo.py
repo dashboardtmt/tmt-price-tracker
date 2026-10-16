@@ -692,6 +692,21 @@ def rodar_aviso(simular=False):
             _tel("sendMessage", {"chat_id": chat,
                                  "text": "O relatorio em PDF de hoje nao subiu. "
                                          "A mensagem acima vale; so o anexo faltou."})
+
+    # O E-MAIL E CANAL SECUNDARIO. Vai o mesmo texto e o mesmo anexo, e
+    # problema nele nao derruba a rodada: o Telegram ja chegou. Enquanto
+    # os segredos nao existirem, isto nao faz nada e nao reclama.
+    import email_diario
+    if email_diario.configurado():
+        dia_br = datetime.fromisoformat(dados["dia"]).strftime("%d/%m/%Y")
+        ok, recado = email_diario.enviar(
+            "TMT Price Tracker - relatorio de %s" % dia_br, texto, pdf)
+        print("e-mail: %s" % recado)
+        if not ok:
+            # falha de e-mail nao vai para o Telegram do usuario: ele ja
+            # recebeu o aviso. Fica no log da rodada, que e onde se
+            # conserta.
+            print("  (o aviso do Telegram foi enviado normalmente)")
     return 0
 
 
