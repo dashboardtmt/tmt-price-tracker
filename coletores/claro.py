@@ -193,6 +193,10 @@ def ler_cards(op, url, produto):
         # o nome vem antes do primeiro numero de franquia/velocidade
         nome = re.split(r"\d+\s*(?:GB|MEGA|Mega|Giga)", txt)[0].strip(' ">-')
         nome, campanha = _sem_campanha(nome)
+        # o que vem DEPOIS da franquia tambem e nome, quando distingue
+        qual = _qualificador_do_card(txt)
+        if qual and qual.lower() not in nome.lower():
+            nome = ("%s %s" % (nome, qual)).strip()
         # campanha e text[] no esquema: vai lista, nao string
         campanha = [campanha] if campanha else None
         destaque = re.search(r"(\d+\s*(?:GB|MEGA|Mega|Giga|Mbps))", txt)
@@ -210,6 +214,34 @@ def ler_cards(op, url, produto):
             "ficaram de fora - e preco do beneficio, nao do plano"
             % sem_preco_real)
     return cards, None
+
+
+# O que separa duas ofertas de mesma franquia dentro de um card. Fica
+# entre os GB e o texto estrutural, que sempre abre em "Ate N linhas":
+#
+#     "Claro Pos 50GB Geforce Ate 2 linhas ..."   -> Geforce
+#     "Claro Pos 50GB Ate 2 linhas ..."           -> nada
+#
+# Sem isto as duas viravam "Claro Pos 50GB", com R$ 124,90 e R$ 164,90,
+# e a serie do 50 GB pulava de um preco para o outro conforme qual
+# aparecesse primeiro na pagina.
+QUALIFICADOR = re.compile(
+    r"\d+\s*(?:GB|MEGA|Mega|Giga)\s+"
+    r"((?:[A-ZÀ-Ý][\wÀ-ÿ+]{2,14}\s*){1,2}?)"
+    r"(?=\s*(?:At[ée]\b|Linhas\b|Valor\b|R\$|\d))")
+
+
+def _qualificador_do_card(txt):
+    """O que distingue esta oferta de outra com a mesma franquia."""
+    m = QUALIFICADOR.search(txt or "")
+    if not m:
+        return None
+    q = " ".join(m.group(1).split())
+    # palavra estrutural que escapou do lookahead nao e qualificador
+    if q.lower() in ("ate", "até", "linhas", "valor", "total", "eu", "por",
+                     "plano", "mes", "mês"):
+        return None
+    return q or None
 
 
 def _sem_campanha(nome):

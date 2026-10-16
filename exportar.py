@@ -27,6 +27,10 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           "franquia_contratual_gb,preco_cheio,preco_promocional,"
           "fidelidade_meses,multa_fidelidade,taxa_instalacao,nivel_bundle,"
           "meses_desconto,preco_pos_promocao,"
+          # a campanha explica por que o nome ou a franquia da oferta
+          # mudou num punhado de dias: sem ela, o leitor ve um degrau na
+          # serie e nao tem como saber que houve promocao
+          "campanha,"
           # extraidos do jsonb, por nao terem coluna propria
           "assinatura_sva:bruto->>assinatura_sva,"
           # QUAL app vem junto. Sem isto a tela so sabe o NIVEL de bundle
