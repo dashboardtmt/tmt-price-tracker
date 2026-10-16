@@ -192,9 +192,11 @@ def ler_cards(op, url, produto):
             continue   # bloco sem identidade legivel
         # o nome vem antes do primeiro numero de franquia/velocidade
         nome = re.split(r"\d+\s*(?:GB|MEGA|Mega|Giga)", txt)[0].strip(' ">-')
+        nome, campanha = _sem_campanha(nome)
         destaque = re.search(r"(\d+\s*(?:GB|MEGA|Mega|Giga|Mbps))", txt)
         cards.append({
             "id_catalogo": ident.group(1) if ident else None,
+            "campanha": campanha,
             "nome_oferta": (nome or "Claro")[:70],
             "destaque": destaque.group(1) if destaque else None,
             "preco_promocional": numero(preco.group(1)),
@@ -206,6 +208,34 @@ def ler_cards(op, url, produto):
             "ficaram de fora - e preco do beneficio, nao do plano"
             % sem_preco_real)
     return cards, None
+
+
+def _sem_campanha(nome):
+    """Separa o banner de campanha do nome da oferta.
+
+    De 06 a 12/10/2026 a Claro rodou o "Claro Day" e o banner colou na
+    frente do card: a leitura do nome, que pega o comeco do texto,
+    devolvia "Claro Day Claro Pos". A oferta e a mesma, mas com outro
+    nome ela vira outra identidade - a serie morria no dia 06 e
+    ressuscitava no dia 12, e a mesma oferta aparecia duas vezes na
+    tabela. Foram 834 linhas em sete dias.
+
+    NAO DA PARA LISTAR AS CAMPANHAS que a operadora vai inventar, e nem
+    e preciso: o que marca o comeco do nome e a marca seguida de um
+    PRODUTO que a Claro vende, e esses o coletor ja conhece. O que vier
+    antes de "Claro <produto>" e banner. Nome que ja comeca na marca nao
+    tem nada antes e nunca vira campanha.
+
+    Devolve (nome limpo, campanha ou None).
+    """
+    m = None
+    for m in re.finditer(r"\bClaro\s+(?:P[óo]s|Controle|Multi|Fibra|"
+                         r"Pr[ée]|Prez[ãa]o|Flex)\b", nome or "", re.I):
+        pass                     # fica com a ULTIMA: o nome comeca nela
+    if not m or m.start() == 0:
+        return nome, None        # nada antes da marca: nao ha banner
+    campanha = nome[:m.start()].strip(" -|") or None
+    return nome[m.start():].strip() or nome, campanha
 
 
 # Os textos de acessibilidade da pagina: cada um descreve uma oferta
@@ -460,7 +490,11 @@ def coletar(cidade, uf, verbose=True):
                 "apps_planos": apps.planos_dos_apps(
                     apps.apps_do_texto(c.get("composicao")),
                     c.get("composicao"), c.get("nome_oferta")),
-                "preco_cheio": None, "codigo_anatel": None, "campanha": None,
+                "preco_cheio": None, "codigo_anatel": None,
+                # a campanha, quando houve, veio do card e nao pode ser
+                # zerada aqui: e ela que explica por que o nome da oferta
+                # mudou naquele dia
+                "campanha": c.get("campanha"),
                 "ibge": ibge,
             })
             saida["ofertas"].append(c)
