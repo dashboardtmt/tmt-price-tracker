@@ -148,12 +148,6 @@ def _tel(metodo, dados=None):
     except Exception as e:
         return {"ok": False, "erro": str(e)}
 
-
-def entrada_do_controle(hoje, praca="Sao Paulo/SP"):
-    """O plano de entrada do controle, o produto principal."""
-    return entrada_do_produto(hoje, "controle", praca)
-
-
 def entrada_do_produto(hoje, produto, praca="Sao Paulo/SP"):
     """O plano de entrada de cada operadora, na praca de referencia."""
     filtro = ("capturas?data_captura=eq.%s&produto=eq.%s&praca=eq.%s"

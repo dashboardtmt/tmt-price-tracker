@@ -2003,35 +2003,6 @@ function matriz(){
       ? " (R$/" + unidade + ")" : " (R$/" + t("mes") + ")");
 }
 
-function grafRanking(){
-  const hoje = DIAS[DIAS.length-1];
-  const entrada = entradaPorOperadora(hoje);
-  const itens = Object.entries(entrada)
-    .map(([op, o])=>({op, p:precoDe(o), nome:o.nome_oferta||""}))
-    .sort((a,b)=>a.p-b.p);
-  if (!itens.length) {
-    if (graficos["c-ranking"]) graficos["c-ranking"].destroy(), delete graficos["c-ranking"];
-    return;
-  }
-  trocar("c-ranking", {
-    type:"bar",
-    data:{labels:itens.map(i=>i.op),
-          datasets:[{data:itens.map(i=>i.p),
-            backgroundColor:itens.map(i=>CORES[i.op]||"#999"),
-            borderRadius:4, barThickness:22}]},
-    options:{indexAxis:"y", responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>itens[c.dataIndex].nome+": "+reais(c.parsed.x)}}},
-      scales:{
-        x:{grid:{display:true, color:EIXO.grade, drawTicks:false},
-           border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#7C7468", font:{size:11},
-                  callback:v=>reais(v).replace("R$ ","")}},
-        y:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}}}},
-  });
-}
-
 // O ultimo dia pode estar PARCIAL: a coleta leva dezenas de minutos e a
 // tela pode ser gerada no meio dela. Aconteceu em 05/10 - o dia tinha so
 // a Vivo quando as outras cinco ainda estavam coletando, e a tela mostrou
@@ -2089,23 +2060,6 @@ function tabela(){
 function todasPracas(){
   return [...new Set(DADOS.filter(o => o.praca && o.praca !== PRACA_NACIONAL)
                           .map(o => o.praca))].sort();
-}
-
-// A oferta de entrada de uma operadora numa praca, no dia e produto do
-// filtro. Operadora nacional vale em toda praca - e o mesmo criterio do
-// resto da tela.
-function entradaNaPraca(dia, praca, operadora){
-  let menor = null;
-  for (const o of DADOS) {
-    if (o.produto !== filtro().produto) continue;
-    if (o.operadora !== operadora) continue;
-    if (diaDe(o) !== dia) continue;
-    if (o.praca !== praca && o.praca !== PRACA_NACIONAL) continue;
-    const p = precoDe(o);
-    if (p == null) continue;
-    if (!menor || p < menor.preco) menor = {preco:p, oferta:o};
-  }
-  return menor;
 }
 
 // ---------------- o catalogo de cada praca ----------------

@@ -245,24 +245,6 @@ def tier_do_texto(app, *fontes):
             inicio = i + len(marca)
     return None
 
-
-def preco_avulso(app, tier=None):
-    """O preco avulso que vale para este app NESTE tier, ou None."""
-    e = APPS.get(app)
-    if not e:
-        return None
-    tiers = TIERS.get(app)
-    if not tiers:
-        # um plano so: o preco do dicionario vale sem precisar de tier
-        return e.get("preco_avulso")
-    if tier is None:
-        return None
-    for nome_tier, preco in tiers:
-        if nome_tier == tier:
-            return preco
-    return None
-
-
 def planos_dos_apps(lista, *fontes):
     """{app: tier} para os apps cujo tier a fonte declara."""
     saida = {}
