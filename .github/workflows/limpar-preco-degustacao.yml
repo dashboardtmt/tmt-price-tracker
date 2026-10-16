@@ -1,0 +1,50 @@
+# Limpeza pontual: as tres capturas com o preco do Disney+ no lugar do plano.
+#
+# POR QUE EXISTE. Em 07/10/2026, tres cards de Claro Controle em Porto
+# Alegre foram gravados a R$ 24,60 - o preco avulso do Disney+, que a
+# propria Claro cita em "Disney+: 3 meses por conta da Claro. Apos,
+# R$24,60 por mes". A serie dessas ofertas mostra R$ 99,90, R$ 69,90 e
+# R$ 59,90 em todos os outros quinze dias.
+#
+# Preco de beneficio nao e preco de plano. O coletor ja foi corrigido;
+# isto limpa o que ele gravou antes.
+#
+# ESTE WORKFLOW E DESCARTAVEL. Depois de rodar, apagar este arquivo e o
+# limpar_preco_degustacao.py: deixar um gatilho de DELETE em producao
+# parado no repositorio e risco sem contrapartida.
+#
+# Rodar sem confirmacao so CONTA e mostra. Para apagar, digite APAGAR.
+
+name: Limpar preco de degustacao (uso unico)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Vazio = so conferir. Digite APAGAR para apagar.'
+        required: false
+        default: ''
+
+jobs:
+  limpar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Conferir (nao apaga)
+        if: ${{ github.event.inputs.confirmar != 'APAGAR' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python limpar_preco_degustacao.py
+
+      - name: Apagar
+        if: ${{ github.event.inputs.confirmar == 'APAGAR' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python limpar_preco_degustacao.py --aplicar
