@@ -43,3 +43,7 @@ d.json
 
 # tela de teste gerada no local, nunca versionada
 teste_local.html
+
+# relatorio gerado para teste local
+relatorio_teste.pdf
+relatorio-*.pdf

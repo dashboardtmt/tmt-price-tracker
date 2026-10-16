@@ -91,7 +91,10 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python robo.py --avisar
+        run: |
+          # o relatorio em PDF que vai anexado na mensagem
+          pip install --quiet reportlab
+          python robo.py --avisar
 
   tela:
     needs: aviso

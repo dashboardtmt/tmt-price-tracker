@@ -17,6 +17,7 @@ Uso:
 
 import argparse
 import collections
+import io
 import json
 import os
 import re
@@ -148,6 +149,58 @@ def _tel(metodo, dados=None):
     except Exception as e:
         return {"ok": False, "erro": str(e)}
 
+def _tel_documento(chat, caminho, legenda=""):
+    """Envia um arquivo pelo Telegram.
+
+    sendDocument exige multipart, que urlencode nao faz. Monta na mao
+    para nao trazer dependencia so por causa disto.
+    """
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    url = "https://api.telegram.org/bot%s/sendDocument" % token
+    limite = "----PriceTracker%d" % int(time.time())
+    nome = os.path.basename(caminho)
+    corpo = io.BytesIO()
+
+    def campo(chave, valor):
+        corpo.write(("--%s\r\n" % limite).encode())
+        corpo.write(('Content-Disposition: form-data; name="%s"\r\n\r\n'
+                     % chave).encode())
+        corpo.write(("%s\r\n" % valor).encode("utf-8"))
+
+    campo("chat_id", chat)
+    if legenda:
+        campo("caption", legenda[:1000])
+    corpo.write(("--%s\r\n" % limite).encode())
+    corpo.write(('Content-Disposition: form-data; name="document"; '
+                 'filename="%s"\r\n' % nome).encode())
+    corpo.write(b"Content-Type: application/pdf\r\n\r\n")
+    corpo.write(open(caminho, "rb").read())
+    corpo.write(("\r\n--%s--\r\n" % limite).encode())
+
+    req = urllib.request.Request(url, data=corpo.getvalue(), method="POST")
+    req.add_header("Content-Type",
+                   "multipart/form-data; boundary=%s" % limite)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read().decode())
+    except Exception as e:
+        return {"ok": False, "erro": str(e)}
+
+
+def _montar_pdf(dados):
+    """Gera o relatorio do dia. Devolve (caminho, erro)."""
+    try:
+        import relatorio
+        entradas = {}
+        for chave, _rot in relatorio.PRODUTOS:
+            itens, _erro = entrada_do_produto(dados["dia"], chave)
+            entradas[chave] = itens
+        caminho = "relatorio-%s.pdf" % dados["dia"]
+        return relatorio.gerar(dados, entradas, caminho), None
+    except Exception as e:
+        return None, "%s: %s" % (type(e).__name__, e)
+
+
 def entrada_do_produto(hoje, produto, praca="Sao Paulo/SP"):
     """O plano de entrada de cada operadora, na praca de referencia."""
     filtro = ("capturas?data_captura=eq.%s&produto=eq.%s&praca=eq.%s"
@@ -208,8 +261,9 @@ def _indexar(dia):
     # aconteceu em 16/10/2026, com o aviso do dia saindo vazio.
     aviso = None
     if colididas:
-        quais = sorted({"%s %s" % (c.get("operadora"), c.get("nome_oferta"))
-                        for c in colididas})
+        # _rotulo evita o "Vivo Vivo Familia 2 + TV": o nome da oferta
+        # ja comeca com a marca na maioria das operadoras
+        quais = sorted({_rotulo(c) for c in colididas})
         aviso = ("%d oferta(s) fora da comparacao: tem chave, praca e nome "
                  "iguais a outra (%s). O preco delas pode ter mudado sem "
                  "aparecer aqui."
@@ -564,22 +618,53 @@ def montar_mensagem(hoje, ontem):
         linhas += ["", "%d ofertas \u00b7 %d coletores \u00b7 %d pra\u00e7as \u00b7 tudo ok"
                    % (total_ofertas, len(col), len(PRACAS))]
 
-    return "\n".join(linhas)
+    # O MESMO LEVANTAMENTO ALIMENTA O PDF. A mensagem e o resumo que
+    # cabe na tela do telefone; o relatorio anexo traz as tabelas
+    # inteiras. Os dois saem daqui para nao poderem discordar.
+    dados = {
+        "dia": hoje, "ontem": ontem,
+        "mudancas_preco": mud, "mudancas_composicao": comp,
+        "renomeadas": renom, "grades": grades,
+        "erro_comparacao": erro_cmp, "ponto_cego": ponto_cego,
+        "coletas": col, "falhas": falhas, "sem_registro": sem_registro,
+        "total_ofertas": total_ofertas,
+    }
+    return "\n".join(linhas), dados
 
 def rodar_aviso(simular=False):
     hoje = agora().date()
     ontem = hoje - timedelta(days=1)
-    texto = montar_mensagem(hoje.isoformat(), ontem.isoformat())
+    texto, dados = montar_mensagem(hoje.isoformat(), ontem.isoformat())
     print(texto)
     if simular:
         print("\n[simulacao] mensagem nao enviada")
         return 0
     chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+
+    # O ANEXO NAO PODE DERRUBAR O AVISO. Se o PDF falhar, a mensagem vai
+    # do mesmo jeito e o erro entra nela: ficar sem o anexo e um
+    # problema, ficar sem o aviso do dia e outro, muito maior.
+    pdf, erro_pdf = _montar_pdf(dados)
+    if erro_pdf:
+        texto += "\n\n(o relatorio em PDF nao foi gerado hoje: %s)" % erro_pdf[:80]
+
     r = _tel("sendMessage", {"chat_id": chat, "text": texto})
     if not r.get("ok"):
         print("\nFALHOU ao enviar: %s" % r)
         return 1
     print("\nenviado")
+
+    if pdf:
+        d = _tel_documento(chat, pdf, "Relatorio completo de %s"
+                           % datetime.fromisoformat(dados["dia"]).strftime("%d/%m"))
+        if d.get("ok"):
+            print("relatorio anexado: %s" % pdf)
+        else:
+            # o aviso ja foi: o anexo que falhou vira recado proprio
+            print("FALHOU ao anexar o relatorio: %s" % d)
+            _tel("sendMessage", {"chat_id": chat,
+                                 "text": "O relatorio em PDF de hoje nao subiu. "
+                                         "A mensagem acima vale; so o anexo faltou."})
     return 0
 
 
