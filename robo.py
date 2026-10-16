@@ -202,14 +202,19 @@ def _indexar(dia):
             colididas.append(l)
             continue
         indice[k] = l
+    # A colisao NAO vai no canal de erro. Erro cancela a comparacao
+    # inteira, e isso e certo para consulta que caiu - mas colisao em 20
+    # ofertas nao pode apagar o que mudou nas outras 1.640. Foi o que
+    # aconteceu em 16/10/2026, com o aviso do dia saindo vazio.
+    aviso = None
     if colididas:
         quais = sorted({"%s %s" % (c.get("operadora"), c.get("nome_oferta"))
                         for c in colididas})
-        erro = (erro or "") + (
-            "%d oferta(s) ficaram fora da comparacao por terem chave, praca e "
-            "nome iguais a outra: %s. Nao da para dizer se o preco delas mudou."
-            % (len(colididas), "; ".join(quais[:3])))
-    return indice, erro
+        aviso = ("%d oferta(s) fora da comparacao: tem chave, praca e nome "
+                 "iguais a outra (%s). O preco delas pode ter mudado sem "
+                 "aparecer aqui."
+                 % (len(colididas), "; ".join(quais[:2])))
+    return indice, erro, aviso
 
 
 def _identidade(l):
@@ -261,13 +266,16 @@ def mudancas(hoje, ontem):
     cobraram o mesmo. Sem a assinatura dos codigos SVA isso passava batido,
     porque o nome e o preco da oferta continuam identicos.
     """
-    h, erro_h = _indexar(hoje)
-    o, erro_o = _indexar(ontem)
+    h, erro_h, cego_h = _indexar(hoje)
+    o, erro_o, cego_o = _indexar(ontem)
+    # o ponto cego de hoje e o que importa para o leitor; o de ontem so
+    # vale dizer se hoje estiver limpo
+    cego = cego_h or cego_o
     # Comparacao que falhou nao e comparacao sem novidade. Sem devolver o
     # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
     # que nao avisar, porque soa como noticia verificada.
     if erro_h or erro_o:
-        return [], [], [], [], erro_h or erro_o
+        return [], [], [], [], erro_h or erro_o, cego
     grades, suprimir = _grades_reorganizadas(h, o)
 
     precos, composicao = {}, {}
@@ -299,7 +307,7 @@ def mudancas(hoje, ontem):
     renomeadas = [r for r in _renomeadas(h, o)
                   if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
     return (list(precos.values()), list(composicao.values()),
-            renomeadas, grades, None)
+            renomeadas, grades, None, cego)
 
 
 def _entrega(l):
@@ -415,7 +423,7 @@ def _variacao(de, para):
 def montar_mensagem(hoje, ontem):
     """O recado do dia: o mercado primeiro, o robo so quando falha."""
     dia = datetime.fromisoformat(hoje).strftime("%d/%m")
-    mud, comp, renom, grades, erro_cmp = mudancas(hoje, ontem)
+    mud, comp, renom, grades, erro_cmp, ponto_cego = mudancas(hoje, ontem)
 
     # o estado da coleta, que pode virar manchete
     col, _ = armazenamento.consultar(
@@ -545,6 +553,11 @@ def montar_mensagem(hoje, ontem):
         blocos.append("  %-15s %s" % (titulo, " \u00b7 ".join(itens)))
     if blocos:
         linhas += ["", "Entrada em SP"] + blocos
+
+    # 3b. o ponto cego, quando existe. Nao cancela nada: diz que aquelas
+    # ofertas nao puderam ser comparadas, e o resto da mensagem vale.
+    if ponto_cego:
+        linhas += ["", "Ponto cego: %s" % ponto_cego]
 
     # 4. a telemetria, em uma linha quando esta tudo bem
     if col and not falhas and not sem_registro:
