@@ -139,14 +139,63 @@ def achar_cidade(token, cidade, uf):
     return None, "a Brisanet nao atende %s/%s" % (cidade, uf)
 
 
+# Abaixo disto, numero sem unidade nao da para interpretar: pode ser
+# Mbps de um plano que nao existe, ou Giga escrito sem o "G". Nao se
+# grava - campo vazio ja e tratado, numero mil vezes errado nao.
+PISO_MBPS = 20
+
+
 def mbps(txt):
+    """A velocidade em Mbps, do jeito que a Brisanet publica.
+
+    A API manda plan_speed como NUMERO PURO: "500", "700", "1000". A
+    versao anterior exigia unidade no texto e devolvia None em todas -
+    119 linhas por dia sem velocidade, sem R$/Mbps, e a chave de
+    continuidade caindo para degrau 0, o que juntava 500 e 1000 Mbps na
+    mesma serie.
+    """
     if not txt:
         return None
-    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(mega|mbps|giga|gbps|m\b|g\b)", str(txt).lower())
-    if not m:
+    t = str(txt).strip().lower()
+
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(mega|mbps|giga|gbps|gb|mb|m\b|g\b)", t)
+    if m:
+        v = float(m.group(1).replace(",", "."))
+        return int(v * 1000) if m.group(2).startswith("g") else int(v)
+
+    # numero sozinho: e Mbps, que e como a Brisanet manda
+    m = re.fullmatch(r"(\d+(?:[.,]\d+)?)", t)
+    if m:
+        v = float(m.group(1).replace(",", "."))
+        return int(v) if v >= PISO_MBPS else None
+    return None
+
+
+# Os GB de movel dentro do nome de um combo: "AGO26 500MB + 20GB".
+# Exige a unidade GB, para nao confundir com o "500MB" da fibra que vem
+# antes na mesma frase.
+GB_DO_MOVEL = re.compile(r"(\d{1,4})\s*GB\b", re.I)
+
+# Franquia de movel em combo nao desce disto. Numero menor junto de
+# GB e velocidade de fibra escrita em Giga, nao franquia.
+PISO_GB_MOVEL = 5
+
+
+def gb_movel(nome):
+    """Os GB de movel anunciados no nome do combo, ou None.
+
+    A Brisanet nao tem campo para isso: poe no nome, depois da
+    velocidade. Sem ler daqui, dois combos de 500 Mbps aparecem iguais
+    quando um traz 20 GB de movel e o outro nao traz movel nenhum.
+    """
+    # A ULTIMA ocorrencia, e nao a primeira: em "1GB ESSENCIAL + 20GB" o
+    # primeiro GB e a velocidade da fibra em Giga e o segundo e a
+    # franquia do movel. No nome da Brisanet o movel vem depois da fibra.
+    achados = GB_DO_MOVEL.findall(nome or "")
+    if not achados:
         return None
-    v = float(m.group(1).replace(",", "."))
-    return int(v * 1000) if m.group(2).startswith("g") else int(v)
+    v = int(achados[-1])
+    return v if v >= PISO_GB_MOVEL else None
 
 
 def numero(x):
@@ -239,7 +288,10 @@ def coletar(cidade, uf, verbose=True):
                     "nome_oferta": o.get("offer_name"),
                     "destaque": o.get("plan_speed"),
                     "degrau_mbps": mbps(o.get("plan_speed")),
-                    "franquia_anunciada_gb": None,
+                    # no combo, os GB do movel estao no nome da oferta
+                    "franquia_anunciada_gb": (
+                        gb_movel(o.get("offer_name")) if produto == "combo"
+                        else None),
                     "franquia_contratual_gb": None,
                     # a Brisanet entrega os dois separados, sem deducao
                     "preco_cheio": numero(preco.get("original_price")),
