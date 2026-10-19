@@ -22,9 +22,25 @@ name: Rotina diaria
 # da sessao do CLI, e exigir que alguem gere um na mao seria pendurar a
 # atualizacao diaria num passo manual - que e justamente o que nao pode.
 
+# OITO AGENDAMENTOS, E NAO UM. Medido em sete dias, o evento agendado do
+# GitHub chegou entre 3,5 e 9,6 horas atrasado - numa segunda-feira a
+# mensagem saiu as 16h45. O atraso esta no gatilho e nao na fila: o run
+# comeca no mesmo minuto em que e criado.
+#
+# Como o atraso varia por evento, oito chances valem mais que uma. A
+# primeira que disparar coleta; as outras perguntam ao banco, ouvem que
+# o dia ja foi, e encerram em segundos. Os minutos fogem do inicio da
+# hora, que a propria documentacao do GitHub aponta como o pior momento.
 on:
   schedule:
-    - cron: '7 10 * * *'    # 07:07 BRT (pode atrasar; a ordem e que importa)
+    - cron: '13 3 * * *'    # 00:13 BRT
+    - cron: '41 4 * * *'    # 01:41
+    - cron: '27 6 * * *'    # 03:27
+    - cron: '52 7 * * *'    # 04:52
+    - cron: '18 9 * * *'    # 06:18
+    - cron: '36 10 * * *'   # 07:36
+    - cron: '49 11 * * *'   # 08:49
+    - cron: '23 13 * * *'   # 10:23
   workflow_dispatch:
 
 concurrency:
@@ -32,7 +48,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A GUARDA. Pergunta ao banco se o dia ja foi coletado. Sem ela, os
+  # oito agendamentos coletariam oito vezes.
+  decidir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      rodar: ${{ steps.ver.outputs.rodar }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ja coletou hoje?
+        id: ver
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          # disparo na mao sempre roda: quem dispara sabe o que quer
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "rodar=true" >> "$GITHUB_OUTPUT"
+            echo "disparo manual: roda de qualquer jeito"
+            exit 0
+          fi
+          if [ "$(python ja_coletou.py)" = "sim" ]; then
+            echo "rodar=false" >> "$GITHUB_OUTPUT"
+            echo "o dia ja foi coletado - encerrando"
+          else
+            echo "rodar=true" >> "$GITHUB_OUTPUT"
+          fi
+
   coleta:
+    needs: decidir
+    if: needs.decidir.outputs.rodar == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -76,8 +125,11 @@ jobs:
         run: python robo.py --coletar
 
   aviso:
-    needs: repique
-    if: always()        # dia que falhou e dia que mais precisa de aviso
+    # "decidir" entra no needs para a condicao poder le-lo: always()
+    # ignora SKIPPED, entao sem isto o aviso sairia nas sete rodadas que
+    # pulam a coleta - oito mensagens iguais por dia.
+    needs: [repique, decidir]
+    if: always() && needs.decidir.outputs.rodar == 'true'        # dia que falhou e dia que mais precisa de aviso
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -104,8 +156,8 @@ jobs:
           python robo.py --avisar
 
   tela:
-    needs: aviso
-    if: always()
+    needs: [aviso, decidir]
+    if: always() && needs.decidir.outputs.rodar == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
