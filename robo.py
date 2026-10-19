@@ -521,6 +521,40 @@ def _onde(pracas):
     return "em %d de %d: %s" % (n, len(PRACAS), ", ".join(nomes))
 
 
+def _trocou(saiu, entrou):
+    """Em portugues, o que aconteceu com os servicos inclusos.
+
+    Os codigos SVA nao tem dicionario publico, entao dizer "saiu 040059"
+    e ruido com cara de informacao. O que se sabe e quantos sairam e
+    quantos entraram, e isso basta para decidir se vale abrir o
+    relatorio.
+    """
+    def plural(n):
+        return "servi\u00e7o" if n == 1 else "servi\u00e7os"
+
+    if saiu and entrou:
+        if len(saiu) == len(entrou):
+            return "trocou %d %s incluso%s" % (
+                len(saiu), plural(len(saiu)), "" if len(saiu) == 1 else "s")
+        # "sairam 2 e entraram 1" nao existe: o verbo concorda com o
+        # numero que vem depois dele
+        # o substantivo fica com o PRIMEIRO numero e o segundo elide:
+        # "sairam 2 servicos inclusos e entrou 1". Deixar o
+        # substantivo no fim obriga concordancia com os dois de uma
+        # vez, o que nao da.
+        return "%s %d %s inclu%s e %s %d" % (
+            "saiu" if len(saiu) == 1 else "sa\u00edram", len(saiu),
+            plural(len(saiu)), "so" if len(saiu) == 1 else "sos",
+            "entrou" if len(entrou) == 1 else "entraram", len(entrou))
+    if saiu:
+        return "perdeu %d %s incluso%s" % (
+            len(saiu), plural(len(saiu)), "" if len(saiu) == 1 else "s")
+    if entrou:
+        return "ganhou %d %s incluso%s" % (
+            len(entrou), plural(len(entrou)), "" if len(entrou) == 1 else "s")
+    return "mudou o que vem incluso"
+
+
 def _variacao(de, para):
     if not de or para is None:
         return ""
@@ -602,13 +636,9 @@ def montar_mensagem(hoje, ontem):
         agora_sva = set((d["assinatura_sva"] or "").split("+"))
         saiu = sorted(x for x in antes_sva - agora_sva if x)
         entrou = sorted(x for x in agora_sva - antes_sva if x)
-        linhas += ["", "%s \u00b7 %s \u2014 mesmo pre\u00e7o, outra "
-                   "composi\u00e7\u00e3o" % (_categoria(d), _rotulo(d))]
-        if saiu:
-            linhas.append("  saiu: %s" % ", ".join(saiu))
-        if entrou:
-            linhas.append("  entrou: %s" % ", ".join(entrou))
-        linhas.append("  %s" % _onde(m["pracas"]))
+        linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
+        linhas.append("  mesmo pre\u00e7o, %s   %s"
+                      % (_trocou(saiu, entrou), _onde(m["pracas"])))
     if len(comp) > 3:
         linhas += ["", "e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
                    % (len(comp) - 3)]
