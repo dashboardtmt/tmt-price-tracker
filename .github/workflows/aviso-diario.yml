@@ -42,6 +42,8 @@ jobs:
           EMAIL_REMETENTE: ${{ secrets.EMAIL_REMETENTE }}
           EMAIL_SENHA_APP: ${{ secrets.EMAIL_SENHA_APP }}
           EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_REMETENTE: ${{ secrets.RESEND_REMETENTE }}
         run: |
           # o relatorio em PDF que vai anexado na mensagem
           pip install --quiet reportlab
