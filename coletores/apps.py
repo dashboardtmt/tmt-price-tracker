@@ -111,6 +111,10 @@ APPS = {
     "max": {"nome": "Max", "preco_avulso": None,
             "fonte": None, "conferido_em": None,
             "evidencia": "ainda nao conferido"},
+    "sky": {"nome": "Sky", "preco_avulso": None,
+            "fonte": None, "conferido_em": None,
+            "evidencia": "TV por assinatura; a operadora vende o pacote, "
+                         "nao ha avulso comparavel"},
     "telecine": {"nome": "Telecine", "preco_avulso": None,
                  "fonte": None, "conferido_em": None,
                  "evidencia": "ainda nao conferido"},
@@ -288,12 +292,16 @@ DO_TEXTO = (
     (r"\bdisney", "disney"),
     (r"\bspotify\b", "spotify"),
     (r"\bgloboplay\b", "globoplay"),
-    (r"amazon\s*prime", "amazon"),
+    # "Prime video" e como a API da Brisanet chama o Amazon Prime
+    (r"amazon\s*prime|prime\s*video", "amazon"),
     (r"\bpremiere\b", "premiere"),
     (r"vale\s*sa[úu]de", "vale_saude"),
     (r"\bvivae\b", "vivae"),
     (r"\bparamount\b", "paramount"),
-    (r"\bmax\b", "max"),
+    (r"\bmax\b|\bhbo\b", "max"),
+    # "sky" com fronteira dos dois lados: sem isso casa dentro de
+    # "Skeelo", que comeca igual e e outro app
+    (r"\bsky\b", "sky"),
     (r"\btelecine\b", "telecine"),
     (r"\bdeezer\b", "deezer"),
     (r"\bskeelo\b", "skeelo"),
@@ -329,6 +337,9 @@ JANELA = 110
 STREAMING = {"netflix", "disney", "globoplay", "amazon", "spotify",
              "premiere", "max", "paramount", "telecine", "deezer",
              "youtube", "vivo_tv"}
+# A Sky fica de fora de proposito: e TV por assinatura, e quem decide
+# nivel 4 e a regra de "tv por assinatura" de cada coletor, nao a
+# presenca do nome dela numa lista de apps.
 
 
 def nivel_por_apps(texto, extras_catalogo=(), piso=0):

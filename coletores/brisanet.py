@@ -207,6 +207,28 @@ def numero(x):
     return float("%s.%s" % (m.group(1).replace(".", ""), m.group(2) or "0")) if m else None
 
 
+def _apps_da_brisanet(oferta, produtos):
+    """Os apps da oferta, pelas DUAS leituras do dicionario.
+
+    O modulo separa os padroes em dois: os do NOME da oferta, que podem
+    ser frouxos porque o nome e curto e deliberado, e os da PROSA do
+    card, que precisam ser rigorosos para "compre na Amazon" nao virar
+    app incluso.
+
+    O que a Brisanet manda e nome nos dois casos - o titulo da oferta e
+    a lista de produtos da API -, e cada lista pega o que a outra perde:
+    o nome sozinho perdia Max, Telecine e Sky; o texto sozinho perdia a
+    Amazon. Aqui nao ha prosa, entao valem as duas.
+    """
+    nome = oferta.get("offer_name") or ""
+    tudo = "%s %s" % (nome, " ".join(produtos or ()))
+    achados = list(apps.apps_do_texto(tudo))
+    for a in apps.apps_da_oferta(tudo):
+        if a not in achados:
+            achados.append(a)
+    return achados
+
+
 def nivel_bundle(texto, produtos):
     # a Brisanet nomeia o que vem junto na lista de produtos contratados,
     # nao so na descricao: as duas coisas sao lidas como um texto so
@@ -297,7 +319,18 @@ def coletar(cidade, uf, verbose=True):
                     "preco_cheio": numero(preco.get("original_price")),
                     "preco_promocional": numero(preco.get("discount_price")) or numero(preco.get("original_price")),
                     "nivel_bundle": nivel_bundle(contexto, produtos),
-                    "apps": produtos or None,
+                    # O NOME DA OFERTA E A LISTA DA API, juntos. A lista
+                    # sozinha perde a Netflix de "AGO26 600MB + NETFLIX
+                    # PCA"; o nome sozinho perde o Prime video que so a
+                    # lista traz. E o resultado sai em CHAVES do
+                    # dicionario, como nos outros coletores - antes aqui
+                    # iam nomes de exibicao, que a tela nao resolve.
+                    "apps": _apps_da_brisanet(o, produtos) or None,
+                    "apps_rotulo": apps.rotulo(
+                        _apps_da_brisanet(o, produtos),
+                        o.get("offer_name"), " ".join(produtos or ())),
+                    # a lista crua nao se perde: e de onde ela veio
+                    "produtos_api": produtos or None,
                     # a Brisanet diz quanto o desconto dura e o preco depois
                     "meses_desconto": meses_desc,
                     "preco_pos_promocao": preco_depois,
