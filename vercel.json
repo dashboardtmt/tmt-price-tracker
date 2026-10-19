@@ -17,5 +17,11 @@
       ]
     }
   ],
-  "outputDirectory": "site"
+  "outputDirectory": "site",
+  "crons": [
+    {
+      "path": "/api/disparar",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }

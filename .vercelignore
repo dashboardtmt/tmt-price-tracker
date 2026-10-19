@@ -3,3 +3,6 @@
 !site
 !site/**
 !vercel.json
+# a funcao que dispara o robo na hora certa
+!api
+!api/**
