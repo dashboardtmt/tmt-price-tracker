@@ -202,25 +202,6 @@ def _montar_pdf(dados):
     except Exception as e:
         return None, "%s: %s" % (type(e).__name__, e)
 
-
-def entrada_do_produto(hoje, produto, praca="Sao Paulo/SP"):
-    """O plano de entrada de cada operadora, na praca de referencia."""
-    filtro = ("capturas?data_captura=eq.%s&produto=eq.%s&praca=eq.%s"
-              "&select=operadora,nome_oferta,destaque,preco_promocional"
-              "&order=preco_promocional.asc"
-              % (hoje, produto, urllib.parse.quote(praca)))
-    linhas, erro = armazenamento.consultar(filtro)
-    if erro or not linhas:
-        return [], erro
-    vistos, saida = set(), []
-    for l in linhas:
-        if l["operadora"] in vistos or l["preco_promocional"] is None:
-            continue
-        vistos.add(l["operadora"])
-        saida.append(l)
-    return saida, None
-
-
 def ofertas_do_produto(hoje, produto, praca="Sao Paulo/SP"):
     """Todas as ofertas do produto na praca de referencia.
 
