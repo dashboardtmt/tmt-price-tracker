@@ -363,7 +363,7 @@ def mudancas(hoje, ontem):
     # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
     # que nao avisar, porque soa como noticia verificada.
     if erro_h or erro_o:
-        return [], [], [], [], erro_h or erro_o, cego
+        return [], [], [], [], erro_h or erro_o, cego, []
     grades, suprimir = _grades_reorganizadas(h, o)
 
     precos, composicao = {}, {}
@@ -394,8 +394,11 @@ def mudancas(hoje, ontem):
 
     renomeadas = [r for r in _renomeadas(h, o)
                   if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
+    # degrau que sumiu dias atras e voltou com outro preco: nenhum dos
+    # detectores acima ve isso, porque todos comparam hoje com ontem
+    voltaram = _degraus_que_voltaram(h, o, hoje)
     return (list(precos.values()), list(composicao.values()),
-            renomeadas, grades, None, cego)
+            renomeadas, grades, None, cego, voltaram)
 
 
 def _entrega(l):
@@ -404,49 +407,162 @@ def _entrega(l):
 
 
 def _grades_reorganizadas(h, o):
-    """Operadoras que mantiveram os precos e mexeram nos degraus.
+    """A escada de cada operadora, comparada pelos dois lados.
 
-    Devolve (lista de eventos, conjunto de operadoras a suprimir). A
-    supressao existe porque, quando a escada inteira desliza, parear por
+    Devolve (lista de eventos, conjunto de operadoras a suprimir).
+
+    POR QUE DOIS LADOS. "R$ 30 dava 25 GB e passou a dar 20" e "25 GB
+    custava R$ 30 e passa a custar R$ 35" sao o mesmo fato visto de
+    angulos diferentes, e qual deles aparece depende de como a operadora
+    mexeu. Em 15/10/2026 a Vivo fez o primeiro; em 20/10, o segundo. Ver
+    so um lado deixa metade dos movimentos passar.
+
+    POR QUE PONTO A PONTO. A versao anterior exigia que a lista inteira
+    de precos fosse identica nos dois dias, e desistia se um degrau novo
+    aparecesse - que e exatamente o que a Vivo fez em 20/10. Agora cada
+    preco que existe nos dois dias e comparado com ele mesmo, e o degrau
+    que so existe de um lado nao atrapalha os outros.
+
+    A SUPRESSAO CONTINUA: quando a escada desliza inteira, parear por
     nome casa o topo de ontem com o meio de hoje e inventa uma queda que
-    nao houve.
+    nao houve. So que agora ela vale apenas para a operadora e produto
+    em que a escada de fato deslizou.
     """
     def agrupar(indice):
         por = collections.defaultdict(list)
         for l in indice.values():
+            if l.get("preco_promocional") is None or _entrega(l) is None:
+                continue
             por[(l["operadora"], l["produto"], l["praca"])].append(l)
         return por
+
+    # O NOME VIAJA JUNTO porque oferta que some nao e preco que sobe.
+    # Entre 17 e 18/10 o "Vivo Total Essencial" de R$ 100 faltou numa
+    # praca, o mais barato de 500 Mega virou o "Total Pro" de R$ 160, e
+    # sem esta trava o aviso diria que o preco subiu 60%.
+    def por_preco(linhas):
+        # entre duas ofertas do mesmo preco vale a que entrega mais: e a
+        # que o cliente escolheria, e a que representa o degrau
+        m = {}
+        for l in linhas:
+            p, e = l["preco_promocional"], _entrega(l)
+            if p not in m or e > m[p][0]:
+                m[p] = (e, (l.get("nome_oferta") or "").lower())
+        return m
+
+    def por_entrega(linhas):
+        # entre duas ofertas da mesma entrega vale a mais barata
+        m = {}
+        for l in linhas:
+            p, e = l["preco_promocional"], _entrega(l)
+            if e not in m or p < m[e][0]:
+                m[e] = (p, (l.get("nome_oferta") or "").lower())
+        return m
 
     ah, ao = agrupar(h), agrupar(o)
     eventos, suprimir = {}, set()
     for chave, atuais in ah.items():
         anteriores = ao.get(chave)
-        if not anteriores or len(atuais) < 2:
+        if not anteriores:
             continue
-        precos_h = sorted(x["preco_promocional"] for x in atuais
-                          if x["preco_promocional"] is not None)
-        precos_o = sorted(x["preco_promocional"] for x in anteriores
-                          if x["preco_promocional"] is not None)
-        if not precos_h or precos_h != precos_o:
-            continue        # algum preco mudou: nao e so reorganizacao
-
-        # mesmo preco a mesmo preco, o degrau mudou?
-        por_preco_h = {x["preco_promocional"]: _entrega(x) for x in atuais}
-        por_preco_o = {x["preco_promocional"]: _entrega(x) for x in anteriores}
-        saltos = [(p, por_preco_o[p], por_preco_h[p]) for p in por_preco_h
-                  if p in por_preco_o
-                  and por_preco_o[p] is not None and por_preco_h[p] is not None
-                  and por_preco_o[p] != por_preco_h[p]]
-        if not saltos:
-            continue
-
         operadora, produto, praca = chave
-        suprimir.add((operadora, produto))
-        ident = (operadora, produto, tuple(sorted(saltos)))
-        d = eventos.setdefault(ident, {"operadora": operadora, "produto": produto,
-                                       "saltos": sorted(saltos), "pracas": []})
+
+        ph, po = por_preco(atuais), por_preco(anteriores)
+        eh, eo = por_entrega(atuais), por_entrega(anteriores)
+
+        # mesmo preco, outra entrega - e a mesma oferta ocupando o preco
+        mesma_etiqueta = sorted(
+            (p, po[p][0], ph[p][0]) for p in ph
+            if p in po and po[p][0] != ph[p][0] and po[p][1] == ph[p][1])
+        # mesma entrega, outro preco - e a mesma oferta no degrau
+        mesmo_pacote = sorted(
+            (e, eo[e][0], eh[e][0]) for e in eh
+            if e in eo and eo[e][0] != eh[e][0] and eo[e][1] == eh[e][1])
+
+        if not mesma_etiqueta and not mesmo_pacote:
+            continue
+        if mesma_etiqueta:
+            # so suprime o pareamento por nome quando a etiqueta de preco
+            # mudou de conteudo: e ai que o emparelhamento inventa queda
+            suprimir.add((operadora, produto))
+
+        ident = (operadora, produto, tuple(mesma_etiqueta), tuple(mesmo_pacote))
+        d = eventos.setdefault(ident, {
+            "operadora": operadora, "produto": produto,
+            "saltos": mesma_etiqueta, "precos": mesmo_pacote, "pracas": []})
         d["pracas"].append(praca)
     return list(eventos.values()), suprimir
+
+
+# Ate quando faz sentido chamar de "voltou". Alem disso e produto antigo
+# ressuscitado, e comparar preco de dois meses atras sem dizer isso
+# engana mais do que informa.
+DIAS_DE_MEMORIA = 45
+
+
+def _degraus_que_voltaram(h, o, hoje):
+    """Entrega que reapareceu hoje com preco diferente da ultima vez.
+
+    Os outros detectores comparam hoje com ontem, e por isso nao veem
+    movimento feito em dois tempos: em 15/10/2026 a Vivo tirou o degrau
+    de 25 GB do pre-pago, e em 20/10 devolveu por R$ 35 em vez de R$ 30.
+    No dia 15 foi saida de oferta; no dia 20, entrada. O reajuste de
+    16,7% ficou entre os dois dias, invisivel.
+
+    Aqui a pergunta e outra: quando esta operadora vendeu esta entrega
+    pela ultima vez, e por quanto.
+    """
+    def chave(l):
+        return (l["operadora"], l["produto"], l["praca"], _entrega(l),
+                (l.get("nome_oferta") or "").lower())
+
+    ontem = {chave(l) for l in o.values() if _entrega(l) is not None}
+    novos = {}
+    for l in h.values():
+        if _entrega(l) is None or l.get("preco_promocional") is None:
+            continue
+        k = chave(l)
+        if k in ontem:
+            continue
+        # entre varias do mesmo degrau vale a mais barata
+        if k not in novos or l["preco_promocional"] < novos[k]["preco_promocional"]:
+            novos[k] = l
+    if not novos:
+        return []
+
+    limite = (datetime.fromisoformat(hoje).date()
+              - timedelta(days=DIAS_DE_MEMORIA)).isoformat()
+    campos = ("data_captura,praca,nome_oferta,preco_promocional,"
+              "franquia_anunciada_gb,degrau_mbps")
+    cache, eventos = {}, {}
+    for k, l in sorted(novos.items()):
+        operadora, produto = k[0], k[1]
+        if (operadora, produto) not in cache:
+            linhas, erro = armazenamento.consultar(
+                "capturas?operadora=eq.%s&produto=eq.%s&data_captura=gte.%s"
+                "&data_captura=lt.%s&select=%s"
+                "&order=data_captura.desc&limit=4000"
+                % (urllib.parse.quote(operadora), produto, limite, hoje, campos))
+            cache[(operadora, produto)] = [] if erro else (linhas or [])
+        antes = None
+        for x in cache[(operadora, produto)]:
+            if (x.get("praca") == k[2] and _entrega(x) == k[3]
+                    and (x.get("nome_oferta") or "").lower() == k[4]
+                    and x.get("preco_promocional") is not None):
+                antes = x
+                break           # a consulta ja vem da mais recente para tras
+        if not antes or antes["preco_promocional"] == l["preco_promocional"]:
+            continue
+        ident = (operadora, produto, k[3], antes["preco_promocional"],
+                 l["preco_promocional"], antes["data_captura"])
+        d = eventos.setdefault(ident, {
+            "operadora": operadora, "produto": produto, "entrega": k[3],
+            "antes": antes["preco_promocional"],
+            "agora": l["preco_promocional"],
+            "quando": antes["data_captura"],
+            "nome": l.get("nome_oferta"), "pracas": []})
+        d["pracas"].append(k[2])
+    return list(eventos.values())
 
 
 def _renomeadas(h, o):
@@ -502,6 +618,21 @@ def _onde(pracas):
     return "em %d de %d: %s" % (n, len(PRACAS), ", ".join(nomes))
 
 
+def _mudou_a_entrega(antes, agora):
+    """"-20% de internet pelo mesmo preco", ou o contrario.
+
+    "25 -> 20 GB" obriga o leitor a fazer a conta para ver que perdeu um
+    quinto do pacote. A direcao e o tamanho tem de estar escritos, e sem
+    adjetivo: a conta fica a vista de quem quiser conferir.
+    """
+    if not antes or agora is None:
+        return ""
+    pc = (agora - antes) / float(antes) * 100
+    if abs(pc) < 0.5:
+        return ""
+    return "   %+.0f%% de internet pelo mesmo pre\u00e7o" % pc
+
+
 def _trocou(saiu, entrou):
     """Em portugues, o que aconteceu com os servicos inclusos.
 
@@ -545,7 +676,8 @@ def _variacao(de, para):
 def montar_mensagem(hoje, ontem):
     """O recado do dia: o mercado primeiro, o robo so quando falha."""
     dia = datetime.fromisoformat(hoje).strftime("%d/%m")
-    mud, comp, renom, grades, erro_cmp, ponto_cego = mudancas(hoje, ontem)
+    (mud, comp, renom, grades, erro_cmp, ponto_cego,
+     voltaram) = mudancas(hoje, ontem)
 
     # o estado da coleta, que pode virar manchete
     col, _ = armazenamento.consultar(
@@ -588,7 +720,7 @@ def montar_mensagem(hoje, ontem):
                    "Ent\u00e3o n\u00e3o d\u00e1 para dizer o que mudou."]
 
     # 2. o que mudou
-    total_mud = len(mud) + len(comp) + len(renom) + len(grades)
+    total_mud = len(mud) + len(comp) + len(renom) + len(grades) + len(voltaram)
     # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
     # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
     # soa como noticia verificada num dia em que nao se verificou nada.
@@ -624,14 +756,43 @@ def montar_mensagem(hoje, ontem):
         linhas += ["", "e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
                    % (len(comp) - 3)]
 
+    # MESMO PRECO, OUTRA ENTREGA. E o movimento mais facil de nao
+    # perceber: o preco na vitrine nao se mexe, e o que encolhe e o que
+    # vem dentro. Em 15/10/2026 a Vivo tirou 5 GB do pre-pago de R$ 30 e
+    # a linha de entao - "franquia nova" - nao disse que aquilo era 20%
+    # menos internet.
     for g in grades[:3]:
-        linhas += ["", "%s \u00b7 %s \u2014 mesmos pre\u00e7os, franquia nova"
-                   % (g["operadora"], g["produto"])]
+        unidade = "Mbps" if g["produto"] in ("fibra", "combo") else "GB"
+        linhas += ["", "%s \u00b7 %s" % (CATEGORIA.get(g["produto"],
+                                                  g["produto"]), g["operadora"])]
         for preco, antes_v, agora_v in g["saltos"][:3]:
-            linhas.append("  %s: %s \u2192 %s GB" % (_reais(preco), antes_v, agora_v))
+            linhas.append("  %s: %s \u2192 %s %s%s" % (
+                _reais(preco), antes_v, agora_v, unidade,
+                _mudou_a_entrega(antes_v, agora_v)))
         linhas.append("  %s" % _onde(g["pracas"]))
     if len(grades) > 3:
-        linhas.append("  e mais %d de grade" % (len(grades) - 3))
+        n = len(grades) - 3
+        linhas += ["", "e mais %d de grade no relat\u00f3rio" % n]
+
+    # DEGRAU QUE VOLTOU COM OUTRO PRECO. E o movimento mais dificil de
+    # ver, porque e feito em dois tempos: a operadora retira o degrau num
+    # dia e devolve dias depois, mais caro. Comparando so com ontem, o
+    # primeiro movimento e "saiu uma oferta" e o segundo e "entrou uma
+    # oferta" - e o reajuste fica escondido entre os dois.
+    for v in voltaram[:3]:
+        unidade = "Mbps" if v["produto"] in ("fibra", "combo") else "GB"
+        quando = datetime.fromisoformat(v["quando"]).strftime("%d/%m")
+        pc = ((v["agora"] - v["antes"]) / float(v["antes"]) * 100
+              if v["antes"] else 0)
+        linhas += ["", "%s \u00b7 %s" % (CATEGORIA.get(v["produto"],
+                                                   v["produto"]), v["operadora"])]
+        linhas.append("  %s %s voltou por %s   %+.0f%% sobre os %s de %s"
+                      % (v["entrega"], unidade, _reais(v["agora"]), pc,
+                         _reais(v["antes"]), quando))
+        linhas.append("  %s" % _onde(v["pracas"]))
+    if len(voltaram) > 3:
+        linhas += ["", "e mais %d degrau(s) que voltaram, no relat\u00f3rio"
+                   % (len(voltaram) - 3)]
 
     for m in renom[:3]:
         a, d = m["antes"], m["atual"]
@@ -662,7 +823,7 @@ def montar_mensagem(hoje, ontem):
     dados = {
         "dia": hoje, "ontem": ontem,
         "mudancas_preco": mud, "mudancas_composicao": comp,
-        "renomeadas": renom, "grades": grades,
+        "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "erro_comparacao": erro_cmp, "ponto_cego": ponto_cego,
         "coletas": col, "falhas": falhas, "sem_registro": sem_registro,
         "total_ofertas": total_ofertas,
