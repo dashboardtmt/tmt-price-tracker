@@ -291,15 +291,30 @@ def _indexar(dia):
     # ontem: capaz de acusar mudanca onde nao houve e de esconder a que
     # houve, variando de uma execucao para a seguinte. A ordem explicita
     # acima e para nao depender de sorte nem quando ainda houver empate.
-    # DUAS OFERTAS COM A MESMA IDENTIDADE: uma sobrescreve a outra e some
-    # do aviso. Era o caso das duas "Vivo Familia 2 + TV" de 700 Mega, a
-    # R$ 290 e a R$ 390 - 20 capturas por dia que nunca foram comparadas,
-    # e uma diferenca de R$ 100 em ponto cego. A chave de continuidade ja
-    # separa aquele par; isto aqui garante que o proximo nao passe calado.
+    # DUAS OFERTAS COM A MESMA IDENTIDADE SAEM AS DUAS. Era o caso das
+    # duas "Vivo Familia 2 + TV" de 700 Mega, a R$ 290 e a R$ 390.
+    #
+    # Guardar a primeira e descartar o resto parecia aproveitar o que
+    # dava. Nao e: e sortear qual oferta representa as duas, e o sorteio
+    # muda de um dia para o outro. Medido em 15 e 16/10/2026 - a ordem
+    # elegeu a de R$ 390 num dia, a correcao de variante levou essa para
+    # outra chave, sobrou a de R$ 290 no dia seguinte, e a comparacao
+    # anunciou "390,00 -> 290,00  -26% em todas as 20 pracas" num dia em
+    # que nenhum preco mudou. As duas ofertas existiam nos dois dias
+    # pelos mesmos valores.
+    #
+    # Pior: a mensagem imprimia, duas linhas acima, que nao era possivel
+    # afirmar variacao naquelas ofertas. Afirmava e desafirmava na mesma
+    # mensagem, e o numero era falso.
+    #
+    # Com o grupo inteiro fora, o aviso passa a ser verdade. O que sobra
+    # cai nas sobras, onde _renomeadas e _oferta_remodelada exigem uma
+    # candidata de cada lado e se recusam a chutar.
+    grupos = collections.Counter(_identidade(l) for l in (linhas or []))
     indice, colididas = {}, []
     for l in (linhas or []):
         k = _identidade(l)
-        if k in indice:
+        if grupos[k] > 1:
             colididas.append(l)
             continue
         indice[k] = l
@@ -319,12 +334,18 @@ def _indexar(dia):
         # ja comeca com a marca na maioria das operadoras
         quais = sorted({_rotulo(c) for c in colididas})
         aviso = {
-            "curto": ("%d oferta(s) não foram comparadas hoje: há duas "
-                      "iguais em série, praça e nome (%s)."
-                      % (len(colididas), quais[0])),
+            "quantas": len(colididas),
+            "curto": ("%d oferta(s) ficaram fora da comparação de hoje por "
+                      "serem indistinguíveis entre si — mesma série, praça "
+                      "e nome (%s)." % (len(colididas), quais[0])),
             "longo": ("%d oferta(s) não foram comparadas por compartilharem "
                       "chave de série, praça e nome com outra oferta (%s). "
-                      "Não é possível afirmar se houve variação de preço nelas."
+                      "Todas as ofertas de cada grupo ficam fora da "
+                      "comparação: representar o grupo por uma delas "
+                      "equivaleria a escolher por sorteio qual das duas "
+                      "define o preço do dia, e o sorteio muda de um dia "
+                      "para o outro. Não é possível afirmar se houve "
+                      "variação de preço nelas."
                       % (len(colididas), "; ".join(quais[:2]))),
         }
     return indice, erro, aviso
@@ -537,7 +558,7 @@ def mudancas(hoje, ontem):
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura,
             "erro": None, "cego": cego,
-            "cobertura": _cobertura(h, o)}
+            "cobertura": _cobertura(h, o, (cego or {}).get("quantas", 0))}
 
 
 # DIAS EM QUE A NOSSA LEITURA MUDOU, declarados a mao.
@@ -611,7 +632,7 @@ def _minoria_das_pracas(e):
     return universo > 1 and quantas * 2 <= universo
 
 
-def _cobertura(h, o):
+def _cobertura(h, o, fora=0):
     """Quantas ofertas de hoje encontraram a mesma identidade ontem.
 
     POR QUE ISTO E PARTE DA NOTICIA. "Nenhuma mudanca" sobre uma
@@ -626,13 +647,18 @@ def _cobertura(h, o):
     """
     if not h:
         return None
+    # AS INDISTINGUIVEIS CONTAM NO DENOMINADOR. Elas saem do indice, e
+    # sem isto a cobertura pareceria melhor do que e: 100% do que deu
+    # para comparar nao e 100% do que foi coletado.
     comuns = set(h) & set(o)
     por_operadora = {}
     for op in sorted({l["operadora"] for l in h.values()}):
         do_op = {k for k, l in h.items() if l["operadora"] == op}
         por_operadora[op] = (len(do_op & comuns), len(do_op))
-    return {"pares": len(comuns), "hoje": len(h), "ontem": len(o),
-            "fracao": len(comuns) / float(len(h)),
+    total = len(h) + (fora or 0)
+    return {"pares": len(comuns), "hoje": total, "ontem": len(o),
+            "fora": fora or 0,
+            "fracao": len(comuns) / float(total),
             "por_operadora": por_operadora}
 
 
@@ -1202,21 +1228,28 @@ def montar_mensagem(hoje, ontem):
     if not erro_cmp and col:
         linhas.append("")
         if not total_mud:
-            # "NADA MUDOU" PRECISA DE COBERTURA PARA SER VERDADE. Com
-            # poucas ofertas pareadas, a frase descreve a comparacao que
-            # nao aconteceu, e nao o mercado que ficou parado - e e
-            # exatamente essa a frase que soa como noticia verificada.
-            if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:
-                linhas.append(
-                    "Nada a reportar, mas a compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 "
-                    "%d%% das ofertas de hoje: o sil\u00eancio n\u00e3o confirma "
-                    "que o mercado ficou parado."
-                    % round(cobertura["fracao"] * 100))
-            else:
-                linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
+            linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
         else:
             linhas.append("%d mudan\u00e7a%s hoje"
                           % (total_mud, "" if total_mud == 1 else "s"))
+
+        # A COBERTURA QUALIFICA A CONTAGEM, qualquer que ela seja. Com
+        # poucas ofertas pareadas, "nenhuma mudanca" descreve a
+        # comparacao que nao aconteceu e nao o mercado que ficou
+        # parado - e e essa a frase que soa como noticia verificada.
+        #
+        # E COM MUDANCA TAMBEM. Escrevi esta ressalva so para o dia
+        # parado, e isso deixava o buraco inverso: cobertura de 40% com
+        # tres mudancas encontradas fazia a mensagem contar as tres sem
+        # dizer que nao olhou o resto, e quem le entende que tres e a
+        # historia inteira do dia.
+        if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:
+            linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 %d%% das ofertas "
+                       "de hoje: %s."
+                       % (round(cobertura["fracao"] * 100),
+                          "o sil\u00eancio n\u00e3o confirma que o mercado ficou "
+                          "parado" if not total_mud else
+                          "pode haver mudan\u00e7a fora do que foi comparado")]
 
     # O PONTO CEGO QUALIFICA A LINHA DE CIMA, e por isso vem colado
     # nela. "Nenhuma mudanca" com 20 ofertas fora da comparacao nao e a

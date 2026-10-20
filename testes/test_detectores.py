@@ -240,8 +240,22 @@ class CoberturaDaComparacao(unittest.TestCase):
         mudanca" sobre uma vitrine que ela nao conseguiu ler."""
         t = montar(em_todas(nome="Oferta velha", gb=50, data=ONTEM),
                    em_todas(nome="Oferta nova", gb=40, data=HOJE))
+        self.assertIn("alcançou só 0%", t)
         self.assertIn("não confirma", t)
-        self.assertNotIn("Nenhuma mudança de preço", t)
+
+    def test_a_ressalva_vale_tambem_no_dia_com_mudanca(self):
+        """O buraco inverso: cobertura baixa COM mudanca encontrada fazia
+        a mensagem contar as mudancas sem dizer que nao olhou o resto, e
+        quem le entende que aquilo e a historia inteira do dia."""
+        ontem = (em_todas(nome="Fica", preco=100.0, data=ONTEM)
+                 + em_todas(nome="Sai", preco=50.0, gb=30, data=ONTEM)
+                 + em_todas(nome="Sai 2", preco=60.0, gb=20, data=ONTEM))
+        hoje = (em_todas(nome="Fica", preco=120.0, data=HOJE)
+                + em_todas(nome="Entra", preco=50.0, gb=25, data=HOJE)
+                + em_todas(nome="Entra 2", preco=60.0, gb=15, data=HOJE))
+        t = montar(ontem, hoje)
+        self.assertIn("100,00 → 120,00", t)
+        self.assertIn("pode haver mudança fora do que foi comparado", t)
 
     def test_e_nao_avisa_quando_a_comparacao_foi_inteira(self):
         t = montar(em_todas(data=ONTEM), em_todas(data=HOJE))

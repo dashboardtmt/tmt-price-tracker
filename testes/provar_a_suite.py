@@ -237,8 +237,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '            if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:',
-        '            if False:',
+        '        if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:',
+        '        if False:',
         "24. comparacao cega volta a ser reportada como mercado parado"),
 
     Mutacao(
@@ -293,6 +293,18 @@ MUTACOES = [
         ' or _minoria_das_pracas(r)]',
         '              if varias_operadoras or _minoria_das_pracas(r)]',
         "28. a data declarada volta a nao mandar na heuristica"),
+
+    Mutacao(
+        "robo.py",
+        '        if grupos[k] > 1:',
+        '        if k in indice:',
+        "29. o par indistinguivel volta a ser representado por um deles"),
+
+    Mutacao(
+        "robo.py",
+        '    total = len(h) + (fora or 0)',
+        '    total = len(h)',
+        "30. a cobertura volta a nao contar as ofertas que sairam"),
 
     Mutacao(
         "relatorio.py",

@@ -179,16 +179,59 @@ class PontoCegoChegaNaMensagem(unittest.TestCase):
 
     def test_a_colisao_aparece_no_texto(self):
         t = montar(self._par_colidido(ONTEM), self._par_colidido(HOJE))
-        self.assertIn("não foram comparadas", t)
+        self.assertIn("indistinguíveis entre si", t)
 
     def test_e_vem_junto_da_linha_que_ela_qualifica(self):
         t = montar(self._par_colidido(ONTEM), self._par_colidido(HOJE))
-        self.assertLess(t.index("não foram comparadas"),
+        self.assertLess(t.index("indistinguíveis entre si"),
                         t.index("Relatório completo"))
 
     def test_dia_limpo_nao_tem_ressalva(self):
         t = montar(em_todas(data=ONTEM), em_todas(data=HOJE))
-        self.assertNotIn("não foram comparadas", t)
+        self.assertNotIn("indistinguíveis", t)
+
+    def test_o_grupo_inteiro_sai_da_comparacao(self):
+        """ACHADO PELA MEDICAO no dado real de 15 e 16/10/2026, depois da
+        auditoria. _indexar guardava a PRIMEIRA do grupo e descartava o
+        resto - e isso nao e "aproveitar o que da": e sortear qual oferta
+        representa as duas, e o sorteio muda de um dia para o outro.
+
+        As duas "Vivo Familia 2 + TV" de 700 Mega, R$ 290 e R$ 390,
+        dividiam chave, praca e nome. A ordem elegeu a de R$ 390 em
+        15/10; em 16/10 a correcao de variante levou essa para outra
+        chave e sobrou a de R$ 290 na chave antiga. A mensagem anunciou:
+
+            Combo - Vivo Familia 2 + TV
+              390,00 -> 290,00  -26%   em todas as 20 pracas
+
+        Nenhum preco mudou: as duas existiam nos dois dias pelos mesmos
+        valores. E duas linhas acima a mesma mensagem dizia que nao era
+        possivel afirmar variacao naquelas ofertas - afirmava e
+        desafirmava de uma vez, e o numero era falso.
+        """
+        def par(data, chave_da_caro):
+            base = dict(produto="combo", nome="Vivo Família 2 + TV",
+                        gb=None, mbps=700, data=data)
+            return (em_todas(preco=290.0, chave="Vivo|combo|700mbps|familia",
+                             **base)
+                    + em_todas(preco=390.0, chave=chave_da_caro, **base))
+
+        t = montar(par(ONTEM, "Vivo|combo|700mbps|familia"),
+                   par(HOJE, "Vivo|combo|700mbps|familia_tv"))
+        self.assertNotIn("-26%", t)
+        self.assertNotIn("390,00 → 290,00", t)
+        self.assertIn("indistinguíveis entre si", t)
+
+    def test_e_a_cobertura_conta_as_que_sairam(self):
+        """Tirar as colididas do indice faria a cobertura parecer melhor
+        do que e: 100% do que deu para comparar nao e 100% do que foi
+        coletado."""
+        r = dados(self._par_colidido(ONTEM) + em_todas(data=ONTEM),
+                  self._par_colidido(HOJE) + em_todas(data=HOJE))
+        cob = r["cobertura"]
+        self.assertEqual(cob["fora"], 2)
+        self.assertEqual(cob["hoje"], 22, "20 comparaveis + as 2 fora")
+        self.assertLess(cob["fracao"], 1.0)
 
 
 class TierNaoVemDaFraseSeguinte(unittest.TestCase):
