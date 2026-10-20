@@ -22,25 +22,36 @@ name: Rotina diaria
 # da sessao do CLI, e exigir que alguem gere um na mao seria pendurar a
 # atualizacao diaria num passo manual - que e justamente o que nao pode.
 
-# OITO AGENDAMENTOS, E NAO UM. Medido em sete dias, o evento agendado do
-# GitHub chegou entre 3,5 e 9,6 horas atrasado - numa segunda-feira a
-# mensagem saiu as 16h45. O atraso esta no gatilho e nao na fila: o run
-# comeca no mesmo minuto em que e criado.
+# UMA COLETA POR DIA, MIRANDO AS 7H DA MANHA.
 #
-# Como o atraso varia por evento, oito chances valem mais que uma. A
-# primeira que disparar coleta; as outras perguntam ao banco, ouvem que
-# o dia ja foi, e encerram em segundos. Os minutos fogem do inicio da
-# hora, que a propria documentacao do GitHub aponta como o pior momento.
+# A coleta leva ~50 minutos, entao precisa COMECAR perto das 6h para a
+# mensagem chegar as 7h. So que o agendamento do GitHub nao cumpre
+# horario: medido em sete dias, o evento chegou entre 3,5 e 9,6 horas
+# atrasado. O atraso esta no gatilho, nao na fila - o run comeca no mesmo
+# minuto em que e criado.
+#
+# Nao da para mandar o GitHub disparar as 6h. Da para decidir, a cada
+# gatilho que chega, se e hora de coletar - e e isso que ja_coletou.py
+# faz: recusa antes das 6h, libera entre 6h e 10h, e depois das 10h
+# libera de qualquer jeito.
+#
+# Os horarios abaixo sao postos para que os atrasos tipicos facam os
+# gatilhos CHEGAREM dentro da janela. Os mais cedo quase sempre so pagam
+# a guarda, que custa meio minuto; eles existem para o dia de atraso
+# grande, como a segunda-feira 12/10, quando o atraso foi de 9,6 horas.
+#
+# Minutos quebrados de proposito: a documentacao do GitHub aponta o
+# inicio de cada hora como o pior momento da fila.
 on:
   schedule:
-    - cron: '13 3 * * *'    # 00:13 BRT
-    - cron: '41 4 * * *'    # 01:41
-    - cron: '27 6 * * *'    # 03:27
-    - cron: '52 7 * * *'    # 04:52
-    - cron: '18 9 * * *'    # 06:18
-    - cron: '36 10 * * *'   # 07:36
-    - cron: '49 11 * * *'   # 08:49
-    - cron: '23 13 * * *'   # 10:23
+    - cron: '34 1 * * *'    # marcado 22:34 BRT (do dia anterior)
+    - cron: '7 4 * * *'     # marcado 01:07 BRT
+    - cron: '41 5 * * *'    # marcado 02:41
+    - cron: '13 7 * * *'    # marcado 04:13
+    - cron: '47 8 * * *'    # marcado 05:47
+    - cron: '22 10 * * *'   # marcado 07:22
+    - cron: '56 11 * * *'   # marcado 08:56
+    - cron: '29 13 * * *'   # marcado 10:29
   workflow_dispatch:
 
 concurrency:
@@ -48,8 +59,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # A GUARDA. Pergunta ao banco se o dia ja foi coletado. Sem ela, os
-  # oito agendamentos coletariam oito vezes.
+  # A GUARDA. Decide se e hora de coletar: uma vez por dia, e nao antes
+  # das 6h. Sem ela, os oito agendamentos coletariam oito vezes - e o
+  # primeiro deles, que chega de madrugada, faria a mensagem do dia
+  # chegar as 3h da manha.
   decidir:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -60,7 +73,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Ja coletou hoje?
+      - name: E hora de coletar?
         id: ver
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -72,11 +85,13 @@ jobs:
             echo "disparo manual: roda de qualquer jeito"
             exit 0
           fi
+          # a guarda decide: ja coletou hoje? e cedo demais? passou da
+          # hora limite? a saida dela e "sim" ou "nao", e nada mais
           if [ "$(python ja_coletou.py)" = "sim" ]; then
-            echo "rodar=false" >> "$GITHUB_OUTPUT"
-            echo "o dia ja foi coletado - encerrando"
-          else
             echo "rodar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rodar=false" >> "$GITHUB_OUTPUT"
+            echo "nao e hora - encerrando"
           fi
 
   coleta:

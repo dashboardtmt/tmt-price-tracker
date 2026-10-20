@@ -1,36 +1,53 @@
 # -*- coding: utf-8 -*-
-"""A coleta de hoje ja aconteceu? Imprime "sim" ou "nao".
+"""Decide se a coleta deve rodar AGORA. Imprime "sim" ou "nao".
 
-POR QUE EXISTE. O agendamento do GitHub nao cumpre horario: medido em
-sete dias, o evento chegou entre 3,5 e 9,6 horas atrasado, e numa
-segunda-feira a mensagem saiu as 16h45. O atraso esta no GATILHO, nao na
-fila de maquinas - o run comeca no mesmo minuto em que e criado.
+O PROBLEMA. O agendamento do GitHub nao cumpre horario: medido em sete
+dias, o evento chegou entre 3,5 e 9,6 horas atrasado, e numa
+segunda-feira a mensagem do dia saiu as 16h45. O atraso esta no GATILHO,
+nao na fila de maquinas - o run comeca no mesmo minuto em que e criado.
 
-Como o atraso varia por evento, a rotina passa a ter varios
-agendamentos ao longo da madrugada em vez de um. A primeira que o GitHub
-disparar faz o trabalho; as outras perguntam aqui, ouvem "sim" e
-encerram em segundos.
+NAO DA PARA MANDAR O GITHUB DISPARAR AS 6H. Mas da para decidir quando a
+coleta acontece, independente de quando o gatilho chega. A rotina tem
+varios agendamentos espalhados pela madrugada e pela manha; cada um
+pergunta aqui, e a resposta governa:
 
-Isso so e seguro porque a resposta vem do BANCO e nao de um arquivo de
-estado: o registro de coleta do dia e a mesma fonte que o aviso diario
-usa para dizer se o robo rodou. Duas rodadas simultaneas tambem nao
-quebram nada - a gravacao e append-only com indice unico, e o concurrency
-do workflow ja impede a sobreposicao.
+    ja coletou hoje?            -> nao (uma coleta por dia, e acabou)
+    ainda e cedo demais?        -> nao (o dado da madrugada nao serve:
+                                   a mensagem chegaria de madrugada)
+    passou da hora limite?      -> sim, de qualquer jeito
+    senao                       -> sim
 
-QUANDO NAO DA PARA SABER, A RESPOSTA E "nao". Banco fora do ar, segredo
-ausente, rede caida: nesses casos vale coletar de novo. Pular a coleta
-por nao conseguir perguntar seria perder o dia inteiro por causa de uma
-consulta.
+Assim a coleta cai na PRIMEIRA oportunidade a partir da hora desejada, e
+a mensagem chega logo depois. Os gatilhos que chegam cedo demais
+encerram em segundos; os que chegam tarde pegam o trabalho.
+
+POR QUE UMA JANELA, E NAO UM HORARIO. Horario exato exigiria um gatilho
+externo e confiavel, que hoje nao existe - o api/disparar.js esta pronto
+para isso e so espera um token. Com o que ha, a janela e o mais proximo
+de um compromisso que da para prometer: nao antes das 6h, e no pior caso
+ate as 10h.
+
+QUANDO NAO DA PARA SABER, A RESPOSTA E "sim". Banco fora do ar, segredo
+ausente, rede caida: nesses casos vale coletar. Pular o dia por nao
+conseguir perguntar seria perder o dia inteiro por causa de uma consulta.
 """
 import json
 import os
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time as hora, timedelta, timezone
 
 BRT = timezone(timedelta(hours=-3))
 API = "/rest/v1/"
+
+# A coleta leva cerca de 50 minutos, e o aviso sai logo depois. Comecando
+# as 6h, a mensagem chega perto das 7h - que e a hora pedida.
+ABERTURA = hora(6, 0)
+
+# Depois disto, coleta de qualquer jeito. Um dia sem dado e pior do que
+# um dado que chegou tarde, e as 10h ja nao ha o que esperar.
+LIMITE = hora(10, 0)
 
 # Quantas operadoras precisam ter registro para o dia contar como
 # coletado. Abaixo disto a rodada anterior morreu no meio, e a proxima
@@ -38,16 +55,15 @@ API = "/rest/v1/"
 MINIMO = 5
 
 
-def main():
-    hoje = datetime.now(BRT).date().isoformat()
+def _ja_coletou(hoje):
+    """(ja_coletou, quantas_ok). Em caso de duvida, devolve False."""
     url = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
     chave = os.environ.get("SUPABASE_SECRET_KEY") or ""
     if not url or not chave:
-        print("nao")
-        sys.stderr.write("sem credencial para perguntar: vale coletar\n")
-        return 0
+        sys.stderr.write("sem credencial para perguntar\n")
+        return False, None
 
-    caminho = ("coletas?data_captura=eq.%s&select=operadora,sucesso" % hoje)
+    caminho = "coletas?data_captura=eq.%s&select=operadora,sucesso" % hoje
     req = urllib.request.Request(url + API + caminho)
     req.add_header("apikey", chave)
     req.add_header("Authorization", "Bearer " + chave)
@@ -55,13 +71,40 @@ def main():
         with urllib.request.urlopen(req, timeout=30) as r:
             linhas = json.loads(r.read().decode("utf-8", "replace"))
     except Exception as e:
-        print("nao")
-        sys.stderr.write("nao deu para perguntar (%s): vale coletar\n" % e)
-        return 0
+        sys.stderr.write("nao deu para perguntar: %s\n" % e)
+        return False, None
 
     ok = {l["operadora"] for l in linhas if l.get("sucesso")}
-    sys.stderr.write("%s: %d operadora(s) com coleta ok\n" % (hoje, len(ok)))
-    print("sim" if len(ok) >= MINIMO else "nao")
+    return len(ok) >= MINIMO, len(ok)
+
+
+def main():
+    agora = datetime.now(BRT)
+    hoje = agora.date().isoformat()
+
+    feito, quantas = _ja_coletou(hoje)
+    if quantas is not None:
+        sys.stderr.write("%s: %d operadora(s) com coleta ok\n" % (hoje, quantas))
+
+    if feito:
+        print("nao")
+        sys.stderr.write("o dia ja foi coletado\n")
+        return 0
+
+    if agora.time() >= LIMITE:
+        print("sim")
+        sys.stderr.write("passou das %s: coleta de qualquer jeito\n"
+                         % LIMITE.strftime("%H:%M"))
+        return 0
+
+    if agora.time() < ABERTURA:
+        print("nao")
+        sys.stderr.write("sao %s, cedo demais - a janela abre as %s\n"
+                         % (agora.strftime("%H:%M"), ABERTURA.strftime("%H:%M")))
+        return 0
+
+    print("sim")
+    sys.stderr.write("dentro da janela e sem coleta hoje: vai coletar\n")
     return 0
 
 
