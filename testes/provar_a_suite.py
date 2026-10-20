@@ -529,6 +529,12 @@ MUTACOES = [
         "W5. o voltou volta a calcular o proprio percentual"),
 
     Mutacao(
+        "vigia.py",
+        '    graves = sorted((t for g, t in lista if g == "grave"), key=_peso)',
+        '    graves = [t for g, t in lista if g == "grave"]',
+        "R5. a vaga do vigia volta a ser decidida pela ordem do codigo"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',

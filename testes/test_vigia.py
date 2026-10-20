@@ -178,6 +178,28 @@ class Silencio(unittest.TestCase):
     def test_dia_normal_nao_produz_nada(self):
         self.assertEqual(vigia.achados(dia_normal(), historico()), [])
 
+    def test_a_vaga_da_mensagem_vai_para_o_mais_grave(self):
+        """RESSALVA 5 DO VEREDITO. A mensagem tem uma vaga, e qual achado
+        a ocupava vinha da ordem em que "achados" os produz - ordem de
+        codigo e nada mais. Por 18 dos 21 dias medidos o primeiro era a
+        Brisanet sem velocidade, defeito de leitura ja corrigido que se
+        repetia todo dia, e um achado novo entrava atras dele. Segundo
+        plano e a posicao de onde o preco fantasma ja ficou calado."""
+        r = vigia.resumo([
+            ("grave", "Brisanet: 119 de 119 ofertas sem velocidade"),
+            ("grave", "3 oferta(s) com preco fora da faixa de varejo"),
+            ("grave", "Claro nao aparece hoje (tipico: 364 ofertas)")])
+        self.assertTrue(r.startswith("Conferir: Claro nao aparece hoje"), r)
+        self.assertIn("mais 2 ponto(s)", r)
+
+    def test_e_a_ordem_nao_depende_de_como_chegou(self):
+        baralhado = [
+            ("grave", "nenhuma captura hoje"),
+            ("grave", "Brisanet: 119 de 119 ofertas sem velocidade")]
+        for ordem in (baralhado, list(reversed(baralhado))):
+            self.assertTrue(vigia.resumo(ordem).startswith(
+                "Conferir: nenhuma captura hoje"), ordem)
+
     def test_resumo_vazio_quando_nao_ha_grave(self):
         self.assertEqual(vigia.resumo([("atencao", "algo pequeno")]), "")
         self.assertIn("Conferir", vigia.resumo([("grave", "algo serio")]))

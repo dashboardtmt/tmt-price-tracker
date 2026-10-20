@@ -239,17 +239,44 @@ def achados(hoje, anteriores):
     return saida
 
 
+# A ordem em que os achados graves disputam a vaga da mensagem. O
+# critério e quanto cada um muda o que a pessoa faz ao ler, e ele e
+# DECLARADO aqui em vez de herdado da ordem em que "achados" os produz.
+#
+# POR QUE ISTO IMPORTA. A mensagem tem uma vaga: o primeiro grave sai
+# inteiro e os outros saem na contagem. Por 18 dos 21 dias medidos o
+# primeiro era "Brisanet: 119 de 119 ofertas sem velocidade" - defeito
+# de leitura ja corrigido, que se repetia todo dia -, e um achado novo
+# entrava atras dele. E segundo plano e a posicao de onde o preco
+# fantasma de R$ 24,60 ja ficou calado uma vez.
+PRIORIDADE = (
+    "nenhuma captura",          # o dia nao existe; nada mais importa
+    "nao aparece hoje",         # um nono do mercado desapareceu
+    "fora da faixa",            # numero que nao e preco de plano
+    "nao deu para conferir",    # a propria conferencia nao aconteceu
+    "salto",                    # numero que talvez nao seja daquela oferta
+    "sem velocidade",           # leitura quebrada, mas o preco esta la
+)
+
+
+def _peso(texto):
+    for i, marca in enumerate(PRIORIDADE):
+        if marca in texto:
+            return i
+    return len(PRIORIDADE)
+
+
 def resumo(lista):
     """Uma linha para a mensagem, ou vazio quando nao ha o que dizer.
 
     O RESTO NAO PODE DESAPARECER. Antes saia so o primeiro grave, e com
     isso um preco fora da faixa escondia "Brisanet: 119 de 119 ofertas
-    sem velocidade" - o achado maior ficava atras do achado que veio
-    primeiro na lista, por ordem de codigo e nada mais. Agora o
-    primeiro aparece inteiro e os outros aparecem na contagem, que e o
-    que faz alguem abrir o relatorio.
+    sem velocidade" - o achado maior ficava atras do que veio primeiro
+    na lista. Agora o primeiro aparece inteiro, escolhido por
+    PRIORIDADE, e os outros aparecem na contagem, que e o que faz
+    alguem abrir o relatorio.
     """
-    graves = [t for g, t in lista if g == "grave"]
+    graves = sorted((t for g, t in lista if g == "grave"), key=_peso)
     if not graves:
         return ""
     if len(graves) == 1:
