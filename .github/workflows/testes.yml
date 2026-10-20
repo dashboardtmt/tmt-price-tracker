@@ -12,6 +12,13 @@
 #
 # NAO TOCA A REDE NEM O BANCO. Roda em segundos, sem segredo nenhum - e
 # por isso pode rodar em pull request de qualquer origem.
+#
+# O reportlab E NECESSARIO AQUI, mesmo nao sendo necessario para coletar:
+# os testes do PDF se pulam sozinhos quando ele falta, e o provador de
+# mutacoes reintroduz dois defeitos no relatorio.py exigindo que a suite
+# fique vermelha. Com os testes pulados ela fica verde, o provador
+# reporta "teste inutil" e derruba o build - dizendo que os testes nao
+# servem, que e a mensagem certa para a situacao errada.
 
 name: Testes
 
@@ -31,6 +38,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Instalar o que o relatorio em PDF precisa
+        run: pip install --quiet reportlab pypdf
 
       - name: Rodar a suite
         run: python -m unittest discover -s testes -v

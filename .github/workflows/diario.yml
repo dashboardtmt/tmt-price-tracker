@@ -74,6 +74,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Instalar o que o relatorio em PDF precisa
+        # o portao tem de exercitar o PDF tambem: ele e metade do que
+        # chega todo dia, e teste pulado nao e teste passado
+        run: pip install --quiet reportlab pypdf
+
       - name: Os testes passam?
         id: testes
         # Coletar com o codigo quebrado envenena a serie: a gravacao e
