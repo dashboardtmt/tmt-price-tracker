@@ -749,5 +749,89 @@ class OVoltouNaoCalculaOProprioPercentual(unittest.TestCase):
         self.assertIn("+11%", self._voltou(90.0))
 
 
+class ONomeCompartilhadoNaoIdentifica(unittest.TestCase):
+    """O FANTASMA QUE FOI PARAR NO TELEGRAM em 20/10/2026.
+
+        Pre-pago - Vivo Pre
+          25,00 -> 35,00 (+40%)   com 15 -> 25 GB (+67%)
+
+    Nao houve reajuste nenhum. A Vivo acrescentou um degrau - 25 GB por
+    R$ 35 - e a oferta de 15 GB por R$ 25 continua existindo. Os dois
+    numeros sao de ofertas diferentes.
+
+    _oferta_remodelada pareia as sobras pelo NOME e exige uma candidata
+    de cada lado - regra escrita para "TIM Controle" virando "TIM
+    Controle Smart", onde o nome identifica. "Vivo Pre" nomeia QUATRO
+    ofertas na mesma praca, e naquele dia sobrou uma de cada lado por
+    acidente: o degrau novo sem par hoje, e o de 15 GB sem par ontem
+    porque a linha de hoje dele caiu por indistinguivel.
+
+    A contagem tem de ser no indice INTEIRO: nome compartilhado nao
+    identifica, e parear por ele e sorteio.
+    """
+
+    def _vivo_pre(self, pares, data):
+        linhas = []
+        for preco, gb in pares:
+            linhas += em_todas(operadora="Vivo", produto="prepago",
+                               nome="Vivo Pré", preco=preco, gb=gb,
+                               data=data,
+                               chave="Vivo|prepago|%dgb|simples" % gb)
+        return linhas
+
+    def test_degrau_novo_nao_vira_reajuste_de_outra_oferta(self):
+        ontem = self._vivo_pre([(20.0, 5), (25.0, 15), (30.0, 20)], ONTEM)
+        hoje = self._vivo_pre([(20.0, 5), (30.0, 20), (35.0, 25)], HOJE)
+        r = dados(ontem, hoje)
+        self.assertEqual(r["remodeladas"], [],
+                         "o nome nomeia quatro ofertas: nao identifica")
+
+    def test_e_a_mensagem_nao_mistura_os_numeros(self):
+        ontem = self._vivo_pre([(20.0, 5), (25.0, 15), (30.0, 20)], ONTEM)
+        hoje = self._vivo_pre([(20.0, 5), (30.0, 20), (35.0, 25)], HOJE)
+        t = montar(ontem, hoje)
+        self.assertNotIn("25,00 → 35,00", t)
+        self.assertNotIn("15 → 25 GB", t)
+
+    def test_nome_de_uma_oferta_so_continua_pareando(self):
+        """A regra nao pode matar o caso para o qual foi escrita."""
+        ontem = em_todas(operadora="Vivo", produto="prepago",
+                         nome="Vivo Pré Turbo", preco=30.0, gb=25,
+                         data=ONTEM, chave="Vivo|prepago|25gb|simples")
+        hoje = em_todas(operadora="Vivo", produto="prepago",
+                        nome="Vivo Pré Turbo", preco=35.0, gb=20,
+                        data=HOJE, chave="Vivo|prepago|20gb|simples")
+        r = dados(ontem, hoje)
+        self.assertEqual(len(r["remodeladas"]), 1)
+
+
+class AHoraDaColetaVemEmUtc(unittest.TestCase):
+    """iniciada_em e timestamptz: o Postgres normaliza para UTC e o
+    PostgREST devolve assim. Cortando a string, a mensagem de 20/10 disse
+    "a coleta comecou as 18:56" sobre uma coleta das 15:56 - e pior, num
+    dia normal uma coleta as 07:30 BRT viraria 10:30 na leitura e o
+    aviso de "fora da janela" sairia todo dia."""
+
+    def _com(self, iso):
+        col = [dict(c, iniciada_em=iso) for c in COLETA_OK]
+        return montar(em_todas(data=ONTEM), em_todas(data=HOJE), coletas=col)
+
+    def test_utc_e_convertido_para_brasilia(self):
+        t = self._com("2026-10-20T18:56:00+00:00")
+        self.assertIn("15:56", t)
+        self.assertNotIn("18:56", t)
+
+    def test_coleta_da_manha_nao_recebe_aviso(self):
+        # 06:30 BRT = 09:30 UTC: dentro da janela
+        t = self._com("2026-10-20T09:30:00+00:00")
+        self.assertNotIn("fora da janela", t)
+
+    def test_e_a_das_sete_e_meia_tambem_nao(self):
+        """07:30 BRT = 10:30 UTC. Lido como UTC, caia fora da janela e o
+        aviso saia num dia perfeitamente normal."""
+        t = self._com("2026-10-20T10:30:00+00:00")
+        self.assertNotIn("fora da janela", t)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

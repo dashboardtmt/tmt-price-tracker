@@ -969,6 +969,27 @@ def _oferta_remodelada(h, o, usadas=()):
         return (l["operadora"], l["produto"], l["praca"],
                 " ".join(nome.lower().split()))
 
+    # O NOME SO IDENTIFICA SE FOR DE UMA OFERTA SO.
+    #
+    # A regra de "uma candidata de cada lado" contava as SOBRAS, e isso
+    # supoe que o nome identifica a oferta - verdade em "TIM Controle"
+    # virando "TIM Controle Smart", falso em "Vivo Pre", que nomeia
+    # QUATRO ofertas na mesma praca.
+    #
+    # Em 20/10/2026 sobrou uma de cada lado por acidente: o degrau novo
+    # de 25 GB sem par hoje, e o de 15 GB sem par ontem porque a linha
+    # de hoje dele caiu por indistinguivel. A mensagem anunciou
+    # "25,00 -> 35,00 (+40%) com 15 -> 25 GB" - dois numeros de ofertas
+    # diferentes, e nenhum reajuste tinha acontecido.
+    #
+    # Contar no INDICE INTEIRO fecha isso: nome compartilhado nao
+    # identifica, e parear por ele e chute - o mesmo erro do par
+    # indistinguivel, por outra porta.
+    quantas = collections.Counter()
+    for indice in (h, o):
+        for l in indice.values():
+            quantas[pareia(l)] += 1
+
     sobra_h = collections.defaultdict(list)
     sobra_o = collections.defaultdict(list)
     for k, l in h.items():
@@ -982,6 +1003,10 @@ def _oferta_remodelada(h, o, usadas=()):
     for k, atuais in sobra_h.items():
         anteriores = sobra_o.get(k)
         if not anteriores or len(atuais) != 1 or len(anteriores) != 1:
+            continue
+        # o nome tem de ser de uma oferta so nos dois dias somados: com
+        # mais de uma, ele nao identifica e o par seria sorteio
+        if quantas[k] > 2:
             continue
         atual, antes = atuais[0], anteriores[0]
         # A CHAVE DE CONTINUIDADE GANHA DO NOME, e esta e a decisao -
@@ -1815,9 +1840,23 @@ def montar_mensagem(hoje, ontem):
     # manha" em dois arquivos: 05:00-11:59 aqui e 6h-10h em
     # ja_coletou.py, entao coleta das 11:50 - alcancavel, porque depois
     # das 10h qualquer gatilho libera - nao recebia a ressalva (N10).
-    inicios = sorted(c.get("iniciada_em") or "" for c in (col or [])
-                     if len(str(c.get("iniciada_em") or "")) >= 16)
-    hora = inicios[0][11:16] if inicios else ""
+    # A HORA VEM EM UTC E TEM DE SER CONVERTIDA. iniciada_em e
+    # timestamptz: o Postgres normaliza para UTC e o PostgREST devolve
+    # assim. Cortando a string, a mensagem dizia "comecou as 18:56"
+    # sobre uma coleta das 15:56 - e pior, num dia normal uma coleta as
+    # 07:30 BRT viraria 10:30 na leitura e o aviso de "fora da janela"
+    # sairia todo dia.
+    inicios = []
+    for c in (col or []):
+        bruto = c.get("iniciada_em")
+        if not bruto:
+            continue
+        try:
+            t = datetime.fromisoformat(str(bruto).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        inicios.append((t.astimezone(BRT) if t.tzinfo else t).strftime("%H:%M"))
+    hora = min(inicios) if inicios else ""
     # IMPORT LOCAL DE PROPOSITO: ja_coletou._esperadas() importa robo
     # para nao guardar uma copia da lista de coletores, entao os dois se
     # importam. Funciona porque nenhum dos dois usa o outro em tempo de

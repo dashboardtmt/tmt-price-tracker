@@ -427,13 +427,6 @@ MUTACOES = [
         "N14. entrega que apareceu volta a contar como parada"),
 
     Mutacao(
-        "robo.py",
-        '    inicios = sorted(c.get("iniciada_em") or "" for c in (col or [])\n'
-        '                     if len(str(c.get("iniciada_em") or "")) >= 16)',
-        '    inicios = sorted(c.get("iniciada_em") or "" for c in (col or []))',
-        "N9. uma linha sem hora volta a apagar o aviso inteiro"),
-
-    Mutacao(
         "vigia.py",
         '                quantos += (", %d deles grande demais para ser reajuste"\n'
         '                            % len(severos))',
@@ -627,6 +620,23 @@ MUTACOES = [
         '    if False:\n'
         '        return float(x)',
         "C6. _num volta a apagar a casa decimal de um float"),
+
+    # ---------------------------------------------------------------
+    # O FANTASMA QUE FOI PARAR NO TELEGRAM em 20/10/2026, e a hora
+    # em UTC que o acompanhou. Seis linhas de mensagem, tres erros.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '        if quantas[k] > 2:',
+        '        if False:',
+        "F1. nome compartilhado volta a parear ofertas diferentes"),
+
+    Mutacao(
+        "robo.py",
+        '            t = datetime.fromisoformat(str(bruto).replace("Z", "+00:00"))',
+        '            t = datetime.fromisoformat(str(bruto)[:19])',
+        "F2. a hora da coleta volta a sair em UTC"),
 
     Mutacao(
         "relatorio.py",
