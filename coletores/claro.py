@@ -205,6 +205,23 @@ def ler_cards(op, url, produto):
             "%d card(s) tinham preco so dentro de frase de degustacao e "
             "ficaram de fora - e preco do beneficio, nao do plano"
             % sem_preco_real)
+    # PRODUTO VAZIO SEM ERRO E AFIRMACAO DE AUSENCIA. Devolvendo
+    # ([], None) a rodada era gravada como sucesso, com a praca contada
+    # em pracas_ok, e a base do dia passava a dizer que a Claro nao tem
+    # este produto naquela praca.
+    #
+    # Tres entradas chegam aqui: pagina cujos cards todos carregam
+    # data-product-name (o filtro de aparelho e um marcador largo do
+    # Hybris), pagina sem a classe card-planos, e drupalSettings sem a
+    # chave de ofertas. Nos tres a leitura falhou - ela nao mediu que
+    # nao ha oferta.
+    #
+    # As funcoes irmas deste arquivo ja fazem assim: ler_por_texto e
+    # ler_prezao devolvem erro quando nao reconhecem nada.
+    if not cards:
+        return [], ("nenhum card de plano reconhecido na pagina - "
+                    "a leitura falhou, e nao ha como afirmar que o "
+                    "produto nao existe nesta praca")
     return cards, None
 
 

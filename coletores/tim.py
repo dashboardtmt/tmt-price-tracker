@@ -195,6 +195,12 @@ def ler_ofertas(op, url, uf):
         contexto = " ".join(filter(None, [
             nome, info, titulo, texto(o.get("field_desc_beneficios_destaque")),
             texto(o.get("field_preco_principal_7_1_3"))]))
+        # QUAL APP, e nao so quantos. nivel_bundle(contexto) ja chama
+        # apps.apps_do_texto para decidir o degrau - a TIM identificava o
+        # app, usava para subir o nivel e jogava o nome fora. A captura
+        # afirmava "uma assinatura inclusa" sem dizer qual, que e
+        # exatamente o que o modulo de apps existe para impedir.
+        lista = apps.apps_do_texto(contexto)
         saida.append({
             "nome_oferta": nome,
             "destaque": titulo or (("%dGB" % gb(info)) if gb(info) else None),
@@ -202,11 +208,21 @@ def ler_ofertas(op, url, uf):
             "franquia_contratual_gb": franquia_contratual(info),
             "preco_promocional": preco,
             "nivel_bundle": nivel_bundle(contexto),
+            "apps": lista or None,
+            "apps_rotulo": apps.rotulo(lista, contexto) or None,
+            "apps_planos": apps.planos_dos_apps(lista, contexto),
             "uf_declarada": o.get("langcode"),
             "ddds": len(o.get("field_oferta_ddd") or []) or None,
             "nid": (o.get("nid") or [{}])[0].get("value") if isinstance(o.get("nid"), list) else o.get("nid"),
             "composicao": info,
         })
+    # mesma razao de claro.ler_cards: lista vazia sem erro faz a rodada
+    # afirmar que a operadora nao tem o produto, quando o que houve foi
+    # a leitura nao reconhecer nada
+    if not saida:
+        return [], ("nenhuma oferta reconhecida no bloco - a leitura "
+                    "falhou, e nao ha como afirmar que o produto nao "
+                    "existe nesta praca")
     return saida, None
 
 

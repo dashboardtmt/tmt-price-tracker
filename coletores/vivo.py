@@ -364,8 +364,22 @@ def regulamento(op, codigo):
 
 
 def _num(x):
+    """O numero do regulamento, no formato brasileiro.
+
+    NUMERO JA E NUMERO. A troca de "." por "" existe porque no formato
+    brasileiro o ponto separa milhar - "1.200,00" vira 1200.0 - e
+    aplicada a um float ja pronto ela apaga a casa decimal:
+    _num(1200.0) devolvia 12000.0 e _num(299.9) devolvia 2999.0.
+
+    Hoje a Anatel entrega inteiro ou string com virgula, entao nunca
+    disparou. Uma mudanca de formato da agencia bastaria para gravar
+    preco e multa dez vezes maiores - e a guarda de preco so barra
+    valor ABAIXO do da vitrine, nunca inflado, entao nada pegaria.
+    """
     if x in (None, "", "null"):
         return None
+    if isinstance(x, (int, float)) and not isinstance(x, bool):
+        return float(x)
     try:
         return float(str(x).replace(".", "").replace(",", "."))
     except Exception:
@@ -391,32 +405,70 @@ def aplicar_regulamento(oferta, reg):
     tabela = _num(reg.get("precoSemDescontos"))
     prom = oferta.get("preco_promocional")
     if tabela is not None and prom is not None and tabela < prom:
+        # O REGULAMENTO E DE OUTRA OFERTA, E NADA DELE VALE AQUI.
+        #
+        # Um codigo Anatel e publicado por varios cards: o mesmo
+        # VIV202604042336 aparece em "Vivo Total V 1 Giga" (R$ 1.200),
+        # "V 2 Giga" (R$ 1.500) e "V 10 Giga" (R$ 3.000). O documento
+        # descreve um deles, e o preco de tabela abaixo do preco de
+        # vitrine e a prova de que nao e este.
+        #
+        # Antes so o preco de tabela era barrado, e multa, fidelidade,
+        # taxas, franquia contratual, velocidade, nome registrado e a
+        # assinatura SVA eram carimbados assim mesmo - numeros de outra
+        # oferta apresentados como desta. Dois deles com efeito em
+        # cascata: assinatura_sva alimenta o detector de repasse
+        # disfarcado, e nome_regulamento alimenta a variante da chave de
+        # continuidade, entao a IDENTIDADE desta oferta passava a
+        # depender de um documento que e de outra.
+        #
+        # Escolher um entre varios e publicar como fato e a mesma
+        # familia do par indistinguivel. O sinal para recusar ja estava
+        # na mao; faltava usa-lo para tudo.
         oferta.setdefault("avisos_oferta", []).append(
-            "regulamento diz R$ %.2f de tabela, abaixo dos R$ %.2f da vitrine"
+            "regulamento diz R$ %.2f de tabela, abaixo dos R$ %.2f da "
+            "vitrine: o documento e de outra oferta que divide o mesmo "
+            "codigo Anatel, e nenhum campo contratual dele foi usado"
             % (tabela, prom))
-        tabela = None
+        return oferta
     oferta["preco_cheio"] = tabela or oferta.get("preco_cheio")
     oferta["fidelidade_meses"] = int(_num(fid.get("tempoFidelizacao")) or 0) or None
     oferta["multa_fidelidade"] = _num(fid.get("multaFidelizacao"))
     oferta["taxa_instalacao"] = _num(custo.get("instalacao"))
     oferta["taxa_adesao"] = _num(custo.get("adesao"))
 
-    # A franquia do regulamento so vale se nao contradisser o card.
+    # A FRANQUIA QUE CONTRADIZ O CARD E PROVA DE QUE O DOCUMENTO E DE
+    # OUTRA OFERTA - e entao nenhum campo dele vale, nao so este.
     #
-    # Os tres cards do Vivo Pre (5, 15 e 25 GB) dividem UM codigo Anatel:
-    # o regulamento declara 20 GB, e carimbar isso nos tres dava ao plano
-    # de 5 GB uma franquia contratual de 20 - mais do que ele anuncia.
-    # Franquia garantida nao pode ser maior que a anunciada.
+    # Os tres cards do Vivo Pre dividem UM codigo Anatel: medido em
+    # 20/10/2026, VIV202600042812 cobre 5, 15 e 20 GB e o regulamento
+    # declara 25. Franquia garantida nao pode ser maior que a anunciada.
+    #
+    # Antes so a franquia era recusada, e os tres cards recebiam a mesma
+    # multa, a mesma fidelidade e a MESMA assinatura SVA daquele
+    # documento. A assinatura e a que mais pesa: ela existe para pegar o
+    # repasse disfarcado - composicao muda, etiqueta nao - e com os tres
+    # carimbados igual o detector comparava uma composicao que nao e de
+    # nenhum deles.
+    #
+    # Mesma conclusao do preco de tabela acima: provada a origem alheia,
+    # o documento sai inteiro.
     franquia = (smp.get("franquiaDados") or {}).get("franquia")
     if franquia:
         v = int(_num(franquia) or 0) or None
         anunciada = oferta.get("franquia_anunciada_gb")
         if v and anunciada and v > anunciada:
+            for campo in ("preco_cheio", "fidelidade_meses",
+                          "multa_fidelidade", "taxa_instalacao",
+                          "taxa_adesao"):
+                oferta[campo] = None
             oferta.setdefault("avisos_oferta", []).append(
-                "regulamento declara %s GB para um card de %s GB - codigo "
-                "compartilhado entre variantes; franquia contratual nao gravada"
+                "regulamento declara %s GB para um card de %s GB: o "
+                "documento e de outra oferta que divide o mesmo codigo "
+                "Anatel, e nenhum campo contratual dele foi usado"
                 % (v, anunciada))
-        elif v:
+            return oferta
+        if v:
             oferta["franquia_contratual_gb"] = v
     velo = (scm.get("velocidade") or {})
     if velo.get("download"):

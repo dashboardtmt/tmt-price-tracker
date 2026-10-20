@@ -569,6 +569,65 @@ MUTACOES = [
         '  const porOp = {};',
         "T4. a dispersao volta a ignorar o seletor de data"),
 
+    # ---------------------------------------------------------------
+    # OS COLETORES, origem de todo o dado e os ultimos a serem
+    # olhados. Tres dos oito graves sao a mesma familia que ja tinha
+    # aparecido no comparador: escolher um entre varios e publicar
+    # como fato.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "coletores/vivo.py",
+        '            % (tabela, prom))\n'
+        '        return oferta',
+        '            % (tabela, prom))\n'
+        '        tabela = None',
+        "C1. o regulamento de outra oferta volta a ser carimbado"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '            for campo in ("preco_cheio", "fidelidade_meses",',
+        '            for campo in ():',
+        "C1b. franquia que contradiz volta a deixar o resto passar"),
+
+    Mutacao(
+        "coletores/armazenamento.py",
+        '    lista = sorted(set(o.get("apps") or ()))',
+        '    lista = []',
+        "C2. a variante volta a sair do nome, com a safra do mes"),
+
+    Mutacao(
+        "coletores/armazenamento.py",
+        '    if o.get("degrau_mbps") and o.get("franquia_anunciada_gb"):',
+        '    if False:',
+        "C3. o combo volta a perder os GB do movel na chave"),
+
+    Mutacao(
+        "coletores/claro.py",
+        '    if not cards:',
+        '    if False:',
+        "C4. produto vazio da Claro volta a sair sem erro"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '    if not saida:',
+        '    if False:',
+        "C4b. produto vazio da TIM volta a sair sem erro"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '            "apps": lista or None,',
+        '            "apps": None,',
+        "C5. a TIM volta a nao nomear o app que encontrou"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '    if isinstance(x, (int, float)) and not isinstance(x, bool):\n'
+        '        return float(x)',
+        '    if False:\n'
+        '        return float(x)',
+        "C6. _num volta a apagar a casa decimal de um float"),
+
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

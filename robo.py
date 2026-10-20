@@ -689,8 +689,10 @@ def mudancas(hoje, ontem):
 # documentado e ter um degrau que alguem vai ler como reposicionamento
 # de operadora dois meses depois.
 LEITURA_MUDOU_EM = {
-    "2026-10-21": "o nível de bundle passou a sair da lista de apps da "
-                  "oferta, e não só do texto do card",
+    "2026-10-21": "a identidade das ofertas com app passou a sair da "
+                  "lista de apps, e não do nome — que carregava a safra "
+                  "do mês e morria na virada; e o nível de bundle passou "
+                  "a sair da lista de apps, e não só do texto do card",
 }
 
 

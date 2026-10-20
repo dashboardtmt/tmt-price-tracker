@@ -1,0 +1,247 @@
+# -*- coding: utf-8 -*-
+"""Os achados da auditoria dos coletores.
+
+Os coletores sao a origem de todo o dado e ficaram seis rodadas sem ser
+olhados - as rodadas anteriores cobriram o comparador, o relatorio, o
+vigia, o portao e a tela. Quando foram, dois auditores em paralelo
+acharam oito defeitos graves.
+
+A LICAO QUE SE REPETE: tres dos oito sao a mesma familia que ja tinha
+aparecido no comparador - escolher um entre varios e publicar como fato.
+O regulamento de uma oferta carimbado em outra que divide o codigo
+Anatel; a safra do mes dentro da chave de continuidade; a mesma oferta
+gravada duas vezes porque o produto saia do nome da consulta e nao da
+aba. A familia atravessa os arquivos; e so a forma que muda.
+"""
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from coletores import armazenamento, claro, tim, vivo        # noqa: E402
+
+
+class ORegulamentoDeOutraOfertaNaoVale(unittest.TestCase):
+    """Um codigo Anatel e publicado por varios cards da Vivo: o mesmo
+    VIV202604042336 cobre "V 1 Giga" (R$ 1.200), "V 2 Giga" (R$ 1.500) e
+    "V 10 Giga" (R$ 3.000). O documento descreve um deles.
+
+    O coletor ja sabia - ele escrevia "regulamento diz R$ 1200,00 de
+    tabela, abaixo dos R$ 3000,00 da vitrine" -, barrava o preco de
+    tabela e carimbava todo o resto: multa, fidelidade, taxas, franquia
+    contratual, nome registrado e a assinatura SVA.
+
+    Dois deles com efeito em cascata. assinatura_sva alimenta o detector
+    de repasse disfarcado - composicao muda, etiqueta nao -, e com tres
+    cards recebendo a mesma assinatura ele comparava uma composicao que
+    nao e de nenhum. E nome_regulamento alimenta a variante da chave,
+    entao a IDENTIDADE de uma oferta dependia de um documento de outra.
+    """
+
+    def _reg(self, tabela=1200, franquia=None):
+        r = {"precoSemDescontos": tabela,
+             "fidelizacao": {"tempoFidelizacao": 12, "multaFidelizacao": 1400},
+             "custoInicial": {"instalacao": 0, "adesao": 0},
+             "SMP": {"listaSVA": ["030011", "030012"]},
+             "SCM": {}, "nomeOferta": "VIVO TOTAL V 1 GIGA"}
+        if franquia:
+            r["SMP"]["franquiaDados"] = {"franquia": franquia}
+        return r
+
+    def test_preco_de_tabela_abaixo_da_vitrine_tira_tudo(self):
+        o = vivo.aplicar_regulamento(
+            {"preco_promocional": 3000.0}, self._reg(tabela=1200))
+        self.assertIsNone(o.get("multa_fidelidade"))
+        self.assertIsNone(o.get("fidelidade_meses"))
+        self.assertIsNone(o.get("assinatura_sva"))
+        self.assertIsNone(o.get("nome_regulamento"))
+        self.assertTrue(any("outra oferta" in a
+                            for a in o.get("avisos_oferta") or []))
+
+    def test_franquia_que_contradiz_o_card_tambem(self):
+        """O outro sinal, medido no Vivo Pre: um codigo cobre 5, 15 e 20
+        GB e o regulamento declara 25. Antes so a franquia era recusada e
+        os tres cards recebiam a mesma assinatura SVA."""
+        o = vivo.aplicar_regulamento(
+            {"preco_promocional": 20.0, "franquia_anunciada_gb": 5},
+            self._reg(tabela=None, franquia=25))
+        self.assertIsNone(o.get("assinatura_sva"))
+        self.assertIsNone(o.get("franquia_contratual_gb"))
+        self.assertIsNone(o.get("multa_fidelidade"))
+
+    def test_regulamento_que_e_da_oferta_continua_valendo(self):
+        o = vivo.aplicar_regulamento(
+            {"preco_promocional": 1200.0, "franquia_anunciada_gb": 50},
+            self._reg(tabela=1200, franquia=50))
+        self.assertEqual(o["multa_fidelidade"], 1400.0)
+        self.assertEqual(o["fidelidade_meses"], 12)
+        self.assertEqual(o["assinatura_sva"], "030011+030012")
+        self.assertEqual(o["franquia_contratual_gb"], 50)
+
+
+class AChaveNaoCarregaASafraDoMes(unittest.TestCase):
+    """A variante da chave saia do NOME CRU para nivel >= 2, e o re.sub
+    so decapitava prefixo da Vivo. A Brisanet carimba o mes no nome:
+
+        AGO26 600MB + NETFLIX PCA
+          -> Brisanet|fibra|600mbps|com_ago26_600mb_netflix_pca
+
+    Medido: 19 grupos renomeados em 21 dias, e 14 das 31 ofertas de hoje
+    perderiam a identidade em 1o de novembro. O comparador veria a oferta
+    morrer e outra nascer, e isso entra na mensagem, no PDF e na tela
+    como saida e entrada de portfolio que nao aconteceram.
+    """
+
+    def _o(self, nome, apps=None, nivel=2, mbps=600, gb=None):
+        return {"operadora": "Brisanet", "produto": "fibra",
+                "nome_oferta": nome, "nivel_bundle": nivel,
+                "degrau_mbps": mbps, "franquia_anunciada_gb": gb,
+                "apps": apps}
+
+    def test_a_virada_do_mes_nao_quebra_a_chave(self):
+        ago = armazenamento.chave_continuidade(
+            self._o("AGO26 600MB + NETFLIX PCA", ["netflix", "skeelo"]))
+        nov = armazenamento.chave_continuidade(
+            self._o("NOV26 600MB + NETFLIX PCA", ["netflix", "skeelo"]))
+        self.assertEqual(ago, nov)
+        self.assertNotIn("ago26", ago)
+
+    def test_e_a_safra_entre_colchetes_tambem_nao(self):
+        a = armazenamento.chave_continuidade(
+            self._o("[SET] OFT NC PF PROMO 12M 500MB", ["skeelo"]))
+        b = armazenamento.chave_continuidade(
+            self._o("[OUT] OFT NC PF PROMO 12M 500MB", ["skeelo"]))
+        self.assertEqual(a, b)
+
+    def test_apps_diferentes_continuam_sendo_series_diferentes(self):
+        """A variante existe para isto: "Pos com Netflix" nao e o mesmo
+        produto que "Pos com Amazon", mesmo com a franquia igual."""
+        n = armazenamento.chave_continuidade(self._o("X", ["netflix"]))
+        a = armazenamento.chave_continuidade(self._o("X", ["amazon"]))
+        self.assertNotEqual(n, a)
+
+    def test_nivel_alto_sem_lista_nao_inventa_qual(self):
+        k = armazenamento.chave_continuidade(self._o("X", None, nivel=2))
+        self.assertIn("com_streaming", k)
+
+    def test_no_combo_as_duas_pernas_identificam(self):
+        """A velocidade ganhava e os GB do movel eram descartados: duas
+        ofertas de 500 Mbps que diferem pelo movel - R$ 94,80 sem e
+        R$ 109,89 com 20 GB - dividiam a mesma serie."""
+        sem = armazenamento.chave_continuidade(
+            self._o("500MB + SKY", ["sky"], mbps=500, gb=None))
+        com = armazenamento.chave_continuidade(
+            self._o("500MB + 20GB + sky", ["sky"], mbps=500, gb=20))
+        self.assertNotEqual(sem, com)
+        self.assertIn("500mbps_20gb", com)
+
+
+class ProdutoVazioNaoEProdutoInexistente(unittest.TestCase):
+    """ler_cards da Claro e ler_ofertas da TIM devolviam ([], None)
+    quando nao reconheciam nada - e a rodada era gravada como sucesso,
+    com a praca contada em pracas_ok. A base do dia passava a afirmar
+    que a operadora nao tem aquele produto.
+
+    E afirmacao de ausencia, o pior defeito da regua. As funcoes irmas
+    do mesmo arquivo ja faziam certo: ler_por_texto e ler_prezao
+    devolvem erro quando nao reconhecem nada.
+    """
+
+    def _pagina(self, modulo, html):
+        """Os dois leitores buscam a URL: entra um abridor de mentira."""
+        guarda = modulo.buscar
+        modulo.buscar = lambda op, url: (200, html)
+        self.addCleanup(lambda: setattr(modulo, "buscar", guarda))
+
+    def test_claro_sem_card_reconhecido_devolve_erro(self):
+        self._pagina(claro, "<html><body>nada aqui</body></html>")
+        cards, erro = claro.ler_cards(None, "http://x", "movel")
+        self.assertEqual(cards, [])
+        self.assertTrue(erro, "lista vazia sem erro vira afirmacao")
+        self.assertIn("leitura falhou", erro)
+
+    def test_claro_com_card_de_verdade_nao_reclama(self):
+        html = ('<div class="card-planos"> Claro Pós 50GB '
+                'R$ 124,90 /mes </div>')
+        self._pagina(claro, html)
+        cards, erro = claro.ler_cards(None, "http://x", "movel")
+        self.assertIsNone(erro)
+        self.assertEqual(len(cards), 1)
+
+    def test_tim_sem_oferta_reconhecida_devolve_erro(self):
+        self._pagina(
+            tim, '<script data-drupal-selector="drupal-settings-json">'
+                 '{"ofertas": []}</script>')
+        saida, erro = tim.ler_ofertas(None, "http://x", "SP")
+        self.assertEqual(saida, [])
+        self.assertTrue(erro)
+        self.assertIn("leitura falhou", erro)
+
+
+class ATimNomeiaOAppQueEncontrou(unittest.TestCase):
+    """nivel_bundle(contexto) ja chamava apps.apps_do_texto para decidir
+    o degrau - a TIM identificava o app, usava para subir o nivel e
+    jogava o nome fora. A captura afirmava "uma assinatura inclusa" sem
+    dizer qual, que e exatamente o que o modulo de apps existe para
+    impedir. 60 capturas por dia nesse estado."""
+
+    def _com(self, cru):
+        import json as _j
+        guarda = tim.buscar
+        tim.buscar = lambda op, url: (
+            200, '<script data-drupal-selector="drupal-settings-json">'
+                 + _j.dumps({"ofertas": cru}) + "</script>")
+        self.addCleanup(lambda: setattr(tim, "buscar", guarda))
+
+    def test_o_app_do_texto_chega_a_oferta(self):
+        cru = [{"field_subtitle": [{"value": "TIM Pré XIP Plus"}],
+                "field_preco_card_oferta": [{"value": "R$ 20,00"}],
+                "field_information_text": [{"value": "6GB com Max incluso"}]}]
+        self._com(cru)
+        saida, erro = tim.ler_ofertas(None, "http://x", "SP")
+        self.assertIsNone(erro)
+        self.assertEqual(len(saida), 1)
+        o = saida[0]
+        self.assertGreaterEqual(o["nivel_bundle"], 2)
+        self.assertIn("max", o.get("apps") or [])
+        self.assertIn("Max", o.get("apps_rotulo") or "")
+
+    def test_oferta_sem_app_nao_ganha_rotulo(self):
+        cru = [{"field_subtitle": [{"value": "TIM Controle"}],
+                "field_preco_card_oferta": [{"value": "R$ 40,00"}],
+                "field_information_text": [{"value": "20GB de internet"}]}]
+        self._com(cru)
+        saida, _e = tim.ler_ofertas(None, "http://x", "SP")
+        self.assertIsNone(saida[0].get("apps"))
+        self.assertIsNone(saida[0].get("apps_rotulo"))
+
+
+class ONumeroJaNumeroNaoPerdeACasaDecimal(unittest.TestCase):
+    """_num tirava o ponto antes de converter, porque no formato
+    brasileiro ele separa milhar - e aplicado a um float ja pronto isso
+    apaga a casa decimal e multiplica por dez.
+
+    Achado por um teste MEU que tropecou nele: escrevi a fixture do
+    regulamento com 1200.0 e a guarda nao disparou, porque 12000 nao e
+    menor que 3000. Latente hoje, e a uma mudanca de formato da Anatel
+    de gravar preco e multa dez vezes maiores - e a guarda de preco so
+    barra valor ABAIXO do da vitrine, nunca inflado.
+    """
+
+    def test_float_nao_vira_dez_vezes(self):
+        self.assertEqual(vivo._num(1200.0), 1200.0)
+        self.assertEqual(vivo._num(299.9), 299.9)
+
+    def test_e_o_formato_brasileiro_continua_valendo(self):
+        self.assertEqual(vivo._num("1.200,00"), 1200.0)
+        self.assertEqual(vivo._num("299,90"), 299.9)
+
+    def test_ausencia_continua_ausencia(self):
+        for v in (None, "", "null", "abc"):
+            self.assertIsNone(vivo._num(v))
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

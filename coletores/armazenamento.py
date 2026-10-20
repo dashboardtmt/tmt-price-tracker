@@ -36,6 +36,13 @@ def chave_continuidade(o):
     """
     degrau = o.get("degrau_mbps") or o.get("franquia_anunciada_gb") or 0
     unidade = "mbps" if o.get("degrau_mbps") else "gb"
+    # NO COMBO, AS DUAS PERNAS IDENTIFICAM A OFERTA. A velocidade ganhava
+    # e os GB do movel eram descartados, entao "500MB + SKY LIGHT" a
+    # R$ 94,80 e "500MB + 20GB + sky" a R$ 109,89 - que diferem
+    # justamente pelo movel - dividiam a mesma serie, e ela alternava
+    # entre os dois precos como se houvesse reajuste todo dia.
+    if o.get("degrau_mbps") and o.get("franquia_anunciada_gb"):
+        unidade = "mbps_%sgb" % o["franquia_anunciada_gb"]
     variante = o.get("variante") or _variante(o)
     return "%s|%s|%s%s|%s" % (o.get("operadora"), o.get("produto"),
                               degrau, unidade, variante)
@@ -70,14 +77,31 @@ def _variante(o):
         return "familia" + com_tv + ciclo
     if " tv" in nome or nome.startswith("tv"):
         return "combo_tv" + ciclo
+    # O APP FAZ PARTE DA IDENTIDADE: "Pos com Netflix" nao e o mesmo
+    # produto que "Pos com Amazon", mesmo com a franquia igual.
+    #
+    # E ELE SAI DA LISTA DE APPS, E NAO DO NOME. O nome carrega o que a
+    # operadora decidir pendurar nele: a Brisanet carimba o mes
+    # ("AGO26 600MB + NETFLIX PCA"), a Claro ja colou banner de campanha
+    # e a NuCel carimba a safra entre colchetes. Com o nome na variante,
+    # a chave virava "com_ago26_600mb_netflix_pca" e MORRIA na virada do
+    # mes - medido: 14 das 31 ofertas da Brisanet perderiam a identidade
+    # em 1o de novembro, e o comparador veria saida e entrada de
+    # portfolio que nao aconteceram.
+    #
+    # A lista de apps diz a mesma coisa sem carregar nada disso. E diz
+    # MELHOR: a variante registrava so SE havia app, nao QUAL, e por isso
+    # duas ofertas de 500 Mbps da Brisanet - uma com Sky Light a R$ 94,80
+    # e outra sem, a R$ 84,90 - dividiam a mesma serie, que alternava
+    # entre os dois precos como se houvesse reajuste todo dia.
+    lista = sorted(set(o.get("apps") or ()))
+    if lista:
+        return "com_" + re.sub(r"[^a-z0-9_]+", "", "_".join(lista))[:24] + ciclo
     nivel = o.get("nivel_bundle") or 0
     if nivel >= 2:
-        # o streaming faz parte da identidade: "Pos com Netflix" nao e o
-        # mesmo produto que "Pos com Amazon", mesmo com franquia igual
-        marca = re.sub(r"^vivo (pos|controle)\s*(com)?\s*", "", nome).strip()
-        base = ("com_%s" % re.sub(r"[^a-z0-9]+", "_", marca)[:24].strip("_")
-                if marca else "com_streaming")
-        return base + ciclo
+        # nivel alto sem lista: o coletor viu streaming no texto e nao
+        # soube nomear. Separa de quem nao tem nada, e nao inventa qual.
+        return "com_streaming" + ciclo
     return ("com_apps" if nivel == 1 else "simples") + ciclo
 
 

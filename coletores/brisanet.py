@@ -282,6 +282,9 @@ def coletar(cidade, uf, verbose=True):
         print("  cidade %s -> %s" % (cidade, city_id))
     time.sleep(PAUSA)
 
+    # o que ja entrou, para a oferta que aparece nas duas consultas nao
+    # ser gravada duas vezes
+    vistas = set()
     for produto, nome_query in PAGINAS.items():
         raiz = {"fetchInternetPage": "internetPage",
                 "comboPageQuery": "comboPage"}[nome_query]
@@ -300,22 +303,51 @@ def coletar(cidade, uf, verbose=True):
         grupos = ((d.get(raiz) or {}).get("Offers") or [])
         n = 0
         for g in grupos:
+            # A ABA MANDA NO PRODUTO, e nao o nome da query.
+            #
+            # A fetchInternetPage devolve DUAS abas: "Internet", com
+            # fibra pura, e "Combos", com fibra mais movel. O coletor
+            # rotulava as duas como fibra porque olhava o nome da
+            # consulta - e capturava tab_name sem usar.
+            #
+            # Tres estragos de uma vez. A oferta contava em dobro,
+            # porque a consulta de combo traz parte das mesmas. O combo
+            # disputava degrau com fibra pura levando um preco que
+            # inclui movel, o que empurra o R$/Mbps da fibra para cima.
+            # E a copia errada perdia a franquia, porque gb_movel so e
+            # lido quando o produto e combo.
+            #
+            # NAO DA PARA SO DESCARTAR A ABA: medido em Fortaleza, ela
+            # tem 10 ofertas e a consulta de combo tem 6 - cinco combos
+            # existem so ali, e descartar some com eles. Oferta que some
+            # vira "a operadora tirou o produto" no comparador.
+            aba = (g.get("tab_name") or "").strip().lower()
+            produto_real = "combo" if "combo" in aba else produto
             for o in (g.get("offers") or []):
                 preco = o.get("price") or {}
                 meses_desc, preco_depois = fim_da_promocao(preco.get("price_note"))
                 produtos = [p.get("name") for p in (o.get("included_products") or []) if p.get("name")]
                 contexto = " ".join(filter(None, [o.get("offer_name"), o.get("description"),
                                                   o.get("additional_details")]))
+                # A MESMA OFERTA NAS DUAS CONSULTAS ENTRA UMA VEZ SO.
+                # documentId e a identidade que a propria API da; sem
+                # ele, nome e preco.
+                ident = (o.get("documentId")
+                         or (o.get("offer_name"), (preco or {}).get("price")))
+                if ident in vistas:
+                    continue
+                vistas.add(ident)
                 saida["ofertas"].append({
-                    "operadora": "Brisanet", "produto": produto, "praca": praca,
+                    "operadora": "Brisanet", "produto": produto_real,
+                    "praca": praca,
                     "capturado_em": agora.isoformat(),
                     "nome_oferta": o.get("offer_name"),
                     "destaque": o.get("plan_speed"),
                     "degrau_mbps": mbps(o.get("plan_speed")),
                     # no combo, os GB do movel estao no nome da oferta
                     "franquia_anunciada_gb": (
-                        gb_movel(o.get("offer_name")) if produto == "combo"
-                        else None),
+                        gb_movel(o.get("offer_name"))
+                        if produto_real == "combo" else None),
                     "franquia_contratual_gb": None,
                     # a Brisanet entrega os dois separados, sem deducao
                     "preco_cheio": numero(preco.get("original_price")),
