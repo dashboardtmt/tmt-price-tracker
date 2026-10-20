@@ -534,6 +534,41 @@ MUTACOES = [
         '    graves = [t for g, t in lista if g == "grave"]',
         "R5. a vaga do vigia volta a ser decidida pela ordem do codigo"),
 
+    # ---------------------------------------------------------------
+    # A TELA. Terceiro consumidor do mesmo dado, e o unico que ficou
+    # seis rodadas sem ser olhado. Quando foi, tinha dez rotulos
+    # afirmando o que o dado nao sustenta - todos do mesmo gesto:
+    # texto que fala por um conjunto, escolhido pelo [0] da lista.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "gerar_tela.py",
+        '  const u = unidadeComum((ofertas || []).map(entregaDe));',
+        '  const u = ofertas && ofertas.length ? entregaDe(ofertas[0]).u : "";',
+        "T1. o cabecalho volta a nomear a unidade da primeira oferta"),
+
+    Mutacao(
+        "gerar_tela.py",
+        '  const u = unidadeComum(ofertas.map(entregaDe));\n'
+        '  if (!u) {',
+        '  const u = entregaDe(ofertas[0]).u;\n'
+        '  if (false) {',
+        "T2. a faixa volta a cortar entre Mbps e GB"),
+
+    Mutacao(
+        "gerar_tela.py",
+        '  bt.textContent = u ? "R$/" + u : "R$/un.";',
+        '  bt.textContent = "R$/GB";',
+        "T3. o botao da metrica volta a dizer GB sempre"),
+
+    Mutacao(
+        "gerar_tela.py",
+        '  const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];\n'
+        '  const porOp = {};',
+        '  const hoje = DIAS[DIAS.length-1];\n'
+        '  const porOp = {};',
+        "T4. a dispersao volta a ignorar o seletor de data"),
+
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

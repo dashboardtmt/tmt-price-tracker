@@ -74,6 +74,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      # o portao exercita os tres canais: a mensagem, o PDF e a tela
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Instalar o que o relatorio em PDF precisa
         # o portao tem de exercitar o PDF tambem: ele e metade do que
         # chega todo dia, e teste pulado nao e teste passado

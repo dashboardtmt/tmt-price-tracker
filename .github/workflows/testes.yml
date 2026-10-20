@@ -39,6 +39,15 @@ jobs:
         with:
           python-version: '3.12'
 
+      # O node roda o JavaScript da tela num DOM de mentira
+      # (testes/tela_em_node.mjs). Sem ele os testes dos tres canais se
+      # pulam, e o provador reintroduz quatro defeitos da tela exigindo
+      # vermelho: a suite fica verde e o build cai dizendo que os testes
+      # nao servem. Mesma armadilha do reportlab, logo abaixo.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Instalar o que o relatorio em PDF precisa
         run: pip install --quiet reportlab pypdf
 
