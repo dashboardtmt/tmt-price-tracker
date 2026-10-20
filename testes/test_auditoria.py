@@ -173,9 +173,18 @@ class PontoCegoChegaNaMensagem(unittest.TestCase):
     """
 
     def _par_colidido(self, data):
+        """O par indistinguivel MAIS enchimento comparavel.
+
+        Sem o enchimento o indice fica vazio, e ai a frase
+        "indistinguiveis entre si" sai do ramo de indice-vazio e nao da
+        linha do ponto cego que estes testes medem - o provador de
+        mutacoes mostrou que eles passavam assim. O caso real tem 20
+        colididas entre 1.660 capturas.
+        """
         a = oferta(produto="combo", nome="Vivo Família 2 + TV", preco=290.0,
                    gb=None, mbps=700, data=data)
-        return [a, dict(a, preco_promocional=390.0)]
+        return ([a, dict(a, preco_promocional=390.0)]
+                + em_todas(nome="Vivo Pós", preco=119.90, data=data))
 
     def test_a_colisao_aparece_no_texto(self):
         t = montar(self._par_colidido(ONTEM), self._par_colidido(HOJE))
@@ -231,8 +240,9 @@ class PontoCegoChegaNaMensagem(unittest.TestCase):
         """Tirar as colididas do indice faria a cobertura parecer melhor
         do que e: 100% do que deu para comparar nao e 100% do que foi
         coletado."""
-        r = dados(self._par_colidido(ONTEM) + em_todas(data=ONTEM),
-                  self._par_colidido(HOJE) + em_todas(data=HOJE))
+        # _par_colidido ja traz enchimento comparavel; somar em_todas de
+        # novo duplicaria as ofertas e elas colidiriam tambem
+        r = dados(self._par_colidido(ONTEM), self._par_colidido(HOJE))
         cob = r["cobertura"]
         self.assertEqual(cob["fora"], 2)
         self.assertEqual(cob["hoje"], 22, "20 comparaveis + as 2 fora")

@@ -101,6 +101,24 @@ def main():
     agora = datetime.now(BRT)
     hoje = agora.date().isoformat()
 
+    # "--fechou DIA" responde SO a pergunta do estado: aquele dia passou
+    # por todos os coletores? Sem logica de horario nenhuma.
+    #
+    # POR QUE SEPARADO. O resto desta funcao responde "preciso coletar
+    # agora?", que e outra pergunta - e as duas so coincidem dentro da
+    # janela. O job de alerta usava a resposta de coletar como se fosse a
+    # de estado, e com um gatilho chegando depois da meia-noite ele
+    # perguntava sobre o dia NOVO, ouvia "e cedo demais" e calava: o dia
+    # perdido morria em silencio, que e o que aquele job existe para
+    # impedir.
+    if "--fechou" in sys.argv:
+        alvo = sys.argv[sys.argv.index("--fechou") + 1]
+        feito, quantas = _ja_coletou(alvo)
+        print("sim" if feito else "nao")
+        sys.stderr.write("%s: %s coletor(es) registrado(s)\n"
+                         % (alvo, "?" if quantas is None else quantas))
+        return 0
+
     feito, _quantas = _ja_coletou(hoje)
 
     if feito:

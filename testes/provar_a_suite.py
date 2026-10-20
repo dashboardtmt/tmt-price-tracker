@@ -334,14 +334,18 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    if r.get("antes_entrega") is None or r.get("agora_entrega") is None:',
-        '    if False:',
+        '    if antes is None or agora is None:\n'
+        '        return "entrega n\\u00e3o lida"',
+        '    if False:\n'
+        '        return "entrega n\\u00e3o lida"',
         "A3. entrega nao lida volta a ser afirmada como igual"),
 
     Mutacao(
         "robo.py",
-        '    if r.get("antes_preco") is None or r.get("agora_preco") is None:',
-        '    if False:',
+        '    if antes is None or agora is None:\n'
+        '        return "pre\\u00e7o n\\u00e3o lido nos dois dias"',
+        '    if False:\n'
+        '        return "pre\\u00e7o n\\u00e3o lido nos dois dias"',
         "A4. preco nao lido volta a ser afirmado como igual"),
 
     Mutacao(
@@ -364,8 +368,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    voltaram = _degraus_que_voltaram(h, o, hoje) if o else []',
-        '    voltaram = _degraus_que_voltaram(h, o, hoje)',
+        '        h, o, hoje, (cego_o or {}).get("descartadas") or ()) if o else [])',
+        '        h, o, hoje, (cego_o or {}).get("descartadas") or ()))',
         "M5. dia seguinte a um dia perdido volta a virar enxurrada"),
 
     Mutacao(
@@ -373,6 +377,75 @@ MUTACOES = [
         '        if _identidade(antes) in (usadas or ()):',
         '        if False:',
         "M1. a oferta de ontem volta a ser antes de dois eventos"),
+
+    # ---------------------------------------------------------------
+    # A TERCEIRA AUDITORIA, sobre as correcoes da segunda. Quatro
+    # achados graves, e o padrao dos quatro e um so: eu consertei a
+    # afirmacao falsa num canal e deixei o outro afirmando.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '    ontem |= {chave(l) for l in (descartadas_de_ontem or ())'
+        '\n              if _entrega(l) is not None}\n',
+        '',
+        "N1. descartada de ontem volta a parecer ausente de ontem"),
+
+    Mutacao(
+        "robo.py",
+        '            if len(set(do_dia)) > 1:\n'
+        '                break            # o dia mais recente e ambiguo: desiste',
+        '            if False:\n'
+        '                break',
+        "N1b. dia historico ambiguo volta a servir de referencia"),
+
+    Mutacao(
+        "robo.py",
+        '    if "antes_preco" in e:\n'
+        '        return max(pc(e.get("antes_preco"), e.get("agora_preco")),\n'
+        '                   pc(e.get("antes_entrega"), e.get("agora_entrega")))',
+        '    if False:\n'
+        '        return 0.0',
+        "N2. o peso da remodelada volta a ignorar a entrega"),
+
+    Mutacao(
+        "relatorio.py",
+        '        preco = r.get("texto_preco") or _reais(r.get("agora_preco"))',
+        '        preco = _reais(r.get("agora_preco"))',
+        "N4. o PDF volta a montar a propria frase do preco"),
+
+    Mutacao(
+        "robo.py",
+        '            fora = (ponto_cego or {}).get("quantas") or 0',
+        '            fora = 0',
+        "N5. indice vazio volta a sair como banco vazio"),
+
+    Mutacao(
+        "robo.py",
+        '            "versao_apenas": (not (preco_mudou or entrega_mudou)\n'
+        '                              and None not in (pa, pd, ea, ed)),',
+        '            "versao_apenas": not (preco_mudou or entrega_mudou),',
+        "N14. entrega que apareceu volta a contar como parada"),
+
+    Mutacao(
+        "robo.py",
+        '    inicios = sorted(c.get("iniciada_em") or "" for c in (col or [])\n'
+        '                     if len(str(c.get("iniciada_em") or "")) >= 16)',
+        '    inicios = sorted(c.get("iniciada_em") or "" for c in (col or []))',
+        "N9. uma linha sem hora volta a apagar o aviso inteiro"),
+
+    Mutacao(
+        "vigia.py",
+        '                quantos += (", %d deles grande demais para ser reajuste"\n'
+        '                            % len(severos))',
+        '                pass',
+        "N13. o vigia volta a nao dizer quantos saltos sao graves"),
+
+    Mutacao(
+        "robo.py",
+        '                usadas[_identidade(antes)].append({',
+        '                [].append({',
+        "N8. a leitura descartada volta a desaparecer"),
 
     Mutacao(
         "relatorio.py",

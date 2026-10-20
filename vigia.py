@@ -214,10 +214,16 @@ def achados(hoje, anteriores):
             # tentaria comparar os dicionarios de oferta e estouraria
             (severos or saltos).sort(key=lambda x: x[0], reverse=True)
             pc, o, a, p = (severos or saltos)[0]
-            texto = ("%d salto(s) de preco acima de %d%%, o %s em %s "
-                     "(R$ %.2f para R$ %.2f)"
-                     % (len(saltos), int(SALTO_QUE_PREOCUPA * 100),
-                        "mais grave" if severos else "maior",
+            # A CONTAGEM DOS SEVEROS APARECE. "20 salto(s) acima de 50%,
+            # o mais grave em X" deixa o leitor entender que os 20 sao
+            # graves, e em geral e um so.
+            quantos = ("%d salto(s) de preco acima de %d%%"
+                       % (len(saltos), int(SALTO_QUE_PREOCUPA * 100)))
+            if severos:
+                quantos += (", %d deles grande demais para ser reajuste"
+                            % len(severos))
+            texto = ("%s, o %s em %s (R$ %.2f para R$ %.2f)"
+                     % (quantos, "mais grave" if severos else "maior",
                         (o.get("nome_oferta") or "?")[:30], a, p))
             # O SALTO INACREDITAVEL CHEGA A MENSAGEM. Era tudo
             # "atencao", e atencao nao sai do relatorio - o detector que

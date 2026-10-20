@@ -328,16 +328,11 @@ def _bloco_remodeladas(itens, vazio):
     """
     linhas = []
     for r in (itens or []):
-        u = _unidade(r)
-        preco = _reais(r.get("agora_preco"))
-        if r.get("preco_mudou"):
-            preco = "%s → %s  %s" % (_reais(r.get("antes_preco")), preco,
-                                     _pc(r.get("antes_preco"),
-                                         r.get("agora_preco")))
-        entrega = ("%s %s" % (r.get("agora_entrega"), u)).strip()
-        if r.get("entrega_mudou"):
-            entrega = ("%s → %s %s" % (r.get("antes_entrega"),
-                                       r.get("agora_entrega"), u)).strip()
+        # O TEXTO VEM PRONTO DO ROBO. Montado aqui, divergia da
+        # mensagem na mesma oferta: ela dizia "entrega nao lida" e esta
+        # tabela imprimia "None" (terceira auditoria, N4).
+        preco = r.get("texto_preco") or _reais(r.get("agora_preco"))
+        entrega = r.get("texto_entrega") or "—"
         linhas.append([
             r.get("operadora"),
             _curto(r.get("nome"), 30),
@@ -404,23 +399,33 @@ def _bloco_voltaram(d):
 
 
 def _bloco_renomeadas(d):
-    """Oferta que trocou de nome, e o preco que ela levou na troca."""
+    """Oferta que trocou de nome, e o preco que ela levou na troca.
+
+    A COLUNA DA LEITURA ALTERNATIVA. Quando a oferta do dia anterior
+    podia ser pareada tambem por nome, havia duas leituras do mesmo
+    fato e o robo usou a chave de continuidade, que e a identidade mais
+    forte. A outra leitura fica registrada aqui: eleger uma e publicar
+    como fato unico seria esconder que havia duas.
+    """
     linhas = []
     for m in d.get("renomeadas") or []:
         a, at = m["antes"], m["atual"]
+        outra = m.get("outra_leitura") or {}
         linhas.append([
             at.get("operadora"),
-            _curto(a.get("nome_oferta"), 40),
-            _curto(at.get("nome_oferta"), 40),
+            _curto(a.get("nome_oferta"), 34),
+            _curto(at.get("nome_oferta"), 34),
             _reais(a.get("preco_promocional")),
             _reais(at.get("preco_promocional")),
+            ("%s a %s" % (_curto(outra.get("nome"), 22),
+                          _reais(outra.get("preco")))) if outra else "—",
             m.get("onde") or "—",
         ])
     return _tabela(
         ["Operadora", "Nome anterior", "Nome atual", "Preço antes",
-         "Preço atual", "Praças"],
+         "Preço atual", "Outra leitura possível", "Praças"],
         linhas,
-        [19 * mm, 42 * mm, 42 * mm, 20 * mm, 20 * mm, 35 * mm],
+        [19 * mm, 30 * mm, 30 * mm, 18 * mm, 18 * mm, 33 * mm, 30 * mm],
         vazio="Nenhuma oferta mudou de nome.")
 
 
@@ -506,7 +511,21 @@ def gerar(dados, entradas, caminho):
 
     # a coleta vem primeiro quando ela falhou: numero de dia incompleto
     # engana mais do que informa, e o leitor precisa saber antes de ler
-    if dados.get("falhas") or dados.get("sem_registro") or not dados.get("coletas"):
+    #
+    # CONSULTA QUE CAIU NAO E COLETA INCOMPLETA. Sem esta distincao o
+    # relatorio listava as nove operadoras como "Sem registro" por causa
+    # de um 503 na leitura da tabela - afirmando que nada foi coletado
+    # num dia em que tudo foi (N3).
+    if dados.get("erro_coleta"):
+        hist += _secao("Cobertura da coleta")
+        hist.append(Paragraph(
+            "Não foi possível consultar o registro de coleta da data "
+            "(%s). As ofertas apresentadas a seguir foram lidas "
+            "normalmente; não é possível afirmar, a partir desta "
+            "edição, se a rotina de coleta cobriu todas as operadoras e "
+            "praças previstas." % str(dados["erro_coleta"])[:120],
+            ESTILOS["corpo"]))
+    elif dados.get("falhas") or dados.get("sem_registro") or not dados.get("coletas"):
         hist += _secao("Cobertura da coleta")
         hist.append(Paragraph(
             "A coleta do dia não cobriu todas as operadoras ou praças "

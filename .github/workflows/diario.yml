@@ -163,11 +163,26 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
-          # "nao" aqui quer dizer "nao precisa coletar", ou seja: o dia
-          # fechou. Em caso de duvida ela responde "sim", e ai o alerta
-          # sai - o que esta certo: sem conseguir perguntar, o dia nao
-          # pode ser declarado coletado.
-          if [ "$(python ja_coletou.py)" = "nao" ]; then
+          # A DATA A QUE ESTA RODADA PERTENCE, e nao a data de agora. O
+          # gatilho esta marcado para 10:29 BRT; chegando com atraso
+          # grande ele pode cair depois da meia-noite, e ai perguntar
+          # "hoje" seria perguntar sobre o dia seguinte - que obviamente
+          # nao foi coletado, mas tambem nao e o dia desta rodada. Antes
+          # das 6h BRT a rodada pertence ao dia anterior.
+          HORA=$(date -u -d '-3 hours' +%H)
+          if [ "$HORA" -lt 6 ]; then
+            DIA=$(date -u -d '-27 hours' +%F)
+          else
+            DIA=$(date -u -d '-3 hours' +%F)
+          fi
+          echo "a rodada pertence ao dia $DIA"
+          # "--fechou" responde so o estado: aquele dia passou por todos
+          # os coletores? Em caso de duvida ela responde "nao", e ai o
+          # alerta sai - sem conseguir perguntar, o dia nao pode ser
+          # declarado coletado.
+          FECHOU=$(python ja_coletou.py --fechou "$DIA")
+          echo "dia=$DIA" >> "$GITHUB_OUTPUT"
+          if [ "$FECHOU" = "sim" ]; then
             echo "falar=false" >> "$GITHUB_OUTPUT"
             echo "o dia fechou antes de quebrar - nada a alertar"
           else
@@ -185,10 +200,15 @@ jobs:
           if [ "${{ needs.decidir.outputs.travado }}" = "true" ]; then
             MOTIVO="a suite de testes nao passou, e coletar com codigo quebrado gravaria dado errado numa serie que nao se corrige"
           fi
-          TEXTO="TMT Price Tracker - $(date -u -d '-3 hours' +%d/%m)
-          O DIA NAO FOI COLETADO.
+          # "NADA FOI GRAVADO" NAO E SABIDO AQUI. A guarda so fecha o
+          # dia com os nove coletores registrados, entao oito
+          # registrados - com mensagem entregue - tambem chegam neste
+          # job. Dizer que nada foi gravado seria afirmar o que nao se
+          # sabe; o que se sabe e que a rodada nao fechou.
+          TEXTO="TMT Price Tracker - ${{ steps.ver.outputs.dia }}
+          A RODADA DE HOJE NAO FECHOU.
           Motivo: ${MOTIVO}.
-          Nao ha dado novo hoje, e nada foi gravado. O historico anterior segue intacto.
+          Pode ter entrado dado parcial; o historico anterior segue intacto de qualquer jeito.
           Detalhes: ${RUN}"
           curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
@@ -300,10 +320,15 @@ jobs:
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # SO O QUE O JOB SABE. Este texto afirmava "a coleta rodou e
+          # o dado esta gravado", "o painel esta atualizado" e "nada foi
+          # perdido" - tres coisas que ele nao tem como saber: o aviso
+          # roda com always(), inclusive no dia em que a coleta e o
+          # repique falharam, e o job da tela roda DEPOIS deste. Era
+          # trocar silencio por afirmacao falsa, que e pior.
           TEXTO="TMT Price Tracker - $(date -u -d '-3 hours' +%d/%m)
           A MENSAGEM DE HOJE NAO FOI GERADA.
-          A coleta do dia rodou e o dado esta gravado - o que falhou foi o passo que monta e envia o aviso.
-          Nada foi perdido: o painel esta atualizado e a comparacao de amanha inclui hoje.
+          O passo que monta e envia o aviso falhou. Nao da para dizer daqui se a coleta do dia fechou nem se o painel foi atualizado - as duas coisas estao na rodada.
           Detalhes: ${RUN}"
           curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \

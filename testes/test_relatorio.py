@@ -168,6 +168,32 @@ class GerarOPdf(unittest.TestCase):
         self.assertIn("com apps de catálogo", texto)
         self.assertIn("em 2 de 18", texto)
 
+    def test_o_preco_e_a_entrega_vem_prontos_do_robo(self):
+        """TERCEIRA AUDITORIA, N4. Esta tabela montava a propria frase, e
+        divergia da mensagem na mesma oferta: ela dizia "entrega nao
+        lida" e aqui saia "None". Texto que afirma algo sobre uma oferta
+        mora no evento, uma vez, e os dois canais leem."""
+        import pypdf
+        dados = dict(DIA_CHEIO, remodeladas=[{
+            "operadora": "Brisanet", "produto": "fibra",
+            "nome": "Brisanet 500", "unidade": "",
+            "antes_preco": None, "agora_preco": 114.80,
+            "antes_entrega": None, "agora_entrega": None,
+            "preco_mudou": False, "entrega_mudou": False,
+            "versao_mudou": True,
+            "bundle_antes": None, "bundle_agora": None,
+            "texto_preco": "preço não lido nos dois dias",
+            "texto_entrega": "entrega não lida",
+            "atual": linha(operadora="Brisanet"),
+            "antes": linha(operadora="Brisanet"),
+            "pracas": ["Fortaleza/CE"], "onde": "em 1 de 7: Fortaleza"}])
+        caminho = self._gerar(dados, CATALOGO)
+        texto = "".join(p.extract_text()
+                        for p in pypdf.PdfReader(caminho).pages)
+        self.assertIn("entrega não lida", texto)
+        self.assertIn("preço não lido", texto)
+        self.assertNotIn("None", texto)
+
     def test_a_pracas_nao_sai_vazia(self):
         """AUDITORIA 9. O relatorio lia uma chave "onde" que ninguem
         escrevia, e a coluna Praças saia "—" em todas as linhas de toda

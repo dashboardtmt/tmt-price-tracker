@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import ja_coletou                                              # noqa: E402
 import vigia                                                   # noqa: E402
 from coletores import (armazenamento, brisanet, claro, claro_flex, nucel, starlink, tim_fit,  # noqa: E402
                        tim, unifique, vivo)
@@ -334,6 +335,9 @@ def _indexar(dia):
             colididas.append(l)
             continue
         indice[k] = l
+    # as descartadas tambem interessam a quem pergunta "esta oferta
+    # estava na vitrine ontem?": descartada e diferente de ausente
+
     # A colisao NAO vai no canal de erro. Erro cancela a comparacao
     # inteira, e isso e certo para consulta que caiu - mas colisao em 20
     # ofertas nao pode apagar o que mudou nas outras 1.640. Foi o que
@@ -351,6 +355,9 @@ def _indexar(dia):
         quais = sorted({_rotulo(c) for c in colididas})
         aviso = {
             "quantas": len(colididas),
+            # as linhas em si, para _degraus_que_voltaram nao confundir
+            # "descartada de ontem" com "ausente de ontem"
+            "descartadas": colididas,
             "curto": ("%d oferta(s) ficaram fora da comparação de hoje por "
                       "serem indistinguíveis entre si — mesma série, praça "
                       "e nome (%s)." % (len(colididas), quais[0])),
@@ -555,6 +562,8 @@ def mudancas(hoje, ontem):
     renomeadas, usadas = _renomeadas(h, o)
     renomeadas = [r for r in renomeadas
                   if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
+    # a leitura alternativa que _oferta_remodelada descartar entra aqui,
+    # e o laco abaixo a cola no evento que ficou (N8)
 
     # A MESMA OFERTA MUDADA POR DENTRO. Era o ponto cego de todos os
     # detectores acima, e o pior deles, porque produzia afirmacao
@@ -567,6 +576,10 @@ def mudancas(hoje, ontem):
     # com numeros diferentes, "+60%" e "+30%", e total_mud contava dois.
     remodeladas = [r for r in _oferta_remodelada(h, o, usadas)
                    if (r["operadora"], r["produto"]) not in suprimir]
+    for r in renomeadas:
+        outras = usadas.get(_identidade(r["antes"])) or []
+        if outras:
+            r["outra_leitura"] = outras[0]
 
     precos, composicao = list(precos.values()), list(composicao.values())
     # O ALCANCE PRIMEIRO: a separacao abaixo usa em quantas pracas cada
@@ -580,7 +593,8 @@ def mudancas(hoje, ontem):
     # detector procura a ultima venda no historico e anuncia "100 Mbps
     # voltou por 100,00, +11% sobre os 90,00 de 18/10" sobre um degrau
     # que nunca saiu da vitrine - so falta o dia 19 no banco.
-    voltaram = _degraus_que_voltaram(h, o, hoje) if o else []
+    voltaram = (_degraus_que_voltaram(
+        h, o, hoje, (cego_o or {}).get("descartadas") or ()) if o else [])
     # A remodelada ja contou o movimento com o nome da oferta e os dois
     # numeros; repetir aqui seria a mesma noticia duas vezes. A chave
     # leva a PRACA e o NOME, e o conjunto e montado DEPOIS da separacao:
@@ -729,17 +743,28 @@ def _por_efeito(e):
             return 0.0
         return abs(para - de) / float(de)
 
-    # preco, composicao e renomeada: o par antes/atual
-    a, d = e.get("antes"), e.get("atual")
-    if isinstance(a, dict) and isinstance(d, dict):
-        return pc(a.get("preco_promocional"), d.get("preco_promocional"))
-    # remodelada e leitura
+    # REMODELADA E LEITURA PRIMEIRO. Elas tambem carregam "antes" e
+    # "atual" como dicionarios, entao caiam no ramo de baixo e o
+    # max(preco, entrega) nunca rodava: a oferta que paga 5% mais e
+    # recebe METADE da internet pesava 0,05 em vez de 0,50, e era a
+    # unica das quatro a ficar fora da mensagem.
     if "antes_preco" in e:
         return max(pc(e.get("antes_preco"), e.get("agora_preco")),
                    pc(e.get("antes_entrega"), e.get("agora_entrega")))
     # degrau que voltou
     if "quando" in e:
         return pc(e.get("antes"), e.get("agora"))
+    # preco, composicao e renomeada: o par antes/atual
+    a, d = e.get("antes"), e.get("atual")
+    if isinstance(a, dict) and isinstance(d, dict):
+        # COMPOSICAO PESA PELO QUE MUDOU DENTRO, porque o preco e igual
+        # por definicao e todas elas pesariam zero - e ai os tres
+        # mostrados voltariam a ser os primeiros da ordem do indice.
+        sa = set((a.get("assinatura_sva") or "").split("+"))
+        sd = set((d.get("assinatura_sva") or "").split("+"))
+        if sa != sd and (sa or sd):
+            return len(sa ^ sd) / float(max(len(sa | sd), 1))
+        return pc(a.get("preco_promocional"), d.get("preco_promocional"))
     # grade: a maior variacao entre todos os movimentos dela
     pesos = [pc(x[1], x[2]) for x in (e.get("saltos") or ())]
     pesos += [pc(x[1], x[2]) for x in (e.get("precos") or ())]
@@ -858,9 +883,26 @@ def _oferta_remodelada(h, o, usadas=()):
         if not anteriores or len(atuais) != 1 or len(anteriores) != 1:
             continue
         atual, antes = atuais[0], anteriores[0]
-        # a oferta de ontem que _renomeadas ja consumiu nao pode ser o
-        # "antes" de um segundo evento (auditoria 2, M1)
+        # A CHAVE DE CONTINUIDADE GANHA DO NOME, e esta e a decisao -
+        # nao o acidente de _renomeadas rodar primeiro.
+        #
+        # Quando a oferta de ontem pode parear das duas formas, ha duas
+        # leituras do mesmo fato: "mudou de nome e o preco foi de 100
+        # para 130" e "voltou com outro degrau por 160". A chave existe
+        # para sobreviver a renomeacao e e a identidade mais forte que o
+        # projeto tem; o nome muda por decisao de marketing. Entao vale
+        # a chave.
+        #
+        # E A LEITURA DESCARTADA NAO DESAPARECE: vai no evento, para o
+        # relatorio mostrar que havia duas e qual foi usada. Escolher em
+        # silencio seria o mesmo defeito do par indistinguivel - eleger
+        # uma leitura por ordem de codigo e publicar como fato.
         if _identidade(antes) in (usadas or ()):
+            if isinstance(usadas, dict):
+                usadas[_identidade(antes)].append({
+                    "nome": atual.get("nome_oferta"),
+                    "preco": atual.get("preco_promocional"),
+                    "entrega": _entrega(atual)})
             continue
         pa, pd = antes["preco_promocional"], atual["preco_promocional"]
         ea, ed = _entrega(antes), _entrega(atual)
@@ -890,10 +932,24 @@ def _oferta_remodelada(h, o, usadas=()):
             # o rotulo em portugues viaja com o evento: a mensagem e o
             # PDF leem o mesmo texto e nao podem divergir
             "bundle_antes": _bundle(ba), "bundle_agora": _bundle(bd),
+            # E O MESMO VALE PARA PRECO E ENTREGA. Eu consertei o "None"
+            # e o "mesma entrega" afirmado na mensagem e deixei o PDF
+            # imprimindo "None" na mesma oferta. Texto que viaja no
+            # evento nao pode divergir entre os canais, que e a razao de
+            # "onde" e do rotulo acima estarem aqui.
+            "texto_preco": _texto_preco(pa, pd, preco_mudou),
+            "texto_entrega": _texto_entrega(ea, ed, _unidade(atual),
+                                            entrega_mudou),
             "preco_mudou": preco_mudou, "entrega_mudou": entrega_mudou,
             "versao_mudou": versao_mudou,
-            # so a versao mudou: nem preco nem entrega se moveram
-            "versao_apenas": not (preco_mudou or entrega_mudou),
+            # SO A VERSAO MUDOU: nem preco nem entrega se moveram, E os
+            # dois foram lidos nos dois dias. Sem a segunda metade, uma
+            # entrega que passou de desconhecida para 500 Mbps contava
+            # como "parada" - e a frase da leitura afirmaria "sem mexer
+            # em preco nem entrega" sobre uma entrega que mexeu, duas
+            # linhas abaixo de _texto_entrega dizendo "nao lida" (N14).
+            "versao_apenas": (not (preco_mudou or entrega_mudou)
+                              and None not in (pa, pd, ea, ed)),
             "unidade": _unidade(atual),
             "atual": atual, "antes": antes, "pracas": []})
         if atual["praca"] not in d["pracas"]:
@@ -1019,7 +1075,7 @@ def _grades_reorganizadas(h, o):
 DIAS_DE_MEMORIA = 45
 
 
-def _degraus_que_voltaram(h, o, hoje):
+def _degraus_que_voltaram(h, o, hoje, descartadas_de_ontem=()):
     """Entrega que reapareceu hoje com preco diferente da ultima vez.
 
     Os outros detectores comparam hoje com ontem, e por isso nao veem
@@ -1035,7 +1091,15 @@ def _degraus_que_voltaram(h, o, hoje):
         return (l["operadora"], l["produto"], l["praca"], _entrega(l),
                 (l.get("nome_oferta") or "").lower())
 
+    # DESCARTADA DE ONTEM NAO E AUSENTE DE ONTEM. _indexar tira o grupo
+    # indistinguivel do indice, e sem esta linha toda oferta daquele
+    # grupo parecia ter faltado ontem e "voltado" hoje. Medido na
+    # transicao real de 15 para 16/10: o par "Vivo Familia 2 + TV" saiu
+    # como "700 Mbps voltou por 290,00, -26% sobre os 390,00 de 15/10",
+    # num dia em que nenhum preco mudou e o degrau nunca saiu da vitrine.
     ontem = {chave(l) for l in o.values() if _entrega(l) is not None}
+    ontem |= {chave(l) for l in (descartadas_de_ontem or ())
+              if _entrega(l) is not None}
     novos = {}
     for l in h.values():
         if _entrega(l) is None or l.get("preco_promocional") is None:
@@ -1068,13 +1132,27 @@ def _degraus_que_voltaram(h, o, hoje):
                 "&order=data_captura.desc"
                 % (urllib.parse.quote(operadora), produto, limite, hoje, campos))
             cache[(operadora, produto)] = [] if erro else (linhas or [])
+        # A ULTIMA VENDA, e so quando ela nao e ambigua. A consulta le a
+        # tabela crua, sem passar por _indexar, entao ela nao sabe das
+        # ofertas indistinguiveis: com duas linhas do mesmo dia, mesma
+        # praca, mesma entrega e mesmo nome a precos diferentes, "a
+        # primeira que aparecer" e sorteio - e foi esse sorteio que
+        # produziu os -26% falsos do par "Vivo Familia 2 + TV".
+        #
+        # Dia ambiguo nao serve de referencia: nao da para dizer por
+        # quanto a operadora vendia aquele degrau naquele dia.
+        candidatas = [x for x in cache[(operadora, produto)]
+                      if x.get("praca") == k[2] and _entrega(x) == k[3]
+                      and (x.get("nome_oferta") or "").lower() == k[4]
+                      and x.get("preco_promocional") is not None]
         antes = None
-        for x in cache[(operadora, produto)]:
-            if (x.get("praca") == k[2] and _entrega(x) == k[3]
-                    and (x.get("nome_oferta") or "").lower() == k[4]
-                    and x.get("preco_promocional") is not None):
-                antes = x
-                break           # a consulta ja vem da mais recente para tras
+        for x in candidatas:     # a consulta vem da mais recente para tras
+            do_dia = [y["preco_promocional"] for y in candidatas
+                      if y.get("data_captura") == x.get("data_captura")]
+            if len(set(do_dia)) > 1:
+                break            # o dia mais recente e ambiguo: desiste
+            antes = x
+            break
         if not antes or antes["preco_promocional"] == l["preco_promocional"]:
             continue
         ident = (operadora, produto, k[3], antes["preco_promocional"],
@@ -1105,13 +1183,14 @@ def _renomeadas(h, o):
     renomeacao, e so vale quando sobrou exatamente UMA candidata de cada
     lado: com duas ou mais, qualquer emparelhamento seria chute.
 
-    DEVOLVE TAMBEM AS IDENTIDADES DE ONTEM QUE CONSUMIU. A oferta de
-    ontem so pode ser o "antes" de UM evento, e sem esta lista
-    _oferta_remodelada reusava a mesma base: hoje com duas ofertas novas,
-    uma de mesma chave e outra de mesmo nome, produzia dois reajustes
-    sobre os mesmos R$ 100. Nao da para reconstruir a lista de fora -
-    _agrupar guarda um "antes" por grupo, e as outras 19 pracas ficariam
-    desprotegidas.
+    DEVOLVE TAMBEM AS IDENTIDADES DE ONTEM QUE CONSUMIU, num dicionario
+    que _oferta_remodelada preenche com as leituras que teve de
+    descartar. A oferta de ontem so pode ser o "antes" de UM evento, e
+    sem esta lista _oferta_remodelada reusava a mesma base: hoje com
+    duas ofertas novas, uma de mesma chave e outra de mesmo nome,
+    produzia dois reajustes sobre os mesmos R$ 100. Nao da para
+    reconstruir a lista de fora - _agrupar guarda um "antes" por grupo,
+    e as outras 19 pracas ficariam desprotegidas.
     """
     sobra_h = collections.defaultdict(list)
     sobra_o = collections.defaultdict(list)
@@ -1122,13 +1201,13 @@ def _renomeadas(h, o):
         if k not in h:
             sobra_o[(l["chave"], l["praca"])].append(l)
 
-    achados, usadas = {}, set()
+    achados, usadas = {}, {}
     for cp, atuais in sobra_h.items():
         anteriores = sobra_o.get(cp)
         if not anteriores or len(atuais) != 1 or len(anteriores) != 1:
             continue
         atual, antes = atuais[0], anteriores[0]
-        usadas.add(_identidade(antes))
+        usadas.setdefault(_identidade(antes), [])
         _agrupar(achados, (atual["operadora"], atual["chave"],
                            antes["nome_oferta"], atual["nome_oferta"],
                            antes["preco_promocional"], atual["preco_promocional"]),
@@ -1214,22 +1293,49 @@ def _trocou(saiu, entrou):
     return "mudou o que vem incluso"
 
 
+def _texto_preco(antes, agora, mudou):
+    """Como o preco desta oferta aparece nas duas telas.
+
+    Tres estados, e eles nao se confundem: mudou (com a variacao),
+    ficou igual (com o valor), ou nao foi lido em um dos dias - e este
+    ultimo nunca pode sair como os outros dois.
+    """
+    if antes is None or agora is None:
+        return "pre\u00e7o n\u00e3o lido nos dois dias"
+    if mudou:
+        return "%s \u2192 %s%s" % (_reais(antes), _reais(agora),
+                                _pct(antes, agora))
+    return "mesmo pre\u00e7o (%s)" % _reais(agora)
+
+
+def _texto_entrega(antes, agora, unidade, mudou):
+    """Como a entrega desta oferta aparece nas duas telas."""
+    if antes is None or agora is None:
+        return "entrega n\u00e3o lida"
+    u = unidade or ""
+    if mudou:
+        return "%s \u2192 %s%s" % (antes, ("%s %s" % (agora, u)).strip(),
+                                _pct(antes, agora))
+    return "mesma entrega (%s)" % ("%s %s" % (agora, u)).strip()
+
+
 def _mesmo_preco(r):
-    """"pelo mesmo preco (35,00)", ou que ele nao foi lido.
+    """O preco de uma oferta que NAO mudou de preco, ou que nao foi lido.
 
     AFIRMAR IGUALDADE EXIGE OS DOIS LADOS. preco_mudou e False quando
     qualquer um deles e None - a guarda certa para nao inventar reajuste -
     e quem le o else nao pode concluir "nao mudou" disso. Nao mudou e nao
     se sabe sao estados diferentes, e a diferenca entre os dois e todo o
     valor deste projeto.
+
+    Chama _texto_preco para nao haver duas implementacoes da mesma
+    frase: foi com duas que o "None" saiu da mensagem e apareceu no PDF.
     """
-    if r.get("antes_preco") is None or r.get("agora_preco") is None:
-        return "pre\u00e7o n\u00e3o lido nos dois dias"
-    return "mesmo pre\u00e7o (%s)" % _reais(r["agora_preco"])
+    return _texto_preco(r.get("antes_preco"), r.get("agora_preco"), False)
 
 
 def _mesma_entrega(r, u):
-    """"pela mesma entrega (50 GB)", ou que ela nao foi lida.
+    """A entrega de uma oferta que NAO mudou de entrega, ou nao lida.
 
     Mesmo principio de _mesmo_preco. A Brisanet veio 119 linhas por dia
     sem velocidade em 18 dos 21 dias coletados, e uma delas mudando de
@@ -1237,10 +1343,8 @@ def _mesma_entrega(r, u):
     e, pior, a afirmacao de igualdade sobre um campo que nao foi lido em
     nenhum dos dois dias.
     """
-    if r.get("antes_entrega") is None or r.get("agora_entrega") is None:
-        return "entrega n\u00e3o lida"
-    return "mesma entrega (%s)" % ("%s %s" % (r["agora_entrega"],
-                                              u or "")).strip()
+    return _texto_entrega(r.get("antes_entrega"), r.get("agora_entrega"),
+                          u, False)
 
 
 def _o_que_mudou(r):
@@ -1393,8 +1497,19 @@ def montar_mensagem(hoje, ontem):
             # gravacao falha em todos os coletores: "coletas" tem linha
             # para cada um e "capturas" fica vazia. A guarda de cobertura
             # abaixo nao pega, porque este caso extremo volta None e nao 0.
-            linhas.append("Nenhuma oferta foi capturada hoje: n\u00e3o h\u00e1 o "
-                          "que comparar.")
+            #
+            # E INDICE VAZIO NAO E BANCO VAZIO. Se as capturas existem e
+            # TODAS colidiram, "nenhuma oferta foi capturada" e falso - e
+            # a linha do ponto cego, duas abaixo, desmentia. O numero
+            # para separar os dois estados ja esta em ponto_cego (N5).
+            fora = (ponto_cego or {}).get("quantas") or 0
+            if fora:
+                linhas.append("Nenhuma oferta comparável hoje: as %d "
+                              "capturas do dia são indistinguíveis entre "
+                              "si." % fora)
+            else:
+                linhas.append("Nenhuma oferta foi capturada hoje: n\u00e3o h\u00e1 o "
+                              "que comparar.")
         elif not total_mud:
             linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
         else:
@@ -1556,11 +1671,24 @@ def montar_mensagem(hoje, ontem):
     # no horario, cai nessa regra: a coleta roda a noite e a mensagem sai
     # perto da meia-noite. Quem recebe precisa saber que aquele dado e de
     # outra hora do dia, porque vitrine muda ao longo do dia.
-    inicios = sorted(c.get("iniciada_em") or "" for c in (col or []))
-    hora = inicios[0][11:16] if inicios and len(inicios[0]) >= 16 else ""
-    if hora and not ("05:00" <= hora <= "11:59"):
-        linhas += ["", "A coleta de hoje come\u00e7ou \u00e0s %s, fora da janela da "
-                   "manh\u00e3 \u2014 os pre\u00e7os s\u00e3o os daquela hora." % hora]
+    # LINHA SEM HORA NAO APAGA O AVISO. Com sorted() sobre "" uma unica
+    # linha de iniciada_em nulo ordenava primeiro, falhava o teste de
+    # tamanho e o aviso inteiro desaparecia - ausencia virando silencio,
+    # que e o padrao que este projeto persegue (N9).
+    #
+    # E A JANELA E A DA GUARDA. Havia duas definicoes de "janela da
+    # manha" em dois arquivos: 05:00-11:59 aqui e 6h-10h em
+    # ja_coletou.py, entao coleta das 11:50 - alcancavel, porque depois
+    # das 10h qualquer gatilho libera - nao recebia a ressalva (N10).
+    inicios = sorted(c.get("iniciada_em") or "" for c in (col or [])
+                     if len(str(c.get("iniciada_em") or "")) >= 16)
+    hora = inicios[0][11:16] if inicios else ""
+    janela = (ja_coletou.ABERTURA.strftime("%H:%M"),
+              ja_coletou.LIMITE.strftime("%H:%M"))
+    if hora and not (janela[0] <= hora <= janela[1]):
+        linhas += ["", "A coleta de hoje come\u00e7ou \u00e0s %s, fora da janela "
+                   "de %s a %s \u2014 os pre\u00e7os s\u00e3o os daquela hora."
+                   % (hora, janela[0], janela[1])]
 
     # O FIM DA MENSAGEM E O LINK, e nao mais a entrada por produto e a
     # telemetria. Os dois viraram tabela no relatorio anexo, com mais
@@ -1600,6 +1728,11 @@ def montar_mensagem(hoje, ontem):
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "remodeladas": remodeladas, "leitura": leitura,
         "erro_comparacao": erro_cmp, "cobertura": cobertura,
+        # O ERRO DA CONSULTA DE COLETAS VAI PARA O PDF TAMBEM. Sem ele,
+        # a mensagem dizia "nao deu para ler o estado da coleta" e o
+        # relatorio, no mesmo dia, listava as nove operadoras como "Sem
+        # registro" - que e uma afirmacao, e falsa (N3).
+        "erro_coleta": erro_col,
         # a frase longa e a do relatorio, onde ha espaco para explicar
         # o que "chave de serie" quer dizer; a curta ja foi na mensagem
         "ponto_cego": ponto_cego["longo"] if ponto_cego else None,
