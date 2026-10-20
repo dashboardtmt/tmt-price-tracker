@@ -422,8 +422,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '            "versao_apenas": _parado(pa, pd) and _parado(ea, ed),',
-        '            "versao_apenas": not (preco_mudou or entrega_mudou),',
+        '                              and pa == pd and _parado(ea, ed)),',
+        '                              and pa == pd and True),',
         "N14. entrega que apareceu volta a contar como parada"),
 
     Mutacao(
@@ -453,15 +453,14 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '        if pa is not None and pa == pd:',
+        '        if pa == pd or pa is None or pd is None:',
         '        if True:',
         "V1. o peso dos servicos volta a vazar para o preco"),
 
     Mutacao(
         "robo.py",
-        '            da_grade.add((g["operadora"], g["produto"], entrega,\n'
-        '                          antes_p, agora_p))',
-        '            pass',
+        '    ja_contado = {}',
+        '    ja_contado = type("X", (dict,), {"setdefault": lambda s, *a: None})()',
         "V2. grade e voltou voltam a contar o mesmo movimento"),
 
     Mutacao(
@@ -477,6 +476,57 @@ MUTACOES = [
         '    if False:\n'
         '        return True',
         "V6. entrega nao lida nos dois dias volta a contar como movida"),
+
+    # ---------------------------------------------------------------
+    # A QUINTA AUDITORIA. Um achado alto: dos seis tipos de evento,
+    # quatro ainda montavam a frase do preco na mao, e em dois deles
+    # ela afirmava igualdade sobre um preco nao lido.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '        linhas.append("  %s, %s   %s"\n'
+        '                      % (_texto_preco(m["antes"].get("preco_promocional"),',
+        '        linhas.append("  mesmo pre\\u00e7o, %s   %s"\n'
+        '                      % (0 * (_texto_preco(m["antes"].get("preco_promocional"),',
+        "W1. composicao volta a afirmar mesmo preco sem ler o preco"),
+
+    Mutacao(
+        "robo.py",
+        '            linhas.append("  %s" % _texto_preco(de, para, False))',
+        '            linhas.append("  pelo mesmo pre\\u00e7o (%s)" % _reais(para))',
+        "W1b. renomeada volta a afirmar mesmo preco sem ler o preco"),
+
+    Mutacao(
+        "robo.py",
+        '        dono = ja_contado.get((v["operadora"], v["produto"], v["entrega"],\n'
+        '                               v["antes"], v["agora"]))',
+        '        dono = None',
+        "W2. preco e voltou voltam a contar o mesmo reajuste"),
+
+    Mutacao(
+        "robo.py",
+        '            if p not in dono["pracas"]:',
+        '            if False:',
+        "W2b. a praca do evento descartado volta a se perder"),
+
+    Mutacao(
+        "robo.py",
+        '        if pa == pd or pa is None or pd is None:',
+        '        if pa is not None and pa == pd:',
+        "W3. composicao sem preco volta a pesar zero"),
+
+    Mutacao(
+        "robo.py",
+        '            "versao_apenas": (pa is not None and pd is not None',
+        '            "versao_apenas": (True or pa is not None and pd is not None',
+        "W4. preco nao lido volta a entrar no balde da leitura"),
+
+    Mutacao(
+        "robo.py",
+        '                         _pct(v["antes"], v["agora"]) or "(sem varia\u00e7\u00e3o apurada)",',
+        '                         "%+.0f%%" % ((v["agora"] - v["antes"]) / float(v["antes"] or 1) * 100),',
+        "W5. o voltou volta a calcular o proprio percentual"),
 
     Mutacao(
         "relatorio.py",

@@ -211,11 +211,17 @@ def _bloco_precos(d):
 def _bloco_composicao(d):
     linhas = []
     for m in d.get("mudancas_composicao") or []:
-        at = m["atual"]
+        at, a = m["atual"], m["antes"]
+        # o mesmo texto da mensagem, e nao um "—" que se le como "nao ha
+        # preco" numa tabela cujo titulo afirma que o preco nao mudou
+        preco = (_reais(at.get("preco_promocional"))
+                 if a.get("preco_promocional") is not None
+                 and at.get("preco_promocional") is not None
+                 else "não lido")
         linhas.append([
             at.get("operadora"),
             _curto(at.get("nome_oferta"), 40),
-            _reais(at.get("preco_promocional")),
+            preco,
             m.get("onde") or "—",
         ])
     return _tabela(
@@ -575,13 +581,21 @@ def gerar(dados, entradas, caminho):
                 dados.get("leitura"),
                 "Nenhuma alteração atribuível à leitura dos dados.")))
 
+        # "PERMANECEU INALTERADO" E UMA AFIRMACAO, e ela nao vale para a
+        # oferta cujo preco nao foi lido num dos dois dias - que e um
+        # caso que o detector de composicao aceita, porque ele nasce
+        # quando o ramo de preco nao disparou (W1). O paragrafo diz as
+        # duas possibilidades e a coluna de cada linha diz qual e.
         hist.append(_com_titulo(
             "Alterações de composição sem variação de preço",
-            Paragraph("Ofertas cujo preço permaneceu inalterado em relação "
-                      "ao dia anterior e cuja composição de serviços inclusos "
-                      "foi modificada. A identificação decorre da comparação "
-                      "diária do conjunto de serviços registrado em cada "
-                      "oferta.", ESTILOS["corpo"]),
+            Paragraph("Ofertas cuja composição de serviços inclusos foi "
+                      "modificada sem que se tenha apurado variação de "
+                      "preço em relação ao dia anterior. A identificação "
+                      "decorre da comparação diária do conjunto de "
+                      "serviços registrado em cada oferta. A coluna "
+                      "Preço indica o valor apurado ou, quando a leitura "
+                      "de alguma das datas não o registrou, essa "
+                      "circunstância.", ESTILOS["corpo"]),
             _bloco_composicao(dados)))
 
         hist.append(_com_titulo(

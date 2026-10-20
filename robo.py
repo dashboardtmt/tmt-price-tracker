@@ -620,15 +620,47 @@ def mudancas(hoje, ontem):
     #
     # A grade fica e o "voltou" sai: ela e o relato mais completo dos
     # dois, porque mostra a escada inteira.
-    da_grade = set()
+    #
+    # E O MESMO VALE PARA AS MUDANCAS DE PRECO. A cadeia de dedupes tem
+    # quatro pares possiveis e cobria tres; faltava preco x voltou. Pior:
+    # "cobertos", acima, ESVAZIA g["precos"] justamente quando existe um
+    # evento de preco para aquela entrega - entao nos casos em que o
+    # movimento sai como preco o conjunto abaixo nasceria vazio e nao
+    # teria o que comparar. E o 13/10, pela outra rota.
+    ja_contado = {}
     for g in grades:
         for entrega, antes_p, agora_p in (g.get("precos") or ()):
-            da_grade.add((g["operadora"], g["produto"], entrega,
-                          antes_p, agora_p))
-    voltaram = [v for v in voltaram
-                if (v["operadora"], v["produto"], v["entrega"],
-                    v["antes"], v["agora"]) not in da_grade]
-    _assinar_alcance(h, voltaram)
+            ja_contado.setdefault(
+                (g["operadora"], g["produto"], entrega, antes_p, agora_p), g)
+    for m in precos:
+        d, a = m["atual"], m["antes"]
+        ja_contado.setdefault(
+            (d["operadora"], d["produto"], _entrega(d),
+             a["preco_promocional"], d["preco_promocional"]), m)
+
+    sobrou = []
+    for v in voltaram:
+        dono = ja_contado.get((v["operadora"], v["produto"], v["entrega"],
+                               v["antes"], v["agora"]))
+        if dono is None:
+            sobrou.append(v)
+            continue
+        # A PRACA DO EVENTO DESCARTADO VAI PARA O QUE FICA. No 13/10 o
+        # reajuste alcancou as 20 pracas; em Belo Horizonte a escada nao
+        # era comparavel porque o degrau faltava ontem, e sem isto a
+        # linha dizia "em 19 de 20" sobre um movimento nacional.
+        for p in (v.get("pracas") or ()):
+            if p not in dono["pracas"]:
+                dono["pracas"].append(p)
+    voltaram = sobrou
+
+    # O ALCANCE DE NOVO, porque a juncao acima mexeu nas pracas de quem
+    # ficou e o "onde" da primeira passada ficou velho - dizia "em 19 de
+    # 20" sobre uma lista que agora tem 20. A funcao e idempotente: ela
+    # recalcula universo e onde a partir de "pracas", e a primeira
+    # chamada existe porque a separacao precisa do universo antes.
+    _assinar_alcance(h, precos, composicao, renomeadas, grades, voltaram,
+                     remodeladas, leitura)
 
     # A ORDEM E PARTE DA NOTICIA, e e decidida aqui para a mensagem e o
     # PDF nao poderem discordar. Ver _por_efeito.
@@ -797,7 +829,13 @@ def _por_efeito(e):
         # volta a ser chave.asc - o estado que _por_efeito existe para
         # eliminar, nos dois canais de uma vez, no dia em que o dado
         # esta pior.
-        if pa is not None and pa == pd:
+        # "preco nao lido" tambem e composicao: o evento nasce quando o
+        # ramo de preco nao disparou, e ele nao dispara com None em
+        # qualquer dos lados. Sem isto esses eventos pesavam 0,000 e iam
+        # para o fim do grupo nos dois canais (W3). E nao reabre o
+        # vazamento do V1: evento de PRECO com None nao existe, porque a
+        # guarda do A1 o impede de nascer.
+        if pa == pd or pa is None or pd is None:
             sa = set((a.get("assinatura_sva") or "").split("+"))
             sd = set((d.get("assinatura_sva") or "").split("+"))
             if sa != sd and (sa or sd):
@@ -1013,9 +1051,16 @@ def _oferta_remodelada(h, o, usadas=()):
             "preco_mudou": preco_mudou, "entrega_mudou": entrega_mudou,
             "versao_mudou": versao_mudou,
             # SO A VERSAO MUDOU: nem o preco nem a entrega se MOVERAM.
-            # Ver _parado - desconhecido nos dois dias nao se moveu;
-            # desconhecido num dia so, sim.
-            "versao_apenas": _parado(pa, pd) and _parado(ea, ed),
+            #
+            # O PRECO TEM DE TER SIDO LIDO NOS DOIS DIAS, e a entrega
+            # nao. A assimetria e deliberada: entrega nao lida ontem e
+            # nao lida hoje nao mudou - nada ali se moveu, e e o caso da
+            # Brisanet. Preco nao lido e diferente: a operadora pode ter
+            # reajustado e nos simplesmente nao vimos, e ai a frase "sem
+            # mexer em preco nem entrega" afirmaria o que a linha da
+            # mesma oferta nega duas abaixo, via texto_preco (W4).
+            "versao_apenas": (pa is not None and pd is not None
+                              and pa == pd and _parado(ea, ed)),
             "unidade": _unidade(atual),
             "atual": atual, "antes": antes, "pracas": []})
         if atual["praca"] not in d["pracas"]:
@@ -1633,8 +1678,15 @@ def montar_mensagem(hoje, ontem):
         saiu = sorted(x for x in antes_sva - agora_sva if x)
         entrou = sorted(x for x in agora_sva - antes_sva if x)
         linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
-        linhas.append("  mesmo pre\u00e7o, %s   %s"
-                      % (_trocou(saiu, entrou), m["onde"]))
+        # O PRECO SAI DE _texto_preco, como no caminho das remodeladas.
+        # "mesmo preco" estava escrito na mao aqui, e o evento de
+        # composicao nasce exatamente quando o ramo de preco NAO
+        # disparou - o que inclui o caso de um dos lados ser None. A
+        # frase afirmava igualdade sobre um preco que nao foi lido.
+        linhas.append("  %s, %s   %s"
+                      % (_texto_preco(m["antes"].get("preco_promocional"),
+                                      d.get("preco_promocional"), False),
+                         _trocou(saiu, entrou), m["onde"]))
     if len(comp) > 3:
         linhas += ["", "e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
                    % (len(comp) - 3)]
@@ -1695,11 +1747,16 @@ def montar_mensagem(hoje, ontem):
     for v in voltaram[:3]:
         unidade = v.get("unidade") or ""
         quando = datetime.fromisoformat(v["quando"]).strftime("%d/%m")
-        pc = ((v["agora"] - v["antes"]) / float(v["antes"]) * 100
-              if v["antes"] else 0)
+
         linhas += ["", "%s \u00b7 %s" % (_categoria(v), v["operadora"])]
-        linhas.append("  %s %s voltou por %s   %+.0f%% sobre os %s de %s"
-                      % (v["entrega"], unidade, _reais(v["agora"]), pc,
+        # O PERCENTUAL SAI DE _pct, como todos os outros. Calculado aqui
+        # com "if v["antes"] else 0", um preco anterior de 0,00 fazia a
+        # mensagem imprimir "+0% sobre os 0,00" enquanto o PDF imprimia
+        # "—" para o mesmo evento - ultimo numero que os dois canais
+        # calculavam em dois lugares (W5).
+        linhas.append("  %s %s voltou por %s  %s sobre os %s de %s"
+                      % (v["entrega"], unidade, _reais(v["agora"]),
+                         _pct(v["antes"], v["agora"]) or "(sem variação apurada)",
                          _reais(v["antes"]), quando))
         linhas.append("  %s" % v["onde"])
     if len(voltaram) > 3:
@@ -1711,11 +1768,14 @@ def montar_mensagem(hoje, ontem):
         de, para = a["preco_promocional"], d["preco_promocional"]
         linhas += ["", "%s \u00b7 mudou de nome" % d["operadora"]]
         linhas.append("  %s \u2192 %s" % (a["nome_oferta"] or "?", d["nome_oferta"] or "?"))
+        # TRES ESTADOS, e o else recolhia dois deles: "igual" e "nao
+        # lido" saiam os dois como "pelo mesmo preco (-)" - a afirmacao
+        # de igualdade mais o travessao onde devia estar o numero.
         if de is not None and para is not None and de != para:
             linhas.append("  e o pre\u00e7o foi de %s para %s%s"
                           % (_reais(de), _reais(para), _variacao(de, para)))
         else:
-            linhas.append("  pelo mesmo pre\u00e7o (%s)" % _reais(para))
+            linhas.append("  %s" % _texto_preco(de, para, False))
     if len(renom) > 3:
         linhas.append("  e mais %d renomeada(s)" % (len(renom) - 3))
 

@@ -412,10 +412,14 @@ class UmMovimentoUmEvento(unittest.TestCase):
         ontem, hoje, historico, _q = self._escada(sem_45_em=quais[2])
         r = dados(ontem, hoje, extras=historico)
         self.assertTrue(r["grades"], "a escada tem de aparecer")
-        self.assertNotIn(quais[2], (r["grades"][0].get("pracas") or []),
-                         "a praca sem o degrau nao entra na grade")
         self.assertEqual(r["voltaram"], [],
                          "a grade ja contou este movimento")
+        # E A PRACA DO EVENTO DESCARTADO ENTRA NA GRADE (W2). O reajuste
+        # alcancou as 20; naquela praca a escada nao era comparavel
+        # porque o degrau faltava ontem, mas o movimento chegou la - e
+        # dizer "em 19 de 20" subestimaria um movimento nacional.
+        self.assertIn(quais[2], r["grades"][0]["pracas"])
+        self.assertIn("todas as 20", r["grades"][0]["onde"])
 
     def test_preco_anterior_diferente_sao_dois_fatos(self):
         """Se em BH a ultima venda foi a outro valor, o movimento nao e o
@@ -556,6 +560,193 @@ class EntregaQueMexeuNaoEEntregaParada(unittest.TestCase):
         self.assertTrue(eventos)
         self.assertFalse(eventos[0]["versao_apenas"],
                          "a entrega passou de desconhecida para 500")
+
+
+# ===================================== quinta auditoria: a ultima frase
+
+class IgualdadeDePrecoSoComOsDoisLados(unittest.TestCase):
+    """W1. Eu criei _texto_preco para a frase morar num lugar so, e liguei
+    SO ao caminho das remodeladas. Dos seis tipos de evento, quatro
+    montavam a frase na mao - e em dois deles ela afirmava igualdade.
+
+    Composicao: o evento nasce quando o sva difere e o ramo de preco NAO
+    disparou, e ele nao dispara quando um dos lados e None - a guarda do
+    A1. Entao "mesmo preco, trocou 1 servico incluso" saia sobre uma
+    oferta cujo preco de ontem nao foi lido, e o PDF afirmava junto, na
+    mesma pagina: "Ofertas cujo preco permaneceu inalterado" com a
+    coluna Preco em "—".
+
+    Renomeada: o else de "if de is not None and para is not None and de
+    != para" recolhia "igual" e "nao lido" no mesmo ramo, e saia "pelo
+    mesmo preco (-)" - a afirmacao de igualdade mais o travessao onde
+    devia estar o numero.
+
+    SOBRE A FREQUENCIA: zero de 31.727 capturas reais estao sem preco, e
+    o gatilho nunca ocorreu em 21 dias. A3, A4, N4 e V1 tambem nunca
+    ocorreram e foram consertados como graves. A regua e a garantia, nao
+    a frequencia.
+    """
+
+    def test_composicao_com_preco_nao_lido(self):
+        ontem = em_todas(nome="Vivo Total", preco=None, gb=50, data=ONTEM,
+                         sva="A+B", chave="Vivo|combo|50gb|s")
+        hoje = em_todas(nome="Vivo Total", preco=200.0, gb=50, data=HOJE,
+                        sva="A+C", chave="Vivo|combo|50gb|s")
+        t = montar(ontem, hoje)
+        self.assertNotIn("mesmo pre\u00e7o,", t)
+        self.assertIn("pre\u00e7o n\u00e3o lido nos dois dias", t)
+
+    def test_composicao_com_preco_lido_continua_dizendo(self):
+        ontem = em_todas(nome="Vivo Total", preco=200.0, gb=50, data=ONTEM,
+                         sva="A+B", chave="Vivo|combo|50gb|s")
+        hoje = em_todas(nome="Vivo Total", preco=200.0, gb=50, data=HOJE,
+                        sva="A+C", chave="Vivo|combo|50gb|s")
+        t = montar(ontem, hoje)
+        self.assertIn("mesmo pre\u00e7o (200,00)", t)
+
+    def test_renomeada_com_preco_nao_lido(self):
+        ontem = em_todas(operadora="TIM", produto="controle",
+                         nome="TIM Controle", preco=58.99, gb=40,
+                         data=ONTEM, chave="TIM|controle|40gb|s")
+        hoje = em_todas(operadora="TIM", produto="controle",
+                        nome="TIM Controle Smart", preco=None, gb=40,
+                        data=HOJE, chave="TIM|controle|40gb|s")
+        t = montar(ontem, hoje)
+        self.assertIn("mudou de nome", t)
+        self.assertNotIn("pelo mesmo pre\u00e7o (-)", t)
+        self.assertIn("pre\u00e7o n\u00e3o lido nos dois dias", t)
+
+    def test_renomeada_pelo_mesmo_preco_continua_dizendo(self):
+        ontem = em_todas(operadora="TIM", produto="controle",
+                         nome="TIM Controle", preco=58.99, gb=40,
+                         data=ONTEM, chave="TIM|controle|40gb|s")
+        hoje = em_todas(operadora="TIM", produto="controle",
+                        nome="TIM Controle Smart", preco=58.99, gb=40,
+                        data=HOJE, chave="TIM|controle|40gb|s")
+        t = montar(ontem, hoje)
+        self.assertIn("mesmo pre\u00e7o (58,99)", t)
+
+    def test_e_o_peso_da_composicao_sem_preco_nao_e_zero(self):
+        """W3. Com a guarda do V1, composicao com um preco nao lido caia
+        em pc(None, pd) e pesava 0,000, indo para o fim do grupo nos dois
+        canais."""
+        e = {"antes": {"preco_promocional": None, "assinatura_sva": "A+B"},
+             "atual": {"preco_promocional": 200.0, "assinatura_sva": "C+D"}}
+        self.assertGreater(robo._por_efeito(e), 0.0)
+
+
+class PrecoEVoltouNaoContamDuasVezes(unittest.TestCase):
+    """W2. A cadeia de dedupes cobria tres dos quatro pares possiveis, e
+    faltava preco x voltou. Pior: "cobertos" esvazia os precos da grade
+    justamente quando existe um evento de preco para aquela entrega,
+    entao nos casos em que o movimento sai como preco o conjunto da
+    grade nasce vazio e o conserto anterior nao tem o que comparar.
+    """
+
+    def test_o_mesmo_reajuste_por_duas_rotas(self):
+        from coletores.pracas import PRACAS, rotulo
+        quais = [rotulo(p) for p in PRACAS]
+        ontem, hoje, historico = [], [], []
+        for p in quais:
+            ontem.append(oferta(operadora="Claro", produto="controle",
+                                nome="Claro Controle 45GB", preco=59.90,
+                                gb=45, praca=p, data=ONTEM,
+                                chave="Claro|controle|45gb|s"))
+            historico.append(oferta(operadora="Claro", produto="controle",
+                                    nome="Claro Controle 45GB", preco=59.90,
+                                    gb=45, praca=p, data="2026-10-18",
+                                    chave="Claro|controle|45gb|s"))
+            hoje.append(oferta(operadora="Claro", produto="controle",
+                               nome="Claro Controle 45GB", preco=69.90,
+                               gb=45, praca=p, data=HOJE,
+                               chave="Claro|controle|45gb|s"))
+        # numa praca o degrau faltou ontem: ele "volta" por la
+        ontem = [l for l in ontem if l["praca"] != quais[2]]
+        r = dados(ontem, hoje, extras=historico)
+        self.assertEqual(len(r["mudancas_preco"]), 1)
+        self.assertEqual(r["voltaram"], [], "o preco ja contou")
+
+    def test_e_a_praca_do_descartado_entra_no_que_fica(self):
+        from coletores.pracas import PRACAS, rotulo
+        quais = [rotulo(p) for p in PRACAS]
+        ontem, hoje, historico = [], [], []
+        for p in quais:
+            ontem.append(oferta(operadora="Claro", produto="controle",
+                                nome="Claro Controle 45GB", preco=59.90,
+                                gb=45, praca=p, data=ONTEM,
+                                chave="Claro|controle|45gb|s"))
+            historico.append(oferta(operadora="Claro", produto="controle",
+                                    nome="Claro Controle 45GB", preco=59.90,
+                                    gb=45, praca=p, data="2026-10-18",
+                                    chave="Claro|controle|45gb|s"))
+            hoje.append(oferta(operadora="Claro", produto="controle",
+                               nome="Claro Controle 45GB", preco=69.90,
+                               gb=45, praca=p, data=HOJE,
+                               chave="Claro|controle|45gb|s"))
+        ontem = [l for l in ontem if l["praca"] != quais[2]]
+        r = dados(ontem, hoje, extras=historico)
+        m = r["mudancas_preco"][0]
+        self.assertIn(quais[2], m["pracas"],
+                      "o reajuste alcancou esta praca, por outra rota")
+        self.assertIn("todas as 20", m["onde"])
+
+
+class OPrecoNaoLidoNaoEntraNaLeitura(unittest.TestCase):
+    """W4. Oferta sem preco nos DOIS dias entrava em versao_apenas, e o
+    resumo dizia "sem mexer em preco nem entrega" enquanto a linha da
+    mesma oferta dizia "preco nao lido nos dois dias".
+
+    A assimetria com a entrega e deliberada: entrega nao lida nos dois
+    dias nao se moveu - e o caso da Brisanet, e a docstring de _parado
+    defende. Preco nao lido e diferente: a operadora pode ter reajustado
+    e nos simplesmente nao vimos.
+    """
+
+    def test_sem_preco_nos_dois_dias_nao_e_so_versao(self):
+        def dia(variante, bundle, data):
+            linhas = []
+            for op in ("Brisanet", "Claro"):
+                for l in em_todas(operadora=op, produto="fibra",
+                                  nome="%s 500" % op, preco=None,
+                                  gb=None, mbps=500, data=data,
+                                  chave="%s|fibra|500mbps|%s" % (op, variante)):
+                    l["nivel_bundle"] = bundle
+                    linhas.append(l)
+            return linhas
+
+        r = dados(dia("simples", 0, ONTEM), dia("com_apps", 2, HOJE))
+        eventos = r["remodeladas"] + r["leitura"]
+        self.assertTrue(eventos)
+        self.assertFalse(eventos[0]["versao_apenas"])
+        self.assertEqual(r["leitura"], [], "sem preco lido, nao e so versao")
+
+
+class OVoltouNaoCalculaOProprioPercentual(unittest.TestCase):
+    """W5. A linha do voltou tinha "if v["antes"] else 0", e com um preco
+    anterior de 0,00 imprimia "+0% sobre os 0,00" enquanto o PDF
+    imprimia "—" para o mesmo evento. Ultimo numero que os dois canais
+    calculavam em dois lugares."""
+
+    def _voltou(self, antes):
+        historico = em_todas(operadora="Vivo", produto="fibra",
+                             nome="Vivo Fibra", preco=antes, gb=None,
+                             mbps=100, data="2026-10-18")
+        ontem = em_todas(operadora="Vivo", produto="fibra",
+                         nome="Vivo Fibra Light", preco=90.0, gb=None,
+                         mbps=200, data=ONTEM)
+        hoje = em_todas(operadora="Vivo", produto="fibra",
+                        nome="Vivo Fibra", preco=100.0, gb=None,
+                        mbps=100, data=HOJE)
+        return montar(ontem, hoje, extras=historico)
+
+    def test_preco_anterior_zero_nao_vira_mais_zero_por_cento(self):
+        t = self._voltou(0.0)
+        self.assertIn("voltou por", t)
+        self.assertNotIn("+0% sobre", t)
+        self.assertIn("sem varia\u00e7\u00e3o apurada", t)
+
+    def test_percentual_de_verdade_continua_saindo(self):
+        self.assertIn("+11%", self._voltou(90.0))
 
 
 if __name__ == "__main__":
