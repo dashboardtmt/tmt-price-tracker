@@ -392,6 +392,17 @@ def mudancas(hoje, ontem):
             _agrupar(composicao, (atual["operadora"], atual["produto"],
                                   atual["chave"], a, d), atual, antes)
 
+    # A ESCADA NAO REPETE O QUE O DETECTOR POR NOME JA DISSE. Oferta que
+    # muda de preco mantendo a identidade ja foi reportada la, com o
+    # nome - e o nome e o que interessa. A escada existe para ver o que
+    # o outro NAO ve: movimento em que a identidade mudou junto.
+    cobertos = {(m["atual"]["operadora"], m["atual"]["produto"],
+                 _entrega(m["atual"])) for m in precos.values()}
+    for g in grades:
+        g["precos"] = [x for x in g["precos"]
+                       if (g["operadora"], g["produto"], x[0]) not in cobertos]
+    grades = [g for g in grades if g["saltos"] or g["precos"]]
+
     renomeadas = [r for r in _renomeadas(h, o)
                   if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
     # degrau que sumiu dias atras e voltou com outro preco: nenhum dos
@@ -769,6 +780,12 @@ def montar_mensagem(hoje, ontem):
             linhas.append("  %s: %s \u2192 %s %s%s" % (
                 _reais(preco), antes_v, agora_v, unidade,
                 _mudou_a_entrega(antes_v, agora_v)))
+        # o outro lado da escada: a mesma entrega passou a custar outro
+        # preco. Sem isto, evento que so tem este lado saia em branco.
+        for entrega, antes_p, agora_p in g["precos"][:3]:
+            linhas.append("  %s %s: %s \u2192 %s%s" % (
+                entrega, unidade, _reais(antes_p), _reais(agora_p),
+                _variacao(antes_p, agora_p)))
         linhas.append("  %s" % _onde(g["pracas"]))
     if len(grades) > 3:
         n = len(grades) - 3

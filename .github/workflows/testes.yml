@@ -1,0 +1,42 @@
+# Os testes, a cada push e a cada pull request.
+#
+# POR QUE EXISTE. Em 20/10/2026 o projeto tinha quinze defeitos
+# corrigidos e zero testes: cada correcao foi conferida uma vez, na mao,
+# e o script de conferencia foi jogado fora. Nada impedia qualquer um
+# deles de voltar.
+#
+# A suite cobre o que de fato quebrou: tier de app inventado, preco de
+# beneficio virando preco de plano, banner de campanha no nome da
+# oferta, velocidade perdida, corte de franquia passando batido, aviso
+# cancelado por colisao, coleta rodando de madrugada.
+#
+# NAO TOCA A REDE NEM O BANCO. Roda em segundos, sem segredo nenhum - e
+# por isso pode rodar em pull request de qualquer origem.
+
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Rodar a suite
+        run: python -m unittest discover -s testes -v
+
+      - name: Conferir que a suite serve para alguma coisa
+        # reintroduz cada defeito real e exige que a suite fique
+        # vermelha. Teste que nunca falha nao protege nada, e isso tem
+        # de ser demonstrado e nao suposto.
+        run: python testes/provar_a_suite.py

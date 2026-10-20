@@ -73,6 +73,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Os testes passam?
+        # Coletar com o codigo quebrado envenena a serie: a gravacao e
+        # append-only, e dado errado fica para sempre. Perder um dia e
+        # menos pior, e a falha aparece no painel do Actions.
+        run: python -m unittest discover -s testes
+
       - name: E hora de coletar?
         id: ver
         env:
