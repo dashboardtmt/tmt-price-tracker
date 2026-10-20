@@ -22,8 +22,12 @@ BRT = timezone(timedelta(hours=-3))
 HOJE, ONTEM = "2026-10-21", "2026-10-20"
 
 
-def oferta(operadora, produto, nome, preco, gb=50, praca="Sao Paulo/SP"):
-    return {"operadora": operadora, "produto": produto, "praca": praca,
+def oferta(operadora, produto, nome, preco, gb=50, praca="Sao Paulo/SP",
+           data=HOJE):
+    # data_captura e NOT NULL no esquema: a fixture tem de refletir isso,
+    # senao o teste passa com um dado que o banco nunca produziria
+    return {"data_captura": data,
+            "operadora": operadora, "produto": produto, "praca": praca,
             "nome_oferta": nome, "preco_promocional": preco,
             "franquia_anunciada_gb": gb, "degrau_mbps": None,
             "destaque": "%s GB" % gb, "nivel_bundle": 0,
@@ -31,8 +35,8 @@ def oferta(operadora, produto, nome, preco, gb=50, praca="Sao Paulo/SP"):
             "chave": "%s|%s|%sgb|simples" % (operadora, produto, gb)}
 
 
-BASE = [oferta("Claro", "movel", "Claro Pós", 124.90),
-        oferta("Vivo", "fibra", "Vivo Fibra", 100.0)]
+BASE = [oferta("Claro", "movel", "Claro Pós", 124.90, data=ONTEM),
+        oferta("Vivo", "fibra", "Vivo Fibra", 100.0, data=ONTEM)]
 
 COLETA_OK = [{"operadora": op, "pracas_ok": 20, "pracas_pedidas": 20,
               "ofertas": 180, "sucesso": True, "iniciada_em": HOJE + "T06:00"}

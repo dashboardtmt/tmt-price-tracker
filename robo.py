@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import vigia                                                   # noqa: E402
 from coletores import (armazenamento, brisanet, claro, claro_flex, nucel, starlink, tim_fit,  # noqa: E402
                        tim, unifique, vivo)
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
@@ -234,6 +235,36 @@ def ofertas_do_produto(hoje, produto, praca="Sao Paulo/SP"):
         vistos.add(k)
         unicas.append(l)
     return unicas, None
+
+
+# Quantos dias o vigia usa para saber o que e normal. Menos que isso e
+# pouca amostra; mais, e historico velho demais para comparar com hoje.
+DIAS_DE_REFERENCIA = 7
+
+
+def _capturas_para_o_vigia(hoje):
+    """O dia e os sete anteriores, so com as colunas que o vigia usa.
+
+    Select estreito de proposito: o vigia olha milhares de linhas e nao
+    precisa do bruto, que e a parte pesada da tabela.
+    """
+    desde = (datetime.fromisoformat(hoje).date()
+             - timedelta(days=DIAS_DE_REFERENCIA)).isoformat()
+    campos = ("data_captura,operadora,produto,praca,chave,nome_oferta,"
+              "preco_promocional,franquia_anunciada_gb,degrau_mbps")
+    linhas, erro = armazenamento.consultar_tudo(
+        "capturas?data_captura=gte.%s&data_captura=lte.%s&select=%s"
+        "&order=data_captura.asc" % (desde, hoje, campos))
+    if erro:
+        return None, {}, erro
+    do_dia, antes = [], collections.defaultdict(list)
+    for l in (linhas or []):
+        d = l.get("data_captura")
+        if d == hoje:
+            do_dia.append(l)
+        elif d:
+            antes[d].append(l)
+    return do_dia, dict(antes), None
 
 
 def _indexar(dia):
@@ -834,6 +865,22 @@ def montar_mensagem(hoje, ontem):
     linhas += ["", "Relat\u00f3rio completo em anexo \u00b7 %s" % PAINEL]
 
 
+    # O VIGIA OLHA O DADO, e nao o que mudou. Sao perguntas diferentes:
+    # o comparador pergunta "o mercado se mexeu?", o vigia pergunta "o
+    # que eu coletei faz sentido?". Um dia pode estar calmo no primeiro
+    # e podre no segundo - foi o caso dos 18 dias em que a Brisanet veio
+    # inteira sem velocidade.
+    denuncias = []
+    do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
+    if erro_vigia:
+        denuncias = [("atencao", "nao deu para conferir o dado: %s"
+                      % str(erro_vigia)[:60])]
+    elif do_dia is not None:
+        denuncias = vigia.achados(do_dia, antes)
+    grave = vigia.resumo(denuncias)
+    if grave:
+        linhas += ["", grave]
+
     # O MESMO LEVANTAMENTO ALIMENTA O PDF. A mensagem e o resumo que
     # cabe na tela do telefone; o relatorio anexo traz as tabelas
     # inteiras. Os dois saem daqui para nao poderem discordar.
@@ -843,6 +890,7 @@ def montar_mensagem(hoje, ontem):
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "erro_comparacao": erro_cmp, "ponto_cego": ponto_cego,
         "coletas": col, "falhas": falhas, "sem_registro": sem_registro,
+        "denuncias": denuncias,
         "total_ofertas": total_ofertas,
     }
     return "\n".join(linhas), dados

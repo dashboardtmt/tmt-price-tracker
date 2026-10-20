@@ -286,6 +286,19 @@ def _bloco_produto(itens, produto):
         vazio="Sem dados disponíveis para a praça de referência.")
 
 
+def _bloco_denuncias(d):
+    """O que o vigia achou de estranho no dado do dia.
+
+    A mensagem leva so o achado grave, porque e o que muda o que a
+    pessoa faz. Aqui vai a lista inteira, que e onde se procura detalhe.
+    """
+    linhas = [[("Grave" if g == "grave" else "Atenção"), _curto(t, 92)]
+              for g, t in (d.get("denuncias") or [])]
+    return _tabela(["Gravidade", "O que foi observado"], linhas,
+                   [26 * mm, 152 * mm],
+                   vazio="Nenhuma anomalia observada nos dados do dia.")
+
+
 def _bloco_coleta(d):
     linhas = []
     for c in sorted(d.get("coletas") or [], key=lambda x: x["operadora"]):
@@ -375,6 +388,18 @@ def gerar(dados, entradas, caminho):
 
     if not (dados.get("falhas") or dados.get("sem_registro")):
         hist.append(_com_titulo("Estado da coleta", _bloco_coleta(dados)))
+
+    # A CONFERENCIA DO DADO, e nao do mercado. Sao perguntas diferentes:
+    # as tabelas acima dizem o que mudou, esta diz se o que foi coletado
+    # faz sentido. Um dia pode estar calmo numa e podre na outra.
+    hist.append(_com_titulo(
+        "Conferência dos dados coletados",
+        Paragraph("Verificações automáticas sobre a coleta do dia, "
+                  "comparada com os sete dias anteriores: preços fora da "
+                  "faixa de varejo, ofertas sem velocidade ou franquia, "
+                  "ofertas indistinguíveis entre si, variação no volume "
+                  "por operadora e saltos de preço.", ESTILOS["corpo"]),
+        _bloco_denuncias(dados)))
 
     if dados.get("ponto_cego"):
         hist.append(Spacer(1, 6))
