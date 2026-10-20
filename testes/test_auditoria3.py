@@ -191,6 +191,42 @@ class OPesoDaRemodeladaNaoEraLido(unittest.TestCase):
                  "atual": {"preco_promocional": 100.0, "assinatura_sva": "a+b+c"}}
         self.assertGreater(robo._por_efeito(muita), robo._por_efeito(pouca))
 
+    def test_o_peso_dos_servicos_nao_vaza_para_o_preco(self):
+        """QUARTA AUDITORIA, V1 - e e defeito meu, introduzido ao
+        consertar o N12. O ramo dos servicos ficou dentro do "antes e
+        atual sao dicionarios", que e compartilhado com preco e com
+        nome: qualquer reajuste cujo sva tambem mudou passou a pesar pela
+        distancia dos servicos, de 0 a 1, contra a variacao de preco, que
+        nao tem teto.
+
+        O teste acima nao pegava isso: ele usa dois eventos de preco
+        IGUAL, entao passa sem nunca tocar no vazamento.
+        """
+        def ev(pa, pd, sa, sd):
+            return {"antes": {"preco_promocional": pa, "assinatura_sva": sa},
+                    "atual": {"preco_promocional": pd, "assinatura_sva": sd}}
+
+        queda = robo._por_efeito(ev(100.0, 50.0, "a", "a"))        # -50%
+        alta = robo._por_efeito(ev(100.0, 101.0, "a", "b"))        # +1%
+        self.assertGreater(queda, alta,
+                           "uma queda de 50% pesa mais que uma alta de 1%")
+        self.assertAlmostEqual(alta, 0.01)
+
+    def test_e_no_dia_em_que_o_regulamento_falha_tambem(self):
+        """O pior dia e o 30/09/2026 documentado em mudancas(): o
+        regulamento da Vivo falhou em 1042 de 1044 ofertas e todo sva foi
+        para vazio. Com o vazamento, TODO evento de preco daquele dia
+        pesava 1,000 e a ordem voltava a ser chave.asc - nos dois canais,
+        no dia em que o dado esta pior."""
+        def ev(pa, pd):
+            return {"antes": {"preco_promocional": pa,
+                              "assinatura_sva": "a+b+c"},
+                    "atual": {"preco_promocional": pd, "assinatura_sva": None}}
+
+        pesos = [robo._por_efeito(ev(100.0, p)) for p in (300.0, 40.0, 102.0)]
+        self.assertEqual(len(set(pesos)), 3, "os tres nao podem empatar")
+        self.assertGreater(pesos[0], pesos[2])
+
 
 class OPdfNaoPodeDiscordarDaMensagem(unittest.TestCase):
     """N3 e N4. Eu consertei a afirmacao falsa na MENSAGEM e deixei o PDF
@@ -286,9 +322,135 @@ class AEscolhaEntreDuasLeituras(unittest.TestCase):
     def test_e_a_outra_leitura_fica_registrada(self):
         ontem, hoje = self._dia()
         r = dados(ontem, hoje)
-        outra = r["renomeadas"][0].get("outra_leitura")
-        self.assertTrue(outra, "a leitura descartada nao pode desaparecer")
-        self.assertEqual(outra["preco"], 160.0)
+        outras = r["renomeadas"][0].get("outras_leituras") or []
+        self.assertTrue(outras, "a leitura descartada nao pode desaparecer")
+        self.assertEqual(outras[0]["preco"], 160.0)
+
+    def test_mesmo_quando_ela_nao_esta_na_praca_representante(self):
+        """QUARTA AUDITORIA, V3. O laco que colava a leitura descartada
+        no evento procurava pela identidade do REPRESENTANTE do grupo -
+        uma praca so. Com a alternativa existindo em Joinville e o
+        representante sendo Sao Paulo, a coluna "Outra leitura possivel"
+        saia "—", que se le como "nao havia outra".
+
+        E o teste acima era cego: ele monta as duas leituras com
+        em_todas, entao a alternativa esta em todas as 20 pracas e a
+        representante sempre e uma delas. Fixture uniforme nao testa
+        alcance.
+        """
+        from coletores.pracas import PRACAS, rotulo
+        quais = [rotulo(p) for p in PRACAS]
+        ontem = em_todas(operadora="Vivo", produto="fibra",
+                         nome="Vivo Fibra 600 Mega", preco=100.0,
+                         gb=None, mbps=600, data=ONTEM,
+                         chave="Vivo|fibra|600mbps|simples")
+        hoje = em_todas(operadora="Vivo", produto="fibra",
+                        nome="Vivo Fibra Pro", preco=130.0, gb=None,
+                        mbps=600, data=HOJE,
+                        chave="Vivo|fibra|600mbps|simples")
+        # a leitura alternativa existe em UMA praca, que nao e a primeira
+        hoje += [oferta(operadora="Vivo", produto="fibra",
+                        nome="Vivo Fibra 600 Mega", preco=160.0, gb=None,
+                        mbps=600, data=HOJE, praca=quais[-1],
+                        chave="Vivo|fibra|600mbps|com_apps")]
+        r = dados(ontem, hoje)
+        outras = r["renomeadas"][0].get("outras_leituras") or []
+        self.assertTrue(outras, "a alternativa estava em %s" % quais[-1])
+        self.assertEqual(outras[0]["praca"], quais[-1])
+
+
+class UmMovimentoUmEvento(unittest.TestCase):
+    """V2. Grade e "degrau que voltou" contavam o mesmo movimento duas
+    vezes, e esta no dado real de 13/10: o reajuste de 45 GB da Claro sai
+    como grade em 19 pracas e, em Belo Horizonte - onde o degrau faltou
+    em 12/10 -, sai de novo como "voltou". "3 mudancas hoje" sobre dois
+    fatos, com o mesmo +17% em duas linhas e denominadores diferentes.
+
+    A grade e o relato mais completo: ela mostra a escada inteira. Entao
+    ela fica e o "voltou" do mesmo degrau sai.
+    """
+
+    def _escada(self, sem_45_em=None):
+        """A escada da Claro: 45 GB de 59,90 para 69,90 em todas as pracas.
+
+        O HISTORICO VAI POR "extras", e nao por um patch proprio: o
+        banco de mentira de dados() e instalado depois e sobrescreveria
+        o patch - era assim que este teste ficava vazio, com "voltaram"
+        em zero por falta de historico e nao pelo dedupe (V2).
+        """
+        from coletores.pracas import PRACAS, rotulo
+        quais = [rotulo(p) for p in PRACAS]
+        ontem, hoje, historico = [], [], []
+        for p in quais:
+            for preco, gb in ((59.90, 45), (69.90, 50)):
+                ontem.append(oferta(operadora="Claro", produto="controle",
+                                    nome="Claro Controle", preco=preco,
+                                    gb=gb, praca=p, data=ONTEM,
+                                    chave="Claro|controle|%dgb|s" % gb))
+                historico.append(
+                    oferta(operadora="Claro", produto="controle",
+                           nome="Claro Controle", preco=preco, gb=gb,
+                           praca=p, data="2026-10-18",
+                           chave="Claro|controle|%dgb|s" % gb))
+            for preco, gb in ((69.90, 45), (79.90, 50)):
+                hoje.append(oferta(operadora="Claro", produto="controle",
+                                   nome="Claro Controle", preco=preco,
+                                   gb=gb, praca=p, data=HOJE,
+                                   chave="Claro|controle|%dgb|s" % gb))
+        if sem_45_em:
+            ontem = [l for l in ontem
+                     if not (l["praca"] == sem_45_em
+                             and l["franquia_anunciada_gb"] == 45)]
+        return ontem, hoje, historico, quais
+
+    def test_a_grade_e_o_voltou_nao_contam_duas_vezes(self):
+        """A FORMA REAL: a grade vale em 19 pracas e o "voltou" esta na
+        vigesima, onde o degrau faltou ontem. Foi por isso que o dedupe
+        por praca - o primeiro que escrevi - nao pegava nada: a praca e
+        exatamente o que difere entre os dois relatos."""
+        _o, _h, _x, quais = self._escada()
+        ontem, hoje, historico, _q = self._escada(sem_45_em=quais[2])
+        r = dados(ontem, hoje, extras=historico)
+        self.assertTrue(r["grades"], "a escada tem de aparecer")
+        self.assertNotIn(quais[2], (r["grades"][0].get("pracas") or []),
+                         "a praca sem o degrau nao entra na grade")
+        self.assertEqual(r["voltaram"], [],
+                         "a grade ja contou este movimento")
+
+    def test_preco_anterior_diferente_sao_dois_fatos(self):
+        """Se em BH a ultima venda foi a outro valor, o movimento nao e o
+        mesmo - e os dois saem, cada um com o seu percentual."""
+        _o, _h, _x, quais = self._escada()
+        ontem, hoje, historico, _q = self._escada(sem_45_em=quais[2])
+        # na praca sem o degrau, a ultima venda foi a 49,90 e nao a 59,90
+        historico = [l for l in historico
+                     if not (l["praca"] == quais[2]
+                             and l["franquia_anunciada_gb"] == 45)]
+        historico += [oferta(operadora="Claro", produto="controle",
+                             nome="Claro Controle", preco=49.90, gb=45,
+                             praca=quais[2], data="2026-10-18",
+                             chave="Claro|controle|45gb|s")]
+        r = dados(ontem, hoje, extras=historico)
+        self.assertEqual(len(r["voltaram"]), 1, r["voltaram"])
+        self.assertEqual(r["voltaram"][0]["antes"], 49.90)
+
+    def test_mas_um_degrau_fora_da_grade_continua_voltando(self):
+        """O dedupe nao pode comer o que a grade NAO conta: degrau que
+        voltou e nao aparece em nenhum movimento da escada segue sendo
+        noticia."""
+        ontem, hoje, historico, quais = self._escada()
+        # um degrau de 20 GB que nao esta na escada de hoje nem de ontem
+        hoje += [oferta(operadora="Claro", produto="controle",
+                        nome="Claro Controle Mini", preco=39.90, gb=20,
+                        praca=quais[0], data=HOJE,
+                        chave="Claro|controle|20gb|s")]
+        historico += [oferta(operadora="Claro", produto="controle",
+                             nome="Claro Controle Mini", preco=29.90, gb=20,
+                             praca=quais[0], data="2026-10-18",
+                             chave="Claro|controle|20gb|s")]
+        r = dados(ontem, hoje, extras=historico)
+        self.assertEqual(len(r["voltaram"]), 1, r["voltaram"])
+        self.assertEqual(r["voltaram"][0]["entrega"], 20)
 
 
 class AJanelaEUmaSo(unittest.TestCase):
@@ -344,6 +506,40 @@ class EntregaQueMexeuNaoEEntregaParada(unittest.TestCase):
     """N14. A linha da leitura afirma "sem mexer em preco nem entrega", e
     entrega_mudou e False tambem quando um dos lados nao foi lido - a
     entrega mexeu, de desconhecida para 500. Caso real da Brisanet."""
+
+    def test_entrega_nao_lida_nos_dois_dias_nao_se_moveu(self):
+        """QUARTA AUDITORIA, V6. A primeira correcao exigia que os
+        quatro campos fossem conhecidos, e isso tirou a possibilidade de
+        atribuir a nossa leitura justamente as operadoras de coletor
+        mais fragil: a Brisanet, sem velocidade nos dois dias, ficava
+        permanentemente no balde do mercado.
+
+        Desconhecido nos DOIS dias nao se moveu. Desconhecido num dia
+        so, sim - e esse e o N14, no teste abaixo."""
+        self.assertTrue(robo._parado(None, None))
+        self.assertFalse(robo._parado(None, 500))
+        self.assertFalse(robo._parado(500, None))
+        self.assertTrue(robo._parado(500, 500))
+        self.assertFalse(robo._parado(500, 600))
+
+    def test_e_a_oferta_sem_entrega_pode_ser_da_leitura(self):
+        """O efeito do _parado onde ele importa: duas operadoras mudando
+        de versao no mesmo dia, as duas sem entrega lida, tem de poder
+        ser atribuido a nossa leitura."""
+        def dia(variante, bundle, data):
+            linhas = []
+            for op, prod in (("Brisanet", "fibra"), ("Unifique", "fibra")):
+                for l in em_todas(operadora=op, produto=prod,
+                                  nome="%s 500" % op, preco=114.80,
+                                  gb=None, mbps=None, data=data,
+                                  chave="%s|%s|None|%s" % (op, prod, variante)):
+                    l["nivel_bundle"] = bundle
+                    linhas.append(l)
+            return linhas
+
+        r = dados(dia("simples", 0, ONTEM), dia("com_apps", 2, HOJE))
+        self.assertTrue(r["leitura"], "duas operadoras no mesmo dia")
+        self.assertEqual(r["remodeladas"], [])
 
     def test_entrega_que_apareceu_nao_conta_como_parada(self):
         # a variante muda junto, que e o caso real de 10-19: sem isso nao

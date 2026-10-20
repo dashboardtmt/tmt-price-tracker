@@ -410,15 +410,19 @@ def _bloco_renomeadas(d):
     linhas = []
     for m in d.get("renomeadas") or []:
         a, at = m["antes"], m["atual"]
-        outra = m.get("outra_leitura") or {}
+        outras = m.get("outras_leituras") or []
+        outra = outras[0] if outras else {}
         linhas.append([
             at.get("operadora"),
             _curto(a.get("nome_oferta"), 34),
             _curto(at.get("nome_oferta"), 34),
             _reais(a.get("preco_promocional")),
             _reais(at.get("preco_promocional")),
-            ("%s a %s" % (_curto(outra.get("nome"), 22),
-                          _reais(outra.get("preco")))) if outra else "—",
+            (("%s a %s%s" % (_curto(outra.get("nome"), 20),
+                             _reais(outra.get("preco")),
+                             (" (+%d)" % (len(outras) - 1))
+                             if len(outras) > 1 else ""))
+             if outra else "—"),
             m.get("onde") or "—",
         ])
     return _tabela(

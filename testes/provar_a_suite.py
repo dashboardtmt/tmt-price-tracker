@@ -393,10 +393,10 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '            if len(set(do_dia)) > 1:\n'
-        '                break            # o dia mais recente e ambiguo: desiste',
-        '            if False:\n'
-        '                break',
+        '            if len(do_dia) == 1:\n'
+        '                antes = recente',
+        '            if True:\n'
+        '                antes = recente',
         "N1b. dia historico ambiguo volta a servir de referencia"),
 
     Mutacao(
@@ -422,8 +422,7 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '            "versao_apenas": (not (preco_mudou or entrega_mudou)\n'
-        '                              and None not in (pa, pd, ea, ed)),',
+        '            "versao_apenas": _parado(pa, pd) and _parado(ea, ed),',
         '            "versao_apenas": not (preco_mudou or entrega_mudou),',
         "N14. entrega que apareceu volta a contar como parada"),
 
@@ -443,9 +442,41 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '                usadas[_identidade(antes)].append({',
-        '                [].append({',
+        '                evento.setdefault("outras_leituras", []).append({',
+        '                {}.setdefault("outras_leituras", []).append({',
         "N8. a leitura descartada volta a desaparecer"),
+
+    # ---------------------------------------------------------------
+    # A QUARTA AUDITORIA. Um achado alto, e era meu: o peso por
+    # servicos que eu acrescentei vazou para os eventos de preco.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '        if pa is not None and pa == pd:',
+        '        if True:',
+        "V1. o peso dos servicos volta a vazar para o preco"),
+
+    Mutacao(
+        "robo.py",
+        '            da_grade.add((g["operadora"], g["produto"], entrega,\n'
+        '                          antes_p, agora_p))',
+        '            pass',
+        "V2. grade e voltou voltam a contar o mesmo movimento"),
+
+    Mutacao(
+        "robo.py",
+        '            evento = (usadas or {}).get(_identidade(antes))',
+        '            evento = None',
+        "V3. a leitura descartada volta a nao chegar ao evento"),
+
+    Mutacao(
+        "robo.py",
+        '    if antes is None and agora is None:\n'
+        '        return True',
+        '    if False:\n'
+        '        return True',
+        "V6. entrega nao lida nos dois dias volta a contar como movida"),
 
     Mutacao(
         "relatorio.py",

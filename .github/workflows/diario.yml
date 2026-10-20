@@ -180,7 +180,11 @@ jobs:
           # os coletores? Em caso de duvida ela responde "nao", e ai o
           # alerta sai - sem conseguir perguntar, o dia nao pode ser
           # declarado coletado.
-          FECHOU=$(python ja_coletou.py --fechou "$DIA")
+          # "|| echo nao" porque o -e do Actions derrubaria o step com
+          # qualquer saida diferente de zero - e ai o step que manda a
+          # mensagem seria pulado e o dia perdido morreria calado, que e
+          # o oposto do que esta escrito duas linhas acima (V4).
+          FECHOU=$(python ja_coletou.py --fechou "$DIA" || echo nao)
           echo "dia=$DIA" >> "$GITHUB_OUTPUT"
           if [ "$FECHOU" = "sim" ]; then
             echo "falar=false" >> "$GITHUB_OUTPUT"
@@ -205,8 +209,11 @@ jobs:
           # registrados - com mensagem entregue - tambem chegam neste
           # job. Dizer que nada foi gravado seria afirmar o que nao se
           # sabe; o que se sabe e que a rodada nao fechou.
-          TEXTO="TMT Price Tracker - ${{ steps.ver.outputs.dia }}
-          A RODADA DE HOJE NAO FECHOU.
+          # a data vem do passo acima porque pode ser a de ontem, e o
+          # texto diz QUAL dia em vez de "hoje" (V5)
+          DIA_BR=$(date -u -d "${{ steps.ver.outputs.dia }}" +%d/%m)
+          TEXTO="TMT Price Tracker - ${DIA_BR}
+          A RODADA DE ${DIA_BR} NAO FECHOU.
           Motivo: ${MOTIVO}.
           Pode ter entrado dado parcial; o historico anterior segue intacto de qualquer jeito.
           Detalhes: ${RUN}"
