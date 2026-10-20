@@ -23,9 +23,22 @@ class PrecoDeBeneficioNaoEPrecoDePlano(unittest.TestCase):
     """
 
     def _preco(self, txt):
-        limpo = apps.sem_degustacao(txt)
-        m = re.search(r"R\$\s?([\d.]+,\d{2})", limpo or "")
-        return m.group(1) if m else None
+        # CHAMA O QUE RODA EM PRODUCAO. Este metodo reimplementava os
+        # dois passos da leitura - sem_degustacao e a regex - e com isso
+        # testava uma copia: quebrar a linha do coletor deixava a suite
+        # verde. Agora e a mesma funcao que a rodada diaria usa.
+        return claro.preco_do_card(txt)[0]
+
+    def test_o_card_sem_preco_nenhum_se_distingue_do_card_de_beneficio(self):
+        """O segundo item da resposta decide se a rodada emite aviso:
+        card sem "R$" nenhum e card comum (aparelho, banner); card cujo
+        unico "R$" estava na frase do beneficio e dado perdido, e isso
+        precisa aparecer no log da coleta."""
+        self.assertEqual(claro.preco_do_card("Claro Pós sem preço"),
+                         (None, False))
+        self.assertEqual(claro.preco_do_card(
+            "Claro Controle Disney+: 3 meses por conta da Claro. "
+            "Após, R$24,60 por mês."), (None, True))
 
     def test_preco_do_plano_antes_do_beneficio(self):
         self.assertEqual(self._preco(
@@ -43,6 +56,46 @@ class PrecoDeBeneficioNaoEPrecoDePlano(unittest.TestCase):
         self.assertIsNone(self._preco(
             "Claro Controle 35GB Disney+: 3 meses por conta da Claro. "
             "Após, R$24,60 por mês."))
+
+
+class NivelDeBundleConcordaComAListaDeApps(unittest.TestCase):
+    """Medido ao vivo em 20/10/2026: a "Vivo Pos com Amazon" saia com
+    "Amazon Prime" em apps_rotulo e nivel 0 no campo ao lado - que na
+    tela e "so internet e ligacoes". Um streaming nomeado ao lado da
+    frase que diz que nao ha streaming.
+
+    A causa: o nivel lia o TEXTO do card e a lista de apps sai do NOME da
+    oferta. O card da Vivo as vezes vem so com marcacao, e ai o texto nao
+    nomeia app nenhum. A decisao 43 dizia que os dois campos saem da
+    mesma leitura; estava meio implementada.
+    """
+
+    def test_app_no_nome_e_card_vazio(self):
+        # o card de verdade, reduzido: marcacao, sem nome de app
+        card = ('unique-card__bordered unique-card--original data-settings='
+                '{"name": "","id": "","price": ""}')
+        self.assertEqual(vivo.nivel_bundle(card), 0)
+        self.assertEqual(vivo.nivel_bundle(card, ["amazon"]), 2)
+
+    def test_app_de_catalogo_no_nome_vale_um(self):
+        self.assertEqual(vivo.nivel_bundle("", ["vale_saude"]), 1)
+
+    def test_dois_streamings_no_nome(self):
+        self.assertEqual(vivo.nivel_bundle("", ["netflix", "disney"]), 3)
+
+    def test_o_texto_continua_contando_quando_diz_mais(self):
+        """max(): o nome ACRESCENTA informacao, nunca tira. O texto pode
+        citar streaming que o nome nao cita."""
+        self.assertEqual(
+            vivo.nivel_bundle("Netflix e Disney+ inclusos", ["vale_saude"]), 3)
+
+    def test_tv_vence_tudo(self):
+        self.assertEqual(
+            vivo.nivel_bundle("com Vivo TV inclusa", ["netflix"]), 4)
+
+    def test_oferta_sem_app_fica_em_zero(self):
+        self.assertEqual(vivo.nivel_bundle("so internet e ligacoes", []), 0)
+        self.assertEqual(vivo.nivel_bundle("so internet e ligacoes", None), 0)
 
 
 class BannerDeCampanhaNaoEhNome(unittest.TestCase):

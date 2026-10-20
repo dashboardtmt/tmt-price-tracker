@@ -49,6 +49,21 @@ QUEDA_QUE_PREOCUPA = 0.25
 # existe e reajuste de 60% da noite para o dia sem nada mais mudar.
 SALTO_QUE_PREOCUPA = 0.50
 
+# E a partir daqui nao e mais reajuste: o achado vira GRAVE e chega a
+# mensagem, em vez de ficar no relatorio.
+#
+# DOIS LIMITES, PORQUE SAO DUAS ESCALAS. Queda nunca passa de 100%, e
+# com um limite simetrico de 100% o lado de BAIXO - que e justamente o
+# lado do preco fantasma: R$ 24,60 no lugar de R$ 99,90, -75% - nunca
+# poderia ser grave, e o detector seguiria calado onde importa.
+#
+# Perder metade do preco com nome e entrega iguais e quase sempre
+# numero de outra coisa que vazou para o campo. Dobrar tambem, e o lado
+# de cima ganha mais folga de proposito: reposicionamento de operadora
+# existe e o comparador ja o reporta com nome e praca.
+QUEDA_INACREDITAVEL = 0.50
+SALTO_INACREDITAVEL = 1.00
+
 
 def _entrega(o):
     return o.get("degrau_mbps") or o.get("franquia_anunciada_gb")
@@ -101,9 +116,15 @@ def achados(hoje, anteriores):
         o.get("operadora") for o in hoje if _entrega(o) is None)
     for op, n in sem_entrega.most_common():
         # uma ou outra acontece; a operadora inteira sem entrega e
-        # defeito de leitura, como foi com a Brisanet
+        # defeito de leitura, como foi com a Brisanet.
+        #
+        # O PISO ERA 5, E A NUCEL TEM 3 OFERTAS. Com "max(5, metade)",
+        # uma operadora pequena podia perder a franquia de TODAS as
+        # ofertas sem o vigia abrir a boca - e operadora pequena e
+        # justamente a de coletor mais fragil. Tres linhas erradas em
+        # tres e defeito tanto quanto 119 em 119.
         total = sum(1 for o in hoje if o.get("operadora") == op)
-        if n >= max(5, total * 0.5):
+        if n >= max(3, total * 0.5):
             grave("%s: %d de %d ofertas sem velocidade nem franquia"
                   % (op, n, total))
 
@@ -126,7 +147,13 @@ def achados(hoje, anteriores):
         for op, n in c.items():
             historico[op].append(n)
 
-    for op, antes in historico.items():
+    # UMA DENUNCIA POR FATO. O bloco de volume tinha um ramo para
+    # "agora == 0" e logo abaixo havia outro bloco para a operadora que
+    # sumiu - e os dois falavam do MESMO caso, porque uma operadora
+    # ausente nao e chave do contador de hoje e "agora" volta zero.
+    # Saiam as duas linhas, com textos diferentes, e a lista do
+    # relatorio contava duas anomalias onde havia uma.
+    for op, antes in sorted(historico.items()):
         if len(antes) < 3:
             continue
         tipico = _mediana(antes)
@@ -134,17 +161,11 @@ def achados(hoje, anteriores):
         if not tipico:
             continue
         if agora == 0:
-            grave("%s nao trouxe nenhuma oferta hoje (tipico: %d)"
-                  % (op, tipico))
+            grave("%s nao aparece hoje (tipico: %d ofertas)"
+                  % (op, int(tipico)))
         elif (tipico - agora) / float(tipico) >= QUEDA_QUE_PREOCUPA:
             atencao("%s trouxe %d ofertas hoje, contra %d tipicos"
                     % (op, agora, int(tipico)))
-
-    # operadora que existia e sumiu do dia inteiro
-    sumiram = set(historico) - set(por_op_hoje)
-    for op in sorted(sumiram):
-        if len(historico[op]) >= 3:
-            grave("%s nao aparece hoje" % op)
 
     # ------------------------------------------------ salto de preco
     if anteriores:
@@ -171,10 +192,17 @@ def achados(hoje, anteriores):
             # tentaria comparar os dicionarios de oferta e estouraria
             saltos.sort(key=lambda x: x[0], reverse=True)
             pc, o, a, p = saltos[0]
-            atencao("%d salto(s) de preco acima de %d%%, o maior em %s "
-                    "(R$ %.2f para R$ %.2f)"
-                    % (len(saltos), int(SALTO_QUE_PREOCUPA * 100),
-                       (o.get("nome_oferta") or "?")[:30], a, p))
+            texto = ("%d salto(s) de preco acima de %d%%, o maior em %s "
+                     "(R$ %.2f para R$ %.2f)"
+                     % (len(saltos), int(SALTO_QUE_PREOCUPA * 100),
+                        (o.get("nome_oferta") or "?")[:30], a, p))
+            # O SALTO INACREDITAVEL CHEGA A MENSAGEM. Era tudo
+            # "atencao", e atencao nao sai do relatorio - o detector que
+            # pegaria os R$ 24,60 do preco fantasma existia e ficava
+            # calado onde importa.
+            severo = (p <= a * (1 - QUEDA_INACREDITAVEL)
+                      or p >= a * (1 + SALTO_INACREDITAVEL))
+            (grave if severo else atencao)(texto)
 
     # ------------------------------------------------ nome suspeito
     vazios = sum(1 for o in hoje if not (o.get("nome_oferta") or "").strip())
@@ -185,8 +213,19 @@ def achados(hoje, anteriores):
 
 
 def resumo(lista):
-    """Uma linha para a mensagem, ou vazio quando nao ha o que dizer."""
+    """Uma linha para a mensagem, ou vazio quando nao ha o que dizer.
+
+    O RESTO NAO PODE DESAPARECER. Antes saia so o primeiro grave, e com
+    isso um preco fora da faixa escondia "Brisanet: 119 de 119 ofertas
+    sem velocidade" - o achado maior ficava atras do achado que veio
+    primeiro na lista, por ordem de codigo e nada mais. Agora o
+    primeiro aparece inteiro e os outros aparecem na contagem, que e o
+    que faz alguem abrir o relatorio.
+    """
     graves = [t for g, t in lista if g == "grave"]
-    if graves:
+    if not graves:
+        return ""
+    if len(graves) == 1:
         return "Conferir: %s" % graves[0]
-    return ""
+    return ("Conferir: %s \u2014 e mais %d ponto(s) no relat\u00f3rio"
+            % (graves[0], len(graves) - 1))

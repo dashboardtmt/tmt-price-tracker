@@ -307,15 +307,26 @@ def _indexar(dia):
     # inteira, e isso e certo para consulta que caiu - mas colisao em 20
     # ofertas nao pode apagar o que mudou nas outras 1.640. Foi o que
     # aconteceu em 16/10/2026, com o aviso do dia saindo vazio.
+    #
+    # DUAS FRASES, NAO UMA. A curta vai na MENSAGEM, colada na linha que
+    # ela qualifica: "nenhuma mudanca" com 20 ofertas fora da comparacao
+    # nao e a mesma frase que "nenhuma mudanca". Antes so existia a
+    # longa, e ela so chegava ao rodape do PDF - se o relatorio falhasse,
+    # o ponto cego desaparecia inteiro e a mensagem afirmava sem ressalva.
     aviso = None
     if colididas:
         # _rotulo evita o "Vivo Vivo Familia 2 + TV": o nome da oferta
         # ja comeca com a marca na maioria das operadoras
         quais = sorted({_rotulo(c) for c in colididas})
-        aviso = ("%d oferta(s) não foram comparadas por compartilharem "
-                 "chave de série, praça e nome com outra oferta (%s). "
-                 "Não é possível afirmar se houve variação de preço nelas."
-                 % (len(colididas), "; ".join(quais[:2])))
+        aviso = {
+            "curto": ("%d oferta(s) não foram comparadas hoje: há duas "
+                      "iguais em série, praça e nome (%s)."
+                      % (len(colididas), quais[0])),
+            "longo": ("%d oferta(s) não foram comparadas por compartilharem "
+                      "chave de série, praça e nome com outra oferta (%s). "
+                      "Não é possível afirmar se houve variação de preço nelas."
+                      % (len(colididas), "; ".join(quais[:2]))),
+        }
     return indice, erro, aviso
 
 
@@ -340,7 +351,10 @@ def _identidade(l):
 # grava; o valor e o que o leitor reconhece.
 CATEGORIA = {"controle": "Controle", "movel": "Pós-pago", "fibra": "Fibra",
              "combo": "Combo", "prepago": "Pré-pago",
-             "btl": "Below-the-line"}
+             "btl": "Below-the-line",
+             # a Starlink: faltava aqui, e a mensagem imprimia a chave
+             # crua do banco - "satelite" em minuscula, sem acento
+             "satelite": "Satélite"}
 
 
 def _categoria(l):
@@ -371,19 +385,55 @@ def _reais(v):
 
 
 def _agrupar(achados, ident, atual, antes):
-    """Uma mudanca nacional e um alerta com 20 pracas, nao 20 alertas."""
+    """Uma mudanca nacional e um alerta com 20 pracas, nao 20 alertas.
+
+    A PRACA NAO ENTRA DUAS VEZES. Quando duas ofertas caiam no mesmo
+    grupo, cada uma empurrava a praca na lista e o alcance dobrava:
+    alta em 10 pracas saia como "em todas as 20". Dedupe na entrada, e
+    nao na saida, porque quem le a lista depois - a mensagem e o PDF -
+    nao tem como saber que ela foi contada torto.
+    """
     d = achados.setdefault(ident, {"pracas": [], "atual": atual, "antes": antes})
-    d["pracas"].append(atual["praca"])
+    if atual["praca"] not in d["pracas"]:
+        d["pracas"].append(atual["praca"])
+
+
+# Quanto da vitrine de hoje precisa ter encontrado par em ontem para
+# "nenhuma mudanca" significar alguma coisa. Abaixo disto a frase nao
+# descreve o mercado, descreve a comparacao nao tendo acontecido - e e
+# justamente a frase que soa como noticia verificada.
+#
+# O NUMERO SAI DA SERIE, nao de palpite. Medido nos 21 dias coletados, a
+# cobertura dos dias SEM mudanca nenhuma foi: 100% em seis deles, e 76% e
+# 73% nos outros dois - que sao justamente 01/10, quando 346 ofertas
+# colidiram, e 16/10, o dia em que o aviso saiu vazio e o usuario
+# reclamou. Com o piso em 0,85 a ressalva aparece nesses dois e fica
+# calada nos seis. Com 0,60, como escrevi primeiro, ela nunca apareceria
+# em dia nenhum da serie - limite que nao dispara e codigo morto com cara
+# de salvaguarda.
+COBERTURA_MINIMA = 0.85
 
 
 def mudancas(hoje, ontem):
-    """O que mudou de ontem para hoje, na mesma chave e praca.
+    """O levantamento do dia, num dicionario com chave para cada coisa.
 
-    Devolve duas listas: as mudancas de preco e as de composicao com
-    preco parado. A segunda registra oferta cujo preco nao se moveu e
-    cujo conjunto de servicos inclusos mudou. Sem a assinatura dos
-    codigos SVA isso passava batido, porque o nome e o preco da oferta
-    continuam identicos.
+    POR QUE DICIONARIO E NAO TUPLA. Isto devolvia oito valores em fila, e
+    cada detector novo empurrava a fila: quem chamava tinha de acertar a
+    ordem e a quantidade. A ferramenta de diagnostico do projeto quebrou
+    assim - desempacotando cinco de uma funcao que passou a devolver
+    oito - e quebrou calada, ate alguem rodar. Com chaves, codigo que
+    nao conhece o detector novo continua funcionando e nao mente.
+
+    As chaves:
+      precos        mudanca de preco com a oferta identificavel
+      composicao    mesmo preco, outro conjunto de servicos inclusos
+      renomeadas    mesma chave de serie, outro nome
+      grades        a escada de preco por entrega reorganizada
+      voltaram      degrau que saiu dias atras e voltou com outro preco
+      remodeladas   preco E entrega mudando no mesmo dia
+      erro          a consulta caiu: nao houve comparacao
+      cego          ofertas que nao deu para comparar, e por que
+      cobertura     quanto da vitrine de hoje tinha par em ontem
     """
     h, erro_h, cego_h = _indexar(hoje)
     o, erro_o, cego_o = _indexar(ontem)
@@ -393,8 +443,11 @@ def mudancas(hoje, ontem):
     # Comparacao que falhou nao e comparacao sem novidade. Sem devolver o
     # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
     # que nao avisar, porque soa como noticia verificada.
+    vazio = {"precos": [], "composicao": [], "renomeadas": [], "grades": [],
+             "voltaram": [], "remodeladas": [], "erro": None, "cego": cego,
+             "cobertura": None}
     if erro_h or erro_o:
-        return [], [], [], [], erro_h or erro_o, cego, []
+        return dict(vazio, erro=erro_h or erro_o)
     grades, suprimir = _grades_reorganizadas(h, o)
 
     precos, composicao = {}, {}
@@ -406,9 +459,27 @@ def mudancas(hoje, ontem):
         # o par por nome casou degraus diferentes da escada
         if (atual["operadora"], atual["produto"]) in suprimir:
             continue
-        if antes["preco_promocional"] is not None and \
-                atual["preco_promocional"] != antes["preco_promocional"]:
+        # OS DOIS LADOS TEM DE TER PRECO. Faltava a guarda do lado de
+        # HOJE, e com ela faltando "None != 119.9" era verdadeiro: a
+        # oferta cujo preco a coletora nao conseguiu ler entrava como
+        # mudanca e a mensagem escrevia "119,90 -> -". Num dia em que a
+        # leitura de preco quebrasse numa operadora inteira, a mensagem
+        # anunciaria uma centena de reajustes que nao existiram.
+        #
+        # Preco que sumiu nao e preco que mudou - e ausencia, e ausencia
+        # e assunto do vigia, que conta "N oferta(s) sem preco". Mesmo
+        # principio da secao 1 da metodologia: ausencia e ausencia,
+        # nunca zero, e aqui nunca reajuste.
+        if (antes["preco_promocional"] is not None
+                and atual["preco_promocional"] is not None
+                and atual["preco_promocional"] != antes["preco_promocional"]):
+            # O NOME ENTRA NA IDENTIDADE DO GRUPO. Sem ele, duas ofertas
+            # que dividem chave de serie e preco - "TIM Controle Redes
+            # Sociais" e "TIM Controle Pro", 46 GB, R$ 49,99 - caiam no
+            # mesmo evento: a segunda desaparecia da mensagem e as
+            # pracas das duas somavam no alcance da primeira.
             _agrupar(precos, (atual["operadora"], atual["produto"], atual["chave"],
+                              (atual.get("nome_oferta") or "").lower(),
                               antes["preco_promocional"], atual["preco_promocional"]),
                      atual, antes)
             continue
@@ -421,7 +492,9 @@ def mudancas(hoje, ontem):
         a, d = antes.get("assinatura_sva"), atual.get("assinatura_sva")
         if a and d and a != d:
             _agrupar(composicao, (atual["operadora"], atual["produto"],
-                                  atual["chave"], a, d), atual, antes)
+                                  atual["chave"],
+                                  (atual.get("nome_oferta") or "").lower(),
+                                  a, d), atual, antes)
 
     # A ESCADA NAO REPETE O QUE O DETECTOR POR NOME JA DISSE. Oferta que
     # muda de preco mantendo a identidade ja foi reportada la, com o
@@ -436,16 +509,303 @@ def mudancas(hoje, ontem):
 
     renomeadas = [r for r in _renomeadas(h, o)
                   if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
+
+    # A MESMA OFERTA MUDADA POR DENTRO. Era o ponto cego de todos os
+    # detectores acima, e o pior deles, porque produzia afirmacao
+    # POSITIVA de ausencia. Ver _oferta_remodelada.
+    remodeladas = [r for r in _oferta_remodelada(h, o)
+                   if (r["operadora"], r["produto"]) not in suprimir]
+
     # degrau que sumiu dias atras e voltou com outro preco: nenhum dos
     # detectores acima ve isso, porque todos comparam hoje com ontem
     voltaram = _degraus_que_voltaram(h, o, hoje)
-    return (list(precos.values()), list(composicao.values()),
-            renomeadas, grades, None, cego, voltaram)
+    # a remodelada ja contou o movimento com o nome da oferta e com os
+    # dois numeros; repetir aqui seria a mesma noticia duas vezes
+    remod = {(r["operadora"], r["produto"], r["agora_entrega"])
+             for r in remodeladas}
+    voltaram = [v for v in voltaram
+                if (v["operadora"], v["produto"], v["entrega"]) not in remod]
+
+    precos, composicao = list(precos.values()), list(composicao.values())
+    # O ALCANCE PRIMEIRO: a separacao abaixo usa em quantas pracas cada
+    # evento valeu, e esse numero e escrito aqui.
+    _assinar_alcance(h, precos, composicao, renomeadas, grades, voltaram,
+                     remodeladas)
+    remodeladas, leitura = _separar_o_que_e_nosso(remodeladas, hoje)
+    return {"precos": precos, "composicao": composicao,
+            "renomeadas": renomeadas, "grades": grades,
+            "voltaram": voltaram, "remodeladas": remodeladas,
+            "leitura": leitura,
+            "erro": None, "cego": cego,
+            "cobertura": _cobertura(h, o)}
+
+
+# DIAS EM QUE A NOSSA LEITURA MUDOU, declarados a mao.
+#
+# Os dois sinais de _separar_o_que_e_nosso sao heuristicas: acertam
+# quando a mudanca atinge varias operadoras ou uma minoria das pracas, e
+# erram justamente no caso mais comum de mexida nossa - um coletor que
+# passa a ler melhor e muda uma operadora INTEIRA de um dia para o
+# outro. Aqui a causa e declarada, nao adivinhada.
+#
+# Quem mexer num coletor de um jeito que mude nivel de bundle, versao da
+# chave ou lista de apps poe a data aqui, com uma linha dizendo o que
+# mudou. Custa pouco, e e a diferenca entre a serie ter um degrau
+# documentado e ter um degrau que alguem vai ler como reposicionamento
+# de operadora dois meses depois.
+LEITURA_MUDOU_EM = {
+    "2026-10-21": "o nível de bundle passou a sair da lista de apps da "
+                  "oferta, e não só do texto do card",
+}
+
+
+def _separar_o_que_e_nosso(remodeladas, hoje=None):
+    """Separa o que o mercado fez do que a nossa leitura passou a ver.
+
+    Devolve (do mercado, da leitura).
+
+    OPERADORA NAO COMBINA REPOSICIONAMENTO COM A CONCORRENTE. Quando a
+    mesma troca de versao aparece em duas ou mais operadoras no mesmo
+    dia, a causa quase certa e nossa: um coletor que passou a ler o
+    texto de outro jeito. Medido em 16/10/2026 - doze ofertas de Claro
+    Flex, Vivo e Brisanet mudando de nivel de bundle juntas, no dia
+    seguinte ao coletor de apps passar a exigir o tier declarado pela
+    fonte.
+
+    NAO E PARA ESCONDER, E PARA ATRIBUIR CERTO. O fato continua no
+    relatorio, oferta por oferta, e a mensagem ganha uma linha dizendo
+    que aquilo atingiu varias operadoras de uma vez - o que avisa o
+    leitor de que ha um degrau na serie naquele dia, que e a informacao
+    que ele precisa para nao ler o degrau como movimento de mercado.
+
+    E A CAUSA PODE SER DECLARADA. Ver LEITURA_MUDOU_EM: quando a data
+    de hoje esta la, toda mudanca so-de-versao e nossa, sem heuristica
+    nenhuma. E o unico caso em que o codigo sabe a resposta de verdade.
+
+    O SEGUNDO SINAL E O ALCANCE. Em 13/10/2026 a "TIM Controle Redes
+    Sociais" apareceu passando a incluir apps em 2 das 18 pracas onde
+    ela existe, e em 14/10 apareceu voltando atras nas mesmas duas.
+    Operadora nao reposiciona oferta em duas cidades e desfaz no dia
+    seguinte - a pagina da TIM mostra a lista de apps as vezes, e a
+    leitura oscila com ela. Mudanca de versao que alcanca uma minoria
+    das pracas da oferta fica no relatorio.
+
+    PRECO NUNCA CAI NESTA REGRA, por nenhum dos dois sinais. Reajuste
+    simultaneo entre operadoras acontece, e reajuste chega praca por
+    praca de verdade: a escada da Claro em 13/10 alcancou 19 de 20.
+    Quando acontece, e a noticia.
+    """
+    declarado = LEITURA_MUDOU_EM.get(hoje)
+    so_versao = [r for r in remodeladas if r.get("versao_apenas")]
+    varias_operadoras = len({r["operadora"] for r in so_versao}) >= 2
+    nossas = [r for r in so_versao
+              if declarado or varias_operadoras or _minoria_das_pracas(r)]
+    ids = {id(r) for r in nossas}
+    return [r for r in remodeladas if id(r) not in ids], nossas
+
+
+def _minoria_das_pracas(e):
+    """O evento valeu em menos da metade das pracas em que a oferta existe."""
+    universo = e.get("universo") or 0
+    quantas = len(set(e.get("pracas") or ()))
+    return universo > 1 and quantas * 2 <= universo
+
+
+def _cobertura(h, o):
+    """Quantas ofertas de hoje encontraram a mesma identidade ontem.
+
+    POR QUE ISTO E PARTE DA NOTICIA. "Nenhuma mudanca" sobre uma
+    comparacao que cobriu 12% da vitrine nao e a mesma frase que
+    "nenhuma mudanca" sobre 94% - e as duas saiam escritas igual. Sem
+    este numero, o silencio do robo nao se distingue de cegueira do
+    robo, que e o modo de falhar que a metodologia proibe: falha que se
+    parece com resultado.
+
+    O calculo ja existia, escrito a mao dentro de uma ferramenta de
+    diagnostico, e so era visto por quem rodasse a ferramenta.
+    """
+    if not h:
+        return None
+    comuns = set(h) & set(o)
+    por_operadora = {}
+    for op in sorted({l["operadora"] for l in h.values()}):
+        do_op = {k for k, l in h.items() if l["operadora"] == op}
+        por_operadora[op] = (len(do_op & comuns), len(do_op))
+    return {"pares": len(comuns), "hoje": len(h), "ontem": len(o),
+            "fracao": len(comuns) / float(len(h)),
+            "por_operadora": por_operadora}
+
+
+def _assinar_alcance(h, *grupos):
+    """Escreve "onde" e "universo" em cada evento, uma vez so.
+
+    A MENSAGEM E O PDF NAO PODEM DISCORDAR. A frase do alcance era
+    calculada na mensagem e o relatorio lia uma chave "onde" que
+    ninguem escrevia - a coluna "Pracas" do PDF saiu "—" em todas as
+    linhas, em toda edicao. Calcular aqui, antes de os dois lerem,
+    tira a possibilidade de divergirem.
+
+    E O DENOMINADOR E ONDE A OFERTA EXISTE, nao o painel inteiro. A
+    NuCel e a Starlink gravam uma praca nacional ("Brasil/BR"), e
+    qualquer mudanca delas saia como "em 1 de 20" - que sugere
+    movimento localizado onde ele foi total.
+    """
+    onde_existe = collections.defaultdict(set)
+    for l in h.values():
+        onde_existe[(l["operadora"], l["produto"])].add(l["praca"])
+    for grupo in grupos:
+        for e in grupo:
+            base = e.get("atual") or e
+            op = e.get("operadora") or base.get("operadora")
+            pr = e.get("produto") or base.get("produto")
+            e["universo"] = len(onde_existe.get((op, pr)) or ())
+            e["onde"] = _onde(e.get("pracas") or (), e["universo"])
+
+
+# Como cada degrau da escada de bundle (decisao 10) se chama em
+# portugues. E a mesma escala da tela, com as mesmas palavras: oferta que
+# muda de nivel tem de ser descrita igual nos dois lugares.
+#
+# O rotulo NAO NOMEIA O APP de proposito. Dizer "passou a incluir
+# Netflix" exigiria que a fonte dissesse qual, e a maioria nao diz - era
+# assim que a tela antiga mostrava Netflix na linha de uma oferta que
+# nao inclui Netflix.
+BUNDLE = ("sem assinatura inclusa", "com apps de catálogo",
+          "com uma assinatura", "com vários streamings",
+          "com TV por assinatura")
+
+
+def _bundle(n):
+    return BUNDLE[n] if isinstance(n, int) and 0 <= n < len(BUNDLE) else None
+
+
+def _variante(l):
+    """A ultima parte da chave de continuidade: a VERSAO da oferta.
+
+    "Vivo|prepago|20gb|simples" e "Vivo|prepago|20gb|com_apps" sao a
+    mesma oferta em duas versoes. O nome interno nunca sai na mensagem -
+    serve so para perceber que mudou.
+    """
+    return (l.get("chave") or "").split("|")[-1]
+
+
+def _oferta_remodelada(h, o):
+    """A MESMA oferta de volta na vitrine mudada por dentro.
+
+    O PIOR PONTO CEGO QUE O COMPARADOR TINHA, porque nao produzia
+    silencio: produzia afirmacao. A mensagem escrevia "Nenhuma mudanca
+    de preco, composicao ou nome" sobre ofertas que mudaram.
+
+    POR QUE NENHUM DOS OUTROS VE. A identidade carrega a chave de
+    continuidade, e a chave e operadora|produto|degrau|variante: mudou
+    o degrau ou a variante, nao ha par e a oferta sai da comparacao. A
+    escada compara pelos dois lados, mas cada lado exige que o OUTRO
+    campo tenha ficado parado - por_preco casa preco igual, por_entrega
+    casa entrega igual. E _renomeadas pareia por chave e praca, que e
+    exatamente o que a troca de chave quebra.
+
+    DOIS CASOS MEDIDOS NO DADO REAL:
+
+      preco E entrega juntos - "R$ 30 por 25 GB" virando "R$ 35 por
+      20 GB". Cada detector perde este por um motivo diferente, e os
+      quatro perdem.
+
+      so a versao - em 16/10/2026 a Vivo Pre de R$ 30 / 20 GB passou de
+      "simples" para "com_apps" nas 20 pracas: a oferta passou a incluir
+      assinatura pelo mesmo preco e pela mesma franquia. O detector de
+      composicao nao pega porque olha os codigos SVA do regulamento, que
+      no pre-pago nao existem.
+
+    O QUE SOBRA PARA PAREAR E O NOME, na mesma praca - e o nome e o que
+    o leitor reconhece de um dia para o outro. Vale so quando sobrou
+    UMA candidata de cada lado, a mesma regra de _renomeadas: com duas
+    ou mais, qualquer emparelhamento seria chute, e chute aqui inventa
+    reajuste.
+
+    E COMPLEMENTAR A _renomeadas, nao concorrente: la o nome muda e a
+    chave fica, aqui a chave muda e o nome fica. Nenhuma oferta cai nas
+    duas. Oferta que trocou nome E chave no mesmo dia continua sem par,
+    e isso esta certo: nao ha o que a identifique, e inventar o par
+    seria pior do que o silencio.
+    """
+    def pareia(l):
+        nome = re.sub(r"\[[^\]]*\]", " ", l.get("nome_oferta") or "")
+        return (l["operadora"], l["produto"], l["praca"],
+                " ".join(nome.lower().split()))
+
+    sobra_h = collections.defaultdict(list)
+    sobra_o = collections.defaultdict(list)
+    for k, l in h.items():
+        if k not in o:
+            sobra_h[pareia(l)].append(l)
+    for k, l in o.items():
+        if k not in h:
+            sobra_o[pareia(l)].append(l)
+
+    achados = {}
+    for k, atuais in sobra_h.items():
+        anteriores = sobra_o.get(k)
+        if not anteriores or len(atuais) != 1 or len(anteriores) != 1:
+            continue
+        atual, antes = atuais[0], anteriores[0]
+        pa, pd = antes["preco_promocional"], atual["preco_promocional"]
+        ea, ed = _entrega(antes), _entrega(atual)
+        ba, bd = antes.get("nivel_bundle"), atual.get("nivel_bundle")
+
+        preco_mudou = None not in (pa, pd) and pa != pd
+        entrega_mudou = None not in (ea, ed) and ea != ed
+        versao_mudou = _variante(antes) != _variante(atual)
+
+        # A ESCADA JA CONTA "mesmo preco, outra entrega", e com o nome
+        # da oferta. Repetir aqui seria a mesma noticia duas vezes.
+        if entrega_mudou and not preco_mudou and not versao_mudou:
+            continue
+        # Fora disso, entra quando preco e entrega andaram juntos - que
+        # e o que ninguem mais ve - ou quando a versao da oferta mudou.
+        if not (versao_mudou or (preco_mudou and entrega_mudou)):
+            continue
+
+        ident = (atual["operadora"], atual["produto"], k[3],
+                 pa, pd, ea, ed, ba, bd)
+        d = achados.setdefault(ident, {
+            "operadora": atual["operadora"], "produto": atual["produto"],
+            "nome": atual.get("nome_oferta"),
+            "antes_preco": pa, "agora_preco": pd,
+            "antes_entrega": ea, "agora_entrega": ed,
+            "antes_bundle": ba, "agora_bundle": bd,
+            # o rotulo em portugues viaja com o evento: a mensagem e o
+            # PDF leem o mesmo texto e nao podem divergir
+            "bundle_antes": _bundle(ba), "bundle_agora": _bundle(bd),
+            "preco_mudou": preco_mudou, "entrega_mudou": entrega_mudou,
+            "versao_mudou": versao_mudou,
+            # so a versao mudou: nem preco nem entrega se moveram
+            "versao_apenas": not (preco_mudou or entrega_mudou),
+            "unidade": _unidade(atual),
+            "atual": atual, "antes": antes, "pracas": []})
+        if atual["praca"] not in d["pracas"]:
+            d["pracas"].append(atual["praca"])
+    return list(achados.values())
 
 
 def _entrega(l):
     """O degrau da oferta: Mbps na fixa, GB no movel."""
     return l.get("degrau_mbps") or l.get("franquia_anunciada_gb")
+
+
+def _unidade(l):
+    """Mbps ou GB, pelo campo que a oferta preencheu.
+
+    A UNIDADE PERTENCE AO NUMERO, nao ao produto. A regra anterior era
+    "Mbps se for fibra ou combo, GB caso contrario" - e a Starlink
+    grava produto "satelite", entao os 100 Mbps dela apareciam como
+    "100 GB" na mensagem. Mesma coisa para qualquer produto novo: ele
+    nasceria com a unidade errada ate alguem lembrar desta linha.
+    """
+    if l.get("degrau_mbps"):
+        return "Mbps"
+    if l.get("franquia_anunciada_gb"):
+        return "GB"
+    return ""
 
 
 def _grades_reorganizadas(h, o):
@@ -531,8 +891,11 @@ def _grades_reorganizadas(h, o):
         ident = (operadora, produto, tuple(mesma_etiqueta), tuple(mesmo_pacote))
         d = eventos.setdefault(ident, {
             "operadora": operadora, "produto": produto,
+            # a unidade sai da linha, e nao do produto: ver _unidade
+            "unidade": _unidade(atuais[0]),
             "saltos": mesma_etiqueta, "precos": mesmo_pacote, "pracas": []})
-        d["pracas"].append(praca)
+        if praca not in d["pracas"]:
+            d["pracas"].append(praca)
     return list(eventos.values()), suprimir
 
 
@@ -580,10 +943,15 @@ def _degraus_que_voltaram(h, o, hoje):
     for k, l in sorted(novos.items()):
         operadora, produto = k[0], k[1]
         if (operadora, produto) not in cache:
-            linhas, erro = armazenamento.consultar(
+            # PAGINADO. Pedir "limit=4000" ao PostgREST devolve 1000
+            # linhas sem reclamar, e 1000 linhas de uma operadora sao
+            # cerca de quatro dias - a memoria de 45 dias que esta
+            # funcao promete nao existia: ela via a semana e dizia que
+            # tinha visto o mes e meio.
+            linhas, erro = armazenamento.consultar_tudo(
                 "capturas?operadora=eq.%s&produto=eq.%s&data_captura=gte.%s"
                 "&data_captura=lt.%s&select=%s"
-                "&order=data_captura.desc&limit=4000"
+                "&order=data_captura.desc"
                 % (urllib.parse.quote(operadora), produto, limite, hoje, campos))
             cache[(operadora, produto)] = [] if erro else (linhas or [])
         antes = None
@@ -599,11 +967,13 @@ def _degraus_que_voltaram(h, o, hoje):
                  l["preco_promocional"], antes["data_captura"])
         d = eventos.setdefault(ident, {
             "operadora": operadora, "produto": produto, "entrega": k[3],
+            "unidade": _unidade(l),
             "antes": antes["preco_promocional"],
             "agora": l["preco_promocional"],
             "quando": antes["data_captura"],
             "nome": l.get("nome_oferta"), "pracas": []})
-        d["pracas"].append(k[2])
+        if k[2] not in d["pracas"]:
+            d["pracas"].append(k[2])
     return list(eventos.values())
 
 
@@ -651,13 +1021,25 @@ def _operadora_da_rodada(nome):
     return nome
 
 
-def _onde(pracas):
-    """"em todas as 20 praças" ou "em 3 de 20: SP, RJ, BH"."""
-    n = len(pracas)
-    if n >= len(PRACAS):
-        return "em todas as %d praças" % len(PRACAS)
+def _onde(pracas, universo=None):
+    """"em todas as 20 praças" ou "em 3 de 20: SP, RJ, BH".
+
+    O DENOMINADOR E ONDE A OFERTA EXISTE. A NuCel e a Starlink nao tem
+    praca e gravam "Brasil/BR": contra as 20 do painel, qualquer
+    mudanca delas saia como "em 1 de 20" - numero correto e leitura
+    errada, porque sugere movimento localizado onde ele foi total.
+
+    E A CONTAGEM E DE PRACAS DISTINTAS. A lista podia trazer repetida
+    quando dois eventos caiam no mesmo grupo, e o alcance dobrava.
+    """
+    quantas = len(set(pracas))
+    total = max(universo or len(PRACAS), quantas)
+    if quantas >= total:
+        if total == 1:
+            return "na única praça em que a oferta é vendida"
+        return "em todas as %d praças" % total
     nomes = sorted({p.split("/")[0] for p in pracas})[:3]
-    return "em %d de %d: %s" % (n, len(PRACAS), ", ".join(nomes))
+    return "em %d de %d: %s" % (quantas, total, ", ".join(nomes))
 
 
 def _mudou_a_entrega(antes, agora):
@@ -709,17 +1091,67 @@ def _trocou(saiu, entrou):
     return "mudou o que vem incluso"
 
 
+def _o_que_mudou(r):
+    """As linhas que descrevem uma oferta remodelada, em portugues.
+
+    O NOME INTERNO DA VERSAO NAO SAI. "simples -> com_apps" e como o
+    codigo guarda a variante; o que o leitor precisa saber e que a
+    oferta passou a incluir assinatura. Mesma regra dos codigos SVA:
+    codigo sem dicionario e ruido com cara de informacao.
+    """
+    u = r.get("unidade") or ""
+    linhas = []
+    if r["preco_mudou"] and r["entrega_mudou"]:
+        linhas.append("%s \u2192 %s%s   com %s \u2192 %s %s%s" % (
+            _reais(r["antes_preco"]), _reais(r["agora_preco"]),
+            _pct(r["antes_preco"], r["agora_preco"]),
+            r["antes_entrega"], r["agora_entrega"], u,
+            _pct(r["antes_entrega"], r["agora_entrega"])))
+    elif r["preco_mudou"]:
+        linhas.append("%s \u2192 %s%s   pela mesma entrega (%s %s)" % (
+            _reais(r["antes_preco"]), _reais(r["agora_preco"]),
+            _pct(r["antes_preco"], r["agora_preco"]),
+            r["agora_entrega"], u))
+    elif r["entrega_mudou"]:
+        linhas.append("%s \u2192 %s %s%s   pelo mesmo pre\u00e7o (%s)" % (
+            r["antes_entrega"], r["agora_entrega"], u,
+            _pct(r["antes_entrega"], r["agora_entrega"]),
+            _reais(r["agora_preco"])))
+    else:
+        linhas.append("mesmo pre\u00e7o (%s) e mesma entrega (%s %s)"
+                      % (_reais(r["agora_preco"]), r["agora_entrega"], u))
+
+    de, para = _bundle(r.get("antes_bundle")), _bundle(r.get("agora_bundle"))
+    if de and para and de != para:
+        linhas.append("e passou de \"%s\" para \"%s\"" % (de, para))
+    elif r["versao_mudou"]:
+        # a versao mudou e a escada de bundle nao: e outra coisa que o
+        # nome da oferta nao diz, e o relatorio tem o detalhe
+        linhas.append("e voltou \u00e0 vitrine como outra vers\u00e3o da oferta")
+    return linhas
+
+
 def _variacao(de, para):
     if not de or para is None:
         return ""
     return "  %+.0f%%" % ((para - de) / de * 100)
 
 
+def _pct(de, para):
+    """A mesma variacao, entre parenteses, para caber no meio da frase."""
+    if not de or para is None:
+        return ""
+    return " (%+.0f%%)" % ((para - de) / float(de) * 100)
+
+
 def montar_mensagem(hoje, ontem):
     """O recado do dia: o mercado primeiro, o robo so quando falha."""
     dia = datetime.fromisoformat(hoje).strftime("%d/%m")
-    (mud, comp, renom, grades, erro_cmp, ponto_cego,
-     voltaram) = mudancas(hoje, ontem)
+    r = mudancas(hoje, ontem)
+    mud, comp, renom = r["precos"], r["composicao"], r["renomeadas"]
+    grades, voltaram, remodeladas = r["grades"], r["voltaram"], r["remodeladas"]
+    erro_cmp, ponto_cego, cobertura = r["erro"], r["cego"], r["cobertura"]
+    leitura = r.get("leitura") or []
 
     # o estado da coleta, que pode virar manchete
     col, _ = armazenamento.consultar(
@@ -762,24 +1194,44 @@ def montar_mensagem(hoje, ontem):
                    "Ent\u00e3o n\u00e3o d\u00e1 para dizer o que mudou."]
 
     # 2. o que mudou
-    total_mud = len(mud) + len(comp) + len(renom) + len(grades) + len(voltaram)
+    total_mud = (len(mud) + len(comp) + len(renom) + len(grades)
+                 + len(voltaram) + len(remodeladas))
     # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
     # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
     # soa como noticia verificada num dia em que nao se verificou nada.
     if not erro_cmp and col:
         linhas.append("")
         if not total_mud:
-            linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
+            # "NADA MUDOU" PRECISA DE COBERTURA PARA SER VERDADE. Com
+            # poucas ofertas pareadas, a frase descreve a comparacao que
+            # nao aconteceu, e nao o mercado que ficou parado - e e
+            # exatamente essa a frase que soa como noticia verificada.
+            if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:
+                linhas.append(
+                    "Nada a reportar, mas a compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 "
+                    "%d%% das ofertas de hoje: o sil\u00eancio n\u00e3o confirma "
+                    "que o mercado ficou parado."
+                    % round(cobertura["fracao"] * 100))
+            else:
+                linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
         else:
             linhas.append("%d mudan\u00e7a%s hoje"
                           % (total_mud, "" if total_mud == 1 else "s"))
+
+    # O PONTO CEGO QUALIFICA A LINHA DE CIMA, e por isso vem colado
+    # nela. "Nenhuma mudanca" com 20 ofertas fora da comparacao nao e a
+    # mesma frase que "nenhuma mudanca", e a diferenca entre as duas e
+    # exatamente o que o leitor precisa para saber se pode confiar no
+    # silencio. Antes isto so chegava ao rodape do PDF.
+    if ponto_cego and col:
+        linhas += ["", ponto_cego["curto"]]
 
     for m in mud[:3]:
         a, d = m["antes"], m["atual"]
         de, para = a["preco_promocional"], d["preco_promocional"]
         linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
         linhas.append("  %s \u2192 %s%s   %s" % (
-            _reais(de), _reais(para), _variacao(de, para), _onde(m["pracas"])))
+            _reais(de), _reais(para), _variacao(de, para), m["onde"]))
     if len(mud) > 3:
         n = len(mud) - 3
         linhas += ["", "e mais %d mudan\u00e7a%s de pre\u00e7o no relat\u00f3rio"
@@ -793,10 +1245,26 @@ def montar_mensagem(hoje, ontem):
         entrou = sorted(x for x in agora_sva - antes_sva if x)
         linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
         linhas.append("  mesmo pre\u00e7o, %s   %s"
-                      % (_trocou(saiu, entrou), _onde(m["pracas"])))
+                      % (_trocou(saiu, entrou), m["onde"]))
     if len(comp) > 3:
         linhas += ["", "e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
                    % (len(comp) - 3)]
+
+    # PRECO E ENTREGA JUNTOS. Vem logo depois das mudancas de preco por
+    # ser o movimento de maior efeito sobre o cliente - paga mais e
+    # recebe menos - e porque era o unico que a mensagem NEGAVA em vez
+    # de omitir. Os dois numeros aparecem com a variacao de cada um,
+    # para a conta ficar a vista.
+    for r in remodeladas[:3]:
+        linhas += ["", "%s \u00b7 %s" % (_categoria(r["atual"]),
+                                      _rotulo(r["atual"]))]
+        linhas += ["  %s" % x for x in _o_que_mudou(r)]
+        linhas.append("  %s" % r["onde"])
+    if len(remodeladas) > 3:
+        n = len(remodeladas) - 3
+        linhas += ["", "e mais %d oferta%s remodelada%s no relat\u00f3rio"
+                   % (n, "" if n == 1 else "s", "" if n == 1 else "s")]
+
 
     # MESMO PRECO, OUTRA ENTREGA. E o movimento mais facil de nao
     # perceber: o preco na vitrine nao se mexe, e o que encolhe e o que
@@ -804,9 +1272,10 @@ def montar_mensagem(hoje, ontem):
     # a linha de entao - "franquia nova" - nao disse que aquilo era 20%
     # menos internet.
     for g in grades[:3]:
-        unidade = "Mbps" if g["produto"] in ("fibra", "combo") else "GB"
-        linhas += ["", "%s \u00b7 %s" % (CATEGORIA.get(g["produto"],
-                                                  g["produto"]), g["operadora"])]
+        # a unidade sai do campo que a oferta preencheu, e nao do
+        # produto: ver _unidade
+        unidade = g.get("unidade") or ""
+        linhas += ["", "%s \u00b7 %s" % (_categoria(g), g["operadora"])]
         for preco, antes_v, agora_v in g["saltos"][:3]:
             linhas.append("  %s: %s \u2192 %s %s%s" % (
                 _reais(preco), antes_v, agora_v, unidade,
@@ -817,7 +1286,7 @@ def montar_mensagem(hoje, ontem):
             linhas.append("  %s %s: %s \u2192 %s%s" % (
                 entrega, unidade, _reais(antes_p), _reais(agora_p),
                 _variacao(antes_p, agora_p)))
-        linhas.append("  %s" % _onde(g["pracas"]))
+        linhas.append("  %s" % g["onde"])
     if len(grades) > 3:
         n = len(grades) - 3
         linhas += ["", "e mais %d de grade no relat\u00f3rio" % n]
@@ -828,16 +1297,15 @@ def montar_mensagem(hoje, ontem):
     # primeiro movimento e "saiu uma oferta" e o segundo e "entrou uma
     # oferta" - e o reajuste fica escondido entre os dois.
     for v in voltaram[:3]:
-        unidade = "Mbps" if v["produto"] in ("fibra", "combo") else "GB"
+        unidade = v.get("unidade") or ""
         quando = datetime.fromisoformat(v["quando"]).strftime("%d/%m")
         pc = ((v["agora"] - v["antes"]) / float(v["antes"]) * 100
               if v["antes"] else 0)
-        linhas += ["", "%s \u00b7 %s" % (CATEGORIA.get(v["produto"],
-                                                   v["produto"]), v["operadora"])]
+        linhas += ["", "%s \u00b7 %s" % (_categoria(v), v["operadora"])]
         linhas.append("  %s %s voltou por %s   %+.0f%% sobre os %s de %s"
                       % (v["entrega"], unidade, _reais(v["agora"]), pc,
                          _reais(v["antes"]), quando))
-        linhas.append("  %s" % _onde(v["pracas"]))
+        linhas.append("  %s" % v["onde"])
     if len(voltaram) > 3:
         linhas += ["", "e mais %d degrau(s) que voltaram, no relat\u00f3rio"
                    % (len(voltaram) - 3)]
@@ -854,6 +1322,25 @@ def montar_mensagem(hoje, ontem):
             linhas.append("  pelo mesmo pre\u00e7o (%s)" % _reais(para))
     if len(renom) > 3:
         linhas.append("  e mais %d renomeada(s)" % (len(renom) - 3))
+
+    # O QUE MUDOU FOI A NOSSA LEITURA. Fica no FIM, depois dos eventos,
+    # porque nao e um evento: e uma ressalva sobre o dado, e lugar de
+    # ressalva e depois do que ela qualifica. Ver _separar_o_que_e_nosso.
+    if leitura:
+        ops = sorted({x["operadora"] for x in leitura})
+        n = len(leitura)
+        # quando a mexida foi declarada, a mensagem diz QUAL foi - e
+        # melhor do que "costuma ser", que e o que sobra sem declaracao
+        declarado = LEITURA_MUDOU_EM.get(hoje)
+        porque = ("a leitura mudou hoje: %s" % declarado if declarado
+                  else "isso costuma ser mudan\u00e7a na nossa leitura, e "
+                       "n\u00e3o no mercado")
+        linhas += ["", "%d oferta%s %s de vers\u00e3o sem mexer em "
+                   "pre\u00e7o nem entrega (%s) \u2014 %s. Detalhe no "
+                   "relat\u00f3rio."
+                   % (n, "" if n == 1 else "s",
+                      "mudou" if n == 1 else "mudaram", ", ".join(ops),
+                      porque)]
 
     # O FIM DA MENSAGEM E O LINK, e nao mais a entrada por produto e a
     # telemetria. Os dois viraram tabela no relatorio anexo, com mais
@@ -888,12 +1375,40 @@ def montar_mensagem(hoje, ontem):
         "dia": hoje, "ontem": ontem,
         "mudancas_preco": mud, "mudancas_composicao": comp,
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
-        "erro_comparacao": erro_cmp, "ponto_cego": ponto_cego,
+        "remodeladas": remodeladas, "leitura": leitura,
+        "erro_comparacao": erro_cmp, "cobertura": cobertura,
+        # a frase longa e a do relatorio, onde ha espaco para explicar
+        # o que "chave de serie" quer dizer; a curta ja foi na mensagem
+        "ponto_cego": ponto_cego["longo"] if ponto_cego else None,
         "coletas": col, "falhas": falhas, "sem_registro": sem_registro,
         "denuncias": denuncias,
         "total_ofertas": total_ofertas,
     }
     return "\n".join(linhas), dados
+
+# O Telegram recusa mensagem acima disto, e recusa INTEIRA: nao corta,
+# devolve erro e o dia fica sem aviso.
+TETO_TELEGRAM = 4096
+
+
+def _cabe_no_telegram(texto):
+    """Corta a mensagem antes de o Telegram a recusar.
+
+    A mensagem e curta por desenho - seis linhas num dia normal -, mas
+    e justamente o dia ruim que a engorda: nove operadoras sem
+    registro, erro de comparacao, ponto cego, denuncia do vigia e tres
+    eventos de cada tipo. E o dia ruim e o que nao pode ficar sem
+    aviso: ficar sem a metade de baixo da mensagem e um problema, ficar
+    sem a mensagem toda e outro, muito maior.
+
+    O corte e no fim e sai declarado, para ninguem ler uma lista
+    truncada pensando que ela acabou ali.
+    """
+    if len(texto) <= TETO_TELEGRAM:
+        return texto
+    nota = "\n\n[mensagem cortada aqui; o relat\u00f3rio em anexo est\u00e1 completo]"
+    return texto[:TETO_TELEGRAM - len(nota)].rstrip() + nota
+
 
 def rodar_aviso(simular=False):
     hoje = agora().date()
@@ -912,7 +1427,8 @@ def rodar_aviso(simular=False):
     if erro_pdf:
         texto += "\n\n(o relatorio em PDF nao foi gerado hoje: %s)" % erro_pdf[:80]
 
-    r = _tel("sendMessage", {"chat_id": chat, "text": texto})
+    r = _tel("sendMessage", {"chat_id": chat,
+                             "text": _cabe_no_telegram(texto)})
     if not r.get("ok"):
         print("\nFALHOU ao enviar: %s" % r)
         return 1

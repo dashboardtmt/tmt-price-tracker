@@ -94,6 +94,206 @@ MUTACOES = [
         '            if e in eo and eo[e][0] != eh[e][0])',
         "oferta que some volta a virar 'preco que sobe'"),
 
+    # ---------------------------------------------------------------
+    # OS 23 DEFEITOS DA AUDITORIA DE 20/10/2026. Estes sao os que a
+    # suite de 76 testes NAO pegava - foi uma leitura independente do
+    # codigo que os achou. Cada um ganhou teste, e cada um volta aqui
+    # para o teste ter de provar que serve.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '        if (antes["preco_promocional"] is not None\n'
+        '                and atual["preco_promocional"] is not None\n',
+        '        if (antes["preco_promocional"] is not None\n'
+        '                and True\n',
+        "1. preco ausente hoje volta a ser anunciado como reajuste"),
+
+    Mutacao(
+        "robo.py",
+        '    remodeladas = [r for r in _oferta_remodelada(h, o)\n',
+        '    remodeladas = [r for r in []\n',
+        "2. preco e degrau mudando juntos voltam a ser invisiveis"),
+
+    Mutacao(
+        "robo.py",
+        '            _agrupar(precos, (atual["operadora"], atual["produto"], atual["chave"],\n'
+        '                              (atual.get("nome_oferta") or "").lower(),\n',
+        '            _agrupar(precos, (atual["operadora"], atual["produto"], atual["chave"],\n',
+        "3. duas ofertas de mesmo preco voltam a virar uma"),
+
+    Mutacao(
+        "robo.py",
+        '    if ponto_cego and col:\n        linhas += ["", ponto_cego["curto"]]',
+        '    if False:\n        linhas += ["", ponto_cego["curto"]]',
+        "4. o ponto cego volta a so existir no rodape do PDF"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '            corte = min([p for p in paradas if p >= 0], default=None)',
+        '            corte = min([p for p in paradas if p > 0], default=None)',
+        "5. o tier volta a sair da frase seguinte"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        if len(primeira) >= 3:',
+        '        if len(primeira) >= 4:',
+        "6. Max e Sky voltam a nao servir de parede"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        primeira = primeira.strip("+")\n',
+        '',
+        "6b. o sinal de Disney+ volta a impedir a parede"),
+
+    Mutacao(
+        "robo.py",
+        '    if l.get("degrau_mbps"):\n        return "Mbps"',
+        '    if l.get("produto") in ("fibra", "combo"):\n        return "Mbps"',
+        "7. a unidade volta a sair do produto, e nao do campo"),
+
+    Mutacao(
+        "robo.py",
+        '            linhas, erro = armazenamento.consultar_tudo(\n'
+        '                "capturas?operadora=eq.%s&produto=eq.%s&data_captura=gte.%s"',
+        '            linhas, erro = armazenamento.consultar(\n'
+        '                "capturas?operadora=eq.%s&produto=eq.%s&data_captura=gte.%s"',
+        "8. a memoria de 45 dias volta a ser truncada em 1000 linhas"),
+
+    Mutacao(
+        "relatorio.py",
+        '            m.get("onde") or "—",\n'
+        '        ])\n'
+        '    return _tabela(\n'
+        '        ["Operadora", "Oferta", "Entrega", "Anterior", "Atual", "Var.",',
+        '            m.get("pracas_formatadas") or "—",\n'
+        '        ])\n'
+        '    return _tabela(\n'
+        '        ["Operadora", "Oferta", "Entrega", "Anterior", "Atual", "Var.",',
+        "9. a coluna Pracas do relatorio volta a sair vazia"),
+
+    Mutacao(
+        "vigia.py",
+        '            grave("%s nao aparece hoje (tipico: %d ofertas)"\n'
+        '                  % (op, int(tipico)))',
+        '            grave("%s nao trouxe nenhuma oferta hoje" % op)\n'
+        '            grave("%s nao aparece hoje" % op)',
+        "10. operadora ausente volta a ser denunciada duas vezes"),
+
+    Mutacao(
+        "vigia.py",
+        '    if len(graves) == 1:\n        return "Conferir: %s" % graves[0]',
+        '    if True:\n        return "Conferir: %s" % graves[0]',
+        "11. o resumo volta a esconder os outros achados graves"),
+
+    Mutacao(
+        "vigia.py",
+        '            severo = (p <= a * (1 - QUEDA_INACREDITAVEL)\n'
+        '                      or p >= a * (1 + SALTO_INACREDITAVEL))',
+        '            severo = False',
+        "11b. o preco fantasma volta a nao chegar na mensagem"),
+
+    Mutacao(
+        "vigia.py",
+        '        if n >= max(3, total * 0.5):',
+        '        if n >= max(5, total * 0.5):',
+        "12. a NuCel volta a poder perder a franquia em silencio"),
+
+    Mutacao(
+        "coletores/claro.py",
+        '    achado = PRECO.search(apps.sem_degustacao(txt) or "")',
+        '    achado = PRECO.search(txt or "")',
+        "13. o preco do plano volta a poder sair da frase do beneficio"),
+
+    Mutacao(
+        "relatorio.py",
+        '    for chave, titulo in PRODUTOS:\n'
+        '        itens = entradas.get(chave) or []\n'
+        '        hist.append(_com_titulo(',
+        '    for chave, titulo in PRODUTOS:\n'
+        '        itens = entradas.get(chave) or []\n'
+        '        if not itens:\n'
+        '            continue\n'
+        '        hist.append(_com_titulo(',
+        "18. a secao do produto sem oferta volta a desaparecer"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        for pos in reversed(nomes):',
+        '        for pos in nomes:',
+        "20. o corte da degustacao volta a levar o app vizinho"),
+
+    Mutacao(
+        "robo.py",
+        '    if len(texto) <= TETO_TELEGRAM:\n        return texto',
+        '    if True:\n        return texto',
+        "21. a mensagem longa volta a ser recusada pelo Telegram"),
+
+    Mutacao(
+        "robo.py",
+        '    total = max(universo or len(PRACAS), quantas)',
+        '    total = len(PRACAS)',
+        "22. oferta nacional volta a sair como 'em 1 de 20'"),
+
+    Mutacao(
+        "robo.py",
+        '            if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:',
+        '            if False:',
+        "24. comparacao cega volta a ser reportada como mercado parado"),
+
+    Mutacao(
+        "ja_coletou.py",
+        '    return len(registradas) >= esperadas, len(registradas)',
+        '    return len(registradas) >= 5, len(registradas)',
+        "17. o dia volta a fechar com cinco dos nove coletores"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    if operadora and "vivo" in str(operadora).lower():\n'
+        '        regras = DO_NOME + DO_NOME_VIVO',
+        '    if True:\n'
+        '        regras = DO_NOME + DO_NOME_VIVO',
+        "19. o sufixo da Vivo volta a valer para as outras operadoras"),
+
+    # ---------------------------------------------------------------
+    # OS DOIS ACHADOS DA MEDICAO nos 21 dias reais, que a auditoria
+    # nao tinha visto porque so aparecem no dado de verdade.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '        if not (versao_mudou or (preco_mudou and entrega_mudou)):',
+        '        if not (preco_mudou and entrega_mudou):',
+        "25. a oferta que muda so de versao volta a ser invisivel"),
+
+    Mutacao(
+        "robo.py",
+        '    nossas = [r for r in so_versao\n'
+        '              if declarado or varias_operadoras'
+        ' or _minoria_das_pracas(r)]',
+        '    nossas = []',
+        "26. mudanca da nossa leitura volta a sair como do mercado"),
+
+    Mutacao(
+        "robo.py",
+        '    return universo > 1 and quantas * 2 <= universo',
+        '    return False',
+        "26b. versao mudando em 2 de 18 pracas volta a ser noticia"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '    return max(apps.nivel_por_apps(texto, APPS_CATALOGO),\n'
+        '               apps.nivel_dos_apps(lista))',
+        '    return apps.nivel_por_apps(texto, APPS_CATALOGO)',
+        "27. o nivel volta a contradizer a lista de apps da oferta"),
+
+    Mutacao(
+        "robo.py",
+        '              if declarado or varias_operadoras'
+        ' or _minoria_das_pracas(r)]',
+        '              if varias_operadoras or _minoria_das_pracas(r)]',
+        "28. a data declarada volta a nao mandar na heuristica"),
+
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

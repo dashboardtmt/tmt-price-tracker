@@ -168,11 +168,23 @@ def degrau_gb(texto):
     return int(float(m.group(1).replace(",", "."))) if m else None
 
 
-def nivel_bundle(texto):
+def nivel_bundle(texto, lista=()):
+    """O nivel da oferta, pelo texto do card E pela lista de apps dela.
+
+    O NOME DA OFERTA CONTA. O card da Vivo as vezes vem so com
+    marcacao - "unique-card__bordered data-settings=..." - e ai o texto
+    nao nomeia app nenhum. A lista de apps, que sai do NOME, nomeia:
+    "Vivo Pos com Amazon" aparecia com "Amazon Prime" na lista e nivel
+    0 no campo ao lado.
+
+    max() porque o nome ACRESCENTA informacao, nunca tira: o texto pode
+    citar um streaming que o nome nao cita, e o contrario tambem.
+    """
     t = (texto or "").lower()
     if any(m in t for m in TV_INCLUSA):
         return 4
-    return apps.nivel_por_apps(texto, APPS_CATALOGO)
+    return max(apps.nivel_por_apps(texto, APPS_CATALOGO),
+               apps.nivel_dos_apps(lista))
 
 
 # ------------------------------------------------- parser da vitrine (HTML)
@@ -263,7 +275,7 @@ def enriquecer(oferta, card):
     oferta["id_catalogo"] = card.get("id") or card.get("idOffer")
     detalhes = json.dumps(card, ensure_ascii=False)
     if oferta.get("nivel_bundle") in (None, 0):
-        oferta["nivel_bundle"] = nivel_bundle(detalhes)
+        oferta["nivel_bundle"] = nivel_bundle(detalhes, oferta.get("apps"))
     return oferta
 
 
@@ -610,19 +622,20 @@ def coletar(cidade, uf, verbose=True):
                 # preco cheio fica vazio quando a fonte nao informa (decisao 9)
                 "preco_cheio": None,
                 "preco_promocional": c["preco"],
-                "nivel_bundle": nivel_bundle(c["texto"]),
+                "nivel_bundle": nivel_bundle(
+                    c["texto"], apps.apps_da_oferta(c["plano"], "Vivo")),
                 # QUAIS apps, e nao so quantos: o nome da oferta e onde a
                 # Vivo nomeia o app ("Vivo Controle Netflix", "Vivo Pos
                 # com Disney+"). O codigo SVA nao distingue - vem igual
                 # em todas as ofertas.
-                "apps": apps.apps_da_oferta(c["plano"]),
+                "apps": apps.apps_da_oferta(c["plano"], "Vivo"),
                 # o tier sai daqui quando a vitrine o escreve; quando
                 # nao, o nome registrado na Anatel ainda pode traze-lo, e
                 # por isso o rotulo e refeito depois do regulamento
                 "apps_rotulo": apps.rotulo(
-                    apps.apps_da_oferta(c["plano"]), c["plano"], c["texto"]),
+                    apps.apps_da_oferta(c["plano"], "Vivo"), c["plano"], c["texto"]),
                 "apps_planos": apps.planos_dos_apps(
-                    apps.apps_da_oferta(c["plano"]), c["plano"], c["texto"]),
+                    apps.apps_da_oferta(c["plano"], "Vivo"), c["plano"], c["texto"]),
                 # o texto do card alimenta o cruzamento que deduz quais
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],

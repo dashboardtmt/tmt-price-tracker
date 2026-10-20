@@ -12,65 +12,62 @@ import sys
 import unittest
 from datetime import datetime, timedelta, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import ja_coletou                                             # noqa: E402
-import robo                                                   # noqa: E402
-from coletores import armazenamento                           # noqa: E402
+import _apoio                                                 # noqa: E402
+from _apoio import COLETA_OK, HOJE, ONTEM                      # noqa: E402
 
 BRT = timezone(timedelta(hours=-3))
-HOJE, ONTEM = "2026-10-21", "2026-10-20"
 
 
 def oferta(operadora, produto, nome, preco, gb=50, praca="Sao Paulo/SP",
            data=HOJE):
-    # data_captura e NOT NULL no esquema: a fixture tem de refletir isso,
-    # senao o teste passa com um dado que o banco nunca produziria
-    return {"data_captura": data,
-            "operadora": operadora, "produto": produto, "praca": praca,
-            "nome_oferta": nome, "preco_promocional": preco,
-            "franquia_anunciada_gb": gb, "degrau_mbps": None,
-            "destaque": "%s GB" % gb, "nivel_bundle": 0,
-            "assinatura_sva": None,
-            "chave": "%s|%s|%sgb|simples" % (operadora, produto, gb)}
+    return _apoio.oferta(operadora=operadora, produto=produto, nome=nome,
+                         preco=preco, gb=gb, praca=praca, data=data)
 
 
-BASE = [oferta("Claro", "movel", "Claro Pós", 124.90, data=ONTEM),
-        oferta("Vivo", "fibra", "Vivo Fibra", 100.0, data=ONTEM)]
+# OS DOIS DIAS COM A DATA CERTA DENTRO DA LINHA. A fixture anterior
+# usava data=ONTEM nas duas listas e o banco de mentira nao olhava a
+# coluna - o dia de hoje chegava vazio ao vigia, que denunciava "nenhuma
+# captura hoje" dentro do teste do dia limpo.
+def base(data):
+    return [oferta("Claro", "movel", "Claro Pós", 124.90, data=data),
+            oferta("Vivo", "fibra", "Vivo Fibra", 100.0, data=data)]
 
-COLETA_OK = [{"operadora": op, "pracas_ok": 20, "pracas_pedidas": 20,
-              "ofertas": 180, "sucesso": True, "iniciada_em": HOJE + "T06:00"}
-             for op in ("Vivo", "TIM", "Claro", "Brisanet", "Unifique",
-                        "NuCel", "Starlink", "Claro Flex", "TIM FIT")]
+
+ONTEM_BASE = base(ONTEM)
 
 
 class Mensagem(unittest.TestCase):
 
     def montar(self, ontem, hoje, coletas):
-        def tudo(caminho, pagina=None):
-            return (hoje if HOJE in caminho else ontem), None
-
-        def um(caminho):
-            return (coletas, None) if caminho.startswith("coletas?") else ([], None)
-
-        armazenamento.consultar_tudo = tudo
-        armazenamento.consultar = um
-        robo.armazenamento.consultar_tudo = tudo
-        robo.armazenamento.consultar = um
-        texto, dados = robo.montar_mensagem(HOJE, ONTEM)
-        return texto
+        return _apoio.montar(ontem, hoje, coletas)
 
     # ----------------------------------------------------- dia normal
     def test_dia_sem_mudanca_e_curto_e_direto(self):
-        t = self.montar(BASE, list(BASE), COLETA_OK)
+        t = self.montar(ONTEM_BASE, base(HOJE), COLETA_OK)
         self.assertIn("TMT Price Tracker", t)
         self.assertIn("Nenhuma mudança", t)
         self.assertIn("tmt-price-tracker.vercel.app", t)
         self.assertLess(len(t.split("\n")), 8, "a mensagem engordou")
 
+    def test_dia_limpo_nao_tem_conferir(self):
+        """O vigia tem de ficar CALADO no dia normal.
+
+        O teste acima passava com "Conferir: nenhuma captura hoje" dentro
+        da mensagem, porque a fixture nao punha a data de hoje nas linhas
+        de hoje. Afirmar o contrario aqui e o que impede o teste de
+        passar pelo motivo errado de novo.
+        """
+        t = self.montar(ONTEM_BASE, base(HOJE), COLETA_OK)
+        self.assertNotIn("Conferir", t)
+
     def test_mudanca_de_preco_traz_categoria_e_variacao(self):
-        hoje = [oferta("Claro", "movel", "Claro Pós", 139.90), BASE[1]]
-        t = self.montar(BASE, hoje, COLETA_OK)
+        hoje = [oferta("Claro", "movel", "Claro Pós", 139.90),
+                base(HOJE)[1]]
+        t = self.montar(ONTEM_BASE, hoje, COLETA_OK)
         self.assertIn("Pós-pago · Claro Pós", t)
         self.assertIn("124,90 → 139,90", t)
         self.assertIn("+12%", t)
@@ -79,7 +76,7 @@ class Mensagem(unittest.TestCase):
     def test_coleta_incompleta_e_manchete(self):
         falhou = [dict(c) for c in COLETA_OK]
         falhou[2].update({"pracas_ok": 12, "sucesso": False})
-        t = self.montar(BASE, list(BASE), falhou)
+        t = self.montar(ONTEM_BASE, base(HOJE), falhou)
         self.assertIn("COLETA INCOMPLETA", t)
         self.assertLess(t.index("COLETA INCOMPLETA"), 60,
                         "a falha tem de vir antes de qualquer numero")
@@ -87,7 +84,7 @@ class Mensagem(unittest.TestCase):
     def test_sem_coleta_nao_se_fala_em_mudanca(self):
         # "o robo nao rodou" e "nenhuma mudanca" na mesma mensagem se
         # contradizem: sem coleta nao ha o que comparar
-        t = self.montar(BASE, list(BASE), [])
+        t = self.montar(ONTEM_BASE, base(HOJE), [])
         self.assertIn("NÃO RODOU", t)
         self.assertNotIn("Nenhuma mudança", t)
 
@@ -96,10 +93,10 @@ class Mensagem(unittest.TestCase):
                 oferta("Vivo", "fibra", "Vivo Fibra", 120.0),
                 oferta("TIM", "controle", "TIM Smart", 62.99),
                 oferta("Claro", "btl", "Claro Flex", 49.90)]
-        ontem = [oferta("Claro", "movel", "Claro Pós", 124.90),
-                 oferta("Vivo", "fibra", "Vivo Fibra", 100.0),
-                 oferta("TIM", "controle", "TIM Smart", 58.99),
-                 oferta("Claro", "btl", "Claro Flex", 44.90)]
+        ontem = [oferta("Claro", "movel", "Claro Pós", 124.90, data=ONTEM),
+                 oferta("Vivo", "fibra", "Vivo Fibra", 100.0, data=ONTEM),
+                 oferta("TIM", "controle", "TIM Smart", 58.99, data=ONTEM),
+                 oferta("Claro", "btl", "Claro Flex", 44.90, data=ONTEM)]
         t = self.montar(ontem, hoje, COLETA_OK)
         self.assertIn("4 mudanças hoje", t)
         self.assertIn("e mais 1 mudança de preço no relatório", t)

@@ -286,6 +286,163 @@ def _bloco_produto(itens, produto):
         vazio="Sem dados disponíveis para a praça de referência.")
 
 
+def _unidade(e):
+    """A unidade que o evento carrega, ja decidida pelo campo preenchido.
+
+    Vem pronta do robo de proposito: calcular de novo aqui abriria a
+    porta para o PDF e a mensagem discordarem sobre a mesma oferta.
+    """
+    return e.get("unidade") or ""
+
+
+def _versao(r):
+    """Como a versao da oferta mudou, em portugues.
+
+    O texto vem pronto do robo - ver BUNDLE em robo.py. Monta-lo aqui
+    faria o PDF e a mensagem poderem divergir sobre a mesma oferta.
+    """
+    de, para = r.get("bundle_antes"), r.get("bundle_agora")
+    if de and para and de != para:
+        return "%s → %s" % (de, para)
+    if r.get("versao_mudou"):
+        return "outra versão da oferta"
+    return "—"
+
+
+def _bloco_remodeladas(itens, vazio):
+    """Oferta que voltou a vitrine mudada por dentro.
+
+    Preco e entrega mudando juntos e o movimento de maior efeito sobre o
+    cliente - paga mais e recebe menos - e era o unico que a mensagem
+    NEGAVA antes de existir o detector: nenhum dos outros conseguia
+    parear a oferta, e o aviso do dia dizia "nenhuma mudanca de preco,
+    composicao ou nome".
+    """
+    def peso(x):
+        return -abs((x.get("agora_preco") or 0) - (x.get("antes_preco") or 0))
+
+    linhas = []
+    for r in sorted(itens or [], key=peso):
+        u = _unidade(r)
+        preco = _reais(r.get("agora_preco"))
+        if r.get("preco_mudou"):
+            preco = "%s → %s  %s" % (_reais(r.get("antes_preco")), preco,
+                                     _pc(r.get("antes_preco"),
+                                         r.get("agora_preco")))
+        entrega = ("%s %s" % (r.get("agora_entrega"), u)).strip()
+        if r.get("entrega_mudou"):
+            entrega = ("%s → %s %s" % (r.get("antes_entrega"),
+                                       r.get("agora_entrega"), u)).strip()
+        linhas.append([
+            r.get("operadora"),
+            _curto(r.get("nome"), 30),
+            preco,
+            entrega,
+            _versao(r),
+            r.get("onde") or "—",
+        ])
+    return _tabela(
+        ["Operadora", "Oferta", "Preço", "Entrega", "Versão", "Praças"],
+        linhas,
+        [19 * mm, 30 * mm, 30 * mm, 24 * mm, 37 * mm, 38 * mm],
+        vazio=vazio)
+
+
+def _bloco_grades(d):
+    """A escada de precos reorganizada, vista pelos dois lados."""
+    linhas = []
+    for g in d.get("grades") or []:
+        u = _unidade(g)
+        movimento = []
+        for preco, antes_v, agora_v in g.get("saltos") or ():
+            movimento.append("%s passou a entregar %s %s (antes %s)"
+                             % (_reais(preco), agora_v, u, antes_v))
+        for entrega, antes_p, agora_p in g.get("precos") or ():
+            movimento.append("%s %s passou a custar %s (antes %s)"
+                             % (entrega, u, _reais(agora_p), _reais(antes_p)))
+        linhas.append([
+            g.get("operadora"),
+            g.get("produto"),
+            "; ".join(movimento) or "—",
+            g.get("onde") or "—",
+        ])
+    return _tabela(
+        ["Operadora", "Produto", "Movimento observado", "Praças"], linhas,
+        [22 * mm, 22 * mm, 92 * mm, 42 * mm],
+        vazio="Nenhuma reorganização de grade identificada.")
+
+
+def _bloco_voltaram(d):
+    """Entrega que reapareceu com outro preco, dias depois de sair."""
+    linhas = []
+    for v in d.get("voltaram") or []:
+        quando = str(v.get("quando") or "")
+        if len(quando) == 10:
+            quando = datetime.fromisoformat(quando).strftime("%d/%m")
+        linhas.append([
+            v.get("operadora"),
+            v.get("produto"),
+            ("%s %s" % (v.get("entrega"), _unidade(v))).strip(),
+            quando or "—",
+            _reais(v.get("antes")),
+            _reais(v.get("agora")),
+            _pc(v.get("antes"), v.get("agora")),
+            v.get("onde") or "—",
+        ])
+    return _tabela(
+        ["Operadora", "Produto", "Entrega", "Última venda", "Preço então",
+         "Atual", "Var.", "Praças"],
+        linhas,
+        [19 * mm, 19 * mm, 19 * mm, 19 * mm, 21 * mm, 19 * mm, 12 * mm,
+         30 * mm],
+        vazio="Nenhum degrau retornou à vitrine com preço diferente.")
+
+
+def _bloco_renomeadas(d):
+    """Oferta que trocou de nome, e o preco que ela levou na troca."""
+    linhas = []
+    for m in d.get("renomeadas") or []:
+        a, at = m["antes"], m["atual"]
+        linhas.append([
+            at.get("operadora"),
+            _curto(a.get("nome_oferta"), 40),
+            _curto(at.get("nome_oferta"), 40),
+            _reais(a.get("preco_promocional")),
+            _reais(at.get("preco_promocional")),
+            m.get("onde") or "—",
+        ])
+    return _tabela(
+        ["Operadora", "Nome anterior", "Nome atual", "Preço antes",
+         "Preço atual", "Praças"],
+        linhas,
+        [19 * mm, 42 * mm, 42 * mm, 20 * mm, 20 * mm, 35 * mm],
+        vazio="Nenhuma oferta mudou de nome.")
+
+
+def _bloco_cobertura(d):
+    """Quanto da vitrine de hoje foi efetivamente comparada com ontem.
+
+    SEM ESTE NUMERO, O SILENCIO NAO SE DISTINGUE DA CEGUEIRA. "Nenhuma
+    variacao identificada" sobre 12% da vitrine e sobre 94% dela sao
+    duas afirmacoes diferentes, e as duas saiam escritas igual. A
+    operadora cuja serie partiu aparece aqui antes de alguem precisar
+    desconfiar.
+    """
+    cob = d.get("cobertura")
+    if not cob:
+        return _tabela(["Operadora", "Ofertas com par", "Total", "Cobertura"],
+                       [], [44 * mm, 44 * mm, 44 * mm, 46 * mm],
+                       vazio="Comparação não realizada na data.")
+    linhas = []
+    for op, (pares, total) in sorted(cob["por_operadora"].items()):
+        linhas.append([op, str(pares), str(total),
+                       "%d%%" % round(100.0 * pares / total) if total else "—"])
+    linhas.append(["Total", str(cob["pares"]), str(cob["hoje"]),
+                   "%d%%" % round(100.0 * cob["fracao"])])
+    return _tabela(["Operadora", "Ofertas com par", "Total", "Cobertura"],
+                   linhas, [44 * mm, 44 * mm, 44 * mm, 46 * mm])
+
+
 def _bloco_denuncias(d):
     """O que o vigia achou de estranho no dado do dia.
 
@@ -360,6 +517,37 @@ def gerar(dados, entradas, caminho):
         hist.append(_com_titulo("Mudanças de preço", _bloco_precos(dados)))
 
         hist.append(_com_titulo(
+            "Ofertas reapresentadas com outra configuração",
+            Paragraph("Ofertas cujo preço e cuja franquia ou velocidade "
+                      "foram alterados na mesma data, ou cuja versão foi "
+                      "modificada sem variação de preço ou de entrega. O "
+                      "pareamento utiliza o nome da oferta na mesma praça, "
+                      "e aplica-se exclusivamente aos casos em que resta "
+                      "uma única oferta correspondente em cada data.",
+                      ESTILOS["corpo"]),
+            _bloco_remodeladas(
+                dados.get("remodeladas"),
+                "Nenhuma oferta foi reapresentada com outra configuração.")))
+
+        # AS QUE A LEITURA EXPLICA, SEPARADAS DAS QUE O MERCADO EXPLICA.
+        # Misturar as duas numa tabela so transformaria mudanca de
+        # parser em movimento de operadora, que e a atribuicao errada
+        # mais facil de fazer aqui.
+        hist.append(_com_titulo(
+            "Alterações atribuíveis à leitura dos dados",
+            Paragraph("Ofertas cuja versão foi alterada sem variação de "
+                      "preço ou de entrega, em circunstâncias que indicam "
+                      "modificação no procedimento de leitura e não no "
+                      "mercado: ocorrência simultânea em mais de uma "
+                      "operadora, ou restrita a uma minoria das praças em "
+                      "que a oferta é comercializada. Registram-se aqui "
+                      "para que a descontinuidade na série seja "
+                      "identificável.", ESTILOS["corpo"]),
+            _bloco_remodeladas(
+                dados.get("leitura"),
+                "Nenhuma alteração atribuível à leitura dos dados.")))
+
+        hist.append(_com_titulo(
             "Alterações de composição sem variação de preço",
             Paragraph("Ofertas cujo preço permaneceu inalterado em relação "
                       "ao dia anterior e cuja composição de serviços inclusos "
@@ -367,6 +555,30 @@ def gerar(dados, entradas, caminho):
                       "diária do conjunto de serviços registrado em cada "
                       "oferta.", ESTILOS["corpo"]),
             _bloco_composicao(dados)))
+
+        hist.append(_com_titulo(
+            "Reorganização de grade",
+            Paragraph("Alterações na relação entre preço e entrega no "
+                      "portfólio de uma operadora: mesmo preço passando a "
+                      "corresponder a outra franquia ou velocidade, ou "
+                      "mesma franquia ou velocidade passando a "
+                      "corresponder a outro preço.", ESTILOS["corpo"]),
+            _bloco_grades(dados)))
+
+        hist.append(_com_titulo(
+            "Degraus retomados com preço diferente",
+            Paragraph("Franquias ou velocidades ausentes da vitrine no dia "
+                      "anterior e reapresentadas na data, com preço "
+                      "distinto do praticado na última oferta registrada "
+                      "nos 45 dias precedentes.", ESTILOS["corpo"]),
+            _bloco_voltaram(dados)))
+
+        hist.append(_com_titulo(
+            "Alterações de denominação",
+            Paragraph("Ofertas identificadas pela mesma chave de série e "
+                      "praça, apresentadas sob outra denominação comercial.",
+                      ESTILOS["corpo"]),
+            _bloco_renomeadas(dados)))
 
     # O link do painel, entre a parte comparativa e as tabelas de
     # catalogo: quem quiser a serie historica, o grafico ou outra praca
@@ -378,10 +590,13 @@ def gerar(dados, entradas, caminho):
         % (PAINEL, PAINEL.replace("https://", "")), ESTILOS["corpo"]))
     hist.append(Spacer(1, 2))
 
+    # A SECAO DO PRODUTO NAO DESAPARECE. Com "if not itens: continue", o
+    # produto sem oferta simplesmente nao existia no PDF - e quem le nao
+    # tem como distinguir "a Claro nao tem below-the-line hoje" de "o
+    # relatorio quebrou no meio". A tabela vazia ja tem a frase para
+    # esse caso, e o cabecalho deste arquivo promete usa-la.
     for chave, titulo in PRODUTOS:
         itens = entradas.get(chave) or []
-        if not itens:
-            continue
         hist.append(_com_titulo(
             "%s — ofertas em São Paulo" % titulo,
             _bloco_produto(itens, chave)))
@@ -392,6 +607,16 @@ def gerar(dados, entradas, caminho):
     # A CONFERENCIA DO DADO, e nao do mercado. Sao perguntas diferentes:
     # as tabelas acima dizem o que mudou, esta diz se o que foi coletado
     # faz sentido. Um dia pode estar calmo numa e podre na outra.
+    hist.append(_com_titulo(
+        "Cobertura da comparação",
+        Paragraph("Proporção das ofertas registradas na data que foram "
+                  "identificadas também no dia anterior, por operadora. "
+                  "A ausência de variações apuradas somente é "
+                  "interpretável à luz desta proporção: ofertas sem "
+                  "correspondência no dia anterior não integram a "
+                  "comparação.", ESTILOS["corpo"]),
+        _bloco_cobertura(dados)))
+
     hist.append(_com_titulo(
         "Conferência dos dados coletados",
         Paragraph("Verificações automáticas sobre a coleta do dia, "

@@ -223,6 +223,8 @@ def _apps_da_brisanet(oferta, produtos):
     nome = oferta.get("offer_name") or ""
     tudo = "%s %s" % (nome, " ".join(produtos or ()))
     achados = list(apps.apps_do_texto(tudo))
+    # sem operadora: so nome proprio de app. "Brisanet Entretenimento
+    # 500MB" nao inclui a TV da Vivo (auditoria 19)
     for a in apps.apps_da_oferta(tudo):
         if a not in achados:
             achados.append(a)

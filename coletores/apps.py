@@ -199,15 +199,27 @@ def _marcas_alheias(app):
     Serve de parede: "Netflix e Spotify Premium" nao pode dar tier
     Premium para o Netflix, porque o Premium esta do outro lado do nome
     do Spotify.
+
+    O "+" SAI DO FIM. "Disney+" e "Paramount+" entravam com o sinal, e
+    parede com sinal nunca casa: a busca e por fronteira de palavra, e
+    nao existe fronteira entre "+" e o espaco que vem depois. Resultado
+    medido: "Netflix e Disney+ Padrao" devolvia Padrao para o NETFLIX.
+
+    E O PISO CAIU DE 4 PARA 3 LETRAS, que deixava Max e Sky de fora -
+    os dois apps de tres letras do dicionario, e os dois citados em
+    oferta de TV. "Netflix e Max Premium" dava Premium ao Netflix.
+    Tres letras com fronteira dos dois lados nao casa dentro de outra
+    palavra, e e a fronteira que faz o trabalho, nao o tamanho.
     """
     fora = []
     for chave, e in APPS.items():
         if chave == app:
             continue
         primeira = _sem_acento((e.get("nome") or chave).lower()).split()[0]
-        if len(primeira) >= 4:
+        primeira = primeira.strip("+")
+        if len(primeira) >= 3:
             fora.append(primeira)
-    return fora
+    return sorted(set(fora))
 
 
 def tier_do_texto(app, *fontes):
@@ -238,11 +250,19 @@ def tier_do_texto(app, *fontes):
             fim_do_nome = i + (len(nome) if t[i:i + len(nome)] == nome
                                else len(marca))
             janela = t[fim_do_nome:fim_do_nome + JANELA_TIER]
-            # a janela acaba na frase seguinte ou no proximo app
-            for parada in [janela.find("."), janela.find(";")] + \
-                          [janela.find(m) for m in alheias]:
-                if parada > 0:
-                    janela = janela[:parada]
+            # A JANELA ACABA NA PRIMEIRA PARADA, inclusive quando ela
+            # esta na posicao zero. O "> 0" de antes ignorava justamente
+            # o caso em que a frase termina colada no nome do app:
+            # "Vivo Pos com Netflix. Premium por R$ 55 a parte" devolvia
+            # Premium, que e o tier da frase SEGUINTE e de uma oferta
+            # que nao e esta. Tier nao declarado tem de voltar None.
+            paradas = [janela.find("."), janela.find(";")]
+            for m in alheias:
+                achou = re.search(r"\b%s\b" % re.escape(m), janela)
+                paradas.append(achou.start() if achou else -1)
+            corte = min([p for p in paradas if p >= 0], default=None)
+            if corte is not None:
+                janela = janela[:corte]
             for nome_tier, _preco in tiers:
                 if _sem_acento(nome_tier.lower()) in janela:
                     return nome_tier
@@ -259,6 +279,9 @@ def planos_dos_apps(lista, *fontes):
     return saida or None
 
 
+# NOME PROPRIO DE APP, no nome da oferta. Vale em qualquer operadora,
+# porque Netflix e Netflix em todas elas.
+#
 # A ordem importa: "YouTube Premium" tem de ser testado antes de
 # qualquer regra mais curta que pudesse casar dentro dele.
 DO_NOME = (
@@ -269,6 +292,18 @@ DO_NOME = (
     (r"\bgloboplay\b", "globoplay"),
     (r"\bamazon\b", "amazon"),
     (r"\bpremiere\b", "premiere"),
+)
+
+# OS SUFIXOS DA VIVO, E SO DELA. Nenhuma destas palavras e nome de app:
+# sao os nomes com que a Vivo batiza a oferta - "Vivo Controle Saude" e
+# telemedicina, "Vivo Controle Entretenimento" e a TV dela. Soltas,
+# casam com o nome de qualquer operadora: "Brisanet Entretenimento
+# 500MB" virava uma oferta com Vivo TV Inicial inclusa, que e servico da
+# concorrente numa oferta que nao o tem.
+#
+# DO_TEXTO ja tomava este cuidado, e o comentario dele ja dizia por que.
+# O cuidado existia num lado e faltava no outro.
+DO_NOME_VIVO = (
     (r"\bsa[úu]de\b", "vale_saude"),
     (r"\beduca[çc][ãa]o\b", "vivae"),
     (r"\bentretenimento\b", "vivo_tv"),
@@ -354,16 +389,34 @@ def nivel_por_apps(texto, extras_catalogo=(), piso=0):
     coletor ja sabe por outro caminho (a Brisanet tem a lista de produtos
     contratados).
     """
-    achados = apps_do_texto(texto)
-    streamings = [a for a in achados if a in STREAMING]
+    nivel = nivel_dos_apps(apps_do_texto(texto))
+    if nivel:
+        return nivel
+    t = (sem_degustacao(texto) or "").lower()
+    if any(e in t for e in extras_catalogo):
+        return 1
+    return piso
+
+
+def nivel_dos_apps(lista, piso=0):
+    """O nivel que uma lista de apps JA IDENTIFICADA implica.
+
+    Contraparte de nivel_por_apps, que parte do texto. Existe porque a
+    oferta as vezes nomeia o app no NOME e nao no texto do card - "Vivo
+    Pos com Amazon", cujo card e so marcacao - e ai o nivel tem de sair
+    da lista final, senao os dois campos da mesma oferta se
+    contradizem. Medido ao vivo em 20/10/2026: apps_rotulo "Amazon
+    Prime" ao lado de nivel 0, que na tela e "so internet e ligacoes".
+
+    E a mesma escada da decisao 10, com os mesmos cortes: a conta de
+    streamings e de apps nao pode morar em dois lugares.
+    """
+    streamings = [a for a in (lista or ()) if a in STREAMING]
     if len(streamings) > 1:
         return 3
     if len(streamings) == 1:
         return 2
-    if achados:
-        return 1
-    t = (sem_degustacao(texto) or "").lower()
-    if any(e in t for e in extras_catalogo):
+    if lista:
         return 1
     return piso
 
@@ -391,16 +444,21 @@ def sem_degustacao(texto):
     # onde cada app e nomeado: o corte comeca no app que a degustacao
     # esta oferecendo, e nao na frase inteira - senao leva o vizinho
     nomes = []
-    for padrao, _app in DO_TEXTO + DO_NOME:
+    for padrao, _app in DO_TEXTO + DO_NOME + DO_NOME_VIVO:
         for m in re.finditer(padrao, t, re.I):
             nomes.append(m.start())
     nomes.sort()
 
     cortes = []
     for m in DEGUSTACAO.finditer(t):
-        # o ultimo nome de app antes da marca, se houver um perto
+        # O ULTIMO nome de app antes da marca, se houver um perto - e a
+        # lista esta em ordem crescente, entao o ultimo e o primeiro de
+        # tras para frente. Varrendo para a frente, o corte comecava no
+        # app MAIS DISTANTE e levava o vizinho embora: em "Netflix
+        # incluso. Disney+: 3 meses por conta da Claro" quem estava em
+        # degustacao era o Disney, e o Netflix desaparecia junto.
         ini = m.start()
-        for pos in nomes:
+        for pos in reversed(nomes):
             if pos < m.start() and m.start() - pos <= JANELA:
                 ini = min(ini, pos)
                 break
@@ -461,11 +519,20 @@ def apps_do_texto(texto, limite=6):
     return [] if len(achados) > limite else achados
 
 
-def apps_da_oferta(nome):
-    """As chaves dos apps que o nome da oferta anuncia."""
+def apps_da_oferta(nome, operadora=None):
+    """As chaves dos apps que o NOME da oferta anuncia.
+
+    Os sufixos da Vivo entram so quando a operadora e ela - ver
+    DO_NOME_VIVO. O padrao e NAO incluir: quem chamar sem dizer de quem
+    e a oferta recebe apenas nome proprio de app, que e o que vale em
+    qualquer vitrine. Assim um coletor novo nao herda o defeito calado.
+    """
     t = (nome or "").lower()
+    regras = DO_NOME
+    if operadora and "vivo" in str(operadora).lower():
+        regras = DO_NOME + DO_NOME_VIVO
     achados = []
-    for padrao, app in DO_NOME:
+    for padrao, app in regras:
         if re.search(padrao, t) and app not in achados:
             achados.append(app)
     return achados

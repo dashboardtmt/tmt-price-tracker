@@ -54,13 +54,19 @@ class PrecoFantasma(unittest.TestCase):
         O que denunciava aquele valor era ser -75% do que a MESMA oferta
         custava no dia anterior. Limite fixo nunca pegaria; o detector
         de salto pega.
+
+        E TEM DE SER GRAVE, nao atencao: atencao fica no relatorio, e um
+        preco que nao e preco de plano precisa chegar a mensagem - foi
+        o defeito que gerou este modulo, e ele passaria em silencio no
+        canal onde alguem olha.
         """
         hist = historico()
         hoje = dia_normal()
         # a oferta que no historico custa R$ 100 aparece a R$ 24,60
         hoje[0]["preco_promocional"] = 24.60
         r = vigia.achados(hoje, hist)
-        self.assertTrue(any("salto" in t for t in atencoes(r)))
+        self.assertTrue(any("salto" in t for t in graves(r)), r)
+        self.assertIn("salto", vigia.resumo(r))
 
     def test_preco_impossivel_de_verdade_e_grave(self):
         hoje = dia_normal() + [oferta(nome="Lixo", preco=0.99,
@@ -135,12 +141,22 @@ class VolumeDeOfertas(unittest.TestCase):
 
 class SaltoDePreco(unittest.TestCase):
 
-    def test_salto_grande_vira_atencao(self):
+    def test_preco_que_dobra_e_grave(self):
         hist = historico()
         hoje = dia_normal()
         hoje[0]["preco_promocional"] = 100.0 * 2
         r = vigia.achados(hoje, hist)
-        self.assertTrue(any("salto" in t for t in atencoes(r)))
+        self.assertTrue(any("salto" in t for t in graves(r)), r)
+
+    def test_salto_de_reajuste_fica_no_relatorio(self):
+        """+60% e muito, mas e um numero que operadora pratica - e o
+        comparador ja reporta isso com nome e praca. Virar manchete
+        todo mes gastaria a credibilidade da linha "Conferir"."""
+        hoje = dia_normal()
+        hoje[0]["preco_promocional"] = 160.0
+        r = vigia.achados(hoje, historico())
+        self.assertTrue(any("salto" in t for t in atencoes(r)), r)
+        self.assertEqual([t for t in graves(r) if "salto" in t], [])
 
     def test_reajuste_pequeno_nao_vira_ruido(self):
         hoje = dia_normal()

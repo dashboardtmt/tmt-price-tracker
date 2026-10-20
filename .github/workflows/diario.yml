@@ -68,15 +68,24 @@ jobs:
     timeout-minutes: 5
     outputs:
       rodar: ${{ steps.ver.outputs.rodar }}
+      travado: ${{ steps.ver.outputs.travado }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Os testes passam?
+        id: testes
         # Coletar com o codigo quebrado envenena a serie: a gravacao e
         # append-only, e dado errado fica para sempre. Perder um dia e
-        # menos pior, e a falha aparece no painel do Actions.
+        # menos pior.
+        #
+        # MAS O JOB NAO PODE FALHAR AQUI. "decidir" falhando faz os oito
+        # gatilhos pularem coleta, aviso e tela: o dia se perde e nao
+        # chega mensagem nenhuma dizendo isso. Com continue-on-error o
+        # resultado do teste vira um DADO que os outros jobs leem, e o
+        # job "alerta" la embaixo conta o que aconteceu.
+        continue-on-error: true
         run: python -m unittest discover -s testes
 
       - name: E hora de coletar?
@@ -85,6 +94,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
+          # CODIGO QUEBRADO NAO COLETA, e o dia fica marcado como travado
+          # para o alerta poder contar isso.
+          if [ "${{ steps.testes.outcome }}" != "success" ]; then
+            echo "rodar=false" >> "$GITHUB_OUTPUT"
+            echo "travado=true" >> "$GITHUB_OUTPUT"
+            echo "os testes nao passam: nao coleta hoje"
+            exit 0
+          fi
+          echo "travado=false" >> "$GITHUB_OUTPUT"
           # disparo na mao sempre roda: quem dispara sabe o que quer
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "rodar=true" >> "$GITHUB_OUTPUT"
@@ -99,6 +117,46 @@ jobs:
             echo "rodar=false" >> "$GITHUB_OUTPUT"
             echo "nao e hora - encerrando"
           fi
+
+  # O DIA PERDIDO TEM DE FALAR. Roda so no ULTIMO gatilho do dia, e e
+  # isso que garante uma mensagem em vez de oito: a condicao e o proprio
+  # cron que disparou a rodada, sem depender de estado em lugar nenhum.
+  #
+  # Cobre os dois jeitos de o dia morrer calado: o portao de testes
+  # barrando a coleta, e o proprio "decidir" quebrando antes de decidir
+  # (checkout, setup-python, rede). Nos dois casos nao houve coleta e nao
+  # houve aviso, e o unico sinal era um quadrado vermelho no painel.
+  #
+  # Curl cru de proposito: se o codigo esta quebrado, o aviso nao pode
+  # depender do codigo.
+  alerta:
+    needs: decidir
+    if: >
+      always() && github.event.schedule == '29 13 * * *' &&
+      (needs.decidir.result != 'success' ||
+       needs.decidir.outputs.travado == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Contar que o dia nao foi coletado
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          MOTIVO="a rotina nao conseguiu decidir se era hora de coletar"
+          if [ "${{ needs.decidir.outputs.travado }}" = "true" ]; then
+            MOTIVO="a suite de testes nao passou, e coletar com codigo quebrado gravaria dado errado numa serie que nao se corrige"
+          fi
+          TEXTO="TMT Price Tracker - $(date -u -d '-3 hours' +%d/%m)
+          O DIA NAO FOI COLETADO.
+          Motivo: ${MOTIVO}.
+          Nao ha dado novo hoje, e nada foi gravado. O historico anterior segue intacto.
+          Detalhes: ${RUN}"
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=${TEXTO}" > /dev/null
+          echo "alerta de dia perdido enviado"
 
   coleta:
     needs: decidir

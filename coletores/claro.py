@@ -173,19 +173,11 @@ def ler_cards(op, url, produto):
         # como se fosse plano e estragaria qualquer media.
         if 'data-link-redirect="/celulares/' in bloco[:12000] or "data-product-name=" in bloco[:12000]:
             continue
-        # O PRECO NAO PODE SAIR DE UMA FRASE DE DEGUSTACAO. Em
-        # 07/10/2026 tres cards de Controle em Porto Alegre vieram com
-        # R$ 24,60 - o preco avulso do Disney+, citado em "Disney+: 3
-        # meses por conta da Claro. Apos, R$24,60 por mes" - no lugar
-        # dos R$ 99,90 do plano, porque a leitura pega o primeiro "R$"
-        # e naquele dia a frase do beneficio veio antes no markup.
-        # A serie mostrava o preco certo nos outros quinze dias.
-        limpo = apps.sem_degustacao(txt)
-        preco = re.search(r"R\$\s?([\d.]+,\d{2})", limpo or "")
-        if not preco:
+        valor, tinha = preco_do_card(txt)
+        if valor is None:
             # tinha preco, mas so dentro da frase do beneficio: a oferta
             # fica de fora em vez de entrar com o preco errado
-            if re.search(r"R\$\s?([\d.]+,\d{2})", txt):
+            if tinha:
                 sem_preco_real += 1
             continue
         if txt.startswith("data-") or not re.match(r"[A-Za-z]", txt):
@@ -205,7 +197,7 @@ def ler_cards(op, url, produto):
             "campanha": campanha,
             "nome_oferta": (nome or "Claro")[:70],
             "destaque": destaque.group(1) if destaque else None,
-            "preco_promocional": numero(preco.group(1)),
+            "preco_promocional": numero(valor),
             "composicao": txt[:400],
         })
     if sem_preco_real and cards:
@@ -229,6 +221,35 @@ QUALIFICADOR = re.compile(
     r"\d+\s*(?:GB|MEGA|Mega|Giga)\s+"
     r"((?:[A-ZÀ-Ý][\wÀ-ÿ+]{2,14}\s*){1,2}?)"
     r"(?=\s*(?:At[ée]\b|Linhas\b|Valor\b|R\$|\d))")
+
+
+PRECO = re.compile(r"R\$\s?([\d.]+,\d{2})")
+
+
+def preco_do_card(txt):
+    """O preco do PLANO anunciado num card. Devolve (valor, tinha_algum).
+
+    O PRECO NAO PODE SAIR DE UMA FRASE DE DEGUSTACAO. Em 07/10/2026 tres
+    cards de Controle em Porto Alegre vieram com R$ 24,60 - o preco
+    avulso do Disney+, citado em "Disney+: 3 meses por conta da Claro.
+    Apos, R$24,60 por mes" - no lugar dos R$ 99,90 do plano, porque a
+    leitura pega o primeiro "R$" e naquele dia a frase do beneficio veio
+    antes no markup. A serie mostrava o preco certo nos outros quinze
+    dias.
+
+    O segundo item da resposta diz se HAVIA preco no card: card cujo
+    unico "R$" estava dentro da frase do beneficio fica de fora, e isso
+    e contado como aviso da rodada em vez de entrar com o preco errado.
+
+    E UMA FUNCAO COM NOME, e nao quatro linhas no meio do laco, porque o
+    teste precisa chamar exatamente isto. Enquanto a leitura morava no
+    laco, o teste reimplementava os mesmos dois passos - e quebrar a
+    linha de producao deixava a suite verde.
+    """
+    achado = PRECO.search(apps.sem_degustacao(txt) or "")
+    if achado:
+        return achado.group(1), True
+    return None, bool(PRECO.search(txt or ""))
 
 
 def _qualificador_do_card(txt):

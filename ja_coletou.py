@@ -49,14 +49,29 @@ ABERTURA = hora(6, 0)
 # um dado que chegou tarde, e as 10h ja nao ha o que esperar.
 LIMITE = hora(10, 0)
 
-# Quantas operadoras precisam ter registro para o dia contar como
-# coletado. Abaixo disto a rodada anterior morreu no meio, e a proxima
-# tentativa tem o que fazer.
-MINIMO = 5
+def _esperadas():
+    """Quantos coletores a rodada tem.
+
+    SAI DO ROBO, e nao de um numero copiado aqui: copia envelhece em
+    silencio, e esta decide se o dia ja foi coletado. Coletor novo
+    entrando no robo passaria a nao contar, e o dia fecharia faltando um.
+    """
+    from robo import COLETORES
+    return len(COLETORES)
 
 
 def _ja_coletou(hoje):
-    """(ja_coletou, quantas_ok). Em caso de duvida, devolve False."""
+    """(a rodada de hoje fechou?, quantos coletores registraram).
+
+    O SINAL E "REGISTROU", NAO "DEU CERTO". Cada coletor grava sua linha
+    em "coletas" assim que termina, com sucesso ou sem; a rodada que
+    chegou ao fim deixa uma linha por coletor. Contar sucesso deixaria o
+    dia aberto para sempre quando um coletor falha de forma persistente -
+    e ai os oito gatilhos recoletariam todo dia.
+
+    Em caso de duvida devolve False, que manda coletar: perder o dia por
+    nao conseguir perguntar seria o pior dos dois erros.
+    """
     url = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
     chave = os.environ.get("SUPABASE_SECRET_KEY") or ""
     if not url or not chave:
@@ -70,21 +85,23 @@ def _ja_coletou(hoje):
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             linhas = json.loads(r.read().decode("utf-8", "replace"))
+        esperadas = _esperadas()
     except Exception as e:
         sys.stderr.write("nao deu para perguntar: %s\n" % e)
         return False, None
 
+    registradas = {l["operadora"] for l in linhas}
     ok = {l["operadora"] for l in linhas if l.get("sucesso")}
-    return len(ok) >= MINIMO, len(ok)
+    sys.stderr.write("%s: %d de %d coletores registraram (%d com sucesso)\n"
+                     % (hoje, len(registradas), esperadas, len(ok)))
+    return len(registradas) >= esperadas, len(registradas)
 
 
 def main():
     agora = datetime.now(BRT)
     hoje = agora.date().isoformat()
 
-    feito, quantas = _ja_coletou(hoje)
-    if quantas is not None:
-        sys.stderr.write("%s: %d operadora(s) com coleta ok\n" % (hoje, quantas))
+    feito, _quantas = _ja_coletou(hoje)
 
     if feito:
         print("nao")
