@@ -220,7 +220,12 @@ class PontoCegoChegaNaMensagem(unittest.TestCase):
                    par(HOJE, "Vivo|combo|700mbps|familia_tv"))
         self.assertNotIn("-26%", t)
         self.assertNotIn("390,00 → 290,00", t)
-        self.assertIn("indistinguíveis entre si", t)
+        # a colisao aqui e de ONTEM: hoje as duas ofertas tem chaves
+        # distintas e sao comparaveis. O efeito dela sobre hoje e a perda
+        # do par, e e a cobertura que diz isso - a frase "fora da
+        # comparação de hoje" seria falsa (auditoria 2, A5)
+        self.assertIn("alcançou só", t)
+        self.assertNotIn("ficaram fora da comparação de hoje", t)
 
     def test_e_a_cobertura_conta_as_que_sairam(self):
         """Tirar as colididas do indice faria a cobertura parecer melhor
@@ -539,7 +544,24 @@ class TelegramNaoRecusaAMensagem(unittest.TestCase):
     def test_mensagem_gigante_e_cortada_e_avisa(self):
         r = robo._cabe_no_telegram("x" * 9000)
         self.assertLessEqual(len(r), robo.TETO_TELEGRAM)
-        self.assertIn("cortada", r)
+        self.assertIn("cortado", r)
+
+    def test_o_corte_preserva_o_fim_da_mensagem(self):
+        """AUDITORIA 2, M8. O corte era no fim, e o fim e onde moram
+        o link do painel e a linha "Conferir" do vigia - e o dia que
+        passa de 4096 caracteres e justamente o dia em que ha
+        denuncia grave. Cortar o fim jogava fora a informacao de
+        maior consequencia."""
+        rodape = ("Relat\u00f3rio completo em anexo \u00b7 %s" % robo.PAINEL
+                  + "\n\nConferir: Brisanet sem velocidade")
+        texto = "abre\n" + "recheio " * 900 + "\n" + rodape
+        r = robo._cabe_no_telegram(texto)
+        self.assertLessEqual(len(r), robo.TETO_TELEGRAM)
+        self.assertTrue(r.startswith("abre"))
+        self.assertIn(robo.PAINEL, r)
+        self.assertIn("Conferir: Brisanet sem velocidade", r)
+
+
 
 
 if __name__ == "__main__":

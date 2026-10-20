@@ -69,6 +69,20 @@ def _entrega(o):
     return o.get("degrau_mbps") or o.get("franquia_anunciada_gb")
 
 
+def _severo(antes, agora):
+    """Este salto e grande demais para ser reajuste?
+
+    DOIS LIMITES, PORQUE SAO DUAS ESCALAS - ver QUEDA_INACREDITAVEL e
+    SALTO_INACREDITAVEL. Funcao separada porque a resposta e usada duas
+    vezes: para decidir a gravidade do grupo e para escolher qual salto
+    o texto cita.
+    """
+    if not antes or agora is None:
+        return False
+    return (agora <= antes * (1 - QUEDA_INACREDITAVEL)
+            or agora >= antes * (1 + SALTO_INACREDITAVEL))
+
+
 def _mediana(valores):
     v = sorted(valores)
     if not v:
@@ -188,21 +202,28 @@ def achados(hoje, anteriores):
             if a and abs(p - a) / a >= SALTO_QUE_PREOCUPA:
                 saltos.append((abs(p - a) / a, o, a, p))
         if saltos:
+            # MODULO MAIOR NAO E PIOR. A gravidade saia de saltos[0], o
+            # de maior modulo, e isso escondia o pior: medido com Claro
+            # 99,90 -> 24,60 (-75%, o formato do preco fantasma) junto
+            # com Vivo 100,00 -> 195,00 (+95%, modulo maior e nao
+            # severo), o grupo inteiro virava "atencao" e o fantasma nao
+            # chegava a mensagem. E o texto que sobrava nomeava a outra
+            # operadora, mandando a pessoa olhar a oferta errada.
+            severos = [x for x in saltos if _severo(x[2], x[3])]
             # ordena so pelo tamanho do salto: com empate, o Python
             # tentaria comparar os dicionarios de oferta e estouraria
-            saltos.sort(key=lambda x: x[0], reverse=True)
-            pc, o, a, p = saltos[0]
-            texto = ("%d salto(s) de preco acima de %d%%, o maior em %s "
+            (severos or saltos).sort(key=lambda x: x[0], reverse=True)
+            pc, o, a, p = (severos or saltos)[0]
+            texto = ("%d salto(s) de preco acima de %d%%, o %s em %s "
                      "(R$ %.2f para R$ %.2f)"
                      % (len(saltos), int(SALTO_QUE_PREOCUPA * 100),
+                        "mais grave" if severos else "maior",
                         (o.get("nome_oferta") or "?")[:30], a, p))
             # O SALTO INACREDITAVEL CHEGA A MENSAGEM. Era tudo
             # "atencao", e atencao nao sai do relatorio - o detector que
             # pegaria os R$ 24,60 do preco fantasma existia e ficava
             # calado onde importa.
-            severo = (p <= a * (1 - QUEDA_INACREDITAVEL)
-                      or p >= a * (1 + SALTO_INACREDITAVEL))
-            (grave if severo else atencao)(texto)
+            (grave if severos else atencao)(texto)
 
     # ------------------------------------------------ nome suspeito
     vazios = sum(1 for o in hoje if not (o.get("nome_oferta") or "").strip())

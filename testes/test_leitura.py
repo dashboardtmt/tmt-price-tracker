@@ -58,6 +58,7 @@ class UmaOperadoraEhNoticia(unittest.TestCase):
         t = montar(versao(variante="simples", bundle=0, data=ONTEM),
                    versao(variante="com_apps", bundle=2, data=HOJE))
         self.assertIn("mesmo preço (30,00) e mesma entrega (20 GB)", t)
+        self.assertNotIn("pelo mesmo preço (30,00) e", t)
         self.assertIn("passou de \"sem assinatura inclusa\" para "
                       "\"com uma assinatura\"", t)
         self.assertNotIn("nossa leitura", t)

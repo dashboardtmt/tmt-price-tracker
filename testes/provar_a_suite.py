@@ -111,7 +111,7 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    remodeladas = [r for r in _oferta_remodelada(h, o)\n',
+        '    remodeladas = [r for r in _oferta_remodelada(h, o, usadas)\n',
         '    remodeladas = [r for r in []\n',
         "2. preco e degrau mudando juntos voltam a ser invisiveis"),
 
@@ -124,8 +124,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    if ponto_cego and col:\n        linhas += ["", ponto_cego["curto"]]',
-        '    if False:\n        linhas += ["", ponto_cego["curto"]]',
+        '    if ponto_cego and (col or erro_col):',
+        '    if False:',
         "4. o ponto cego volta a so existir no rodape do PDF"),
 
     Mutacao(
@@ -188,9 +188,8 @@ MUTACOES = [
 
     Mutacao(
         "vigia.py",
-        '            severo = (p <= a * (1 - QUEDA_INACREDITAVEL)\n'
-        '                      or p >= a * (1 + SALTO_INACREDITAVEL))',
-        '            severo = False',
+        '            (grave if severos else atencao)(texto)',
+        '            atencao(texto)',
         "11b. o preco fantasma volta a nao chegar na mensagem"),
 
     Mutacao(
@@ -276,7 +275,7 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    return universo > 1 and quantas * 2 <= universo',
+        '    return universo > 1 and quantas * 2 < universo',
         '    return False',
         "26b. versao mudando em 2 de 18 pracas volta a ser noticia"),
 
@@ -305,6 +304,75 @@ MUTACOES = [
         '    total = len(h) + (fora or 0)',
         '    total = len(h)',
         "30. a cobertura volta a nao contar as ofertas que sairam"),
+
+    # ---------------------------------------------------------------
+    # A SEGUNDA AUDITORIA. Nove achados graves que sobreviveram aos
+    # 23 da primeira, aos 166 testes e a medicao nos 21 dias - todos
+    # em caminho de ERRO: consulta que cai, lista vazia, None
+    # formatado como numero, campo desconhecido afirmado como igual.
+    # Codigo de sucesso a gente testa; codigo de erro a gente escreve
+    # e nunca mais olha, e e onde a afirmacao falsa mora.
+    # ---------------------------------------------------------------
+
+    Mutacao(
+        "robo.py",
+        '    col, erro_col = armazenamento.consultar(',
+        '    col, erro_col = (lambda a, b: (a, None))(*armazenamento.consultar(',
+        "A1. consulta que cai volta a virar dia sem coleta"),
+
+    Mutacao(
+        "robo.py",
+        '        if cobertura is None:',
+        '        if False:',
+        "A2. zero ofertas voltam a sair como zero mudancas"),
+
+    Mutacao(
+        "robo.py",
+        '    if pedidas and ok < pedidas:',
+        '    if pedidas:',
+        "A2b. falha de gravacao volta a sair como 20 de 20 pracas"),
+
+    Mutacao(
+        "robo.py",
+        '    if r.get("antes_entrega") is None or r.get("agora_entrega") is None:',
+        '    if False:',
+        "A3. entrega nao lida volta a ser afirmada como igual"),
+
+    Mutacao(
+        "robo.py",
+        '    if r.get("antes_preco") is None or r.get("agora_preco") is None:',
+        '    if False:',
+        "A4. preco nao lido volta a ser afirmado como igual"),
+
+    Mutacao(
+        "robo.py",
+        '    cego = cego_h\n',
+        '    cego = cego_h or cego_o\n',
+        "A5. a colisao de ontem volta a contar como de hoje"),
+
+    Mutacao(
+        "robo.py",
+        '        grupo.sort(key=_por_efeito, reverse=True)',
+        '        pass',
+        "A7. a mensagem volta a mostrar 3 de N sem ordenar"),
+
+    Mutacao(
+        "vigia.py",
+        '            severos = [x for x in saltos if _severo(x[2], x[3])]',
+        '            severos = []',
+        "A6. o vigia volta a julgar pelo salto de maior modulo"),
+
+    Mutacao(
+        "robo.py",
+        '    voltaram = _degraus_que_voltaram(h, o, hoje) if o else []',
+        '    voltaram = _degraus_que_voltaram(h, o, hoje)',
+        "M5. dia seguinte a um dia perdido volta a virar enxurrada"),
+
+    Mutacao(
+        "robo.py",
+        '        if _identidade(antes) in (usadas or ()):',
+        '        if False:',
+        "M1. a oferta de ontem volta a ser antes de dois eventos"),
 
     Mutacao(
         "relatorio.py",

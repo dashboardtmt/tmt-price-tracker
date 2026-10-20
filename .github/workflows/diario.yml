@@ -141,9 +141,41 @@ jobs:
       (needs.decidir.result != 'success' ||
        needs.decidir.outputs.travado == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # O DIA PODE TER SIDO COLETADO ANTES DE QUEBRAR. A condicao acima
+      # ve "decidir" desta rodada, e nao o dia: um commit que quebra um
+      # teste as 11h, depois da coleta das 7h ter rodado e avisado,
+      # fazia o alerta anunciar "O DIA NAO FOI COLETADO ... nada foi
+      # gravado" sobre um dia inteiro coletado e reportado. E o curl
+      # abaixo e cru de proposito, entao nada no caminho desmente.
+      #
+      # A guarda ja sabe a resposta: ela responde "nao" quando a rodada
+      # do dia fechou. Perguntar antes de falar custa meio minuto.
+      - name: O dia foi coletado, afinal?
+        id: ver
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          # "nao" aqui quer dizer "nao precisa coletar", ou seja: o dia
+          # fechou. Em caso de duvida ela responde "sim", e ai o alerta
+          # sai - o que esta certo: sem conseguir perguntar, o dia nao
+          # pode ser declarado coletado.
+          if [ "$(python ja_coletou.py)" = "nao" ]; then
+            echo "falar=false" >> "$GITHUB_OUTPUT"
+            echo "o dia fechou antes de quebrar - nada a alertar"
+          else
+            echo "falar=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Contar que o dia nao foi coletado
+        if: steps.ver.outputs.falar == 'true'
         env:
           TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -238,6 +270,45 @@ jobs:
           # o relatorio em PDF que vai anexado na mensagem
           pip install --quiet reportlab
           python robo.py --avisar
+
+  # A MENSAGEM QUE NAO SAIU TEM DE FALAR POR SI. "aviso" so roda com
+  # rodar == 'true', e depois que a rodada fecha a guarda responde "nao"
+  # em todos os gatilhos seguintes: o job fica skipped para sempre. Se o
+  # --avisar falhar - sendMessage recusado, montar_mensagem levantando -
+  # o dia tem coleta, tem PDF e nunca tem mensagem, e o unico sinal e o
+  # quadrado vermelho no painel. Que e exatamente o modo de falhar que o
+  # job "alerta" existe para eliminar.
+  #
+  # Roda na MESMA rodada do aviso, entao nao repete: uma falha, um
+  # alerta. E o curl e cru porque o que falhou foi justamente o codigo
+  # que manda mensagem.
+  aviso_falhou:
+    needs: aviso
+    # O JOB CERTO. "failure()" sozinho quer dizer "algum job anterior do
+    # grafo falhou", e o grafo do aviso passa por decidir, coleta e
+    # repique: dia em que a coleta falha e o aviso sai normalmente
+    # dispararia "A MENSAGEM DE HOJE NAO FOI GERADA" sobre uma mensagem
+    # entregue - e no dia em que a coleta falhou e justamente quando a
+    # pessoa precisa confiar na mensagem que recebeu.
+    if: always() && needs.aviso.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Contar que a mensagem do dia nao saiu
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TEXTO="TMT Price Tracker - $(date -u -d '-3 hours' +%d/%m)
+          A MENSAGEM DE HOJE NAO FOI GERADA.
+          A coleta do dia rodou e o dado esta gravado - o que falhou foi o passo que monta e envia o aviso.
+          Nada foi perdido: o painel esta atualizado e a comparacao de amanha inclui hoje.
+          Detalhes: ${RUN}"
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=${TEXTO}" > /dev/null
+          echo "alerta de aviso falhado enviado"
 
   tela:
     needs: [aviso, decidir]

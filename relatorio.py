@@ -186,9 +186,10 @@ def _secao(titulo):
 
 def _bloco_precos(d):
     linhas = []
-    for m in sorted(d.get("mudancas_preco") or [],
-                    key=lambda x: -abs((x["atual"]["preco_promocional"] or 0)
-                                       - (x["antes"]["preco_promocional"] or 0))):
+    # A ORDEM VEM PRONTA DO ROBO (_por_efeito). Ordenar de novo aqui,
+    # por outro critério, fazia a mensagem e o PDF discordarem sobre qual
+    # era a maior mudanca do dia - e a mensagem mostra tres de N.
+    for m in (d.get("mudancas_preco") or []):
         a, at = m["antes"], m["atual"]
         linhas.append([
             at.get("operadora"),
@@ -257,8 +258,13 @@ def _entrega(o, produto):
     return base
 
 
-def _bloco_produto(itens, produto):
-    """Todas as ofertas de um produto, agrupadas por operadora."""
+def _bloco_produto(itens, produto, erro=None):
+    """Todas as ofertas de um produto, agrupadas por operadora.
+
+    CONSULTA QUE CAIU NAO E PRODUTO SEM OFERTA. As duas saiam como "Sem
+    dados disponiveis para a praca de referencia", e distinguir uma da
+    outra e justamente o que o cabecalho deste arquivo promete.
+    """
     def chave(o):
         op = o.get("operadora")
         i = ORDEM.index(op) if op in ORDEM else len(ORDEM)
@@ -283,7 +289,9 @@ def _bloco_produto(itens, produto):
         ["Operadora", "Oferta", "Entrega", "Preço", unidade or "Unitário"],
         linhas,
         [24 * mm, 64 * mm, 28 * mm, 26 * mm, 36 * mm],
-        vazio="Sem dados disponíveis para a praça de referência.")
+        vazio=("Não foi possível consultar as ofertas deste produto: %s"
+               % erro) if erro
+        else "Sem dados disponíveis para a praça de referência.")
 
 
 def _unidade(e):
@@ -318,11 +326,8 @@ def _bloco_remodeladas(itens, vazio):
     parear a oferta, e o aviso do dia dizia "nenhuma mudanca de preco,
     composicao ou nome".
     """
-    def peso(x):
-        return -abs((x.get("agora_preco") or 0) - (x.get("antes_preco") or 0))
-
     linhas = []
-    for r in sorted(itens or [], key=peso):
+    for r in (itens or []):
         u = _unidade(r)
         preco = _reais(r.get("agora_preco"))
         if r.get("preco_mudou"):
@@ -599,7 +604,8 @@ def gerar(dados, entradas, caminho):
         itens = entradas.get(chave) or []
         hist.append(_com_titulo(
             "%s — ofertas em São Paulo" % titulo,
-            _bloco_produto(itens, chave)))
+            _bloco_produto(itens, chave,
+                           (dados.get("erros_catalogo") or {}).get(chave))))
 
     if not (dados.get("falhas") or dados.get("sem_registro")):
         hist.append(_com_titulo("Estado da coleta", _bloco_coleta(dados)))
@@ -631,6 +637,16 @@ def gerar(dados, entradas, caminho):
         hist.append(Paragraph(
             "<b>Nota metodológica.</b> %s" % dados["ponto_cego"],
             ESTILOS["nota"]))
+
+    # O PONTO CEGO DO DIA ANTERIOR e nota, e nao manchete: o efeito dele
+    # sobre esta data ja esta na cobertura - as ofertas de hoje que
+    # perderam o par. Dizer "N ofertas ficaram fora da comparação de
+    # hoje" com o número de ontem seria falso (auditoria 2, A5).
+    if dados.get("ponto_cego_ontem"):
+        hist.append(Spacer(1, 4))
+        hist.append(Paragraph(
+            "<b>Nota metodológica (data anterior).</b> %s"
+            % dados["ponto_cego_ontem"], ESTILOS["nota"]))
 
     hist.append(Spacer(1, 8))
     hist.append(Paragraph(

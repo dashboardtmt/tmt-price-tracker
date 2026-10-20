@@ -37,7 +37,7 @@ class OfertaRenomeada(unittest.TestCase):
     """
 
     def test_nome_novo_e_preco_novo_aparecem_juntos(self):
-        achou = robo._renomeadas(
+        achou, _usadas = robo._renomeadas(
             indexar([oferta(operadora="TIM", produto="controle",
                             nome="TIM Controle Smart", preco=62.99, gb=40,
                             chave="TIM|controle|40gb|simples")]),
@@ -67,7 +67,7 @@ class OfertaRenomeada(unittest.TestCase):
                                 data=ONTEM),
                          oferta(nome="B velha", preco=20.0, chave="k",
                                 data=ONTEM)])
-        self.assertEqual(robo._renomeadas(hoje, ontem), [])
+        self.assertEqual(robo._renomeadas(hoje, ontem)[0], [])
 
     def test_safra_no_nome_nao_e_renomeacao(self):
         """A NuCel carimba o mes no nome: "[SET] OFT NC PF PROMO 12M" vira
@@ -78,7 +78,30 @@ class OfertaRenomeada(unittest.TestCase):
         ontem = indexar([oferta(operadora="NuCel", praca="Brasil/BR",
                                 nome="[SET] OFT NC PF PROMO 12M", preco=45.0,
                                 data=ONTEM)])
-        self.assertEqual(robo._renomeadas(hoje, ontem), [])
+        self.assertEqual(robo._renomeadas(hoje, ontem)[0], [])
+
+
+class OIdentificadoDeOntemSoServeUmaVez(unittest.TestCase):
+    """AUDITORIA 2, M1. _renomeadas devolve tambem as identidades de
+    ontem que consumiu, porque a oferta de ontem so pode ser o "antes"
+    de UM evento.
+
+    Nao da para reconstruir essa lista de fora: _agrupar guarda um
+    "antes" por grupo, e foi assim que a primeira tentativa de consertar
+    o M1 protegeu uma praca e deixou as outras 19 - a mensagem saiu "em
+    19 de 20", que foi o sinal de que o conserto estava errado.
+    """
+
+    def test_devolve_uma_identidade_por_praca(self):
+        ontem = em_todas(operadora="TIM", produto="controle",
+                         nome="TIM Controle", preco=58.99, gb=40,
+                         data=ONTEM, chave="TIM|controle|40gb|simples")
+        hoje = em_todas(operadora="TIM", produto="controle",
+                        nome="TIM Controle Smart", preco=62.99, gb=40,
+                        data=HOJE, chave="TIM|controle|40gb|simples")
+        eventos, usadas = robo._renomeadas(indexar(hoje), indexar(ontem))
+        self.assertEqual(len(eventos), 1, "uma mudanca nacional, um evento")
+        self.assertEqual(len(usadas), 20, "mas as 20 identidades consumidas")
 
 
 class EscadaReorganizada(unittest.TestCase):
