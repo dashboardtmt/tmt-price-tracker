@@ -106,7 +106,7 @@ def sem_declaracao(caso):
 
 def oferta(operadora="Vivo", produto="movel", nome="Vivo Pós", preco=119.90,
            gb=50, mbps=None, praca="Sao Paulo/SP", chave=None, data=HOJE,
-           sva=None):
+           sva=None, anatel=None):
     """Uma linha de captura como o banco a devolveria.
 
     data_captura e NOT NULL no esquema, e a coluna e o que o robo filtra:
@@ -119,6 +119,9 @@ def oferta(operadora="Vivo", produto="movel", nome="Vivo Pós", preco=119.90,
             "franquia_anunciada_gb": gb, "degrau_mbps": mbps,
             "destaque": ("%s GB" % gb) if gb else ("%s Mbps" % mbps),
             "nivel_bundle": 0, "assinatura_sva": sva,
+            # o padrao e ausente de proposito: grupo sem codigo continua
+            # indistinguivel, e e isso que os testes de colisao medem
+            "codigo_anatel": anatel,
             "chave": chave or "%s|%s|%s|simples" % (operadora, produto, degrau)}
 
 

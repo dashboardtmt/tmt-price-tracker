@@ -655,6 +655,62 @@ MUTACOES = [
         "G2. oferta com outro preco volta a contar como identidade nova"),
 
     Mutacao(
+        "robo.py",
+        '        cods = [l.get("codigo_anatel") for l in linhas]\n'
+        '        return bool(cods) and all(cods) and len(set(cods)) == len(cods)',
+        '        return True',
+        "H1. grupo que o codigo NAO separa volta a ser desempatado"),
+
+    Mutacao(
+        "robo.py",
+        '    nome = re.sub(r"\\[[^\\]]*\\]", " ", l.get("nome_oferta") or "")\n'
+        '    return l["chave"], l["praca"], " ".join(nome.lower().split())',
+        '    nome = re.sub(r"\\[[^\\]]*\\]", " ", l.get("nome_oferta") or "")\n'
+        '    return (l["chave"], l["praca"], " ".join(nome.lower().split()),\n'
+        '            l.get("codigo_anatel"))',
+        "H2. o codigo entra na identidade de todas as ofertas"),
+
+    Mutacao(
+        "robo.py",
+        '            if indice.get(k) is not None and any(l is indice[k]\n'
+        '                                                 for l in linhas):\n'
+        '                del indice[k]\n',
+        '',
+        "H3. a oferta promovida volta a contar duas vezes no denominador"),
+
+    Mutacao(
+        "robo.py",
+        '            for l in linhas:\n'
+        '                indice[_identidade(l) + (l["codigo_anatel"],)] = l\n'
+        '                promovidas.add(id(l))',
+        '            comuns = ({x["codigo_anatel"] for x in lh}\n'
+        '                      & {x["codigo_anatel"] for x in lo})\n'
+        '            for l in linhas:\n'
+        '                if l["codigo_anatel"] not in comuns:\n'
+        '                    continue\n'
+        '                indice[_identidade(l) + (l["codigo_anatel"],)] = l\n'
+        '                promovidas.add(id(l))',
+        "H4. oferta nova do grupo volta a ser chamada de indistinguivel"),
+
+    Mutacao(
+        "robo.py",
+        '        lh, lo = d_h.get(k) or [], d_o.get(k) or []\n'
+        '        pode_h, pode_o = separavel(lh), separavel(lo)',
+        '        lh, lo = d_h.get(k) or [], d_o.get(k) or []\n'
+        '        if not lh or not lo:\n'
+        '            continue\n'
+        '        pode_h, pode_o = separavel(lh), separavel(lo)',
+        "H5. lado separavel sozinho volta a ficar fora da comparacao"),
+
+    Mutacao(
+        "robo.py",
+        '        restantes = [l for l in ((cego or {}).get("descartadas") or ())\n'
+        '                     if id(l) not in promovidas]\n'
+        '        return _aviso_de_colisao(restantes)',
+        '        return cego',
+        "H6. a ressalva volta a anunciar o grupo inteiro depois de resolvido"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',

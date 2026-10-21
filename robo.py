@@ -288,7 +288,8 @@ def _indexar(dia):
     # criar uma exigiria um ALTER TABLE na mao a cada campo novo
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
               "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
-              "nivel_bundle,assinatura_sva:bruto->>assinatura_sva")
+              "nivel_bundle,codigo_anatel,"
+              "assinatura_sva:bruto->>assinatura_sva")
     # paginado: sao mais de mil capturas por dia, e pedir "limit=20000"
     # trazia so as primeiras mil sem reclamar
     linhas, erro = armazenamento.consultar_tudo(
@@ -347,12 +348,23 @@ def _indexar(dia):
     # nao e a mesma frase que "nenhuma mudanca". Antes so existia a
     # longa, e ela so chegava ao rodape do PDF - se o relatorio falhasse,
     # o ponto cego desaparecia inteiro e a mensagem afirmava sem ressalva.
-    aviso = None
-    if colididas:
-        # _rotulo evita o "Vivo Vivo Familia 2 + TV": o nome da oferta
-        # ja comeca com a marca na maioria das operadoras
-        quais = sorted({_rotulo(c) for c in colididas})
-        aviso = {
+    return indice, erro, _aviso_de_colisao(colididas)
+
+
+def _aviso_de_colisao(colididas):
+    """A ressalva das ofertas que ficaram fora, do tamanho do que sobrou.
+
+    Mora fora de _indexar porque o desempate por codigo_anatel refaz a
+    conta depois, com o grupo ja reduzido: um dia em que o codigo
+    resolve tudo nao pode continuar anunciando 40 ofertas fora da
+    comparacao.
+    """
+    if not colididas:
+        return None
+    # _rotulo evita o "Vivo Vivo Familia 2 + TV": o nome da oferta
+    # ja comeca com a marca na maioria das operadoras
+    quais = sorted({_rotulo(c) for c in colididas})
+    return {
             "quantas": len(colididas),
             # as linhas em si, para _degraus_que_voltaram nao confundir
             # "descartada de ontem" com "ausente de ontem"
@@ -369,8 +381,82 @@ def _indexar(dia):
                       "para o outro. Não é possível afirmar se houve "
                       "variação de preço nelas."
                       % (len(colididas), "; ".join(quais[:2]))),
-        }
-    return indice, erro, aviso
+    }
+
+
+def _desempatar_por_anatel(h, cego_h, o, cego_o):
+    """Dentro do grupo que colide, o codigo de registro separa as ofertas.
+
+    Devolve os dois avisos refeitos. Mexe em h e em o no lugar: a oferta
+    que o codigo resolve entra com a identidade estendida pelo codigo nos
+    DOIS dias, e e isso que faz o par existir.
+
+    SO DENTRO DO GRUPO. A identidade geral nao leva o codigo porque ele
+    troca sozinho em 2,6% das ofertas unicas - e quando troca, troca
+    junto com o preco, que e justamente a noticia (Vivo Fibra 700,
+    R$ 150 -> 100 em 08/10/2026). Ver o cabecalho do commit.
+    """
+    def descartadas(cego):
+        g = collections.defaultdict(list)
+        for l in ((cego or {}).get("descartadas") or ()):
+            g[_identidade(l)].append(l)
+        return g
+
+    # so as identidades que algum dos dois dias reclamou sao olhadas:
+    # quem ja pareia bem nao e tocado
+    d_h, d_o = descartadas(cego_h), descartadas(cego_o)
+    bases = set(d_h) | set(d_o)
+
+    def separavel(linhas):
+        """O codigo da identidade propria a cada linha do grupo?
+
+        Exige codigo em todas e todos distintos. Sem isso, promover o
+        grupo trocaria a ambiguidade de lugar em vez de resolve-la: duas
+        linhas cairiam na mesma identidade estendida e voltaria o sorteio
+        que produziu o falso "-26% em todas as 20 pracas".
+        """
+        cods = [l.get("codigo_anatel") for l in linhas]
+        return bool(cods) and all(cods) and len(set(cods)) == len(cods)
+
+    promovidas_h, promovidas_o = set(), set()
+    for k in bases:
+        # CADA LADO DECIDE SOZINHO. Grupo separavel entra no indice
+        # mesmo sem contraparte: a oferta fica sem par, que e a verdade
+        # que a cobertura conta, e nao "indistinguivel das irmas".
+        lh, lo = d_h.get(k) or [], d_o.get(k) or []
+        pode_h, pode_o = separavel(lh), separavel(lo)
+        # A LINHA QUE ESTA NO INDICE NAO ESTAVA AMBIGUA. Ela e unica no
+        # seu dia e so e puxada para ca porque o OUTRO dia colidiu - 452
+        # grupos medidos. Sobe junto com o outro lado, para que o par
+        # exista; sozinha, sair da identidade base nao ganharia nada.
+        if not lh and pode_o and h.get(k) is not None:
+            lh, pode_h = [h[k]], separavel([h[k]])
+        if not lo and pode_h and o.get(k) is not None:
+            lo, pode_o = [o[k]], separavel([o[k]])
+        # TODAS AS LINHAS DO GRUPO ENTRAM, nao so as que tem par. A que
+        # nao tem par e oferta nova - chamar de indistinguivel escondia
+        # o degrau novo do pre-pago da Vivo em 20/10/2026 de todos os
+        # detectores de uma vez.
+        for linhas, pode, indice, promovidas in (
+                (lh, pode_h, h, promovidas_h),
+                (lo, pode_o, o, promovidas_o)):
+            if not pode:
+                continue
+            # a linha que veio do indice muda de chave: deixar a base
+            # tambem apontando para ela daria DOIS pares a uma oferta so
+            if indice.get(k) is not None and any(l is indice[k]
+                                                 for l in linhas):
+                del indice[k]
+            for l in linhas:
+                indice[_identidade(l) + (l["codigo_anatel"],)] = l
+                promovidas.add(id(l))
+
+    def sobrou(cego, promovidas):
+        restantes = [l for l in ((cego or {}).get("descartadas") or ())
+                     if id(l) not in promovidas]
+        return _aviso_de_colisao(restantes)
+
+    return sobrou(cego_h, promovidas_h), sobrou(cego_o, promovidas_o)
 
 
 def _identidade(l):
@@ -480,6 +566,10 @@ def mudancas(hoje, ontem):
     """
     h, erro_h, cego_h = _indexar(hoje)
     o, erro_o, cego_o = _indexar(ontem)
+    # ANTES DOS DETECTORES. O par recuperado pelo codigo de registro tem
+    # de existir para todos eles - preco, composicao, grade, renomeada -,
+    # senao um detector ve a oferta e o outro nao.
+    cego_h, cego_o = _desempatar_por_anatel(h, cego_h, o, cego_o)
     # O PONTO CEGO DE HOJE E O DE ONTEM SAO FATOS DIFERENTES, e misturar
     # os dois num "or" fez a mensagem afirmar duas coisas falsas num dia
     # limpo: "N ofertas ficaram fora da comparacao DE HOJE" com as N de
