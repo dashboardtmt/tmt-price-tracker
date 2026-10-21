@@ -771,9 +771,28 @@ def _cobertura(h, o, fora=0):
     for op in sorted({l["operadora"] for l in h.values()}):
         do_op = {k for k, l in h.items() if l["operadora"] == op}
         por_operadora[op] = (len(do_op & comuns), len(do_op))
+    # QUANTAS DAS QUE FALTAM SAO A MESMA OFERTA COM IDENTIDADE NOVA.
+    #
+    # Nao precisa de pareamento: basta existir ontem com o mesmo nome,
+    # na mesma praca e pelo MESMO PRECO. E um numero exato, e e o que o
+    # leitor precisa quando a cobertura cai - sem ele a mensagem mostra
+    # um buraco e nao sabe dizer de que tamanho e a parte conhecida.
+    #
+    # Medido em 21/10/2026, primeiro dia depois de a chave passar a sair
+    # da lista de apps: 732 das 765 sem par eram isto, e a mensagem
+    # atribuiu 34 - as unicas que a atribuicao conseguiu parear pelo
+    # nome, que em vitrine e compartilhado.
+    def sem_chave(l):
+        return (l["operadora"], l["produto"], l["praca"],
+                " ".join((l.get("nome_oferta") or "").lower().split()),
+                l.get("preco_promocional"))
+
+    ontem_igual = {sem_chave(l) for l in o.values()}
+    trocaram = sum(1 for k, l in h.items()
+                   if k not in comuns and sem_chave(l) in ontem_igual)
     total = len(h) + (fora or 0)
     return {"pares": len(comuns), "hoje": total, "ontem": len(o),
-            "fora": fora or 0,
+            "fora": fora or 0, "trocaram_de_identidade": trocaram,
             "fracao": len(comuns) / float(total),
             "por_operadora": por_operadora}
 
@@ -1672,12 +1691,32 @@ def montar_mensagem(hoje, ontem):
         # dizer que nao olhou o resto, e quem le entende que tres e a
         # historia inteira do dia.
         if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:
-            linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 %d%% das ofertas "
-                       "de hoje: %s."
-                       % (round(cobertura["fracao"] * 100),
-                          "o sil\u00eancio n\u00e3o confirma que o mercado ficou "
-                          "parado" if not total_mud else
-                          "pode haver mudan\u00e7a fora do que foi comparado")]
+            # QUANDO A CAUSA E CONHECIDA, A FRASE DIZ A CAUSA. Sem isto a
+            # mensagem mostrava um buraco de 48% como duvida sobre o
+            # dado, no dia em que o buraco era inteiramente nosso e
+            # estava declarado tres linhas abaixo.
+            trocaram = (cobertura or {}).get("trocaram_de_identidade") or 0
+            declarado = LEITURA_MUDOU_EM.get(hoje)
+            if trocaram and declarado:
+                linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou %d%% das ofertas de "
+                           "hoje, e %d das que faltam s\u00e3o a mesma oferta com "
+                           "identidade nova \u2014 mesmo nome, mesma pra\u00e7a e "
+                           "mesmo pre\u00e7o. A leitura mudou hoje: %s."
+                           % (round(cobertura["fracao"] * 100), trocaram,
+                              declarado)]
+            elif trocaram:
+                linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 %d%% das ofertas "
+                           "de hoje. %d das que faltam s\u00e3o a mesma oferta "
+                           "com identidade nova; o resto n\u00e3o d\u00e1 para "
+                           "explicar daqui."
+                           % (round(cobertura["fracao"] * 100), trocaram)]
+            else:
+                linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 %d%% das ofertas "
+                           "de hoje: %s."
+                           % (round(cobertura["fracao"] * 100),
+                              "o sil\u00eancio n\u00e3o confirma que o mercado ficou "
+                              "parado" if not total_mud else
+                              "pode haver mudan\u00e7a fora do que foi comparado")]
 
     # O PONTO CEGO QUALIFICA A LINHA DE CIMA, e por isso vem colado
     # nela. "Nenhuma mudanca" com 20 ofertas fora da comparacao nao e a
@@ -1815,7 +1854,14 @@ def montar_mensagem(hoje, ontem):
         # quando a mexida foi declarada, a mensagem diz QUAL foi - e
         # melhor do que "costuma ser", que e o que sobra sem declaracao
         declarado = LEITURA_MUDOU_EM.get(hoje)
-        porque = ("a leitura mudou hoje: %s" % declarado if declarado
+        # o motivo ja saiu na linha da cobertura quando ela falou: aqui
+        # basta apontar, senao a mesma explicacao aparece duas vezes
+        ja_disse = bool(cobertura
+                        and cobertura["fracao"] < COBERTURA_MINIMA
+                        and (cobertura.get("trocaram_de_identidade") or 0)
+                        and declarado)
+        porque = ("pela mesma mudan\u00e7a de leitura" if ja_disse
+                  else "a leitura mudou hoje: %s" % declarado if declarado
                   else "isso costuma ser mudan\u00e7a na nossa leitura, e "
                        "n\u00e3o no mercado")
         linhas += ["", "%d oferta%s %s de vers\u00e3o sem mexer em "

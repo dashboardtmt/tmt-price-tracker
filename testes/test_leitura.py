@@ -198,10 +198,18 @@ class ACausaPodeSerDeclarada(unittest.TestCase):
     resposta em vez de estimar."""
 
     def test_na_data_declarada_a_mudanca_e_nossa(self):
+        """O que importa e a mensagem EXPLICAR, e nao qual linha explica.
+
+        O motivo sai na linha da cobertura quando ela fala, e na linha
+        da leitura quando nao - duas linhas repetindo a mesma explicacao
+        seria pior. O teste media a frase e nao o fato, e quebrou quando
+        a cobertura passou a dar o motivo.
+        """
         t = montar(versao(variante="simples", bundle=0, data=ONTEM),
                    versao(variante="com_apps", bundle=2, data=HOJE))
-        self.assertIn("a leitura mudou hoje", t)
-        self.assertIn("nível de bundle", t)
+        self.assertIn("nível de bundle", t, "o motivo tem de estar escrito")
+        self.assertIn("mudança de leitura" if "mudança de leitura" in t
+                      else "a leitura mudou hoje", t)
 
     def test_e_a_mensagem_diz_qual_foi(self):
         """"isso costuma ser mudanca na nossa leitura" e o que sobra sem

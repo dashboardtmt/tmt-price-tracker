@@ -833,5 +833,65 @@ class AHoraDaColetaVemEmUtc(unittest.TestCase):
         self.assertNotIn("fora da janela", t)
 
 
+class ACoberturaDizOTamanhoDaParteConhecida(unittest.TestCase):
+    """A mensagem de 21/10/2026 sabia a causa e nao soube dizer o tamanho.
+
+        A comparacao alcancou so 52% das ofertas de hoje: o silencio
+        nao confirma que o mercado ficou parado.
+        ...
+        34 ofertas mudaram de versao ... a leitura mudou hoje: ...
+
+    Medido no dado: das 765 ofertas sem par, 732 eram a MESMA oferta -
+    mesmo nome, mesma praca, MESMO PRECO - com chave nova, pela mudanca
+    que eu tinha feito na vespera e declarado. A mensagem atribuiu 34.
+
+    A atribuicao so conta oferta que consegue PAREAR pelo nome, e nome
+    de vitrine e compartilhado - as outras 731 caiam fora da contagem, e
+    o leitor ficava com um buraco de 48% sem explicacao ao lado de uma
+    explicacao de 34.
+
+    Contar oferta que perdeu o par mas existe ontem com mesmo nome,
+    praca e preco nao precisa de pareamento: e exato.
+    """
+
+    def _trocou_a_chave(self):
+        ontem = em_todas(operadora="Vivo", produto="movel", nome="Vivo Pós",
+                         preco=119.90, gb=60, data=ONTEM,
+                         chave="Vivo|movel|60gb|simples")
+        hoje = em_todas(operadora="Vivo", produto="movel", nome="Vivo Pós",
+                        preco=119.90, gb=60, data=HOJE,
+                        chave="Vivo|movel|60gb|com_netflix")
+        return ontem, hoje
+
+    def test_conta_as_que_so_trocaram_de_identidade(self):
+        ontem, hoje = self._trocou_a_chave()
+        r = dados(ontem, hoje)
+        self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 20)
+
+    def test_e_a_mensagem_diz_o_numero(self):
+        ontem, hoje = self._trocou_a_chave()
+        t = montar(ontem, hoje)
+        self.assertIn("20 das que faltam são a mesma oferta", t)
+        self.assertNotIn("o silêncio não confirma", t)
+
+    def test_preco_diferente_nao_conta_como_identidade_nova(self):
+        """Mesmo nome e mesma praca com OUTRO preco e mudanca de
+        verdade, nao troca de identidade - e nao pode entrar na conta
+        que serve para explicar o buraco."""
+        ontem = em_todas(operadora="Vivo", produto="movel", nome="Vivo Pós",
+                         preco=119.90, gb=60, data=ONTEM,
+                         chave="Vivo|movel|60gb|simples")
+        hoje = em_todas(operadora="Vivo", produto="movel", nome="Vivo Pós",
+                        preco=139.90, gb=60, data=HOJE,
+                        chave="Vivo|movel|60gb|com_netflix")
+        r = dados(ontem, hoje)
+        self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 0)
+
+    def test_sem_troca_de_identidade_a_frase_volta_a_ser_a_duvida(self):
+        t = montar(em_todas(nome="Oferta velha", gb=50, data=ONTEM),
+                   em_todas(nome="Oferta nova", gb=40, data=HOJE))
+        self.assertIn("não confirma", t)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

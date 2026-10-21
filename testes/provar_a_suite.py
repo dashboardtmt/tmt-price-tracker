@@ -639,6 +639,22 @@ MUTACOES = [
         "F2. a hora da coleta volta a sair em UTC"),
 
     Mutacao(
+        "robo.py",
+        '    trocaram = sum(1 for k, l in h.items()\n'
+        '                   if k not in comuns and sem_chave(l) in ontem_igual)',
+        '    trocaram = 0',
+        "G1. a cobertura volta a nao dizer o tamanho da parte conhecida"),
+
+    Mutacao(
+        "robo.py",
+        '        return (l["operadora"], l["produto"], l["praca"],\n'
+        '                " ".join((l.get("nome_oferta") or "").lower().split()),\n'
+        '                l.get("preco_promocional"))',
+        '        return (l["operadora"], l["produto"], l["praca"],\n'
+        '                " ".join((l.get("nome_oferta") or "").lower().split()))',
+        "G2. oferta com outro preco volta a contar como identidade nova"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',
