@@ -218,6 +218,62 @@ class ATimNomeiaOAppQueEncontrou(unittest.TestCase):
         self.assertIsNone(saida[0].get("apps_rotulo"))
 
 
+class AListaDeAppsDaVivoLeONomeEOTexto(unittest.TestCase):
+    u"""O nivel lia as duas fontes; a lista lia so o nome.
+
+    O proprio nivel_bundle da Vivo ja dizia por que isso esta errado:
+    "max() porque o nome ACRESCENTA informacao, nunca tira: o texto pode
+    citar um streaming que o nome nao cita, e o contrario tambem". O
+    argumento vale igual para a lista, e a lista nao o seguia.
+
+    MEDIDO NA VITRINE REAL DE SAO PAULO EM 21/10/2026, 7 ofertas de 49:
+
+      Vivo Total V 1/2/10 Giga  texto: "Vivo TV Completo com HBO Max e
+                                Telecine"            gravado: apps=[]
+      Vivo Controle (x2)        texto nomeia McAfee            apps=[]
+      Vivo Pre (x2)             texto nomeia Vale Saude        apps=[]
+
+    Nos tres combos o campo ficava em contradicao aberta com o vizinho:
+    nivel_bundle 4 ao lado de apps vazio. A oferta subia na tela sem
+    dizer QUAL app inclui - que e a pergunta que o modulo de apps
+    existe para responder.
+    """
+
+    def test_o_texto_acrescenta_o_que_o_nome_nao_diz(self):
+        self.assertEqual(
+            vivo.apps_da_vitrine(
+                u"Vivo Total V 1 Giga",
+                u"1Giga de Vivo Fibra Vivo TV Completo com HBO Max e Telecine"),
+            ["max", "telecine"])
+
+    def test_o_nome_acrescenta_o_que_o_texto_nao_diz(self):
+        """O card da Vivo as vezes e so marcacao - "unique-card__bordered
+        data-settings=..." - e ai quem nomeia o app e o nome."""
+        self.assertEqual(
+            vivo.apps_da_vitrine(u"Vivo Pós com Amazon",
+                                 u'unique-card__bordered data-settings="{}"'),
+            ["amazon"])
+
+    def test_o_nome_vem_primeiro_e_ninguem_repete(self):
+        """O nome e a leitura mais confiavel que a Vivo oferece: e onde
+        ela batiza a oferta. Citado nos dois, o app entra uma vez."""
+        self.assertEqual(
+            vivo.apps_da_vitrine(u"Vivo Controle Netflix",
+                                 u"Netflix e Telecine inclusos"),
+            ["netflix", "telecine"])
+
+    def test_sem_app_em_lugar_nenhum_a_lista_fica_vazia(self):
+        self.assertEqual(
+            vivo.apps_da_vitrine(u"Vivo Fibra", u"700 Mega com Wi-Fi 6"), [])
+
+    def test_os_sufixos_da_vivo_valem_no_nome_dela(self):
+        """"Vivo Controle Saude" e telemedicina - o sufixo e dela, e so
+        vale porque a operadora e ela (ver DO_NOME_VIVO)."""
+        self.assertEqual(
+            vivo.apps_da_vitrine(u"Vivo Controle Saúde", u""),
+            ["vale_saude"])
+
+
 class ONumeroJaNumeroNaoPerdeACasaDecimal(unittest.TestCase):
     """_num tirava o ponto antes de converter, porque no formato
     brasileiro ele separa milhar - e aplicado a um float ja pronto isso

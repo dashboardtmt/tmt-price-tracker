@@ -43,12 +43,19 @@ MUTACOES = [
         '    return tiers[-1][0]\n',
         "o tier do app volta a sair de um padrao nosso, e nao da fonte"),
 
+    # A FORMA DO TRECHO MUDOU quando a marca passou a poder declarar
+    # o proprio sujeito, e o provador acusou "o trecho mudou" - que e
+    # o aviso certo: mutacao que nao aplica deixa o relatorio verde
+    # sem medir. O defeito e o mesmo de antes, e e o oposto da I1:
+    # aqui nenhuma marca chega a ser olhada e tudo conta como
+    # incluso; na I1 toda marca derruba o app.
     Mutacao(
         "coletores/apps.py",
-        '        if DEGUSTACAO.search(t[max(0, ini - 24):ini] + trecho):\n'
-        '            continue\n',
-        '        if False:\n'
-        '            continue\n',
+        '        marcas = [(atras + m.start(), atras + m.end())\n'
+        '                  for m in DEGUSTACAO.finditer(t[atras:ini])]\n'
+        '        marcas += [(fim + m.start(), fim + m.end())\n'
+        '                   for m in DEGUSTACAO.finditer(trecho)]\n',
+        '        marcas = []\n',
         "degustacao volta a contar como app incluso"),
 
     Mutacao(
@@ -709,6 +716,48 @@ MUTACOES = [
         '        return _aviso_de_colisao(restantes)',
         '        return cego',
         "H6. a ressalva volta a anunciar o grupo inteiro depois de resolvido"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        if any(not _degustacao_de_outro(t, a, b, app) for a, b in marcas):',
+        '        if marcas:',
+        "I1. a cortesia de outro produto volta a derrubar o app vizinho"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    if not MARCA_COM_SUJEITO.search(texto[pos_ini:pos_fim]):\n'
+        '        return False\n',
+        '',
+        "I2. \"por conta da Claro\" volta a ser lido como sujeito"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    if marca and marca in sujeito:\n'
+        '        return False\n'
+        '    if sujeito.split()[0] in nome:\n'
+        '        return False\n',
+        '',
+        "I3. a regra deixa de cortar nos dois sentidos"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '    saida = list(apps.apps_da_oferta(plano, "Vivo"))\n'
+        '    for a in apps.apps_do_texto(texto):\n'
+        '        if a not in saida:\n'
+        '            saida.append(a)\n'
+        '    return saida',
+        '    return list(apps.apps_da_oferta(plano, "Vivo"))',
+        "I4. a lista de apps da Vivo volta a sair so do nome"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '    saida = list(apps.apps_da_oferta(plano, "Vivo"))\n'
+        '    for a in apps.apps_do_texto(texto):\n'
+        '        if a not in saida:\n'
+        '            saida.append(a)\n'
+        '    return saida',
+        '    return list(apps.apps_do_texto(texto))',
+        "I5. a lista troca o nome pelo texto em vez de somar os dois"),
 
     Mutacao(
         "relatorio.py",

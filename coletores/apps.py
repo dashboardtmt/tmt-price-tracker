@@ -365,6 +365,52 @@ DEGUSTACAO = re.compile(
 # comecaria a pegar oferta vizinha.
 JANELA = 110
 
+# DE QUEM E A DEGUSTACAO, quando a propria frase diz. "12 meses gratis
+# DE Gemini" declara o sujeito logo depois da marca; "3 meses por conta
+# da Claro" nao declara produto nenhum, e ai vale a proximidade.
+#
+# Duas palavras no maximo: nome de app nao passa disso ("Amazon Prime",
+# "YouTube Premium", "Vale Saude"), e tres ja atravessa a frase.
+SUJEITO_DECLARADO = re.compile(
+    r"^\W{0,3}(?:de|do|da|dos|das)\s+"
+    r"([a-z\u00e0-\u00ff][\w+\u00e0-\u00ff]*(?:\s+[a-z\u00e0-\u00ff][\w+\u00e0-\u00ff]*)?)",
+    re.I)
+
+# QUAIS MARCAS TOMAM COMPLEMENTO DE PRODUTO. "Gratis de X", "cortesia de
+# X" e "degustacao de X" nomeiam o produto. "Por conta de X" nomeia quem
+# PAGA - "3 meses por conta da Claro" - e ler a Claro como sujeito fazia
+# a regra concluir "a cortesia e de outro produto" e contar o Disney+
+# como incluso em 8 ofertas reais da Claro, que e o caso que originou o
+# corte de degustacao.
+MARCA_COM_SUJEITO = re.compile(
+    r"(?:gr[\u00e1a]tis|cortesia|degusta[\u00e7c][\u00e3a]o|experimente)\W{0,3}$",
+    re.I)
+
+
+def _degustacao_de_outro(texto, pos_ini, pos_fim, app):
+    """A marca de degustacao declara um sujeito, e ele nao e este app?
+
+    Devolve True so quando a frase diz de quem e a cortesia E esse
+    alguem e outro produto. Marca sem sujeito declarado devolve False, e
+    segue valendo pela proximidade, como antes.
+    """
+    if not MARCA_COM_SUJEITO.search(texto[pos_ini:pos_fim]):
+        return False
+    m = SUJEITO_DECLARADO.match(texto[pos_fim:pos_fim + 48])
+    if not m:
+        return False
+    sujeito = _sem_acento(m.group(1).lower())
+    nome = _sem_acento((APPS.get(app, {}).get("nome") or app).lower())
+    marca = nome.split()[0].strip("+")
+    # o sujeito e este app quando as marcas se encontram em qualquer um
+    # dos sentidos: "gratis de Netflix" para netflix, "gratis de Amazon"
+    # para "Amazon Prime", "gratis de HBO Max" para max
+    if marca and marca in sujeito:
+        return False
+    if sujeito.split()[0] in nome:
+        return False
+    return True
+
 
 # Quais apps contam como STREAMING para o nivel de bundle. O resto do
 # dicionario - telemedicina, educacao, seguranca, leitura - e app de
@@ -513,7 +559,20 @@ def apps_do_texto(texto, limite=6):
             k = trecho.find(p)
             if k >= 0:
                 trecho = trecho[:k]
-        if DEGUSTACAO.search(t[max(0, ini - 24):ini] + trecho):
+        # A MARCA QUE DIZ DE QUEM E NAO DESQUALIFICA O VIZINHO. Sem
+        # isto, o Telecine caia das tres ofertas "Vivo Total V" de
+        # 21/10/2026: a janela dele varria "12 meses gratis de Gemini",
+        # que e cortesia de outro produto, e a oferta com dois
+        # streamings aparecia com um.
+        # os dois lados sao medidos SEPARADAMENTE: concatenados, eles
+        # nao formam um pedaco contiguo do texto - o nome do app fica
+        # fora - e a posicao da marca no meio sairia deslocada
+        atras = max(0, ini - 24)
+        marcas = [(atras + m.start(), atras + m.end())
+                  for m in DEGUSTACAO.finditer(t[atras:ini])]
+        marcas += [(fim + m.start(), fim + m.end())
+                   for m in DEGUSTACAO.finditer(trecho)]
+        if any(not _degustacao_de_outro(t, a, b, app) for a, b in marcas):
             continue
         achados.append(app)
     return [] if len(achados) > limite else achados

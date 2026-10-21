@@ -153,6 +153,71 @@ class NomesQueAsOperadorasUsam(unittest.TestCase):
         self.assertIn("amazon", apps.apps_da_oferta("AGO26 500MB + Amazon"))
 
 
+class ADegustacaoQueDizDeQuemEla(unittest.TestCase):
+    u"""A marca de cortesia que declara o proprio sujeito.
+
+    MEDIDO NO TEXTO REAL DE 21/10/2026, vitrine da Vivo em Sao Paulo,
+    tres ofertas "Vivo Total V":
+
+        Vivo TV Completo com HBO Max e Telecine 12 meses gratis de
+        Gemini com AI Plus Adicione 6 apps por R$ 50/mes
+
+    apps_do_texto devolvia so ['max']. A janela de degustacao olha 110
+    caracteres depois do nome do app, e o Telecine e o ultimo app
+    citado - entao a janela dele varria a frase seguinte e achava "12
+    meses gratis", cortesia do GEMINI, produto que nem esta no
+    dicionario. A oferta com dois streamings aparecia com um, e o nivel
+    por apps dava 2 em vez de 3.
+
+    O portugues declara o sujeito depois da marca: "gratis DE Gemini".
+    Quando declara, a marca vale para aquele produto e mais nenhum.
+    """
+
+    def test_o_vizinho_nao_cai_pela_cortesia_de_outro(self):
+        t = (u"Vivo TV Completo com HBO Max e Telecine 12 meses grátis "
+             u"de Gemini com AI Plus")
+        self.assertEqual(apps.apps_do_texto(t), ["max", "telecine"])
+
+    def test_e_o_nivel_acompanha(self):
+        t = (u"Vivo TV Completo com HBO Max e Telecine 12 meses grátis "
+             u"de Gemini com AI Plus")
+        self.assertEqual(apps.nivel_por_apps(t), 3, "dois streamings")
+
+    def test_a_regra_corta_nos_dois_sentidos(self):
+        """Quando o sujeito declarado E o app, ele continua fora - senao
+        a regra seria so uma porta de saida para qualquer degustacao.
+
+        A mesma frase da Vivo, com o sujeito trocado: o Max fica e o
+        Telecine sai, e e o "de Telecine" que decide.
+        """
+        t = (u"Vivo TV Completo com HBO Max e Telecine 12 meses grátis "
+             u"de Telecine")
+        self.assertEqual(apps.apps_do_texto(t), ["max"])
+
+    def test_nome_de_duas_palavras_tambem(self):
+        self.assertEqual(
+            apps.apps_do_texto(u"12 meses grátis de Amazon Prime"), [])
+
+    def test_por_conta_da_claro_nomeia_quem_paga(self):
+        """A REGRESSAO QUE A PRIMEIRA VERSAO CAUSOU, em 8 ofertas reais
+        da Claro. "3 meses por conta da Claro" tem um nome depois da
+        marca, mas e o do PAGADOR, nao o do produto - e lido como
+        sujeito, fazia a regra concluir "a cortesia e de outro" e contar
+        o Disney+ como incluso. E o caso que originou o corte de
+        degustacao, invertido pela propria correcao."""
+        t = u"Disney+: 3 meses por conta da Claro. Após, R$24,60 por mês"
+        self.assertEqual(apps.apps_do_texto(t), [])
+
+    def test_so_gratis_cortesia_e_degustacao_tomam_produto(self):
+        self.assertTrue(apps.MARCA_COM_SUJEITO.search(u"3 meses grátis"))
+        self.assertTrue(apps.MARCA_COM_SUJEITO.search(u"cortesia"))
+        self.assertFalse(apps.MARCA_COM_SUJEITO.search(u"3 meses por conta"))
+
+    def test_marca_sem_nome_depois_segue_pela_proximidade(self):
+        t = u"Netflix incluso. Disney+ grátis por 3 meses"
+        self.assertEqual(apps.apps_do_texto(t), ["netflix"])
+
+
 class PrecoPertenceAoTier(unittest.TestCase):
     """O preco avulso nao e do app, e do plano do app."""
 

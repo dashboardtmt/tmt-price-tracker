@@ -187,6 +187,26 @@ def nivel_bundle(texto, lista=()):
                apps.nivel_dos_apps(lista))
 
 
+def apps_da_vitrine(plano, texto):
+    """Os apps que a oferta inclui, pelo NOME e pelo TEXTO do card.
+
+    Pelo mesmo argumento de nivel_bundle acima: o nome acrescenta
+    informacao e nunca tira, e o texto tambem. A lista saia so do nome,
+    e com isso 7 ofertas da vitrine de Sao Paulo em 21/10/2026 chegavam
+    na tela sem dizer qual app incluem - as tres "Vivo Total V" com
+    "Vivo TV Completo com HBO Max e Telecine" no texto e apps vazio, em
+    contradicao aberta com o nivel 4 do campo ao lado.
+
+    O nome vem primeiro porque e a leitura mais confiavel que a Vivo
+    oferece: e onde ela batiza a oferta.
+    """
+    saida = list(apps.apps_da_oferta(plano, "Vivo"))
+    for a in apps.apps_do_texto(texto):
+        if a not in saida:
+            saida.append(a)
+    return saida
+
+
 # ------------------------------------------------- parser da vitrine (HTML)
 
 def _primeiro(padrao, bloco):
@@ -649,6 +669,12 @@ def coletar(cidade, uf, verbose=True):
 
         for c in cards:
             destaque = c["destaque"]
+            # UMA LEITURA PARA OS QUATRO CAMPOS de app. Eram quatro
+            # chamadas de apps_da_oferta no dicionario abaixo, e o
+            # nivel ao lado lia o texto tambem - duas fontes para a
+            # mesma pergunta, que e como um campo passou a negar o
+            # vizinho.
+            _apps_do_card = apps_da_vitrine(c["plano"], c["texto"])
             oferta = {
                 "operadora": "Vivo",
                 "produto": produto,
@@ -674,20 +700,22 @@ def coletar(cidade, uf, verbose=True):
                 # preco cheio fica vazio quando a fonte nao informa (decisao 9)
                 "preco_cheio": None,
                 "preco_promocional": c["preco"],
-                "nivel_bundle": nivel_bundle(
-                    c["texto"], apps.apps_da_oferta(c["plano"], "Vivo")),
+                "nivel_bundle": nivel_bundle(c["texto"], _apps_do_card),
                 # QUAIS apps, e nao so quantos: o nome da oferta e onde a
                 # Vivo nomeia o app ("Vivo Controle Netflix", "Vivo Pos
-                # com Disney+"). O codigo SVA nao distingue - vem igual
-                # em todas as ofertas.
-                "apps": apps.apps_da_oferta(c["plano"], "Vivo"),
+                # com Disney+"), e o texto do card nomeia o que o nome
+                # nao diz ("Vivo TV Completo com HBO Max e Telecine"). O
+                # codigo SVA nao distingue - vem igual em todas as
+                # ofertas. UMA LEITURA SO para os quatro campos: com
+                # duas, um campo dizia o que o vizinho negava.
+                "apps": list(_apps_do_card),
                 # o tier sai daqui quando a vitrine o escreve; quando
                 # nao, o nome registrado na Anatel ainda pode traze-lo, e
                 # por isso o rotulo e refeito depois do regulamento
                 "apps_rotulo": apps.rotulo(
-                    apps.apps_da_oferta(c["plano"], "Vivo"), c["plano"], c["texto"]),
+                    _apps_do_card, c["plano"], c["texto"]),
                 "apps_planos": apps.planos_dos_apps(
-                    apps.apps_da_oferta(c["plano"], "Vivo"), c["plano"], c["texto"]),
+                    _apps_do_card, c["plano"], c["texto"]),
                 # o texto do card alimenta o cruzamento que deduz quais
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],
