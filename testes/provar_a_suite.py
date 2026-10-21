@@ -779,6 +779,38 @@ MUTACOES = [
         "J3. o Lite volta a ficar fora do detector de repasse"),
 
     Mutacao(
+        "coletores/vivo.py",
+        '    meses = _num(fid.get("tempoFidelizacao"))\n'
+        '    oferta["fidelidade_meses"] = None if meses is None else int(meses)',
+        '    oferta["fidelidade_meses"] = '
+        'int(_num(fid.get("tempoFidelizacao")) or 0) or None',
+        "K1. zero declarado de fidelidade volta a virar ausencia"),
+
+    Mutacao(
+        "coletores/starlink.py",
+        '    if PISO_SEM_TETO.search(t[:m.start()]):\n'
+        '        return None\n',
+        '',
+        "K2. faixa aberta da Starlink volta a virar degrau exato"),
+
+    Mutacao(
+        "coletores/starlink.py",
+        r'    r"(?:mais\s+de|acima\s+de|superior\s+a|a\s+partir\s+de|\bat[\u00e9e]\s+mais)"'
+        '\n'
+        r'    r"[^.;\n]{0,24}$", re.I)',
+        r'    r"(?:mais\s+de|acima\s+de|superior\s+a|a\s+partir\s+de|\bat[\u00e9e])"'
+        '\n'
+        r'    r"[^.;\n]{0,24}$", re.I)',
+        "K3. o teto do proprio numero passa a ser descartado tambem"),
+
+    Mutacao(
+        "coletores/starlink.py",
+        '                "velocidade_declarada": velocidade_declarada(\n'
+        '                    nome, s.get("longDescription")),',
+        '                "velocidade_declarada": None,',
+        "K4. a promessa da fonte some junto com o degrau"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',

@@ -20,7 +20,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coletores import armazenamento, claro, tim, vivo        # noqa: E402
+from coletores import armazenamento, claro, starlink, tim, vivo  # noqa: E402
 
 
 class ORegulamentoDeOutraOfertaNaoVale(unittest.TestCase):
@@ -398,6 +398,199 @@ class OLiteFicavaForaDoDetectorDeRepasse(unittest.TestCase):
         self.assertEqual(oferta["assinatura_sva"],
                          vivo.assinatura_sva(reg["SMP"], reg["SCM"])[1])
         self.assertEqual(oferta["assinatura_sva"], "030012+040022+060016")
+
+
+class ZeroDeclaradoNaoEAusencia(unittest.TestCase):
+    u"""O espelho de "ausencia e ausencia, nunca zero".
+
+    A linha era:
+
+        oferta["fidelidade_meses"] = int(_num(...) or 0) or None
+
+    e o "or None" do fim apagava um zero DECLARADO no mesmo None da
+    ausencia. A linha de baixo, a multa, nunca fez isso - a assimetria
+    entre duas linhas vizinhas que leem o mesmo bloco era o indicio.
+
+    Um regulamento que escreve tempoFidelizacao: 0 esta FALANDO, e
+    dizendo que a oferta nao tem fidelidade. E a informacao mais
+    relevante que o campo carrega, porque e a unica que distingue "nao
+    prende o cliente" de "nao consegui ler o contrato".
+
+    LATENTE, NAO ATIVO: medido nos regulamentos reais de 21/10/2026,
+    nenhum declara zero. O Lite Anual declara 12 meses e multa; o Lite
+    Mensal nao tem bloco de fidelizacao nenhum.
+    """
+
+    def _fidelidade(self, bloco):
+        reg = {} if bloco is None else {"fidelizacao": bloco}
+        oferta = vivo.aplicar_regulamento(
+            {"nome_oferta": "X", "preco_promocional": 50.0}, reg)
+        return oferta.get("fidelidade_meses")
+
+    def test_zero_declarado_fica_zero(self):
+        self.assertEqual(self._fidelidade({"tempoFidelizacao": 0}), 0)
+
+    def test_zero_declarado_como_texto_tambem(self):
+        """O regulamento entrega numero ou string, conforme o campo."""
+        self.assertEqual(self._fidelidade({"tempoFidelizacao": "0"}), 0)
+
+    def test_prazo_normal_segue_igual(self):
+        self.assertEqual(self._fidelidade({"tempoFidelizacao": "12"}), 12)
+
+    def test_campo_ausente_no_bloco_fica_sem_resposta(self):
+        self.assertIsNone(self._fidelidade({}))
+
+    def test_bloco_calado_fica_sem_resposta(self):
+        """SILENCIO NAO E AUSENCIA, e a metodologia decide isso: "um card
+        que nao escreve Gemini nao esta dizendo que Gemini ficou fora -
+        esta calado".
+
+        Era tentador ler a falta do bloco num contrato PUBLICADO como
+        "nao tem fidelidade" - o Vivo Lite Mensal nao tem o bloco e e
+        vendido ao lado de um Anual que tem 12 meses e multa, entao o
+        desenho do produto e sem compromisso. Mas inferir dali afirmaria
+        contratualmente algo que o documento nao diz.
+        """
+        self.assertIsNone(self._fidelidade(None))
+
+    def test_zero_e_ausencia_deixam_de_ser_a_mesma_coisa(self):
+        """O ponto de tudo: os dois eram None e nao se distinguiam."""
+        self.assertNotEqual(self._fidelidade({"tempoFidelizacao": 0}),
+                            self._fidelidade(None))
+
+
+class FaixaAbertaNaoEDegrau(unittest.TestCase):
+    u"""A Starlink declara faixa no plano Max, e o tracker gravava o piso.
+
+    MEDIDO NA API EM 21/10/2026:
+
+        description     'Residencial - Max'
+        longDescription '... * Ate mais de 400 Mbps * Dados ilimitados ...'
+
+    degrau_mbps saia 400. "Ate mais de 400" e faixa aberta: a fonte diz
+    que passa de 400 e se recusa a dizer quanto. Gravar 400 inventa
+    precisao que a fonte nega, e inventa no PISO - o plano melhor da
+    Starlink ia para 400 contra uma fibra de 700 ou 1000 no mesmo
+    grafico. Decisao 8: exatas, sem faixas.
+    """
+
+    def test_piso_sem_teto_nao_vira_degrau(self):
+        self.assertIsNone(starlink.velocidade("Ate mais de 400 Mbps"))
+        self.assertIsNone(starlink.velocidade("Velocidades acima de 400 Mbps"))
+        self.assertIsNone(starlink.velocidade("A partir de 50 Mbps"))
+
+    def test_teto_do_proprio_numero_continua_valendo(self):
+        """"Ate 100 Mbps" NAO e faixa aberta: e teto do mesmo numero que
+        o nome do plano declara ("Residencial: 100 Mbps"). O que
+        desqualifica e o piso sem teto, nao a palavra "ate"."""
+        self.assertEqual(starlink.velocidade("Ate 100 Mbps."), 100)
+        self.assertEqual(starlink.velocidade("Residencial: 100 Mbps"), 100)
+
+    def test_gbps_segue_convertendo(self):
+        self.assertEqual(starlink.velocidade("Download de 1 Gbps"), 1000)
+
+    def test_sem_numero_nenhum(self):
+        self.assertIsNone(starlink.velocidade("Residencial - Max"))
+        self.assertIsNone(starlink.velocidade(None))
+
+    def test_a_promessa_da_fonte_nao_se_perde(self):
+        """NAO INVENTAR NAO E JOGAR FORA. O plano perde o degrau, mas a
+        frase da operadora e a unica informacao que existe sobre a
+        velocidade dele - vai gravada como ela escreveu."""
+        self.assertEqual(
+            starlink.velocidade_declarada(
+                "Residencial - Max",
+                "Melhor desempenho.\n * Ate mais de 400 Mbps\n * Dados "
+                "ilimitados"),
+            "Ate mais de 400 Mbps")
+
+    def test_a_declarada_prefere_a_primeira_fonte_que_fala(self):
+        self.assertEqual(
+            starlink.velocidade_declarada("Residencial: 100 Mbps",
+                                          "Ate 100 Mbps. Estavel."),
+            "Residencial: 100 Mbps")
+
+    def test_sem_velocidade_em_fonte_nenhuma_fica_vazio(self):
+        """Os planos Prioritario descrevem o publico, nao a banda."""
+        self.assertIsNone(starlink.velocidade_declarada(
+            "Prioritario Local 500 GB",
+            "Indicado para pequenas empresas com dois a quatro usuarios"))
+
+
+class OColetorDaStarlinkMonta(unittest.TestCase):
+    u"""O caminho de producao, nao so as funcoes de leitura.
+
+    A MUTACAO K4 PASSOU VERDE sem esta classe: velocidade_declarada()
+    tinha teste e nada verificava que coletar() punha o campo na oferta.
+    Segunda vez na mesma sessao - J3 foi o Lite da Vivo - e o mesmo
+    engano: teste de peca nao prova montagem.
+
+    A carga e a resposta real da API em 21/10/2026, reduzida.
+    """
+
+    RESPOSTA = {
+        "isAvailable": True,
+        "isoCurrencyCode": "BRL",
+        "kits": [
+            {"description": "Kit Starlink Mini", "adjustedPrice": 99.0},
+            {"description": "KIT INTERNET, STARLINK STANDARD",
+             "adjustedPrice": 2400.0},
+        ],
+        "subscriptions": [
+            {"description": "Residencial: 100\u00a0Mbps",
+             "longDescription": "At\u00e9 100\u00a0Mbps. Servi\u00e7o de internet "
+                                "residencial est\u00e1vel. Dados ilimitados.",
+             "adjustedPrice": 189.0, "productId": "res-100"},
+            {"description": "Residencial - M\u00e1x",
+             "longDescription": "Nosso servi\u00e7o com melhor desempenho.\n"
+                                " * At\u00e9 mais de 400 Mbps\n * Dados ilimitados",
+             "adjustedPrice": 249.0, "productId": "res-max"},
+        ],
+    }
+
+    def _coletar(self):
+        import json
+
+        guarda = starlink._http
+        starlink._http = lambda url, **kw: (200, json.dumps(self.RESPOSTA))
+        self.addCleanup(setattr, starlink, "_http", guarda)
+        guarda_pausa = starlink.PAUSA
+        starlink.PAUSA = 0
+        self.addCleanup(setattr, starlink, "PAUSA", guarda_pausa)
+        r = starlink.coletar("Sao Paulo", "SP", verbose=False)
+        # as duas familias devolvem a mesma carga no teste; basta a
+        # primeira ocorrencia de cada nome
+        de = {}
+        for o in r["ofertas"]:
+            de.setdefault(o["nome_oferta"], o)
+        return de
+
+    def test_o_plano_com_faixa_nao_ganha_degrau(self):
+        de = self._coletar()
+        max_ = [o for n, o in de.items() if "x" in n[-2:]][0]
+        self.assertIsNone(max_["degrau_mbps"],
+                          "'Ate mais de 400 Mbps' e faixa, nao degrau")
+
+    def test_e_a_promessa_da_fonte_vai_gravada(self):
+        """O ponto: nao inventar nao e jogar fora. Sem o campo, o plano
+        melhor da Starlink chegaria sem nenhuma informacao de banda."""
+        de = self._coletar()
+        max_ = [o for n, o in de.items() if "x" in n[-2:]][0]
+        self.assertIn("400", max_["velocidade_declarada"] or "")
+
+    def test_o_plano_que_declara_numero_segue_com_degrau(self):
+        de = self._coletar()
+        cem = [o for n, o in de.items() if "100" in n][0]
+        self.assertEqual(cem["degrau_mbps"], 100)
+
+    def test_o_kit_vem_com_o_nome_ao_lado_do_preco(self):
+        """taxa_instalacao gravava so o numero e perdia de qual kit saiu:
+        o minimo da familia residencial e o Kit Mini, hardware diferente
+        do prato Standard que o plano sugere."""
+        de = self._coletar()
+        cem = [o for n, o in de.items() if "100" in n][0]
+        self.assertEqual(cem["taxa_instalacao"], 99.0)
+        self.assertEqual(cem["taxa_instalacao_kit"], "Kit Starlink Mini")
 
 
 class ONumeroJaNumeroNaoPerdeACasaDecimal(unittest.TestCase):

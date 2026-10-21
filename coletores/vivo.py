@@ -478,7 +478,29 @@ def aplicar_regulamento(oferta, reg):
             % (tabela, prom))
         return oferta
     oferta["preco_cheio"] = tabela or oferta.get("preco_cheio")
-    oferta["fidelidade_meses"] = int(_num(fid.get("tempoFidelizacao")) or 0) or None
+    # ZERO DECLARADO NAO E AUSENCIA. "Ausencia e ausencia, nunca
+    # zero" e principio do projeto, e o espelho dele vale igual: um
+    # regulamento que escreve tempoFidelizacao: 0 esta FALANDO, e
+    # dizendo que a oferta nao tem fidelidade - a informacao mais
+    # relevante que este campo carrega, porque e a unica que
+    # distingue "nao prende o cliente" de "nao consegui ler o
+    # contrato". O "or None" do fim apagava os dois no mesmo None, e
+    # a linha da multa logo abaixo nunca fez isso: a assimetria
+    # entre duas linhas que leem o mesmo bloco era o indicio.
+    #
+    # NEM TODO "or None" E DEFEITO: franquia de 0 GB e velocidade de
+    # 0 Mbps nao existem como produto, e ali o zero e lixo de
+    # leitura. Aqui zero e valor valido, e e por isso que esta linha
+    # e diferente das vizinhas - nao padronizar as tres.
+    #
+    # Bloco AUSENTE continua None, e isso nao e descuido: e o
+    # "silencio nao e ausencia" da metodologia. Medido em
+    # 21/10/2026, o Vivo Lite Mensal nao tem bloco de fidelizacao
+    # nenhum, enquanto o Anual declara 12 meses e multa. Inferir
+    # zero do silencio afirmaria contratualmente que a operadora
+    # nao prende o cliente, o que o documento nao diz.
+    meses = _num(fid.get("tempoFidelizacao"))
+    oferta["fidelidade_meses"] = None if meses is None else int(meses)
     oferta["multa_fidelidade"] = _num(fid.get("multaFidelizacao"))
     oferta["taxa_instalacao"] = _num(custo.get("instalacao"))
     oferta["taxa_adesao"] = _num(custo.get("adesao"))

@@ -77,13 +77,52 @@ def _http(url, timeout=45, avisos=None):
     return rede.insistir(uma, url, avisos=avisos)
 
 
+# FAIXA ABERTA NAO E DEGRAU. A Starlink descreve o plano Max como "Ate
+# mais de 400 Mbps": ela diz que passa de 400 e se recusa a dizer
+# quanto. Ler 400 dali inventa precisao que a fonte nega, e inventa no
+# PISO da faixa - o plano melhor dela ia para 400 contra uma fibra de
+# 700 ou 1000 no mesmo grafico de degraus (decisao 8: exatas, sem
+# faixas).
+#
+# "Ate 100 Mbps" NAO cai aqui, e nao deve: e teto do mesmo numero que o
+# nome do plano declara ("Residencial: 100 Mbps"). O que desqualifica e
+# o piso sem teto.
+PISO_SEM_TETO = re.compile(
+    r"(?:mais\s+de|acima\s+de|superior\s+a|a\s+partir\s+de|\bat[\u00e9e]\s+mais)"
+    r"[^.;\n]{0,24}$", re.I)
+
+
 def velocidade(texto):
-    """"Residential - 100 Mbps" -> 100. "Max" nao declara velocidade."""
-    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(Mbps|Gbps)", str(texto or ""), re.I)
+    """"Residential - 100 Mbps" -> 100. "Max" nao declara velocidade.
+
+    Devolve None tambem quando o numero vem atras de um piso sem teto -
+    "Ate mais de 400 Mbps" -, porque ali a fonte declarou uma faixa e
+    nao um degrau.
+    """
+    t = str(texto or "")
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(Mbps|Gbps)", t, re.I)
     if not m:
+        return None
+    if PISO_SEM_TETO.search(t[:m.start()]):
         return None
     v = float(m.group(1).replace(",", "."))
     return int(v * 1000) if m.group(2).lower().startswith("g") else int(v)
+
+
+def velocidade_declarada(*fontes):
+    """A frase da fonte sobre velocidade, como ela escreveu.
+
+    NAO INVENTAR NAO E JOGAR FORA. O plano Max perde o degrau porque
+    "Ate mais de 400 Mbps" e faixa, mas a promessa da operadora continua
+    sendo informacao - e a unica que existe sobre a velocidade dele.
+    Guardada em texto, ela chega a quem olha a oferta sem virar um ponto
+    falso no grafico.
+    """
+    for fonte in fontes:
+        for linha in re.split(r"[.;\n*]", str(fonte or "")):
+            if re.search(r"\d\s*(?:Mbps|Gbps)", linha, re.I):
+                return " ".join(linha.split())
+    return None
 
 
 def franquia(texto):
@@ -146,7 +185,12 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
                  k.get("description") or k.get("name"))
                 for k in (d.get("kits") or [])]
         kits = [(p, n) for p, n in kits if p is not None]
-        kit_min = min(kits)[0] if kits else None
+        # O NOME DO KIT JUNTO COM O PRECO. O campo gravava so o numero e
+        # perdia de qual kit ele saiu: na familia residencial o minimo e
+        # o Kit Mini a R$ 99, hardware diferente do prato Standard de
+        # R$ 2.400 que o plano sugere. O numero continua o "a partir de"
+        # que o site anuncia; agora da para conferir de onde veio.
+        kit_min, kit_min_nome = min(kits) if kits else (None, None)
 
         assinaturas = d.get("subscriptions") or []
         for s in assinaturas:
@@ -162,7 +206,12 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
                 "capturado_em": agora.isoformat(),
                 "nome_oferta": nome,
                 "destaque": nome,
-                "degrau_mbps": velocidade(nome) or velocidade(s.get("longDescription")),
+                "degrau_mbps": (velocidade(nome)
+                                or velocidade(s.get("longDescription"))),
+                # a promessa da fonte quando ela declara faixa e nao
+                # degrau: "Ate mais de 400 Mbps" no plano Max
+                "velocidade_declarada": velocidade_declarada(
+                    nome, s.get("longDescription")),
                 "franquia_anunciada_gb": franquia(nome),
                 "franquia_contratual_gb": None,
                 # a Starlink nao publica preco de tabela separado: o
@@ -172,6 +221,7 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
                 # o kit nao e instalacao, mas e o custo de entrada que o
                 # campo representa nas outras operadoras
                 "taxa_instalacao": kit_min,
+                "taxa_instalacao_kit": kit_min_nome,
                 "fidelidade_meses": None,
                 "multa_fidelidade": None,
                 # a propria API declara quanto dura a promocao, o que so a
