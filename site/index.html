@@ -423,7 +423,7 @@
       </div>
       <div class="metricas">
         <button id="bt-mes" class="on" onclick="metrica('mes')">R$/mês</button>
-        <button id="bt-gb" onclick="metrica('unidade')">R$/GB</button>
+        <button id="bt-gb" onclick="metrica('unidade')">R$/un.</button>
       </div>
     </div>
     <div class="tabela-wrap" id="matriz"></div>
@@ -508,7 +508,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "spotify": [["Premium", 23.9]]};
-const GERADO = "20/10/2026 16:54";
+const GERADO = "21/10/2026 07:07";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -571,11 +571,19 @@ const T = {
       // Saúde...)" - e quem lia a tabela via Netflix na linha de uma
       // oferta que nao inclui Netflix. Agora diz o nivel e assume que
       // nao sabe o nome.
+      // NAO AFIRMA QUE A FONTE NAO NOMEOU. Dizia "o site nao nomeia
+      // qual" em 971 capturas, varias com o app no proprio nome -
+      // "AGO26 600MB + NETFLIX PCA". O rotulo nao nomeia o app por
+      // decisao nossa, e nao por falta da fonte; e esta e a mesma
+      // escala de robo.BUNDLE, com as mesmas palavras.
       bundles:["Só internet e ligações",
                "Apps de catálogo",
-               "Uma assinatura — o site não nomeia qual",
-               "Vários streamings — o site não nomeia quais",
+               "Uma assinatura inclusa",
+               "Vários streamings inclusos",
                "TV por assinatura inclusa"],
+      fx_mista:"Este produto mistura ofertas medidas em Mbps e em GB. "
+               + "Faixas de entrega só comparam dentro de uma unidade, "
+               + "então não há faixa a montar aqui.",
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
       e_todos:"Todos os planos", e_entrada:"Só o mais barato de cada operadora",
       produtos:{controle:"Controle", movel:"Pós-pago", fibra:"Fibra",
@@ -666,9 +674,12 @@ const T = {
                  "Included services":"Bundle level, from bare connectivity to TV included"},
       bundles:["Data and calls only",
                "Catalogue apps",
-               "One subscription — the site does not name it",
-               "Several streamings — the site does not name them",
+               "One subscription included",
+               "Several streamings included",
                "Pay TV included"],
+      fx_mista:"This product mixes offers measured in Mbps and in GB. "
+               + "Delivery bands only compare within one unit, so there "
+               + "is no band to build here.",
       f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
       e_todos:"All plans", e_entrada:"Cheapest of each carrier only",
       produtos:{controle:"Hybrid (Controle)", movel:"Postpaid", fibra:"Fibre",
@@ -765,6 +776,18 @@ function vantagem(o){
     const dica = detalheApps(o);
     return dica ? `<span title="${dica}">${rotulo}</span>` : rotulo;
   }
+  // A LISTA CRUA DE APPS E A SEGUNDA FONTE. apps_rotulo sai do
+  // dicionario, que so conhece as chaves em minuscula: "Skeelo",
+  // "Reforca" e "Prime video" ficam de fora e o rotulo sai vazio - e a
+  // tela caia no texto do nivel sobre uma oferta cujo nome traz o app.
+  // O nome que a operadora usou e melhor do que nenhum.
+  const brutos = o.apps || (o.bruto && o.bruto.apps) || [];
+  if (brutos.length) {
+    const nomes = brutos.map(a => (PRECOS_APPS[a] && PRECOS_APPS[a].nome) || a);
+    const dica = detalheApps(o);
+    const txt = nomes.join(" + ");
+    return dica ? `<span title="${dica}">${txt}</span>` : txt;
+  }
   if (n == null) return "—";
   return (t_.bundles[n] || "—");
 }
@@ -792,7 +815,10 @@ function detalheApps(o){
   const planos = o.apps_planos || (o.bruto && o.bruto.apps_planos) || {};
   const partes = [];
   for (const a of lista) {
-    const e = PRECOS_APPS[a];
+    // o dicionario conhece as chaves em minuscula; o registro da
+    // Brisanet traz "Skeelo" e "Prime video". Sem isto o app era
+    // descartado em silencio e a dica saia vazia.
+    const e = PRECOS_APPS[a] || PRECOS_APPS[String(a).toLowerCase()];
     if (!e) continue;
     const tier = planos[a] || null;
     const preco = precoDoApp(a, tier);
@@ -820,6 +846,12 @@ function metrica(m){
   metricaAtual = m;
   document.getElementById("bt-mes").className = m === "mes" ? "on" : "";
   document.getElementById("bt-gb").className = m === "unidade" ? "on" : "";
+  // O ROTULO DO BOTAO SEGUE AS OFERTAS DA TELA. Estava escrito "R$/GB"
+  // no markup, fixo: afirmava GB em fibra, onde nenhuma oferta e GB, e
+  // em satelite, onde metade e Mbps. Mesma familia de tudo o que a
+  // auditoria da tela achou - rotulo que fala por um conjunto -, so que
+  // este nem olhava o primeiro item do conjunto.
+  rotuloDaMetrica();
   matriz();
 }
 
@@ -897,6 +929,18 @@ function celulaEntrega(o){
     .replace("{f}", contr).replace("{b}", bonus)}">${txt}</td>`;
 }
 
+// O rotulo do botao de metrica, pelas ofertas que a tela esta
+// mostrando. Chamado de metrica() e de desenhar(), porque trocar de
+// produto ou de praca pode trocar a unidade.
+function rotuloDaMetrica(){
+  const bt = document.getElementById("bt-gb");
+  if (!bt) return;
+  const dia = document.getElementById("f-data");
+  const ofertas = dia ? doFiltro(dia.value) : [];
+  const u = unidadeComum(ofertas.map(entregaDe));
+  bt.textContent = u ? "R$/" + u : "R$/un.";
+}
+
 function colunas(chave, ofertas){
   const c = t(chave).slice();
   // a dica no cabecalho explica a diferenca sem ocupar linha na tabela
@@ -904,7 +948,10 @@ function colunas(chave, ofertas){
   for (let i = 0; i < c.length; i++) {
     if (dicas[c[i]]) c[i] = `<span title="${dicas[c[i]]}">${c[i]}</span>`;
   }
-  const u = ofertas && ofertas.length ? entregaDe(ofertas[0]).u : "";
+  // a unidade do cabecalho sai do conjunto, nao da primeira oferta: ver
+  // unidadeComum. Com unidades misturadas o cabecalho fica "R$/un.",
+  // que e verdade, em vez de nomear uma das duas.
+  const u = unidadeComum((ofertas || []).map(entregaDe));
   const i = c.findIndex(x => x.indexOf("R$/") === 0);
   if (i >= 0 && u) c[i] = "R$/" + u;
   return c;
@@ -922,6 +969,28 @@ function dataCurta(d){ return d ? d.slice(8,10)+"/"+d.slice(5,7) : "—"; }
 
 // Entrega: fibra e combo medem em Mbps, movel em GB. Misturar as duas
 // unidades num eixo so compararia coisas diferentes.
+// A UNIDADE DE UM CONJUNTO, e nao a do primeiro dele.
+//
+// Todo rotulo compartilhado da tela - cabecalho de coluna, titulo de
+// eixo, titulo de bloco - fala por varias ofertas de uma vez, e era
+// escolhido com lista[0].u. No satelite isso afirma "R$/Mbps" sobre
+// quatro linhas em R$/GB: a Starlink vende 100 e 400 Mbps ao lado de
+// 50, 500, 1024 e 2048 GB, e a celula nao repete a unidade.
+//
+// Devolve a unidade so quando TODAS concordam. Quando nao concordam,
+// devolve vazio - e quem chama degrada para "R$/un.", que e o que ja
+// acontece com as linhas sem entrega lida.
+function unidadeComum(lista){
+  let u = null;
+  for (const x of (lista || [])) {
+    const atual = (x && x.u != null) ? x.u : (x && x.unidade != null ? x.unidade : null);
+    if (!atual) continue;
+    if (u === null) u = atual;
+    else if (u !== atual) return "";
+  }
+  return u || "";
+}
+
 function entregaDe(o){
   const m = num(o.degrau_mbps), g = num(o.franquia_anunciada_gb);
   if (m) return {v:m, u:t("mbps")};
@@ -1624,7 +1693,11 @@ function grafQuadrante(){
       delete graficos["c-quadrante"];
     return;
   }
-  const u = series[series.length-1].data[0].u;
+  // a unidade do eixo sai de TODOS os pontos: ver unidadeComum. Com
+  // unidades misturadas o eixo nao nomeia nenhuma, porque nomear uma
+  // afirma que os outros pontos estao nela - e a legenda do bloco diz
+  // "mais a direita entrega mais", que so vale dentro de uma unidade.
+  const u = unidadeComum(series.flatMap(s2 => s2.data));
 
   // a faixa real dos pontos, para dar margem e nao encostar na borda
   const xs = series.flatMap(s2=>s2.data.map(p=>p.x));
@@ -1728,7 +1801,12 @@ function grafQuadrante(){
 }
 
 function grafDispersao(){
-  const hoje = DIAS[DIAS.length-1];
+  // O DIA E O DO SELETOR. Este painel e o grafUnitario liam sempre o
+  // ultimo dia da serie, enquanto o quadrante ao lado lia o seletor:
+  // com Data=01/10 um mostrava 4 ofertas e o outro 7, incluindo a
+  // Claro - num dia em que a Claro nao foi coletada no pre-pago. A
+  // tela afirmava um R$/GB da Claro num dia sem oferta da Claro.
+  const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
   const porOp = {};
   for (const o of doFiltro(hoje)) {
     const e = entregaDe(o), p = precoDe(o);
@@ -1743,7 +1821,7 @@ function grafDispersao(){
     if (graficos["c-dispersao"]) graficos["c-dispersao"].destroy(), delete graficos["c-dispersao"];
     return;
   }
-  const unidade = series[0].data[0].u;
+  const unidade = unidadeComum(series.flatMap(s2 => s2.data));
   trocar("c-dispersao", {
     type:"scatter",
     data:{datasets:series},
@@ -1763,7 +1841,7 @@ function grafDispersao(){
 // grafico do meio de toda pagina do tracker da XP, e e o que impede de
 // comparar precos nominais de ofertas que entregam coisas diferentes.
 function grafUnitario(){
-  const hoje = DIAS[DIAS.length-1];
+  const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
   const entrada = entradaPorOperadora(hoje);
   const itens = [];
   for (const [op, o] of Object.entries(entrada)) {
@@ -1777,7 +1855,7 @@ function grafUnitario(){
     if (graficos["c-unitario"]) graficos["c-unitario"].destroy(), delete graficos["c-unitario"];
     return;
   }
-  const u = itens[0].u;
+  const u = unidadeComum(itens);
   // casas decimais conforme a grandeza: R$/GB fica na ordem de centavos
   const casas = itens[itens.length-1].v < 1 ? 2 : 1;
   trocar("c-unitario", {
@@ -1926,11 +2004,15 @@ function matriz(){
 
   alvo.innerHTML = `<table><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
 
-  // o titulo diz a unidade, como nos quadros do tracker do BBA
-  const unidade = ordenadas[0] ? ordenadas[0].unidade : "";
+  // o titulo diz a unidade, como nos quadros do tracker do BBA - e so
+  // quando ela e uma so. A coluna de degrau ja acerta linha a linha; o
+  // titulo falava por todas e nomeava a do primeiro, que no satelite e
+  // a OPOSTA da que o cabecalho da outra aba escolhia.
+  const unidade = unidadeComum(ordenadas);
   document.querySelector('[data-t="mat_t"]').textContent =
     t("mat_t") + (metricaAtual === "unidade"
-      ? " (R$/" + unidade + ")" : " (R$/" + t("mes") + ")");
+      ? (unidade ? " (R$/" + unidade + ")" : " (R$/un.)")
+      : " (R$/" + t("mes") + ")");
 }
 
 // O ultimo dia pode estar PARCIAL: a coleta leva dezenas de minutos e a
@@ -2219,8 +2301,12 @@ function tabelaComparacao(){
     return;
   }
   // o melhor preco por unidade ganha destaque: e a leitura que a tabela
-  // existe para dar, e procurar o menor numero na coluna custa atencao
-  const melhor = itens[0].unit;
+  // existe para dar, e procurar o menor numero na coluna custa atencao.
+  //
+  // SO QUANDO AS UNIDADES CONCORDAM. Entre R$/GB e R$/Mbps nao existe
+  // "mais barato": sao grandezas diferentes, e o destaque apontaria a
+  // linha de menor numero como se fosse a melhor oferta.
+  const melhor = unidadeComum(itens.map(i => i.e)) ? itens[0].unit : null;
   const c = colunas("col_cmp", itens.map(i => i.o));
   const linhas = itens.map(i => {
     const contr = i.o.franquia_contratual_gb;
@@ -2291,8 +2377,18 @@ function tabelaFaixas(){
     && precoDe(o) != null && entregaDe(o).v != null);
   if (ofertas.length < 2) { alvo.innerHTML = ""; return; }
 
+  // A FAIXA SO EXISTE DENTRO DE UMA UNIDADE. Aqui a unidade nao decide
+  // so o rotulo: ela decide os CORTES. Com 100 e 400 Mbps no meio de
+  // 50, 500, 1024 e 2048 GB - que e o satelite em 300 de 300
+  // combinacoes de praca e dia - o tercil divide uma lista que nao e
+  // uma escala, e "ate 400" juntaria 100 Mbps com 50 GB chamando as
+  // duas de entrega baixa.
+  const u = unidadeComum(ofertas.map(entregaDe));
+  if (!u) {
+    alvo.innerHTML = `<div class="vazio">${t("fx_mista")}</div>`;
+    return;
+  }
   const vals = ofertas.map(o => entregaDe(o).v).sort((a, b) => a - b);
-  const u = entregaDe(ofertas[0]).u;
   // tercis: tres faixas com numero parecido de ofertas, em vez de cortes
   // redondos que deixariam uma faixa vazia
   const c1 = vals[Math.floor(vals.length / 3)];
@@ -2325,7 +2421,7 @@ function tabelaFaixas(){
     }).sort((a, b) => a.unit - b.unit);
     if (itens.length < 2) continue;      // faixa com uma operadora so nao compara
 
-    const melhor = itens[0].unit;
+    const melhor = unidadeComum(itens.map(i => i.e)) ? itens[0].unit : null;
     const linhas = itens.map(i => {
       const contr = i.o.franquia_contratual_gb;
       const marca = i.unit === melhor ? ' class="destaque-linha"' : "";
@@ -2346,6 +2442,9 @@ function tabelaFaixas(){
 }
 
 function desenhar(){
+  // trocar de produto ou de praca pode trocar a unidade das ofertas, e
+  // o rotulo do botao de metrica tem de acompanhar
+  rotuloDaMetrica();
   if (!document.getElementById("pg-pracas").hidden) {
     tabelaPracas();
     tabelaPracasTempo();
