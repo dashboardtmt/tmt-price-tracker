@@ -760,6 +760,25 @@ MUTACOES = [
         "I5. a lista troca o nome pelo texto em vez de somar os dois"),
 
     Mutacao(
+        "coletores/vivo.py",
+        '    sva = sorted({c for bloco in (smp or {}, scm or {})\n'
+        '                  for c in (bloco.get("listaSVA") or []) if c})',
+        '    sva = sorted({c for c in ((smp or {}).get("listaSVA") or []) if c})',
+        "J1. a assinatura SVA volta a ler so o bloco do movel"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '    return sva, ("+".join(sva) if sva else None)',
+        '    return sva, "+".join(sva)',
+        "J2. assinatura ausente volta a sair como string vazia"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '        sva, texto_sva = assinatura_sva(smp, scm)',
+        '        sva, texto_sva = [], None',
+        "J3. o Lite volta a ficar fora do detector de repasse"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',

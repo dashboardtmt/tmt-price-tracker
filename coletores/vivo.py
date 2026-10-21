@@ -279,6 +279,32 @@ def indice_catalogo(op, nomes=("controle", "fibra", "total")):
     return idx, avisos
 
 
+def assinatura_sva(smp, scm):
+    """O conjunto de codigos SVA do regulamento, e o texto para comparar.
+
+    NAO E PRECISO SABER QUE APP E CADA CODIGO - o cruzamento mostrou que
+    a Vivo nao da para saber (so 1 dos 20 tem nome seguro). O que importa
+    e o CONJUNTO: se o preco nao se move e a assinatura muda, a oferta
+    trocou de conteudo sem trocar de etiqueta, que e o repasse disfarcado
+    da metodologia. Por isso o texto vai ORDENADO - a comparacao entre
+    dias e por igualdade, e ordem instavel acusaria troca todo dia.
+
+    OS DOIS BLOCOS ENTRAM JUNTOS: no combo, movel e fixa declaram SVA
+    cada um, e ler so o primeiro perderia metade da composicao.
+
+    MORA AQUI PORQUE SAO DOIS CAMINHOS. A vitrine chega por enriquecer();
+    o Lite monta a oferta direto do regulamento, sem passar por ela, e
+    ficou 80 linhas por dia sem o campo - invisivel para o detector de
+    composicao, no produto que o tracker acompanha para ver o piso do
+    mercado. Duas montagens da mesma coisa divergiriam na primeira
+    correcao, e divergir na ORDEM faria toda oferta do Lite parecer ter
+    trocado de conteudo todo dia.
+    """
+    sva = sorted({c for bloco in (smp or {}, scm or {})
+                  for c in (bloco.get("listaSVA") or []) if c})
+    return sva, ("+".join(sva) if sva else None)
+
+
 def enriquecer(oferta, card):
     """Acrescenta o que o catalogo sabe e a vitrine nao mostra."""
     if not card:
@@ -509,19 +535,10 @@ def aplicar_regulamento(oferta, reg):
 
     # Assinatura da composicao: o conjunto de codigos SVA, ordenado.
     #
-    # Nao e preciso saber que app e cada codigo - o cruzamento mostrou que
-    # a Vivo nao da para saber (so 1 dos 20 tem nome seguro). O que importa
-    # e o CONJUNTO: se o preco nao se move e a assinatura muda, a oferta
-    # trocou de conteudo sem trocar de etiqueta, que e o repasse disfarcado
-    # da metodologia. Guardado em texto ordenado para comparar com "=".
-    #
-    # Os dois blocos entram juntos: no combo, movel e fixa declaram SVA
-    # cada um, e ler so o primeiro perderia metade da composicao.
-    sva = sorted({c for bloco in (smp, scm)
-                  for c in (bloco.get("listaSVA") or []) if c})
+    sva, texto = assinatura_sva(smp, scm)
     if sva:
         oferta["sva"] = sva
-        oferta["assinatura_sva"] = "+".join(sva)
+        oferta["assinatura_sva"] = texto
     return oferta
 
 
@@ -615,6 +632,14 @@ def ler_lite(op, hoje, avisos=None):
         if vel.get("download"):
             mbps = int((_num(vel["download"]) or 0)
                        * (1000 if "g" in (vel.get("unidadeDownload") or "").lower() else 1))
+        # A ASSINATURA SVA TAMBEM AQUI. enriquecer() monta este campo
+        # para a vitrine, e ler_lite nao passa por ela - monta a oferta
+        # direto do regulamento, que e fonte melhor que card. Sem o
+        # campo, as 80 linhas do Lite (4 ofertas x 20 pracas) ficavam
+        # invisiveis para o detector de composicao: a Vivo podia tirar
+        # um servico sem mexer no preco e nada diria nada, no produto
+        # que o tracker acompanha para ver o PISO do mercado.
+        sva, texto_sva = assinatura_sva(smp, scm)
         ofertas.append({
             "nome_oferta": reg.get("nomeOferta"),
             "destaque": ("%s Mbps" % mbps) if mbps else
@@ -624,6 +649,11 @@ def ler_lite(op, hoje, avisos=None):
             "franquia_anunciada_gb": int(_num(franquia) or 0) or None,
             "preco_promocional": preco,
             "codigo_anatel": cod,
+            # o nivel de bundle NAO sai da contagem de codigos: eles nao
+            # dizem que servico e, e a vitrine tambem nao faz isso - a
+            # "Vivo Total Familia 2" tem assinatura cheia e nivel 0
+            "sva": sva or None,
+            "assinatura_sva": texto_sva,
             # a marca que separa esta linha da vitrine anunciada
             "linha": "lite",
         })

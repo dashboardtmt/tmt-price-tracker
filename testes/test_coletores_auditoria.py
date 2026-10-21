@@ -274,6 +274,132 @@ class AListaDeAppsDaVivoLeONomeEOTexto(unittest.TestCase):
             ["vale_saude"])
 
 
+class OLiteFicavaForaDoDetectorDeRepasse(unittest.TestCase):
+    u"""assinatura_sva existe para pegar repasse disfarcado, e o Lite nao a tinha.
+
+    O comentario da propria montagem diz para que o campo serve: "se o
+    preco nao se move e a assinatura muda, a oferta trocou de conteudo
+    sem trocar de etiqueta, que e o repasse disfarcado da metodologia".
+
+    ler_lite nao passa por enriquecer - monta a oferta direto do
+    regulamento, que e fonte melhor que card - e nao montava o campo.
+    Sao 80 linhas por dia (4 ofertas x 20 pracas) invisiveis para o
+    detector de composicao, no produto que o tracker acompanha
+    justamente para ver o PISO do mercado, onde repasse silencioso e o
+    movimento esperado e nao o improvavel.
+
+    O dado sempre esteve no regulamento. Medido em 21/10/2026:
+
+        Vivo Lite Mensal II   R$ 45   030012+030021+030032+040022
+        Vivo Lite Mensal III  R$ 55   ... +060016
+        Vivo Lite Anual II    R$ 30   030012+030021+030032+040022
+        Vivo Lite Anual III   R$ 40   ... +060016
+    """
+
+    def test_os_dois_blocos_entram_juntos(self):
+        """No combo, movel e fixa declaram SVA cada um: ler so o
+        primeiro perderia metade da composicao."""
+        self.assertEqual(
+            vivo.assinatura_sva({"listaSVA": ["040022"]},
+                                {"listaSVA": ["030012"]}),
+            (["030012", "040022"], "030012+040022"))
+
+    def test_o_texto_vai_ordenado(self):
+        """A comparacao entre dias e por igualdade de texto: ordem
+        instavel acusaria troca de conteudo todo dia."""
+        a = vivo.assinatura_sva({"listaSVA": ["060016", "030012"]}, {})
+        b = vivo.assinatura_sva({"listaSVA": ["030012", "060016"]}, {})
+        self.assertEqual(a, b)
+        self.assertEqual(a[1], "030012+060016")
+
+    def test_codigo_repetido_nos_dois_blocos_conta_uma_vez(self):
+        self.assertEqual(
+            vivo.assinatura_sva({"listaSVA": ["030012"]},
+                                {"listaSVA": ["030012"]})[1], "030012")
+
+    def test_sem_codigo_o_campo_fica_ausente_e_nao_vazio(self):
+        """Ausencia e ausencia, nunca string vazia: "" compararia igual
+        a "" entre dias e esconderia a chegada do primeiro servico."""
+        self.assertEqual(vivo.assinatura_sva({}, {}), ([], None))
+        self.assertEqual(vivo.assinatura_sva(None, None), ([], None))
+
+    def test_bloco_sem_a_lista_nao_quebra(self):
+        self.assertEqual(vivo.assinatura_sva({"velocidade": {}}, {})[1], None)
+
+    def test_codigo_vazio_na_lista_nao_entra(self):
+        self.assertEqual(
+            vivo.assinatura_sva({"listaSVA": ["030012", "", None]}, {})[1],
+            "030012")
+
+    # Os codigos reais das quatro ofertas Lite de 21/10/2026, e o que o
+    # regulamento declara em cada uma. O III tem um codigo SVA a mais
+    # que o II, com R$ 10 de diferenca nas duas periodicidades.
+    LITE_REAL = {
+        "VIV202600045201": {
+            "nomeOferta": "Vivo Lite Mensal II", "precoSemDescontos": 45.0,
+            "SMP": {"listaSVA": ["040022", "030012", "030032", "030021"],
+                    "franquiaDados": {"franquia": 30}}},
+        "VIV202600045202": {
+            "nomeOferta": "Vivo Lite Mensal III", "precoSemDescontos": 55.0,
+            "SMP": {"listaSVA": ["040022", "030012", "030032", "030021",
+                                 "060016"],
+                    "franquiaDados": {"franquia": 30}}},
+    }
+
+    def _lite_offline(self):
+        """ler_lite sem rede: buscar devolve o HTML, regulamento le do cache."""
+        from datetime import date
+
+        html = " ".join(self.LITE_REAL)
+        guarda_buscar = vivo.buscar
+        vivo.buscar = lambda op, url, **kw: (200, html)
+        self.addCleanup(setattr, vivo, "buscar", guarda_buscar)
+        for cod, reg in self.LITE_REAL.items():
+            vivo._cache_regulamento[cod] = reg
+            self.addCleanup(vivo._cache_regulamento.pop, cod, None)
+        ofertas, erro = vivo.ler_lite(None, date(2026, 10, 21), [])
+        self.assertIsNone(erro)
+        return {o["nome_oferta"]: o for o in (ofertas or ())}
+
+    def test_ler_lite_grava_a_assinatura(self):
+        """A MUTACAO J3 PASSOU VERDE sem este teste. Os outros medem a
+        funcao auxiliar; nenhum passava por ler_lite, entao nada notava
+        se o Lite parasse de chama-la - que e o defeito consertado."""
+        de = self._lite_offline()
+        self.assertEqual(de["Vivo Lite Mensal II"]["assinatura_sva"],
+                         "030012+030021+030032+040022")
+        self.assertEqual(de["Vivo Lite Mensal III"]["assinatura_sva"],
+                         "030012+030021+030032+040022+060016")
+
+    def test_e_o_detector_de_composicao_ve_a_diferenca(self):
+        """O ponto do campo: comparar o conjunto entre dias por
+        igualdade. Se o II e o III saissem com a mesma assinatura, um
+        repasse silencioso entre eles passaria batido."""
+        de = self._lite_offline()
+        self.assertNotEqual(de["Vivo Lite Mensal II"]["assinatura_sva"],
+                            de["Vivo Lite Mensal III"]["assinatura_sva"])
+
+    def test_o_nivel_de_bundle_nao_sai_da_contagem_de_codigos(self):
+        """Quatro codigos SVA nao dizem QUE servico e, e a vitrine
+        tambem nao grava nivel a partir deles - a "Vivo Total Familia 2"
+        tem assinatura cheia e nivel 0. Subir o nivel por contagem seria
+        inventar conteudo que a fonte nao nomeia."""
+        de = self._lite_offline()
+        self.assertIsNone(de["Vivo Lite Mensal II"].get("nivel_bundle"))
+
+    def test_a_vitrine_e_o_lite_usam_a_MESMA_montagem(self):
+        """Duas montagens da mesma coisa divergem na primeira correcao,
+        e divergir na ordem faria o Lite parecer trocar de conteudo todo
+        dia. Entao ha uma funcao so, e enriquecer tambem a chama."""
+        reg = {"SMP": {"listaSVA": ["060016", "030012"]},
+               "SCM": {"listaSVA": ["040022"]}}
+        oferta = vivo.aplicar_regulamento(
+            {"nome_oferta": "Vivo Pos", "preco_promocional": 119.90}, reg)
+        self.assertEqual(oferta["assinatura_sva"],
+                         vivo.assinatura_sva(reg["SMP"], reg["SCM"])[1])
+        self.assertEqual(oferta["assinatura_sva"], "030012+040022+060016")
+
+
 class ONumeroJaNumeroNaoPerdeACasaDecimal(unittest.TestCase):
     """_num tirava o ponto antes de converter, porque no formato
     brasileiro ele separa milhar - e aplicado a um float ja pronto isso
