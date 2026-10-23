@@ -811,6 +811,50 @@ MUTACOES = [
         "K4. a promessa da fonte some junto com o degrau"),
 
     Mutacao(
+        "robo.py",
+        '        if bd == 0:',
+        '        if False:',
+        "L1. a vitrine que cala volta a dizer que a oferta perdeu o app"),
+
+    Mutacao(
+        "robo.py",
+        '        elif ba == 0:',
+        '        elif False:',
+        "L2. e no sentido inverso volta a afirmar o que ontem nao tinha"),
+
+    Mutacao(
+        "robo.py",
+        '        linhas += ["  %s" % x for x in _o_que_mudou(\n'
+        '            g[0], sem_numero=len(g) > 1)]',
+        '        linhas += ["  %s" % x for x in _o_que_mudou(g[0])]',
+        "L3. o numero de uma oferta volta a valer para o grupo"),
+
+    Mutacao(
+        "robo.py",
+        '    juntas = _agrupar_remodeladas(remodeladas)',
+        '    juntas = [[r] for r in remodeladas]',
+        "L4. o mesmo evento volta a render um bloco por oferta"),
+
+    Mutacao(
+        "robo.py",
+        '    ini = ini[:ini.rfind(" ") + 1]',
+        '',
+        "L5a. o prefixo comum volta a cortar no meio da palavra"),
+
+    Mutacao(
+        "robo.py",
+        '    corte = fim.find(" ")\n'
+        '    fim = fim[corte:] if corte >= 0 else ""',
+        '    corte = -1',
+        "L5b. o sufixo comum volta a cortar no meio da palavra"),
+
+    Mutacao(
+        "robo.py",
+        '        sozinha = r.get("preco_mudou") or r.get("entrega_mudou")',
+        '        sozinha = False',
+        "L6. oferta com preco proprio volta a ser agrupada"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',

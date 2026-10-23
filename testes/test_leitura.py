@@ -55,12 +55,31 @@ class UmaOperadoraEhNoticia(unittest.TestCase):
         sem_declaracao(self)
 
     def test_oferta_que_passou_a_incluir_assinatura(self):
+        """A FRASE MUDOU EM 23/10/2026, e o motivo e medido.
+
+        Ela dizia: passou de "sem assinatura inclusa" para "com uma
+        assinatura". A segunda metade e observada - a vitrine nomeia o
+        app hoje. A primeira nao: "sem assinatura inclusa" e nivel 0,
+        que significa "nada nomeado", e dali nao se conclui que a
+        oferta nao tinha assinatura ontem.
+
+        E o mesmo defeito que apareceu no sentido inverso, no Claro
+        Flex: a Claro reescreveu o flex.claro.com.br, a pagina deixou
+        de conter "Skeelo" e "Claro Musica" em lugar nenhum, e a
+        mensagem anunciou "passou para sem assinatura inclusa" em tres
+        ofertas - afirmacao sobre o mercado tirada do silencio da
+        vitrine. "Silencio nao e ausencia" e regra do projeto.
+
+        Nos dois sentidos, a unica coisa observada e o que a vitrine
+        DIZ.
+        """
         t = montar(versao(variante="simples", bundle=0, data=ONTEM),
                    versao(variante="com_apps", bundle=2, data=HOJE))
         self.assertIn("mesmo preço (30,00) e mesma entrega (20 GB)", t)
         self.assertNotIn("pelo mesmo preço (30,00) e", t)
-        self.assertIn("passou de \"sem assinatura inclusa\" para "
-                      "\"com uma assinatura\"", t)
+        self.assertIn("a vitrine passou a nomear \"com uma assinatura\", "
+                      "que antes não aparecia", t)
+        self.assertNotIn("passou de \"sem assinatura inclusa\"", t)
         self.assertNotIn("nossa leitura", t)
 
     def test_o_nome_interno_da_versao_nao_sai_na_mensagem(self):

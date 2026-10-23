@@ -85,7 +85,22 @@ def extrair(texto):
         vistos.add(gb)
         # "30GB do plano": o que o contrato garante. O resto e bonus de
         # rede social e Claro Day, que e promocional e pode cair.
-        mc = re.search(r"(\d{1,3})\s*GB do plano", meio, re.I)
+        #
+        # O "do" E OPCIONAL. Em 23/10/2026 a Claro reescreveu o card e
+        # "30GB do plano" virou "30GB plano": o numero continua
+        # declarado, so a preposicao saiu. O regex exigia o "do", nao
+        # achou, e a franquia garantida das quatro ofertas inflou para a
+        # anunciada - 10 GB que o contrato nao garante.
+        mc = re.search(r"(\d{1,3})\s*GB\s*(?:do\s+)?plano", meio, re.I)
+        # CARD QUE DECLARA BONUS TEM PARTE PROMOCIONAL. Se ele fala de
+        # bonus e o numero do plano nao foi lido, contratual igual a
+        # anunciada e afirmacao falsa - e falha tem de virar buraco, nao
+        # numero (o coletor irmao, claro.py, ja devolve None no lugar).
+        #
+        # O Passaporte nao entra aqui: "60GB livre para voce usar e
+        # navegar como quiser" nao separa bonus, entao nao ha o que
+        # descontar e contratual igual a anunciada esta certo.
+        tem_bonus = re.search(r"b[\u00f4o]nus", meio, re.I)
         passaporte = "passaporte" in meio.lower() or "passaporte" in t[
             max(0, m.start() - 40):m.start()].lower()
         ofertas.append({
@@ -93,7 +108,8 @@ def extrair(texto):
                             else "Claro Flex %s GB") % gb,
             "destaque": "%s GB" % gb,
             "franquia_anunciada_gb": int(gb),
-            "franquia_contratual_gb": int(mc.group(1)) if mc else int(gb),
+            "franquia_contratual_gb": (
+                int(mc.group(1)) if mc else (None if tem_bonus else int(gb))),
             # decisao 9: o que entra e o preco sem desconto condicionado
             "preco_promocional": _num(cheio),
             "preco_cheio": _num(cheio),
@@ -105,6 +121,11 @@ def extrair(texto):
                 apps.apps_do_texto(meio), meio),
             "composicao": meio.strip()[:400],
         })
+        if not mc and tem_bonus:
+            ofertas[-1].setdefault("avisos_oferta", []).append(
+                "o card declara b\u00f4nus mas n\u00e3o diz quanto \u00e9 do plano: a "
+                "franquia garantida ficou vazia em vez de igualada \u00e0 "
+                "anunciada")
     return ofertas
 
 

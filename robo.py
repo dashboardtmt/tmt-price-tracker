@@ -1601,8 +1601,76 @@ def _mesma_entrega(r, u):
                           u, False)
 
 
-def _o_que_mudou(r):
+def _agrupar_remodeladas(remodeladas):
+    """Ofertas que sofreram o MESMO evento saem juntas.
+
+    As tres Claro Flex de 23/10/2026 tinham a mesma transicao de bundle,
+    na mesma praca, sem mexer em preco nem entrega - e cada uma ganhou
+    um bloco de quatro linhas repetindo as mesmas palavras.
+
+    SO AGRUPA QUANDO NAO HA NUMERO A PERDER. Com preco ou entrega
+    diferentes entre as ofertas, cada uma volta a ter seu bloco: ali o
+    numero e a noticia, e juntar esconderia de qual oferta ele e.
+    """
+    grupos, ordem = {}, []
+    for r in remodeladas or ():
+        sozinha = r.get("preco_mudou") or r.get("entrega_mudou")
+        k = (id(r) if sozinha else
+             (r.get("operadora"), r.get("produto"), r.get("antes_bundle"),
+              r.get("agora_bundle"), bool(r.get("versao_mudou")),
+              r.get("onde")))
+        if k not in grupos:
+            grupos[k] = []
+            ordem.append(k)
+        grupos[k].append(r)
+    return [grupos[k] for k in ordem]
+
+
+def _nomes_juntos(grupo):
+    """"Claro Flex 40, 45 e 50 GB" a partir dos tres nomes.
+
+    Reduz pelo prefixo e sufixo comuns, que e como a operadora batiza a
+    serie: o que varia entre as ofertas e o degrau, e so ele precisa
+    aparecer tres vezes. Sem parte comum util, lista os nomes inteiros -
+    inventar um nome de serie seria pior que repetir.
+    """
+    nomes = []
+    for r in grupo:
+        n = _rotulo(r["atual"])
+        if n not in nomes:
+            nomes.append(n)
+    if len(nomes) == 1:
+        return nomes[0]
+
+    def junta(partes):
+        return "%s e %s" % (", ".join(partes[:-1]), partes[-1])
+
+    # PREFIXO E SUFIXO SO EM PALAVRA INTEIRA. Sem isto o corte cai no
+    # meio: "Claro Controle" e "Claro Flex Passaporte" terminam as duas
+    # em "e", o sufixo comum virou "e" e a reducao imprimiu "Claro
+    # Control e Flex Passaport" + "e". Texto remendado desse jeito chega
+    # ao Telegram sem ninguem perceber.
+    ini = os.path.commonprefix(nomes)
+    ini = ini[:ini.rfind(" ") + 1]
+    fim = os.path.commonprefix([n[::-1] for n in nomes])[::-1]
+    corte = fim.find(" ")
+    fim = fim[corte:] if corte >= 0 else ""
+    meios = [n[len(ini):len(n) - len(fim)] for n in nomes]
+    # prefixo curto, ou miolo vazio, ou miolo longo: a reducao nao
+    # ajudaria e pode confundir
+    if (len(ini) >= 4 and all(0 < len(m) <= 18 for m in meios)
+            and len(set(meios)) == len(meios)):
+        return "%s%s%s" % (ini, junta(meios), fim)
+    return junta(nomes)
+
+
+def _o_que_mudou(r, sem_numero=False):
     """As linhas que descrevem uma oferta remodelada, em portugues.
+
+    Com sem_numero, a primeira linha nao cita preco nem entrega: e o
+    caso do bloco que fala de VARIAS ofertas, em que o numero de uma
+    nao vale para as outras. So e usado no grupo, que por construcao
+    reune ofertas em que nem preco nem entrega se mexeram.
 
     O NOME INTERNO DA VERSAO NAO SAI. "simples -> com_apps" e como o
     codigo guarda a variante; o que o leitor precisa saber e que a
@@ -1629,12 +1697,38 @@ def _o_que_mudou(r):
             r["antes_entrega"], r["agora_entrega"], u,
             _pct(r["antes_entrega"], r["agora_entrega"]),
             preco if preco.startswith("pre\u00e7o") else "pelo " + preco))
+    elif sem_numero:
+        linhas.append("sem mexer em pre\u00e7o nem entrega")
     else:
         linhas.append("%s e %s" % (_mesmo_preco(r), _mesma_entrega(r, u)))
 
-    de, para = _bundle(r.get("antes_bundle")), _bundle(r.get("agora_bundle"))
+    ba, bd = r.get("antes_bundle"), r.get("agora_bundle")
+    de, para = _bundle(ba), _bundle(bd)
     if de and para and de != para:
-        linhas.append("e passou de \"%s\" para \"%s\"" % (de, para))
+        # A VITRINE QUE CALA NAO DIZ QUE A OFERTA PERDEU O APP. Nivel 0 e
+        # "nada nomeado", entao toda transicao de ou para zero e uma
+        # mudanca no que a vitrine DIZ - nunca prova do que a oferta tem.
+        #
+        # Medido em 23/10/2026: a Claro reescreveu o flex.claro.com.br e
+        # a pagina inteira deixou de conter "Skeelo", "Claro Musica",
+        # "Claro Banca", "Claro Day" e "McAfee". A mensagem anunciou
+        # "passou de com apps de catalogo para sem assinatura inclusa"
+        # em tres ofertas - afirmacao sobre o mercado tirada do silencio
+        # da vitrine, o oposto do que a metodologia manda: "um card que
+        # nao escreve Gemini nao esta dizendo que Gemini ficou fora -
+        # esta calado. Silencio nao e ausencia".
+        #
+        # Transicao entre dois niveis nao-zero fica como estava: ali a
+        # vitrine declara os dois lados e a recomposicao e real.
+        if bd == 0:
+            linhas.append("e a vitrine parou de nomear os apps que "
+                          "listava (\"%s\") \u2014 sil\u00eancio n\u00e3o confirma "
+                          "que sa\u00edram" % de)
+        elif ba == 0:
+            linhas.append("e a vitrine passou a nomear \"%s\", que antes "
+                          "n\u00e3o aparecia" % para)
+        else:
+            linhas.append("e passou de \"%s\" para \"%s\"" % (de, para))
     elif r["versao_mudou"]:
         # a versao mudou e a escada de bundle nao: e outra coisa que o
         # nome da oferta nao diz, e o relatorio tem o detalhe
@@ -1852,13 +1946,31 @@ def montar_mensagem(hoje, ontem):
     # recebe menos - e porque era o unico que a mensagem NEGAVA em vez
     # de omitir. Os dois numeros aparecem com a variacao de cada um,
     # para a conta ficar a vista.
-    for r in remodeladas[:3]:
-        linhas += ["", "%s \u00b7 %s" % (_categoria(r["atual"]),
-                                      _rotulo(r["atual"]))]
-        linhas += ["  %s" % x for x in _o_que_mudou(r)]
-        linhas.append("  %s" % r["onde"])
-    if len(remodeladas) > 3:
-        n = len(remodeladas) - 3
+    # O MESMO EVENTO EM VARIAS OFERTAS SAI NUMA LINHA, nao num bloco
+    # cada. Em 23/10/2026 as tres Claro Flex mudaram juntas e a mensagem
+    # gastou doze linhas repetindo as mesmas palavras - enquanto a
+    # mudanca de preco, que agrupa por praca, diz "em todas as 20
+    # pracas" numa linha so.
+    juntas = _agrupar_remodeladas(remodeladas)
+    for g in juntas[:3]:
+        linhas += ["", "%s \u00b7 %s" % (_categoria(g[0]["atual"]),
+                                      _nomes_juntos(g))]
+        # O NUMERO DE UMA OFERTA NAO VALE PARA O GRUPO. As quatro Claro
+        # Flex de 23/10/2026 custam R$ 44,90, R$ 59,90, R$ 69,90 e
+        # R$ 119,90; imprimir "mesmo preco (44,90)" sob um cabecalho que
+        # fala das quatro afirma para todas o que vale para uma - o
+        # mesmo defeito de eleger um representante do grupo e publicar
+        # como fato.
+        #
+        # O grupo so se forma quando preco e entrega nao se mexeram em
+        # NENHUMA delas, entao a frase sem numero e verdade para todas,
+        # e e o que o leitor precisa saber. Oferta sozinha segue com os
+        # numeros dela.
+        linhas += ["  %s" % x for x in _o_que_mudou(
+            g[0], sem_numero=len(g) > 1)]
+        linhas.append("  %s" % g[0]["onde"])
+    if len(juntas) > 3:
+        n = sum(len(g) for g in juntas[3:])
         linhas += ["", "e mais %d oferta%s remodelada%s no relat\u00f3rio"
                    % (n, "" if n == 1 else "s", "" if n == 1 else "s")]
 
