@@ -333,10 +333,17 @@ DO_TEXTO = (
     (r"vale\s*sa[úu]de", "vale_saude"),
     (r"\bvivae\b", "vivae"),
     (r"\bparamount\b", "paramount"),
-    (r"\bmax\b|\bhbo\b", "max"),
-    # "sky" com fronteira dos dois lados: sem isso casa dentro de
-    # "Skeelo", que comeca igual e e outro app
-    (r"\bsky\b", "sky"),
+    # "\bhbo" sem fronteira no fim, para pegar "hbomax" colado. O
+    # "\bmax\b" mantem as duas: "max" solto casaria em "climax" e
+    # "maxi", e nao precisa - o \bhbo ja cobre a forma colada.
+    (r"\bmax\b|\bhbo", "max"),
+    # "SKY" PEGA O SUFIXO COLADO. Isto era r"\bsky\b", e o comentario
+    # justificava a fronteira final dizendo que sem ela "casa dentro de
+    # Skeelo, que comeca igual e e outro app". E falso: "Skeelo" e
+    # s-k-e e "sky" e s-k-y, e \bsky nao casa em "Skeelo" (conferido).
+    # A fronteira era desnecessaria e custava "SkyPlus", que devolvia
+    # lista vazia.
+    (r"\bsky", "sky"),
     (r"\btelecine\b", "telecine"),
     (r"\bdeezer\b", "deezer"),
     (r"\bskeelo\b", "skeelo"),
@@ -417,7 +424,16 @@ def _degustacao_de_outro(texto, pos_ini, pos_fim, app):
 # catalogo, e nao faz uma oferta subir de degrau.
 STREAMING = {"netflix", "disney", "globoplay", "amazon", "spotify",
              "premiere", "max", "paramount", "telecine", "deezer",
-             "youtube", "vivo_tv"}
+             "youtube", "vivo_tv",
+             # A MUSICA DA PROPRIA OPERADORA E STREAMING, como a TV
+             # dela. Estes dois ficavam de fora enquanto deezer e
+             # spotify entravam e vivo_tv - a TV da propria Vivo -
+             # tambem: a assimetria dentro da mesma familia era o
+             # indicio. O que a entrada de APPS diz ("servico da
+             # propria Claro; nao ha preco avulso") e sobre PRECO, nao
+             # sobre categoria. Mede 20 ofertas em 23/10/2026: a Vivo
+             # Controle Musica sai de nivel 1 para 2.
+             "claro_musica", "vivo_musica"}
 # A Sky fica de fora de proposito: e TV por assinatura, e quem decide
 # nivel 4 e a regra de "tv por assinatura" de cada coletor, nao a
 # presenca do nome dela numa lista de apps.
@@ -457,12 +473,19 @@ def nivel_dos_apps(lista, piso=0):
     E a mesma escada da decisao 10, com os mesmos cortes: a conta de
     streamings e de apps nao pode morar em dois lugares.
     """
-    streamings = [a for a in (lista or ()) if a in STREAMING]
+    # APP QUE O ROTULO NAO SABE NOMEAR NAO CONTA. nivel_dos_apps
+    # (["inexistente"]) devolvia 1 e rotulo(["inexistente"]) devolvia
+    # "": nivel "com apps de catalogo" ao lado de rotulo vazio, os dois
+    # campos da mesma oferta se contradizendo. E a mesma regra dos
+    # codigos SVA, que o projeto ja aplica - "codigo sem dicionario e
+    # ruido com cara de informacao".
+    conhecidos = [a for a in (lista or ()) if a in APPS]
+    streamings = [a for a in conhecidos if a in STREAMING]
     if len(streamings) > 1:
         return 3
     if len(streamings) == 1:
         return 2
-    if lista:
+    if conhecidos:
         return 1
     return piso
 
@@ -539,7 +562,25 @@ def apps_do_texto(texto, limite=6):
     """
     t = (texto or "").lower()
 
-    # onde cada app e citado, para uma janela nao invadir a do vizinho
+    # A PRIMEIRA MENCAO DO APP E A QUE VALE, e isto nao e descuido.
+    #
+    # Troquei por re.finditer para que a segunda mencao pudesse salvar o
+    # app, pensando em "Disney+ em degustacao por 3 meses. No plano
+    # anual, Disney+ incluso para sempre". O texto REAL da Claro Pos
+    # reprovou a ideia:
+    #
+    #   ... Disney+: 3 meses por conta da Claro. Apos, R$24,60 por mes.
+    #   DisneyPlus WhatsApp ilimitado
+    #
+    # A primeira mencao e a degustacao declarada; a segunda,
+    # "DisneyPlus", e resto de marcacao - nome de marca solto, sem
+    # nenhuma afirmacao de inclusao em volta. Com finditer a janela dela
+    # sai limpa e o Disney entra numa oferta que so tem trial, que e o
+    # defeito que o corte de degustacao existe para impedir.
+    #
+    # Meu caso a favor era inventado e o contraexemplo e medido. Entre
+    # deixar um app de fora e anunciar como incluso um app que e trial,
+    # a metodologia escolhe o primeiro.
     posicoes = []
     for padrao, app in DO_TEXTO:
         m = re.search(padrao, t)
@@ -567,7 +608,16 @@ def apps_do_texto(texto, limite=6):
         # os dois lados sao medidos SEPARADAMENTE: concatenados, eles
         # nao formam um pedaco contiguo do texto - o nome do app fica
         # fora - e a posicao da marca no meio sairia deslocada
+        # A JANELA DE TRAS PARA NO FIM DA FRASE ANTERIOR, como a da
+        # frente ja fazia. Sem isso os 24 caracteres pulavam o ponto e
+        # "Promocao de degustacao encerrada. Netflix incluso no plano"
+        # devolvia lista vazia: uma degustacao que ACABOU derrubava o
+        # app da frase seguinte, e o resultado dependia da distancia.
         atras = max(0, ini - 24)
+        for p in (".", ";"):
+            k = t.rfind(p, atras, ini)
+            if k >= 0:
+                atras = max(atras, k + 1)
         marcas = [(atras + m.start(), atras + m.end())
                   for m in DEGUSTACAO.finditer(t[atras:ini])]
         marcas += [(fim + m.start(), fim + m.end())

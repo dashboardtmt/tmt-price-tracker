@@ -218,6 +218,145 @@ class ADegustacaoQueDizDeQuemEla(unittest.TestCase):
         self.assertEqual(apps.apps_do_texto(t), ["netflix"])
 
 
+class OSufixoColadoNoNomeDoApp(unittest.TestCase):
+    u""""SkyPlus" e "hbomax" devolviam lista vazia.
+
+    O comentario do codigo justificava a fronteira final em \\bsky\\b
+    assim: "sem isso casa dentro de Skeelo, que comeca igual e e outro
+    app". E FALSO - "Skeelo" e s-k-e e "sky" e s-k-y. A fronteira era
+    desnecessaria e custava o nome com sufixo colado.
+    """
+
+    def test_sky_com_sufixo_colado(self):
+        self.assertEqual(apps.apps_do_texto("inclui SkyPlus"), ["sky"])
+
+    def test_sky_com_mais(self):
+        self.assertEqual(apps.apps_do_texto("inclui Sky+"), ["sky"])
+
+    def test_e_skeelo_continua_sendo_skeelo(self):
+        """A guarda que o comentario antigo dizia proteger. Ela nao
+        dependia da fronteira final - depende do "e" no lugar do "y"."""
+        self.assertEqual(apps.apps_do_texto("Skeelo incluso"), ["skeelo"])
+        self.assertNotIn("sky", apps.apps_do_texto("Skeelo incluso"))
+
+    def test_hbomax_colado(self):
+        self.assertEqual(apps.apps_do_texto("inclui hbomax"), ["max"])
+
+    def test_max_mantem_as_duas_fronteiras(self):
+        """"max" solto casaria dentro de "climax" e "maxi", e nao precisa
+        ser solto: o \\bhbo ja cobre a forma colada."""
+        self.assertEqual(apps.apps_do_texto("o climax do plano"), [])
+        self.assertEqual(apps.apps_do_texto("plano maxi"), [])
+        self.assertEqual(apps.apps_do_texto("inclui Max"), ["max"])
+
+
+class ADegustacaoDaFraseAnteriorNaoConta(unittest.TestCase):
+    u"""A janela de tras atravessava o ponto.
+
+    A degustacao e procurada em 24 caracteres antes do nome do app, e
+    esses 24 pulavam o fim da frase anterior. "Promocao de degustacao
+    encerrada. Netflix incluso no plano" devolvia lista vazia: uma
+    degustacao que ACABOU derrubava o app da frase seguinte, e o
+    resultado dependia da distancia entre as duas. A janela da frente ja
+    parava no ponto.
+    """
+
+    def test_degustacao_encerrada_na_frase_anterior(self):
+        t = u"Promo\u00e7\u00e3o de degusta\u00e7\u00e3o encerrada. Netflix incluso no plano."
+        self.assertEqual(apps.apps_do_texto(t), ["netflix"])
+
+    def test_e_a_degustacao_da_mesma_frase_continua_valendo(self):
+        """O ponto e o limite, nao uma porta de saida: na mesma frase a
+        marca segue derrubando o app."""
+        t = u"Netflix em degusta\u00e7\u00e3o por 3 meses no plano"
+        self.assertEqual(apps.apps_do_texto(t), [])
+
+    def test_ponto_e_virgula_tambem_fecha(self):
+        t = u"degusta\u00e7\u00e3o encerrada; Netflix incluso no plano."
+        self.assertEqual(apps.apps_do_texto(t), ["netflix"])
+
+
+class APrimeiraMencaoEhAQueVale(unittest.TestCase):
+    u"""E isto NAO e descuido - o contraexemplo e texto real da Claro.
+
+    Troquei re.search por re.finditer para que a segunda mencao pudesse
+    salvar o app, pensando em "Disney+ em degustacao por 3 meses. No
+    plano anual, Disney+ incluso para sempre". O texto real reprovou:
+
+        ... Disney+: 3 meses por conta da Claro. Apos, R$24,60 por mes.
+        DisneyPlus WhatsApp ilimitado
+
+    A segunda mencao, "DisneyPlus", e resto de marcacao - nome de marca
+    solto, sem afirmacao de inclusao em volta. Com finditer a janela
+    dela sai limpa e o Disney entra numa oferta que so tem trial.
+
+    Entre deixar um app de fora e anunciar como incluso um app que e
+    trial, a metodologia escolhe o primeiro.
+    """
+
+    def test_nome_de_marca_solto_depois_da_degustacao_nao_salva_o_app(self):
+        t = (u"Disney+: 3 meses por conta da Claro. Ap\u00f3s, R$24,60 por "
+             u"m\u00eas. DisneyPlus WhatsApp ilimitado")
+        self.assertEqual(apps.apps_do_texto(t), [])
+
+
+class ONivelNaoContaAppQueNaoSabeNomear(unittest.TestCase):
+    u"""nivel_dos_apps dizia 1 e rotulo dizia "".
+
+    Nivel "com apps de catalogo" ao lado de rotulo vazio - os dois
+    campos da mesma oferta se contradizendo. E a mesma regra dos codigos
+    SVA, que o projeto ja aplica: "codigo sem dicionario e ruido com
+    cara de informacao".
+    """
+
+    def test_chave_fora_do_dicionario_nao_sobe_o_nivel(self):
+        self.assertEqual(apps.nivel_dos_apps(["inexistente"]), 0)
+        self.assertEqual(apps.rotulo(["inexistente"]), "")
+
+    def test_e_nao_arrasta_a_chave_conhecida_do_lado(self):
+        self.assertEqual(apps.nivel_dos_apps(["netflix", "inexistente"]), 2)
+        self.assertEqual(apps.rotulo(["netflix", "inexistente"]), "Netflix")
+
+    def test_o_piso_continua_valendo(self):
+        self.assertEqual(apps.nivel_dos_apps(["inexistente"], piso=1), 1)
+
+
+class AMusicaDaOperadoraEhStreaming(unittest.TestCase):
+    u"""claro_musica e vivo_musica ficavam fora de STREAMING.
+
+    deezer e spotify estavam dentro, e vivo_tv - a TV da propria Vivo -
+    tambem: a assimetria dentro da mesma familia era o indicio. O que a
+    entrada de APPS diz ("servico da propria Claro; nao ha preco
+    avulso") e sobre PRECO, nao sobre categoria.
+
+    Mede 20 ofertas em 23/10/2026: a Vivo Controle Musica sai de nivel 1
+    ("com apps de catalogo") para 2 ("com uma assinatura"). A chave nao
+    muda - a variante sai da LISTA de apps, que continua a mesma - entao
+    nao ha ruido de "mudou de versao" na mensagem do dia seguinte.
+    """
+
+    def test_a_musica_da_operadora_vale_uma_assinatura(self):
+        self.assertEqual(apps.nivel_dos_apps(["vivo_musica"]), 2)
+        self.assertEqual(apps.nivel_dos_apps(["claro_musica"]), 2)
+
+    def test_igual_as_de_terceiros(self):
+        for a in ("deezer", "spotify"):
+            self.assertEqual(apps.nivel_dos_apps([a]), 2, a)
+
+    def test_e_com_outra_streaming_sobe_a_dois(self):
+        self.assertEqual(apps.nivel_dos_apps(["vivo_musica", "netflix"]), 3)
+
+    def test_a_sky_continua_fora_de_proposito(self):
+        """TV por assinatura: quem decide nivel 4 e a regra de "tv por
+        assinatura" de cada coletor, nao a presenca do nome numa lista."""
+        self.assertNotIn("sky", apps.STREAMING)
+        self.assertEqual(apps.nivel_dos_apps(["sky"]), 1)
+
+    def test_app_de_catalogo_segue_em_nivel_1(self):
+        for a in ("skeelo", "mcafee", "vale_saude", "vivae"):
+            self.assertEqual(apps.nivel_dos_apps([a]), 1, a)
+
+
 class PrecoPertenceAoTier(unittest.TestCase):
     """O preco avulso nao e do app, e do plano do app."""
 

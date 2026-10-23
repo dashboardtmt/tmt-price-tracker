@@ -855,6 +855,39 @@ MUTACOES = [
         "L6. oferta com preco proprio volta a ser agrupada"),
 
     Mutacao(
+        "coletores/apps.py",
+        '    (r"\\bsky", "sky"),',
+        '    (r"\\bsky\\b", "sky"),',
+        "M1. o sufixo colado volta a derrubar a Sky"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    (r"\\bmax\\b|\\bhbo", "max"),',
+        '    (r"\\bmax\\b|\\bhbo\\b", "max"),',
+        "M2. \"hbomax\" colado volta a nao ser lido"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        for p in (".", ";"):\n'
+        '            k = t.rfind(p, atras, ini)\n'
+        '            if k >= 0:\n'
+        '                atras = max(atras, k + 1)\n',
+        '',
+        "M3. a janela de tras volta a atravessar o ponto"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    conhecidos = [a for a in (lista or ()) if a in APPS]',
+        '    conhecidos = list(lista or ())',
+        "M4. o nivel volta a contar app que o rotulo nao nomeia"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '             "claro_musica", "vivo_musica"}',
+        '             }',
+        "M5. a musica da operadora volta a nao ser streaming"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',
