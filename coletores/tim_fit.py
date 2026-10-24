@@ -91,6 +91,19 @@ def ler_etiqueta(blob):
         t = "\n".join((p.extract_text() or "") for p in leitor.pages)
     except Exception as e:
         return None, "PDF ilegivel: %s" % str(e)[:60]
+    return da_etiqueta(t)
+
+
+def da_etiqueta(t):
+    """A leitura em si, sobre o TEXTO da etiqueta.
+
+    MORA SEPARADA DA EXTRACAO para poder ser medida. Enquanto a
+    leitura vivia dentro de ler_etiqueta, testar o que ela entende
+    exigia montar um PDF - e com isso nada media a REGRA, so o
+    caminho inteiro. Mesma licao que o provador deu duas vezes nesta
+    semana, do outro lado: teste de peca nao prova montagem, e
+    montagem sem peca testavel nao prova regra.
+    """
     t = re.sub(r"[ \t]+", " ", t)
 
     nome = re.search(r"(TIM CONTROLE FIT[^\n]*)", t, re.I)
@@ -102,6 +115,34 @@ def ler_etiqueta(blob):
     if not mp:
         return None, "preco em formato novo: %s" % preco_txt[:50]
     preco = float(mp.group(1).replace(".", "").replace(",", "."))
+
+    # POR QUANTO TEMPO ESTE PRECO VALE. A etiqueta da Anual escreve
+    # "R$30 por mes, durante 12 meses (R$360 no ano)", e isso nao era
+    # lido: as quatro ofertas gravavam meses_desconto = None, e o
+    # preco_cheio saia igual ao promocional - afirmando que nao ha
+    # desconto num preco que o documento diz que dura doze meses.
+    #
+    # O FIT e a linha de defesa da TIM, e o tracker a acompanha para ver
+    # o PISO do mercado: com os R$ 30 da Anual entrando como preco de
+    # regime, o piso aparecia 33% abaixo do que ela cobra sem
+    # compromisso - o Mensal equivalente custa R$ 45.
+    mj = re.search(r"durante\s+(\d{1,2})\s*m[\u00ea e]s", preco_txt, re.I)
+    janela = int(mj.group(1)) if mj else None
+
+    # A CONFERENCIA QUE A FONTE DA DE GRACA. "(R$360 no ano)" e 30 x 12.
+    # Quando o total anual esta declarado e nao fecha, um dos tres
+    # numeros foi lido errado - e ai sai aviso, nao numero silencioso.
+    avisos_oferta = []
+    ma = re.search(r"R\$\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*no\s+ano",
+                   preco_txt, re.I)
+    if ma and janela:
+        ano = float(ma.group(1).replace(".", "").replace(",", "."))
+        if abs(ano - preco * janela) > 0.02:
+            avisos_oferta.append(
+                "a etiqueta declara R$ %.2f no ano, e %s x %d meses d\u00e1 "
+                "R$ %.2f: um dos tr\u00eas n\u00fameros foi lido errado"
+                % (ano, ("%.2f" % preco).replace(".", ","), janela,
+                   preco * janela))
 
     gb = _campo(t, "Franquia ", 24) or ""
     mg = re.search(r"(\d{1,4})\s*GB", gb, re.I)
@@ -119,7 +160,16 @@ def ler_etiqueta(blob):
         "franquia_anunciada_gb": int(mg.group(1)) if mg else None,
         "franquia_contratual_gb": int(mg.group(1)) if mg else None,
         "preco_promocional": preco,
-        "preco_cheio": preco,
+        # PRECO COM PRAZO NAO E PRECO DE TABELA. Com janela declarada, a
+        # etiqueta da um preco so e diz que ele dura N meses - chamar o
+        # mesmo numero de preco cheio afirma o que o documento nao diz
+        # (decisao 9). Sem janela, o preco E o preco.
+        "preco_cheio": None if janela else preco,
+        "meses_desconto": janela,
+        # a etiqueta nao diz quanto custa depois da janela, e inventar
+        # seria pior que nao ter
+        "preco_pos_promocao": None,
+        "avisos_oferta": avisos_oferta or None,
         "fidelidade_meses": int(mf.group(1)) if mf else None,
         "multa_fidelidade": (float(mm.group(1).replace(".", "").replace(",", "."))
                              if mm else None),

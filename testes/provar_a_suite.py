@@ -888,6 +888,44 @@ MUTACOES = [
         "M5. a musica da operadora volta a nao ser streaming"),
 
     Mutacao(
+        "robo.py",
+        '        linhas.append("  %s" % m["onde"])\n'
+        '    if len(renom) > 3:',
+        '    if len(renom) > 3:',
+        "N1. a oferta renomeada volta a nao dizer em que praca"),
+
+    Mutacao(
+        "coletores/brisanet.py",
+        '        mes, valor = max(passos)',
+        '        mes, valor = passos[0]',
+        "P1. a nota de varios degraus volta a valer o degrau do meio"),
+
+    Mutacao(
+        "coletores/brisanet.py",
+        '    passos = [(int(m.group(1)), numero(m.group(2)))\n'
+        '              for m in PASSO_DA_NOTA.finditer(nota)]',
+        '    passos = []',
+        "P2. mes e valor voltam a ser lidos separados"),
+
+    Mutacao(
+        "coletores/tim_fit.py",
+        '    janela = int(mj.group(1)) if mj else None',
+        '    janela = None',
+        "P3. a janela de 12 meses do FIT volta a nao ser lida"),
+
+    Mutacao(
+        "coletores/tim_fit.py",
+        '        "preco_cheio": None if janela else preco,',
+        '        "preco_cheio": preco,',
+        "P4. preco com prazo volta a ser gravado como preco de tabela"),
+
+    Mutacao(
+        "coletores/tim_fit.py",
+        '        if abs(ano - preco * janela) > 0.02:',
+        '        if False:',
+        "P5. o total anual da etiqueta deixa de conferir a leitura"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',

@@ -2044,6 +2044,13 @@ def montar_mensagem(hoje, ontem):
                           % (_reais(de), _reais(para), _variacao(de, para)))
         else:
             linhas.append("  %s" % _texto_preco(de, para, False))
+        # A PRACA, COMO EM TODOS OS OUTROS BLOCOS. Este era o unico dos
+        # seis sem ela: em 24/10/2026 a mensagem anunciou dois
+        # reajustes da Brisanet, de -7% e -6%, sem dizer se foram numa
+        # das nove pracas do Nordeste ou nas nove. O evento ja trazia o
+        # campo - _assinar_alcance o escreve para renomeadas tambem, e o
+        # PDF o imprimia -, so a mensagem nao lia.
+        linhas.append("  %s" % m["onde"])
     if len(renom) > 3:
         linhas.append("  e mais %d renomeada(s)" % (len(renom) - 3))
 

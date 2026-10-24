@@ -240,19 +240,57 @@ def nivel_bundle(texto, produtos):
     return apps.nivel_por_apps(tudo, piso=1 if produtos else 0)
 
 
+# UM DEGRAU DA NOTA: o mes em que o preco muda, e o preco dele, lidos
+# JUNTOS. Eram dois re.search independentes - o primeiro mes e o
+# primeiro valor -, e numa nota de dois degraus isso casava o mes de um
+# com o preco do outro:
+#
+#   "Do 7o ao 12o mes R$ 89,90. No 13o mes o valor sera R$ 109,90"
+#       antes:  6 meses, R$ 89,90   (o degrau do MEIO)
+#       agora: 12 meses, R$ 109,90  (o de regime)
+#
+# O [^.;]{0,40} e o que mantem os dois na mesma oracao: "No 13o mes o
+# valor sera R$ 109,90" tem quatorze caracteres entre o "mes" e o "R$".
+PASSO_DA_NOTA = re.compile(
+    r"(\d{1,2})\s*[\u00ba\u00b0o]?\s*m[e\u00ea]s[^.;]{0,40}?R\$\s*([\d.]+,\d{2})",
+    re.I)
+
+MES_DA_NOTA = re.compile(r"(\d{1,2})\s*[\u00ba\u00b0o]?\s*m[e\u00ea]s", re.I)
+VALOR_DA_NOTA = re.compile(r"R\$\s*([\d.]+,\d{2})")
+
+
 def fim_da_promocao(nota):
     """Le o price_note: "No 13o mes o valor sera R$ 109,90".
 
     A Brisanet declara por quanto tempo o desconto vale e qual sera o
     preco depois - a propria operadora respondendo se o preco de hoje e
     temporario. Nenhuma das outras cinco diz isso de forma direta.
+
+    VALE O ULTIMO DEGRAU, que e o de regime. Nota com mais de um degrau
+    ("do 7o ao 12o mes R$ 89,90; no 13o mes R$ 109,90") daria o degrau
+    intermediario se valesse o primeiro - seis meses de desconto onde
+    sao doze, e o preco do meio como se fosse o definitivo.
+
+    Medido em 24/10/2026: as dez ofertas de Fortaleza tem nota de um
+    degrau so, entao isto e guarda e nao conserto de hoje. Com um degrau
+    o resultado e o mesmo de antes.
     """
     if not nota:
         return None, None
-    mes = re.search(r"(\d{1,2})\s*[ºo°]?\s*m[eê]s", str(nota), re.I)
-    valor = re.search(r"R\$\s*([\d.]+,\d{2})", str(nota))
-    meses = (int(mes.group(1)) - 1) if mes else None     # "13o mes" = 12 de desconto
-    return meses, (numero(valor.group(1)) if valor else None)
+    nota = str(nota)
+    passos = [(int(m.group(1)), numero(m.group(2)))
+              for m in PASSO_DA_NOTA.finditer(nota)]
+    if passos:
+        # "13o mes" quer dizer 12 meses de desconto: o preco novo vale A
+        # PARTIR do 13o
+        mes, valor = max(passos)
+        return mes - 1, valor
+    # NOTA QUE NAO PAREIA NAO PERDE O QUE DAVA. Quando ela anuncia o mes
+    # e nao diz o preco - ou o contrario -, vale o que estiver escrito.
+    mes = MES_DA_NOTA.search(nota)
+    valor = VALOR_DA_NOTA.search(nota)
+    return ((int(mes.group(1)) - 1) if mes else None,
+            numero(valor.group(1)) if valor else None)
 
 
 def coletar(cidade, uf, verbose=True):

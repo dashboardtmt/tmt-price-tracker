@@ -53,6 +53,14 @@ on:
     - cron: '56 11 * * *'   # marcado 08:56
     - cron: '29 13 * * *'   # marcado 10:29
   workflow_dispatch:
+    inputs:
+      so_avisar:
+        description: >
+          Reenviar a mensagem do dia sobre o dado que JA esta no banco,
+          sem coletar nada. Use quando a mensagem saiu com defeito e o
+          conserto ja esta no main.
+        type: boolean
+        default: false
 
 concurrency:
   group: rotina-diaria
@@ -69,6 +77,10 @@ jobs:
     outputs:
       rodar: ${{ steps.ver.outputs.rodar }}
       travado: ${{ steps.ver.outputs.travado }}
+      # SO AVISAR E DIFERENTE DE NAO RODAR. Com so_avisar, "rodar"
+      # continua true - o aviso e a tela precisam dele - e "coletar"
+      # vira false, que e o que mantem a coleta de fora.
+      coletar: ${{ steps.ver.outputs.coletar }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -113,6 +125,17 @@ jobs:
             exit 0
           fi
           echo "travado=false" >> "$GITHUB_OUTPUT"
+          # REENVIO DA MENSAGEM: nao coleta. O disparo na mao recoletava
+          # o dia inteiro, e foi assim que 40 capturas repetidas
+          # entraram no banco em 20/10/2026. Aqui so o aviso e a tela
+          # rodam, sobre o dado que ja esta gravado.
+          if [ "${{ inputs.so_avisar }}" = "true" ]; then
+            echo "rodar=true" >> "$GITHUB_OUTPUT"
+            echo "coletar=false" >> "$GITHUB_OUTPUT"
+            echo "so avisar: reenvia a mensagem sem coletar"
+            exit 0
+          fi
+          echo "coletar=true" >> "$GITHUB_OUTPUT"
           # disparo na mao sempre roda: quem dispara sabe o que quer
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "rodar=true" >> "$GITHUB_OUTPUT"
@@ -229,7 +252,9 @@ jobs:
 
   coleta:
     needs: decidir
-    if: needs.decidir.outputs.rodar == 'true'
+    if: >
+      needs.decidir.outputs.rodar == 'true' &&
+      needs.decidir.outputs.coletar != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
