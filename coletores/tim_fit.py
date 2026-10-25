@@ -255,6 +255,10 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
             "apps_planos": apps.planos_dos_apps(
                 apps.apps_do_texto(o.get("aplicativos")),
                 o.get("aplicativos"), o.get("nome_oferta")),
+            # a leitura larga sai dita, no mesmo canal
+            "avisos_oferta": apps.juntar_avisos(
+                o.get("avisos_oferta"),
+                apps.aviso_de_leitura(o.get("aplicativos"))),
             "campanha": None, "id_catalogo": None,
         })
         saida["ofertas"].append(o)

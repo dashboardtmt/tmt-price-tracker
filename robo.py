@@ -289,7 +289,13 @@ def _indexar(dia):
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
               "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
               "nivel_bundle,codigo_anatel,"
-              "assinatura_sva:bruto->>assinatura_sva")
+              "assinatura_sva:bruto->>assinatura_sva,"
+              # A RECUSA DO COLETOR, que ninguem lia. Quatro coletores
+              # escrevem avisos_oferta em sete lugares - regulamento de
+              # outra oferta, card sem composicao, total anual que nao
+              # fecha - e o campo nunca saiu do bruto. O numero errado
+              # nao foi gravado, e o buraco nao foi anunciado.
+              "avisos_oferta:bruto->avisos_oferta")
     # paginado: sao mais de mil capturas por dia, e pedir "limit=20000"
     # trazia so as primeiras mil sem reclamar
     linhas, erro = armazenamento.consultar_tudo(
@@ -562,6 +568,7 @@ def mudancas(hoje, ontem):
       remodeladas   preco E entrega mudando no mesmo dia
       erro          a consulta caiu: nao houve comparacao
       cego          ofertas que nao deu para comparar, e por que
+      duvidosa      ofertas em que o coletor recusou um campo, por motivo
       cobertura     quanto da vitrine de hoje tinha par em ontem
     """
     h, erro_h, cego_h = _indexar(hoje)
@@ -583,10 +590,13 @@ def mudancas(hoje, ontem):
     # Comparacao que falhou nao e comparacao sem novidade. Sem devolver o
     # erro, uma consulta que caiu faria o aviso afirmar "nada mudou" - pior
     # que nao avisar, porque soa como noticia verificada.
+    # a ressalva da leitura sai mesmo quando a comparacao falha: ela
+    # fala do dado de HOJE, e nao da comparacao com ontem
+    duvidosa = _leitura_duvidosa(h)
     vazio = {"precos": [], "composicao": [], "renomeadas": [], "grades": [],
              "voltaram": [], "remodeladas": [], "leitura": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
-             "cobertura": None}
+             "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
         return dict(vazio, erro=erro_h or erro_o)
     grades, suprimir = _grades_reorganizadas(h, o)
@@ -750,7 +760,7 @@ def mudancas(hoje, ontem):
     # recalcula universo e onde a partir de "pracas", e a primeira
     # chamada existe porque a separacao precisa do universo antes.
     _assinar_alcance(h, precos, composicao, renomeadas, grades, voltaram,
-                     remodeladas, leitura)
+                     remodeladas, leitura, duvidosa)
 
     # A ORDEM E PARTE DA NOTICIA, e e decidida aqui para a mensagem e o
     # PDF nao poderem discordar. Ver _por_efeito.
@@ -762,6 +772,9 @@ def mudancas(hoje, ontem):
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura,
             "erro": None, "cego": cego, "cego_ontem": cego_o,
+            # a recusa do coletor nao passa por _assinar_alcance nem pela
+            # ordenacao: nao e evento de mercado, e ressalva sobre o dado
+            "duvidosa": duvidosa,
             "cobertura": _cobertura(h, o, (cego_h or {}).get("quantas", 0))}
 
 
@@ -836,6 +849,74 @@ def _minoria_das_pracas(e):
     universo = e.get("universo") or 0
     quantas = len(set(e.get("pracas") or ()))
     return universo > 1 and quantas * 2 < universo
+
+
+def _leitura_duvidosa(h):
+    """As ofertas em que o coletor recusou um campo, por motivo.
+
+    NAO E EVENTO DE MERCADO, E RESSALVA SOBRE O DADO: nada mudou na
+    vitrine, o que houve foi a nossa leitura dizer "este campo eu nao
+    sei". Por isso fica fora da contagem de mudancas e mora ao lado da
+    cobertura, que e a outra frase sobre o que NAO foi possivel afirmar.
+
+    AGRUPA POR OPERADORA E PRODUTO, e nao pelo texto do motivo.
+
+    Agrupar pelo texto nao agrupa nada: ele embute os valores da oferta
+    ("declara 25 GB para um card de 15 GB", "diz R$ 1200,00 de tabela,
+    abaixo dos R$ 1500,00"), entao cada oferta tem motivo unico. Medido
+    na coleta real de 25/10/2026, dez ofertas renderam dez grupos - uma
+    parede de quase-repeticoes que esconde o que importa: sao DOIS
+    problemas, nao dez.
+
+    Cortar o texto no ":" para achar a "especie" do aviso tambem nao
+    serve: na Vivo, no Flex e no FIT a explicacao vem depois dos dois
+    pontos, e na Claro vem antes. Adivinhar a forma da redacao para
+    agrupar e a esperteza que este projeto reprova.
+
+    (operadora, produto) e a granularidade que o leitor usa e que nao
+    depende da redacao de ninguem - e e ela que permite medir o alcance,
+    porque _onde compara com o universo de (operadora, produto).
+
+    Os motivos distintos viajam numa lista: a mensagem mostra o primeiro
+    e diz quantos outros ha, e o relatorio lista todos.
+    """
+    grupos = {}
+    for l in h.values():
+        avisos = l.get("avisos_oferta")
+        # o bruto pode devolver string em vez de lista quando o coletor
+        # grava um aviso so: tratar como lista de um
+        if isinstance(avisos, str):
+            avisos = [avisos]
+        avisos = [a for a in (avisos or ()) if a]
+        if not avisos:
+            continue
+        k = (l.get("operadora"), l.get("produto"))
+        d = grupos.setdefault(k, {
+            "operadora": l.get("operadora"), "produto": l.get("produto"),
+            "motivos": [], "pracas": [], "quantas": 0,
+            # O ROTULO EM PORTUGUES VIAJA COM O EVENTO, como em
+            # bundle_antes: a mensagem e o PDF leem o mesmo texto e nao
+            # podem divergir.
+            "categoria": _categoria(l),
+            # _rotulo e _categoria leem "atual" nos outros eventos
+            "atual": l})
+        # CONTA OFERTA, NAO AVISO. Uma oferta com dois avisos e uma
+        # oferta com leitura duvidosa, e dizer "2 ofertas" ali seria
+        # inflar o tamanho do buraco.
+        d["quantas"] += 1
+        for aviso in avisos:
+            if aviso not in d["motivos"]:
+                d["motivos"].append(aviso)
+        if l.get("praca") and l["praca"] not in d["pracas"]:
+            d["pracas"].append(l["praca"])
+    for d in grupos.values():
+        d["motivos"].sort()
+        # o primeiro motivo serve de exemplo na mensagem; "motivo" fica
+        # como apelido para quem le um por um
+        d["motivo"] = d["motivos"][0]
+    return sorted(grupos.values(),
+                  key=lambda d: (-d["quantas"], d["operadora"] or "",
+                                 d["produto"] or ""))
 
 
 def _cobertura(h, o, fora=0):
@@ -1775,6 +1856,7 @@ def montar_mensagem(hoje, ontem):
     r = mudancas(hoje, ontem)
     mud, comp, renom = r["precos"], r["composicao"], r["renomeadas"]
     grades, voltaram, remodeladas = r["grades"], r["voltaram"], r["remodeladas"]
+    duvidosa = r.get("duvidosa") or []
     erro_cmp, ponto_cego, cobertura = r["erro"], r["cego"], r["cobertura"]
     leitura = r.get("leitura") or []
 
@@ -2034,7 +2116,11 @@ def montar_mensagem(hoje, ontem):
     for m in renom[:3]:
         a, d = m["antes"], m["atual"]
         de, para = a["preco_promocional"], d["preco_promocional"]
-        linhas += ["", "%s \u00b7 mudou de nome" % d["operadora"]]
+        # O PRODUTO ABRE A LINHA, como nos outros cinco blocos. Este
+        # abria com a operadora, e quem lia "-7% na Brisanet" nao sabia
+        # se foi na fibra, no combo ou no movel - e ela vende os tres.
+        linhas += ["", "%s \u00b7 %s \u00b7 mudou de nome"
+                   % (_categoria(d), d["operadora"])]
         linhas.append("  %s \u2192 %s" % (a["nome_oferta"] or "?", d["nome_oferta"] or "?"))
         # TRES ESTADOS, e o else recolhia dois deles: "igual" e "nao
         # lido" saiam os dois como "pelo mesmo preco (-)" - a afirmacao
@@ -2079,6 +2165,35 @@ def montar_mensagem(hoje, ontem):
                    % (n, "" if n == 1 else "s",
                       "mudou" if n == 1 else "mudaram", ", ".join(ops),
                       porque)]
+
+    # O QUE O COLETOR RECUSOU LER. Mesma familia da cobertura e da linha
+    # de leitura: as tres dizem o que NAO foi possivel afirmar, e por
+    # isso ficam juntas no fim e fora da contagem de mudancas - nada
+    # mudou na vitrine, foi a nossa leitura que disse "este campo eu nao
+    # sei".
+    #
+    # O CANAL EXISTIA E NAO TINHA LEITOR. Quatro coletores escrevem
+    # avisos_oferta em sete lugares - regulamento de outra oferta, card
+    # sem composicao reconhecida, total anual que nao fecha - e o campo
+    # nunca saiu do bruto. O numero errado nao era gravado, e o buraco
+    # nao era anunciado: "falha vira buraco, nao vira numero" cumprido
+    # pela metade.
+    for g in duvidosa[:3]:
+        linhas += ["", "%s \u00b7 %s \u00b7 leitura com ressalva"
+                   % (_categoria(g["atual"]), g["operadora"])]
+        linhas.append("  %d oferta%s, %s"
+                      % (g["quantas"], "" if g["quantas"] == 1 else "s",
+                         g["onde"]))
+        linhas.append("  %s" % g["motivo"])
+        outros = len(g.get("motivos") or ()) - 1
+        if outros > 0:
+            linhas.append("  e mais %d motivo%s nesta operadora, no "
+                          "relat\u00f3rio"
+                          % (outros, "" if outros == 1 else "s"))
+    if len(duvidosa) > 3:
+        resto = sum(g["quantas"] for g in duvidosa[3:])
+        linhas += ["", "e mais %d oferta%s com ressalva de leitura, no "
+                   "relat\u00f3rio" % (resto, "" if resto == 1 else "s")]
 
     # A COLETA FORA DA JANELA SAI DITA. A guarda libera a coleta depois
     # das 10h "de qualquer jeito", porque dia sem dado nao volta - e isso
@@ -2162,6 +2277,9 @@ def montar_mensagem(hoje, ontem):
         "mudancas_preco": mud, "mudancas_composicao": comp,
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "remodeladas": remodeladas, "leitura": leitura,
+        # a recusa do coletor: a frase curta foi na mensagem, a conta
+        # inteira por operadora e praca e do relatorio
+        "duvidosa": duvidosa,
         "erro_comparacao": erro_cmp, "cobertura": cobertura,
         # O ERRO DA CONSULTA DE COLETAS VAI PARA O PDF TAMBEM. Sem ele,
         # a mensagem dizia "nao deu para ler o estado da coleta" e o

@@ -409,6 +409,23 @@ def regulamento(op, codigo):
     return oferta
 
 
+def _reais(v):
+    """"1200.0" -> "R$ 1.200,00", como no resto da mensagem.
+
+    MORA AQUI E NAO NO robo.py porque o aviso nasce no coletor, e o
+    coletor nao importa o robo - a dependencia e no outro sentido. O
+    texto do aviso passou a sair no Telegram quando o canal de leitura
+    duvidosa ganhou leitor, e "R$ 1200.00" ao lado de "R$ 1.200,00"
+    denuncia que as duas frases foram escritas em epocas diferentes.
+    """
+    if v is None:
+        return "\u2014"
+    # o "@" e so um passo intermediario para nao trocar duas vezes o
+    # mesmo caractere: 1200.0 -> "1,200.00" -> "1@200.00" -> "1.200,00"
+    return "R$ " + ("{:,.2f}".format(v).replace(",", "@")
+                    .replace(".", ",").replace("@", "."))
+
+
 def _num(x):
     """O numero do regulamento, no formato brasileiro.
 
@@ -471,11 +488,16 @@ def aplicar_regulamento(oferta, reg):
         # Escolher um entre varios e publicar como fato e a mesma
         # familia do par indistinguivel. O sinal para recusar ja estava
         # na mao; faltava usa-lo para tudo.
-        oferta.setdefault("avisos_oferta", []).append(
-            "regulamento diz R$ %.2f de tabela, abaixo dos R$ %.2f da "
-            "vitrine: o documento e de outra oferta que divide o mesmo "
-            "codigo Anatel, e nenhum campo contratual dele foi usado"
-            % (tabela, prom))
+        # APPS.JUNTAR_AVISOS E NAO SETDEFAULT. A chave existe valendo
+        # None quando nao ha aviso - ausencia e ausencia, nao lista
+        # vazia -, e setdefault nao substitui None: ele devolve None e o
+        # .append estoura, derrubando a coleta inteira da Vivo.
+        oferta["avisos_oferta"] = apps.juntar_avisos(
+            oferta.get("avisos_oferta"),
+            "o regulamento diz %s de tabela, abaixo dos %s da "
+            "vitrine: o documento \u00e9 de outra oferta que divide o mesmo "
+            "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
+            % (_reais(tabela), _reais(prom)))
         return oferta
     oferta["preco_cheio"] = tabela or oferta.get("preco_cheio")
     # ZERO DECLARADO NAO E AUSENCIA. "Ausencia e ausencia, nunca
@@ -530,10 +552,11 @@ def aplicar_regulamento(oferta, reg):
                           "multa_fidelidade", "taxa_instalacao",
                           "taxa_adesao"):
                 oferta[campo] = None
-            oferta.setdefault("avisos_oferta", []).append(
-                "regulamento declara %s GB para um card de %s GB: o "
-                "documento e de outra oferta que divide o mesmo codigo "
-                "Anatel, e nenhum campo contratual dele foi usado"
+            oferta["avisos_oferta"] = apps.juntar_avisos(
+                oferta.get("avisos_oferta"),
+                "o regulamento declara %s GB para um card de %s GB: "
+                "o documento \u00e9 de outra oferta que divide o mesmo "
+                "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
                 % (v, anunciada))
             return oferta
         if v:
@@ -727,6 +750,8 @@ def coletar(cidade, uf, verbose=True):
             # mesma pergunta, que e como um campo passou a negar o
             # vizinho.
             _apps_do_card = apps_da_vitrine(c["plano"], c["texto"])
+            # a leitura larga sai dita, no mesmo canal
+            _aviso_apps = apps.aviso_de_leitura(c["texto"])
             oferta = {
                 "operadora": "Vivo",
                 "produto": produto,
@@ -772,6 +797,7 @@ def coletar(cidade, uf, verbose=True):
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],
                 "codigo_anatel": c["codigo_anatel"],
+                "avisos_oferta": apps.juntar_avisos(None, _aviso_apps),
                 "campanha": None,
                 "id_catalogo": None,
             }

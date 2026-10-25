@@ -370,6 +370,10 @@ def coletar(cidade, uf, verbose=True):
             o["apps"] = apps.apps_do_texto(o.get("composicao"))
             _fontes = (o.get("composicao"), o.get("nome_oferta"))
             o["apps_rotulo"] = apps.rotulo(o["apps"], *_fontes)
+            # a leitura larga sai dita, no mesmo canal
+            o["avisos_oferta"] = apps.juntar_avisos(
+                o.get("avisos_oferta"),
+                apps.aviso_de_leitura(o.get("composicao")))
             o["apps_planos"] = apps.planos_dos_apps(o["apps"], *_fontes)
             o.update({"operadora": "TIM", "produto": "combo", "praca": praca,
                       "pagina": "combo",

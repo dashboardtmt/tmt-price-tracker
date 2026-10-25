@@ -562,6 +562,14 @@ def coletar(cidade, uf, verbose=True):
                 "apps_planos": apps.planos_dos_apps(
                     apps.apps_do_texto(c.get("composicao")),
                     c.get("composicao"), c.get("nome_oferta")),
+                # A LEITURA LARGA SAI DITA. Acima do limite de apps a
+                # lista vira vazia, e vazio quer dizer "nenhum app
+                # nomeado" - nivel 0, "sem assinatura inclusa" na
+                # tela. O aviso vai para avisos_oferta, que a
+                # mensagem e o relatorio leem.
+                "avisos_oferta": apps.juntar_avisos(
+                    c.get("avisos_oferta"),
+                    apps.aviso_de_leitura(c.get("composicao"))),
                 "preco_cheio": None, "codigo_anatel": None,
                 # a campanha, quando houve, veio do card e nao pode ser
                 # zerada aqui: e ela que explica por que o nome da oferta

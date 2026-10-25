@@ -37,7 +37,13 @@ from _apoio import (HOJE, ONTEM, banco, dados, em_todas, montar, oferta,
 #
 # Um grupo novo entra aqui e o teste passa a exigir a praca dele.
 GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
-          "voltaram", "renomeadas")
+          "voltaram", "renomeadas",
+          # "duvidosa" nao e evento de mercado - e a recusa do coletor em
+          # ler um campo -, mas diz em que praca do mesmo jeito, e por
+          # isso entra na varredura em vez de ganhar excecao. Excecao
+          # aqui e a escotilha que faz a guarda nao valer nada no dia em
+          # que um evento de verdade nascer.
+          "duvidosa")
 
 # A mensagem corta cada grupo em tres e manda o resto para o PDF.
 MOSTRADOS = 3

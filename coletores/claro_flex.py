@@ -119,6 +119,9 @@ def extrair(texto):
             "apps_rotulo": apps.rotulo(apps.apps_do_texto(meio), meio),
             "apps_planos": apps.planos_dos_apps(
                 apps.apps_do_texto(meio), meio),
+            # a leitura larga sai dita, no mesmo canal
+            "avisos_oferta": apps.juntar_avisos(
+                None, apps.aviso_de_leitura(meio)),
             "composicao": meio.strip()[:400],
         })
         if not mc and tem_bonus:

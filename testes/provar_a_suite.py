@@ -20,6 +20,7 @@ uns 20 segundos. Rodar quando mexer nos testes.
 import io
 import os
 import subprocess
+import time
 import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -578,10 +579,8 @@ MUTACOES = [
 
     Mutacao(
         "coletores/vivo.py",
-        '            % (tabela, prom))\n'
-        '        return oferta',
-        '            % (tabela, prom))\n'
-        '        tabela = None',
+        '        oferta["avisos_oferta"] = apps.juntar_avisos(',
+        '        return oferta  # mutacao C1\n        oferta["avisos_oferta"] = apps.juntar_avisos(',
         "C1. o regulamento de outra oferta volta a ser carimbado"),
 
     Mutacao(
@@ -926,6 +925,55 @@ MUTACOES = [
         "P5. o total anual da etiqueta deixa de conferir a leitura"),
 
     Mutacao(
+        "coletores/apps.py",
+        '    if quantos > limite:',
+        '    if False:',
+        "Q1. a leitura larga de apps volta a virar lista vazia calada"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    if novo and novo not in saida:\n'
+        '        saida.append(novo)',
+        '    pass',
+        "Q2. a juntada de avisos volta a descartar o aviso novo"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    if novo and novo not in saida:\n'
+        '        saida.append(novo)\n'
+        '    return saida or None',
+        '    if novo and novo not in saida:\n'
+        '        saida.append(novo)\n'
+        '    return saida',
+        "Q3. ausencia de ressalva volta a sair como lista vazia"),
+
+    Mutacao(
+        "robo.py",
+        '              "avisos_oferta:bruto->avisos_oferta")',
+        '              )',
+        "Q4. o canal volta a ficar sem leitor (o estado de producao)"),
+
+    Mutacao(
+        "robo.py",
+        '    for g in duvidosa[:3]:',
+        '    for g in []:',
+        "Q5. a mensagem volta a nao dizer o que foi recusado"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '        oferta["avisos_oferta"] = apps.juntar_avisos(\n'
+        '            oferta.get("avisos_oferta"),',
+        '        oferta.setdefault("avisos_oferta", []).append(',
+        "Q6. setdefault volta a estourar na chave que vale None"),
+
+    Mutacao(
+        "relatorio.py",
+        '        return (str(v or "").replace("&", "&amp;")\n'
+        '                .replace("<", "&lt;").replace(">", "&gt;"))',
+        '        return str(v or "")',
+        "Q7. o texto do coletor volta a poder derrubar o PDF"),
+
+    Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
         'PAINEL = "https://exemplo.invalido"',
@@ -938,6 +986,60 @@ def suite_verde():
     r = subprocess.run([sys.executable, "-m", "unittest", "discover",
                         "-s", "testes"], cwd=BASE, capture_output=True)
     return r.returncode == 0
+
+
+def _escrever(caminho, conteudo, tentativas=6):
+    """Escreve o arquivo, insistindo enquanto o sincronizador o destrancar.
+
+    O projeto mora no OneDrive, que tranca o arquivo por instantes. Em
+    25/10/2026 o provador morreu com PermissionError no meio de uma
+    mutacao; naquela vez foi na escrita que APLICA, e o fonte ficou
+    intacto por sorte. Na que RESTAURA, ele teria deixado um defeito
+    reintroduzido no codigo e saido sem rastro.
+    """
+    erro = None
+    for n in range(tentativas):
+        try:
+            io.open(caminho, "w", encoding="utf-8", newline="\n").write(conteudo)
+        except (OSError, IOError) as e:
+            erro = e
+            time.sleep(0.4 * (n + 1))
+            continue
+        # CONFERE LENDO DE VOLTA. Escrita que falha em silencio e o modo
+        # de falhar que este projeto proibe: parece resultado.
+        try:
+            if io.open(caminho, encoding="utf-8").read() == conteudo:
+                return None
+        except (OSError, IOError) as e:
+            erro = e
+        time.sleep(0.4 * (n + 1))
+    return erro or "o arquivo nao ficou com o conteudo escrito"
+
+
+def _restaurar(caminho, original):
+    """Devolve o fonte ao que era, ou grita alto e para.
+
+    Seguir para a mutacao seguinte com um arquivo mutado espalharia o
+    dano por mais arquivos - e a proxima restauracao gravaria o fonte
+    JA MUTADO como se fosse o original.
+    """
+    erro = _escrever(caminho, original)
+    if not erro:
+        return
+    salvo = caminho + ".original"
+    try:
+        io.open(salvo, "w", encoding="utf-8", newline="\n").write(original)
+    except (OSError, IOError):
+        salvo = None
+    print("")
+    print("=" * 78)
+    print("NAO CONSEGUI RESTAURAR %s" % caminho)
+    print("O arquivo esta MUTADO: nao comite, nao rode a coleta.")
+    print("Motivo: %s" % erro)
+    if salvo:
+        print("O conteudo original esta em %s" % salvo)
+    print("=" * 78)
+    raise SystemExit(2)
 
 
 def main():
@@ -956,12 +1058,19 @@ def main():
             print("%-60s  NAO APLIQUEI" % m.conta[:60])
             inuteis.append("%s (o trecho mudou)" % m.conta)
             continue
-        io.open(caminho, "w", encoding="utf-8", newline="\n").write(
-            original.replace(m.de, m.para, 1))
+        erro = _escrever(caminho, original.replace(m.de, m.para, 1))
+        if erro:
+            # nao conseguiu nem aplicar: o fonte esta intacto, e a
+            # mutacao fica como nao medida em vez de virar silencio
+            print("%-60s  NAO APLIQUEI" % m.conta[:60])
+            inuteis.append("%s (nao deu para escrever: %s)"
+                           % (m.conta, str(erro)[:60]))
+            _restaurar(caminho, original)
+            continue
         try:
             verde = suite_verde()
         finally:
-            io.open(caminho, "w", encoding="utf-8", newline="\n").write(original)
+            _restaurar(caminho, original)
 
         if m.controle:
             ok = verde

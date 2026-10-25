@@ -669,6 +669,46 @@ def gerar(dados, entradas, caminho):
                   "por operadora e saltos de preço.", ESTILOS["corpo"]),
         _bloco_denuncias(dados)))
 
+    # O QUE O COLETOR RECUSOU LER. O canal existia e nao tinha leitor:
+    # quatro coletores escrevem avisos_oferta em sete lugares -
+    # regulamento de outra oferta, card sem composicao reconhecida,
+    # total anual da etiqueta que nao fecha - e o campo nunca saia do
+    # bruto. O numero errado nao era gravado, e o buraco nao era
+    # anunciado.
+    #
+    # Vem ANTES das notas metodologicas porque nao e nota sobre o
+    # metodo: e a lista do que, neste dia, nao foi possivel afirmar.
+    # REPORTLAB LE O PARAGRAPH COMO MINI-HTML, e o texto vem do
+    # coletor: um "&" ou um "<" nele derrubaria a geracao do PDF
+    # inteira. Anexo que falha e problema; aviso que nao sai e
+    # maior, e por isso o escape e aqui e nao na confianca.
+    def _texto(v):
+        return (str(v or "").replace("&", "&amp;")
+                .replace("<", "&lt;").replace(">", "&gt;"))
+
+    duvidosa = dados.get("duvidosa") or []
+    if duvidosa:
+        quantas = sum(g.get("quantas") or 0 for g in duvidosa)
+        hist.append(Spacer(1, 10))
+        hist += _secao("Leitura com ressalva")
+        hist.append(Paragraph(
+            "Em %d oferta%s deste dia o coletor encontrou o campo e "
+            "recusou a leitura, por nao poder afirmar o valor. O pre\u00e7o "
+            "e a franquia anunciados seguem valendo; o que ficou vazio "
+            "est\u00e1 descrito abaixo, com a raz\u00e3o que o pr\u00f3prio coletor "
+            "registrou."
+            % (quantas, "" if quantas == 1 else "s"), ESTILOS["corpo"]))
+        for g in duvidosa:
+            hist.append(Spacer(1, 4))
+            hist.append(Paragraph(
+                "<b>%s \u00b7 %s</b> \u2014 %d oferta%s, %s. %s"
+                % (_texto(g.get("categoria")),
+                   _texto(g.get("operadora")),
+                   g.get("quantas") or 0,
+                   "" if (g.get("quantas") or 0) == 1 else "s",
+                   _texto(g.get("onde")), _texto(g.get("motivo"))),
+                ESTILOS["nota"]))
+
     if dados.get("ponto_cego"):
         hist.append(Spacer(1, 6))
         hist.append(Paragraph(

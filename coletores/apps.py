@@ -552,14 +552,77 @@ def sem_degustacao(texto):
     return " ".join(x.strip() for x in saida if x.strip())
 
 
-def apps_do_texto(texto, limite=6):
+# Quantos apps um texto de oferta pode nomear antes de a leitura virar
+# suspeita. Pagina de operadora lista o portfolio inteiro em rodape e
+# menu, e um texto que "contem" oito streamings quase nunca e uma oferta
+# com oito.
+LIMITE_DE_APPS = 6
+
+
+def aviso_de_leitura(texto, limite=None):
+    """Por que a leitura de apps deste texto nao e de confiar, ou None.
+
+    E A PORTA DO CANAL DE LEITURA DUVIDOSA, do lado do coletor. O
+    descarte por limite devolve [], e [] quer dizer "nenhum app
+    nomeado" - nivel 0, que na tela e "sem assinatura inclusa". Sem esta
+    frase, uma leitura larga virava afirmacao de ausencia, calada.
+
+    O coletor grava o retorno em avisos_oferta, e dali a mensagem e o
+    relatorio o leem. O descarte em si nao muda: eleger seis dos oito
+    seria o sorteio que o projeto recusa em todo lugar.
+    """
+    quantos = len(_citados(texto))
+    limite = LIMITE_DE_APPS if limite is None else limite
+    if quantos > limite:
+        return ("o texto da oferta nomeia %d aplicativos, acima do limite "
+                "de %d: a leitura pegou a vitrine junto com o card, e a "
+                "lista de apps ficou vazia em vez de adivinhada"
+                % (quantos, limite))
+    return None
+
+
+def juntar_avisos(existentes, novo):
+    """Soma um aviso aos que a oferta ja tinha, sem apagar nenhum.
+
+    A Claro e a Vivo gravam avisos_oferta por outros motivos - regulamento
+    de outra oferta, card sem composicao reconhecida - e sobrescrever
+    trocaria uma ressalva por outra. Devolve None quando nao ha nenhuma,
+    porque ausencia e ausencia e nao lista vazia: "[]" compararia igual a
+    "[]" entre dias e esconderia a chegada da primeira ressalva.
+    """
+    if isinstance(existentes, str):
+        existentes = [existentes]
+    saida = [a for a in (existentes or ()) if a]
+    if novo and novo not in saida:
+        saida.append(novo)
+    return saida or None
+
+
+def _citados(texto):
+    """Os apps que o texto nomeia, antes do corte de degustacao e limite.
+
+    Serve a aviso_de_leitura, que precisa do TAMANHO da leitura crua -
+    e nao do resultado dela, que por definicao e vazio quando o limite
+    dispara.
+    """
+    t = (texto or "").lower()
+    return sorted({app for padrao, app in DO_TEXTO if re.search(padrao, t)})
+
+
+def apps_do_texto(texto, limite=None):
     """Os apps nomeados num texto de oferta, fora os em degustacao.
 
     O limite existe porque pagina de operadora lista o portfolio inteiro
     em rodape e menu: um texto que "contem" oito streamings quase nunca
     e uma oferta com oito streamings, e sim um trecho que pegou a
     vitrine junto. Acima do limite, a leitura e descartada.
+
+    O DESCARTE NAO E SILENCIOSO desde 25/10/2026: aviso_de_leitura()
+    devolve o motivo, o coletor o grava em avisos_oferta, e a mensagem e
+    o relatorio o leem. A lista continua vazia - eleger seis dos oito
+    seria sorteio -, mas o buraco passa a ser anunciado.
     """
+    limite = LIMITE_DE_APPS if limite is None else limite
     t = (texto or "").lower()
 
     # A PRIMEIRA MENCAO DO APP E A QUE VALE, e isto nao e descuido.
