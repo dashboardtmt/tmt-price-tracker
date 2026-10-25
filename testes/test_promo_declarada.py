@@ -146,7 +146,11 @@ class AEtiquetaDoFitDizPorQuantoTempo(unittest.TestCase):
     def test_e_avisa_quando_o_total_anual_nao_fecha(self):
         o = self._ler(u"R$30 por mês, durante 12 meses (R$400 no ano)")
         self.assertTrue(o.get("avisos_oferta"), "o total anual nao fecha")
-        self.assertIn("400", o["avisos_oferta"][0])
+        # a ressalva tem duas formas desde 25/10/2026: o numero esta no
+        # texto longo, que e o do relatorio
+        curto, longo = tim_fit.apps._duas_formas(o["avisos_oferta"][0])
+        self.assertEqual(curto, "o total do ano n\u00e3o fecha com pre\u00e7o x meses")
+        self.assertIn("400", longo)
 
     def test_janela_sem_total_anual_nao_inventa_conferencia(self):
         o = self._ler(u"R$30 por mês, durante 12 meses")

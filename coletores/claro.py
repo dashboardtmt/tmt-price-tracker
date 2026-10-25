@@ -201,10 +201,14 @@ def ler_cards(op, url, produto):
             "composicao": txt[:400],
         })
     if sem_preco_real and cards:
-        cards[0].setdefault("avisos_oferta", []).append(
-            "%d card(s) tinham preco so dentro de frase de degustacao e "
-            "ficaram de fora - e preco do beneficio, nao do plano"
-            % sem_preco_real)
+        cards[0]["avisos_oferta"] = apps.juntar_avisos(
+            cards[0].get("avisos_oferta"),
+            apps.ressalva(
+                "%d card(s) ficaram de fora por pre\u00e7o de degusta\u00e7\u00e3o"
+                % sem_preco_real,
+                "%d card(s) tinham preco so dentro de frase de degustacao e "
+                "ficaram de fora - e preco do beneficio, nao do plano"
+                % sem_preco_real))
     # PRODUTO VAZIO SEM ERRO E AFIRMACAO DE AUSENCIA. Devolvendo
     # ([], None) a rodada era gravada como sucesso, com a praca contada
     # em pracas_ok, e a base do dia passava a dizer que a Claro nao tem
@@ -423,8 +427,12 @@ def ler_por_texto(op, url, produto):
         return None, "nenhuma frase com velocidade e preco juntos - a pagina mudou"
     saida = list(por_nome.values())
     if repetidos:
-        saida[0].setdefault("avisos_oferta", []).append(
-            "nomes repetidos com precos diferentes: %s" % ", ".join(sorted(set(repetidos))))
+        saida[0]["avisos_oferta"] = apps.juntar_avisos(
+            saida[0].get("avisos_oferta"),
+            apps.ressalva(
+                "nomes repetidos com pre\u00e7os diferentes",
+                "nomes repetidos com precos diferentes: %s"
+                % ", ".join(sorted(set(repetidos)))))
     return saida, None
 # O Prezao NAO pode usar a leitura por frase de acessibilidade.
 #

@@ -493,6 +493,40 @@ def _bloco_coleta(d):
                    vazio="Sem registro de coleta para a data.")
 
 
+def _sem_marcacao(v):
+    """O texto do coletor, seguro para o Paragraph do reportlab.
+
+    Ele le o Paragraph como mini-HTML, e MEDIDO: aguenta "&",
+    "<vazio>" e "a & b < c > d" - o que derruba e TAG ABERTA, como
+    "um <b>negrito". O texto vem do coletor, entao nao da para
+    confiar que nao tenha uma.
+
+    Anexo que falha e problema; aviso que nao sai e maior.
+    """
+    return (str(v or "").replace("&", "&amp;")
+            .replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def _avisos_da_coleta(d):
+    """O que cada coletor avisou, inclusive nas rodadas que fecharam.
+
+    A tabela acima diz "Conclu\u00edda" e nada mais. O aviso de uma rodada
+    BEM-SUCEDIDA - "regulamento falhou em 4 oferta(s)", "1 c\u00f3digo com
+    vig\u00eancia encerrada" - vivia s\u00f3 no log do Actions: a mensagem monta
+    a manchete de coleta incompleta a partir de "falhas", e falha \u00e9
+    "n\u00e3o fechou as pra\u00e7as ou n\u00e3o trouxe oferta".
+
+    O dado sempre chegou aqui: "coletas" entra em dados e o select pede
+    avisos. S\u00f3 ningu\u00e9m lia.
+    """
+    itens = []
+    for c in sorted(d.get("coletas") or [], key=lambda x: x["operadora"]):
+        for a in (c.get("avisos") or []):
+            if a:
+                itens.append((c.get("operadora"), str(a)))
+    return itens
+
+
 # ------------------------------------------------------------------ montagem
 
 def gerar(dados, entradas, caminho):
@@ -647,6 +681,24 @@ def gerar(dados, entradas, caminho):
     if not (dados.get("falhas") or dados.get("sem_registro")):
         hist.append(_com_titulo("Estado da coleta", _bloco_coleta(dados)))
 
+        # O QUE CADA COLETOR AVISOU, inclusive nas rodadas que
+        # FECHARAM. A tabela acima diz "Conclu\u00edda" e nada mais, e
+        # a falha e decidida por "fechou as pracas e trouxe
+        # oferta" - entao "regulamento falhou em 4 oferta(s)" e
+        # "1 codigo com vigencia encerrada" vinham numa rodada
+        # de sucesso e viviam so no log do Actions.
+        #
+        # O dado sempre chegou aqui: "coletas" entra em dados e o
+        # select pede avisos. So ninguem lia.
+        avisos_coleta = _avisos_da_coleta(dados)
+        if avisos_coleta:
+            hist.append(Spacer(1, 4))
+            for op, texto in avisos_coleta:
+                hist.append(Paragraph(
+                    "<b>%s</b> \u2014 %s" % (_sem_marcacao(op),
+                                           _sem_marcacao(texto)),
+                    ESTILOS["nota"]))
+
     # A CONFERENCIA DO DADO, e nao do mercado. Sao perguntas diferentes:
     # as tabelas acima dizem o que mudou, esta diz se o que foi coletado
     # faz sentido. Um dia pode estar calmo numa e podre na outra.
@@ -678,14 +730,6 @@ def gerar(dados, entradas, caminho):
     #
     # Vem ANTES das notas metodologicas porque nao e nota sobre o
     # metodo: e a lista do que, neste dia, nao foi possivel afirmar.
-    # REPORTLAB LE O PARAGRAPH COMO MINI-HTML, e o texto vem do
-    # coletor: um "&" ou um "<" nele derrubaria a geracao do PDF
-    # inteira. Anexo que falha e problema; aviso que nao sai e
-    # maior, e por isso o escape e aqui e nao na confianca.
-    def _texto(v):
-        return (str(v or "").replace("&", "&amp;")
-                .replace("<", "&lt;").replace(">", "&gt;"))
-
     duvidosa = dados.get("duvidosa") or []
     if duvidosa:
         quantas = sum(g.get("quantas") or 0 for g in duvidosa)
@@ -702,11 +746,11 @@ def gerar(dados, entradas, caminho):
             hist.append(Spacer(1, 4))
             hist.append(Paragraph(
                 "<b>%s \u00b7 %s</b> \u2014 %d oferta%s, %s. %s"
-                % (_texto(g.get("categoria")),
-                   _texto(g.get("operadora")),
+                % (_sem_marcacao(g.get("categoria")),
+                   _sem_marcacao(g.get("operadora")),
                    g.get("quantas") or 0,
                    "" if (g.get("quantas") or 0) == 1 else "s",
-                   _texto(g.get("onde")), _texto(g.get("motivo"))),
+                   _sem_marcacao(g.get("onde")), _sem_marcacao(g.get("motivo"))),
                 ESTILOS["nota"]))
 
     if dados.get("ponto_cego"):

@@ -851,6 +851,31 @@ def _minoria_das_pracas(e):
     return universo > 1 and quantas * 2 < universo
 
 
+# o mesmo rotulo generico do coletor: a mensagem nao pode imprimir a
+# prosa longa nem quando o rotulo curto falta
+SEM_ROTULO = "um campo n\u00e3o deu para confirmar"
+
+
+def _duas_formas_do_aviso(aviso):
+    """(curto, longo) de uma ressalva do coletor.
+
+    O coletor grava um dicionario {"curto", "longo"} desde 25/10/2026:
+    o curto diz O QUE ficou vazio e cabe na mensagem, o longo explica
+    POR QUE e cabe no relatorio. Derivar um do outro por recorte de
+    texto nao funciona - na Vivo, no Flex e no FIT a explicacao vem
+    depois dos dois pontos, e na Claro vem antes.
+
+    Aviso gravado como string vale para os dois: e o que esta nos dias
+    anteriores, e historico nao se reescreve.
+    """
+    if isinstance(aviso, dict):
+        longo = aviso.get("longo") or aviso.get("curto") or ""
+        return (aviso.get("curto") or SEM_ROTULO), longo
+    # ROTULO QUE FALTA DEGRADA PARA O GENERICO, nunca para o longo: a
+    # mensagem nao imprime a prosa do coletor em caso nenhum.
+    return SEM_ROTULO, str(aviso or "")
+
+
 def _leitura_duvidosa(h):
     """As ofertas em que o coletor recusou um campo, por motivo.
 
@@ -890,10 +915,15 @@ def _leitura_duvidosa(h):
         avisos = [a for a in (avisos or ()) if a]
         if not avisos:
             continue
+        # AS DUAS FORMAS DE CADA RESSALVA. O rotulo curto diz O QUE
+        # ficou vazio e vai na mensagem; o longo explica POR QUE e vai
+        # no relatorio. Aviso gravado como string - o que esta nos dias
+        # anteriores - vale para os dois.
+        duas = [_duas_formas_do_aviso(a) for a in avisos]
         k = (l.get("operadora"), l.get("produto"))
         d = grupos.setdefault(k, {
             "operadora": l.get("operadora"), "produto": l.get("produto"),
-            "motivos": [], "pracas": [], "quantas": 0,
+            "motivos": [], "curtos": [], "pracas": [], "quantas": 0,
             # O ROTULO EM PORTUGUES VIAJA COM O EVENTO, como em
             # bundle_antes: a mensagem e o PDF leem o mesmo texto e nao
             # podem divergir.
@@ -904,13 +934,16 @@ def _leitura_duvidosa(h):
         # oferta com leitura duvidosa, e dizer "2 ofertas" ali seria
         # inflar o tamanho do buraco.
         d["quantas"] += 1
-        for aviso in avisos:
-            if aviso not in d["motivos"]:
-                d["motivos"].append(aviso)
+        for curto, longo in duas:
+            if longo not in d["motivos"]:
+                d["motivos"].append(longo)
+            if curto and curto not in d["curtos"]:
+                d["curtos"].append(curto)
         if l.get("praca") and l["praca"] not in d["pracas"]:
             d["pracas"].append(l["praca"])
     for d in grupos.values():
         d["motivos"].sort()
+        d["curtos"].sort()
         # o primeiro motivo serve de exemplo na mensagem; "motivo" fica
         # como apelido para quem le um por um
         d["motivo"] = d["motivos"][0]
@@ -2178,22 +2211,56 @@ def montar_mensagem(hoje, ontem):
     # nunca saiu do bruto. O numero errado nao era gravado, e o buraco
     # nao era anunciado: "falha vira buraco, nao vira numero" cumprido
     # pela metade.
+    # UMA LINHA, E O MOTIVO E DO RELATORIO. A primeira versao despejou
+    # aqui o texto de avisos_oferta, que e prosa de DEPURACAO - escrita
+    # para quem fosse ler o banco - e a mensagem de 25/10/2026 saiu com
+    # quinze linhas de justificativa tecnica num aviso de celular.
+    #
+    # O ponto cego ja tinha a divisao certa, e eu nao a apliquei: "a
+    # frase longa e a do relatorio, onde ha espaco para explicar; a
+    # curta ja foi na mensagem".
+    #
+    # E SEM PRACA, de proposito: a regra de "toda mudanca diz em que
+    # praca" e sobre MUDANCA, e aqui nada se moveu na vitrine. A
+    # cobertura e o ponto cego, da mesma familia, tambem nao a carregam.
+    # OS DETALHES, SEM A PROSA DO COLETOR. Produto, operadora, quantas
+    # ofertas, pracas e O QUE ficou vazio - que e o rotulo curto que o
+    # coletor declara. O "por que" e do relatorio.
+    #
+    # Errei para os dois lados antes de chegar aqui: primeiro despejei a
+    # explicacao tecnica inteira (quinze linhas no Telegram), depois
+    # cortei para uma linha so e perdi produto e praca.
     for g in duvidosa[:3]:
         linhas += ["", "%s \u00b7 %s \u00b7 leitura com ressalva"
-                   % (_categoria(g["atual"]), g["operadora"])]
+                   % (g["categoria"], g["operadora"])]
         linhas.append("  %d oferta%s, %s"
                       % (g["quantas"], "" if g["quantas"] == 1 else "s",
                          g["onde"]))
-        linhas.append("  %s" % g["motivo"])
-        outros = len(g.get("motivos") or ()) - 1
-        if outros > 0:
-            linhas.append("  e mais %d motivo%s nesta operadora, no "
-                          "relat\u00f3rio"
-                          % (outros, "" if outros == 1 else "s"))
+        linhas.append("  %s" % "; ".join(g.get("curtos") or g["motivos"][:1]))
     if len(duvidosa) > 3:
         resto = sum(g["quantas"] for g in duvidosa[3:])
         linhas += ["", "e mais %d oferta%s com ressalva de leitura, no "
                    "relat\u00f3rio" % (resto, "" if resto == 1 else "s")]
+
+    # AVISO DE RODADA BEM-SUCEDIDA TAMBEM E RESSALVA. A falha e decidida
+    # por "ok == len(pracas) and bool(ofertas)", entao coletor que fechou
+    # todas as pracas e sucesso MESMO COM AVISO - e a manchete de coleta
+    # incompleta so olha "falhas". O aviso ficava so no log do Actions.
+    #
+    # Medido em 25/10/2026: a Vivo fechou 20/20 com 952 ofertas e
+    # carregou "regulamento falhou em 4 oferta(s) - fidelidade, multa e
+    # preco de tabela ficam vazios" - 80 linhas por dia de campo
+    # contratual vazio por HTTP 422 da Anatel, sem ninguem saber.
+    #
+    # Uma linha, e o texto de cada aviso e do relatorio.
+    com_ressalva = [c for c in (col or ())
+                    if c.get("sucesso") and c.get("avisos")]
+    if com_ressalva:
+        n = sum(len(c["avisos"]) for c in com_ressalva)
+        quem = ", ".join(sorted(c["operadora"] for c in com_ressalva))
+        linhas += ["", "A coleta fechou com %d aviso%s (%s). "
+                   "Est\u00e3o no relat\u00f3rio."
+                   % (n, "" if n == 1 else "s", quem)]
 
     # A COLETA FORA DA JANELA SAI DITA. A guarda libera a coleta depois
     # das 10h "de qualquer jeito", porque dia sem dado nao volta - e isso

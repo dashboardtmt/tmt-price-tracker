@@ -494,10 +494,12 @@ def aplicar_regulamento(oferta, reg):
         # .append estoura, derrubando a coleta inteira da Vivo.
         oferta["avisos_oferta"] = apps.juntar_avisos(
             oferta.get("avisos_oferta"),
+            apps.ressalva(
+            "pre\u00e7o de tabela, fidelidade, multa e taxas ficaram vazios",
             "o regulamento diz %s de tabela, abaixo dos %s da "
             "vitrine: o documento \u00e9 de outra oferta que divide o mesmo "
             "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
-            % (_reais(tabela), _reais(prom)))
+            % (_reais(tabela), _reais(prom))))
         return oferta
     oferta["preco_cheio"] = tabela or oferta.get("preco_cheio")
     # ZERO DECLARADO NAO E AUSENCIA. "Ausencia e ausencia, nunca
@@ -554,10 +556,12 @@ def aplicar_regulamento(oferta, reg):
                 oferta[campo] = None
             oferta["avisos_oferta"] = apps.juntar_avisos(
                 oferta.get("avisos_oferta"),
+                apps.ressalva(
+                "franquia garantida e campos do contrato ficaram vazios",
                 "o regulamento declara %s GB para um card de %s GB: "
                 "o documento \u00e9 de outra oferta que divide o mesmo "
                 "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
-                % (v, anunciada))
+                % (v, anunciada)))
             return oferta
         if v:
             oferta["franquia_contratual_gb"] = v

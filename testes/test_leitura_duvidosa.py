@@ -45,113 +45,168 @@ RECUSA = (u"regulamento diz R$ 270,00 de tabela, abaixo dos R$ 290,00 da "
           u"código Anatel, e nenhum campo contratual dele foi usado")
 
 
+# A FORMA QUE O COLETOR GRAVA desde 25/10/2026: o rotulo curto, que diz
+# O QUE ficou vazio e vai na mensagem, e o texto longo, que explica POR
+# QUE e vai no relatorio.
+CURTO = u"preço de tabela, fidelidade, multa e taxas ficaram vazios"
+AVISO = {"curto": CURTO, "longo": RECUSA}
+
+
 def com_recusa(data, quantas=3, avisos=None, **kw):
     """Ofertas da Vivo, as primeiras com a recusa do coletor no bruto."""
     linhas = em_todas(operadora="Vivo", produto="combo", nome="Vivo Família 2",
                       preco=290.0, gb=None, mbps=700, data=data, **kw)
     for l in linhas[:quantas]:
-        l["avisos_oferta"] = [RECUSA] if avisos is None else avisos
+        l["avisos_oferta"] = [dict(AVISO)] if avisos is None else avisos
     return linhas
 
 
 class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
+    u"""A mensagem traz os DETALHES, sem a prosa tecnica do coletor.
+
+    Errei para os dois lados antes de chegar aqui:
+
+      1. despejei o texto longo - quinze linhas de justificativa tecnica
+         no Telegram, e o usuario reclamou;
+      2. cortei para uma linha so e perdi produto, pracas e o que ficou
+         vazio - que era justamente o que ele queria.
+
+    O certo e o meio. Cada ressalva nasce no coletor com duas formas: o
+    rotulo CURTO, que diz O QUE ficou vazio e vai na mensagem, e o texto
+    LONGO, que explica POR QUE e vai no relatorio.
+    """
+
     def setUp(self):
         sem_declaracao(self)
 
-    def test_a_mensagem_diz_o_motivo(self):
+    def test_abre_com_o_produto_e_a_operadora(self):
         t = montar(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertIn("leitura com ressalva", t)
-        self.assertIn("nenhum campo contratual dele foi usado", t)
+        self.assertIn("Combo \u00b7 Vivo \u00b7 leitura com ressalva", t)
 
-    def test_e_diz_a_operadora_e_o_produto(self):
-        t = montar(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertIn("Combo · Vivo · leitura com ressalva", t)
-
-    def test_e_diz_em_quantas_pracas(self):
-        """A ressalva segue a regra de toda linha da mensagem."""
+    def test_diz_quantas_ofertas_e_em_que_praca(self):
         t = montar(com_recusa(ONTEM), com_recusa(HOJE, quantas=3))
-        # com poucas pracas, _onde nomeia as cidades em vez de so
-        # contar - e a informacao que o usuario pediu
-        self.assertIn("em 3 de 20:", t)
-        self.assertIn("Sao Paulo", t)
+        self.assertIn("3 ofertas, em 3 de 20", t)
 
-    def test_dia_sem_recusa_nao_tem_a_linha(self):
+    def test_diz_o_que_ficou_vazio(self):
+        t = montar(com_recusa(ONTEM), com_recusa(HOJE))
+        self.assertIn("pre\u00e7o de tabela, fidelidade, multa e taxas "
+                      "ficaram vazios", t)
+
+    def test_e_NAO_diz_por_que(self):
+        """O "por que" e prosa de depuracao, e o lugar dele e o PDF."""
+        t = montar(com_recusa(ONTEM), com_recusa(HOJE))
+        self.assertNotIn("nenhum campo contratual dele foi usado", t)
+        self.assertNotIn("divide o mesmo", t)
+
+    def test_uma_oferta_so_fala_no_singular(self):
+        t = montar(com_recusa(ONTEM, quantas=0), com_recusa(HOJE, quantas=1))
+        self.assertIn("1 oferta,", t)
+
+    def test_dia_sem_recusa_nao_tem_o_bloco(self):
         t = montar(em_todas(data=ONTEM), em_todas(data=HOJE))
-        self.assertNotIn("ressalva", t)
+        self.assertNotIn("leitura com ressalva", t)
 
     def test_nao_entra_na_contagem_de_mudancas(self):
         """Nada mudou na vitrine: foi a nossa leitura que disse "nao
-        sei". Contar como mudanca faria a mensagem anunciar movimento
-        de mercado onde nao houve."""
+        sei". Contar como mudanca faria a mensagem anunciar movimento de
+        mercado onde nao houve."""
         t = montar(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertIn("Nenhuma mudança de preço, composição ou nome", t)
+        self.assertIn("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome", t)
 
-    def test_o_mesmo_motivo_em_varias_ofertas_sai_uma_vez(self):
-        t = montar(com_recusa(ONTEM, quantas=5), com_recusa(HOJE, quantas=5))
-        self.assertEqual(t.count("leitura com ressalva"), 1)
-
-    def test_motivos_diferentes_na_mesma_operadora_viram_um_grupo(self):
-        """O grupo e (operadora, produto), e os motivos distintos viajam
-        numa lista.
-
-        Agrupar pelo TEXTO do motivo nao agrupava nada: ele embute os
-        valores da oferta ("declara 25 GB para um card de 15 GB"), e
-        medido na coleta real de 25/10/2026 dez ofertas renderam dez
-        grupos - parede de quase-repeticoes escondendo que eram dois
-        problemas.
-        """
+    def test_rotulos_diferentes_na_mesma_operadora_saem_juntos(self):
         hoje = com_recusa(HOJE, quantas=2)
-        hoje[3]["avisos_oferta"] = [u"o card não declarou composição"]
-        d = dados(com_recusa(ONTEM), hoje)
-        self.assertEqual(len(d["duvidosa"]), 1)
-        self.assertEqual(len(d["duvidosa"][0]["motivos"]), 2)
-        self.assertEqual(d["duvidosa"][0]["quantas"], 3, "tres ofertas")
+        hoje[3]["avisos_oferta"] = [
+            {"curto": u"franquia garantida ficou vazia",
+             "longo": u"o card declara b\u00f4nus e n\u00e3o diz quanto \u00e9 do plano"}]
+        t = montar(com_recusa(ONTEM), hoje)
+        # a ordem e alfabetica, de proposito: ordem instavel mudaria a
+        # mensagem de um dia para o outro sem nada ter mudado
+        self.assertIn("franquia garantida ficou vazia; pre", t)
+        self.assertIn("ficaram vazios", t)
 
-    def test_operadoras_diferentes_saem_separadas(self):
+    def test_operadoras_diferentes_saem_em_blocos_separados(self):
         hoje = com_recusa(HOJE, quantas=2)
         outra = em_todas(operadora="Claro", produto="fibra",
                          nome="Claro Fibra", preco=99.9, gb=None, mbps=500,
                          data=HOJE)
-        outra[0]["avisos_oferta"] = [u"nomes repetidos com preços diferentes"]
-        d = dados(com_recusa(ONTEM) + em_todas(operadora="Claro",
-                                               produto="fibra",
-                                               nome="Claro Fibra",
-                                               preco=99.9, gb=None, mbps=500,
-                                               data=ONTEM),
-                  hoje + outra)
-        self.assertEqual(len(d["duvidosa"]), 2)
+        outra[0]["avisos_oferta"] = [
+            {"curto": u"nomes repetidos com pre\u00e7os diferentes",
+             "longo": u"nomes repetidos com precos diferentes: Claro Fibra"}]
+        ontem = (com_recusa(ONTEM)
+                 + em_todas(operadora="Claro", produto="fibra",
+                            nome="Claro Fibra", preco=99.9, gb=None,
+                            mbps=500, data=ONTEM))
+        t = montar(ontem, hoje + outra)
+        self.assertIn("Combo \u00b7 Vivo \u00b7 leitura com ressalva", t)
+        self.assertIn("Fibra \u00b7 Claro \u00b7 leitura com ressalva", t)
 
-    def test_a_mensagem_diz_quantos_outros_motivos_ha(self):
-        hoje = com_recusa(HOJE, quantas=2)
-        hoje[3]["avisos_oferta"] = [u"o card não declarou composição"]
-        t = montar(com_recusa(ONTEM), hoje)
-        self.assertIn("e mais 1 motivo nesta operadora", t)
+    def test_acima_de_tres_blocos_o_resto_vai_para_o_relatorio(self):
+        """O mesmo corte que todos os outros blocos da mensagem usam."""
+        linhas, ontem = [], []
+        for i, (op, prod) in enumerate((("Vivo", "combo"), ("Vivo", "movel"),
+                                        ("Claro", "fibra"),
+                                        ("TIM", "controle"))):
+            base = dict(operadora=op, produto=prod, nome="%s %d" % (op, i),
+                        preco=100.0 + i, gb=50, mbps=None)
+            ontem += em_todas(data=ONTEM, **base)
+            novas = em_todas(data=HOJE, **base)
+            novas[0]["avisos_oferta"] = [
+                {"curto": u"um campo ficou vazio", "longo": u"por isso e aquilo"}]
+            linhas += novas
+        t = montar(ontem, linhas)
+        self.assertIn("e mais 1 oferta com ressalva de leitura, no "
+                      "relat\u00f3rio", t)
+
+    def test_a_string_antiga_continua_valendo(self):
+        """O historico nao se reescreve, e a string E o texto longo.
+
+        Ela vale como motivo (relatorio) e rende o rotulo GENERICO na
+        mensagem - nunca a prosa. A regra "a mensagem nao imprime o
+        texto longo" vale sem excecao, inclusive para os dias
+        anteriores.
+        """
+        d = dados(com_recusa(ONTEM), com_recusa(HOJE, quantas=2,
+                                                avisos=[RECUSA]))
+        self.assertEqual(d["duvidosa"][0]["quantas"], 2)
+        self.assertEqual(d["duvidosa"][0]["motivos"], [RECUSA])
+        self.assertEqual(d["duvidosa"][0]["curtos"],
+                         [u"um campo não deu para confirmar"])
+
+    def test_a_prosa_nunca_chega_na_mensagem_nem_sem_rotulo(self):
+        """O ROTULO QUE FALTA DEGRADA PARA O GENERICO, nao para a prosa.
+
+        A mutacao S4 - coletor que para de declarar o rotulo - passava
+        verde porque _duas_formas caia de volta no texto longo. Era
+        defensivo e tinha o pior efeito possivel: a justificativa
+        tecnica voltava para o Telegram em silencio.
+        """
+        t = montar(com_recusa(ONTEM),
+                   com_recusa(HOJE, quantas=2,
+                              avisos=[{"curto": "", "longo": RECUSA}]))
+        self.assertIn(u"um campo não deu para confirmar", t)
+        self.assertNotIn("nenhum campo contratual dele foi usado", t)
+
+    def test_o_longo_vai_para_o_relatorio(self):
+        d = dados(com_recusa(ONTEM), com_recusa(HOJE))
+        g = d["duvidosa"][0]
+        self.assertIn("nenhum campo contratual", " ".join(g["motivos"]))
+        self.assertNotIn("nenhum campo contratual", " ".join(g["curtos"]))
 
     def test_uma_oferta_com_dois_avisos_conta_uma_vez(self):
         """Contar aviso em vez de oferta inflaria o tamanho do buraco."""
         hoje = com_recusa(HOJE, quantas=1)
-        hoje[0]["avisos_oferta"] = [RECUSA, u"e outra coisa também"]
+        hoje[0]["avisos_oferta"] = [
+            {"curto": u"um", "longo": u"um por que"},
+            {"curto": u"dois", "longo": u"dois por que"}]
         d = dados(com_recusa(ONTEM, quantas=0), hoje)
         self.assertEqual(d["duvidosa"][0]["quantas"], 1)
-        self.assertEqual(len(d["duvidosa"][0]["motivos"]), 2)
+        self.assertEqual(len(d["duvidosa"][0]["curtos"]), 2)
 
-    def test_a_contagem_por_motivo_esta_certa(self):
-        d = dados(com_recusa(ONTEM), com_recusa(HOJE, quantas=4))
-        self.assertEqual(d["duvidosa"][0]["quantas"], 4)
-
-    def test_aviso_em_texto_e_nao_em_lista_tambem_vale(self):
-        """O bruto pode devolver string quando o coletor grava um
-        aviso so."""
-        d = dados(com_recusa(ONTEM), com_recusa(HOJE, quantas=2,
-                                                avisos=RECUSA))
-        self.assertEqual(d["duvidosa"][0]["quantas"], 2)
-
-    def test_o_grupo_viaja_para_o_relatorio(self):
+    def test_o_grupo_viaja_com_tudo(self):
         d = dados(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertTrue(d.get("duvidosa"))
         g = d["duvidosa"][0]
-        for campo in ("motivo", "operadora", "produto", "categoria",
-                      "quantas", "onde"):
+        for campo in ("motivo", "motivos", "curtos", "operadora", "produto",
+                      "categoria", "quantas", "onde"):
             self.assertIn(campo, g)
 
 
@@ -245,13 +300,35 @@ class ORegulamentoSomaOAvisoSemEstourar(unittest.TestCase):
         o = self._reg({"nome_oferta": "X", "preco_promocional": 290.0})
         self.assertTrue(o["avisos_oferta"])
 
+    def test_o_coletor_declara_O_QUE_ficou_vazio(self):
+        """O ROTULO DA VIVO, medido no proprio coletor.
+
+        A mutacao S4 - o coletor para de declarar o rotulo - passava
+        verde porque nenhum teste olhava o que vivo.py escreve: os
+        testes do rotulo curto usam o fixture, que tem rotulo proprio.
+        Peca sem montagem, no sentido do dado.
+        """
+        from coletores import apps as _apps
+
+        o = self._reg({"nome_oferta": "X", "preco_promocional": 290.0,
+                       "avisos_oferta": None})
+        curtos = [_apps._duas_formas(a)[0] for a in o["avisos_oferta"]]
+        self.assertIn(
+            u"pre\u00e7o de tabela, fidelidade, multa e taxas ficaram vazios",
+            curtos)
+        self.assertNotIn(_apps.SEM_ROTULO, curtos,
+                         "o coletor tem de declarar, nao cair no generico")
+
     def test_o_valor_sai_em_reais_e_com_acento(self):
         """O texto passou a sair no Telegram quando o canal ganhou
         leitor: "R$ 1200.00" ao lado de "R$ 1.200,00" denuncia que as
         duas frases foram escritas em epocas diferentes."""
         o = self._reg({"nome_oferta": "X", "preco_promocional": 1500.0,
                        "avisos_oferta": None})
-        junto = " ".join(o["avisos_oferta"])
+        from coletores import apps as _apps
+
+        junto = " ".join(_apps._duas_formas(a)[1]
+                         for a in o["avisos_oferta"])
         self.assertIn("R$ 1.500,00", junto)
         self.assertIn("código", junto)
 
@@ -272,8 +349,10 @@ class OAvisoDaLeituraLargaDeApps(unittest.TestCase):
     def test_acima_do_limite_o_motivo_sai(self):
         aviso = apps.aviso_de_leitura(self.SETE)
         self.assertTrue(aviso)
-        self.assertIn("7 aplicativos", aviso)
-        self.assertIn("acima do limite", aviso)
+        curto, longo = apps._duas_formas(aviso)
+        self.assertEqual(curto, "a lista de apps ficou vazia")
+        self.assertIn("7 aplicativos", longo)
+        self.assertIn("acima do limite", longo)
 
     def test_e_a_lista_continua_vazia(self):
         """Eleger seis dos oito seria o sorteio que o projeto recusa."""

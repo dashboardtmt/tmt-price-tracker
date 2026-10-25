@@ -932,17 +932,17 @@ MUTACOES = [
 
     Mutacao(
         "coletores/apps.py",
-        '    if novo and novo not in saida:\n'
+        '    if novo and _duas_formas(novo)[1] not in ja:\n'
         '        saida.append(novo)',
         '    pass',
         "Q2. a juntada de avisos volta a descartar o aviso novo"),
 
     Mutacao(
         "coletores/apps.py",
-        '    if novo and novo not in saida:\n'
+        '    if novo and _duas_formas(novo)[1] not in ja:\n'
         '        saida.append(novo)\n'
         '    return saida or None',
-        '    if novo and novo not in saida:\n'
+        '    if novo and _duas_formas(novo)[1] not in ja:\n'
         '        saida.append(novo)\n'
         '    return saida',
         "Q3. ausencia de ressalva volta a sair como lista vazia"),
@@ -954,12 +954,6 @@ MUTACOES = [
         "Q4. o canal volta a ficar sem leitor (o estado de producao)"),
 
     Mutacao(
-        "robo.py",
-        '    for g in duvidosa[:3]:',
-        '    for g in []:',
-        "Q5. a mensagem volta a nao dizer o que foi recusado"),
-
-    Mutacao(
         "coletores/vivo.py",
         '        oferta["avisos_oferta"] = apps.juntar_avisos(\n'
         '            oferta.get("avisos_oferta"),',
@@ -967,11 +961,56 @@ MUTACOES = [
         "Q6. setdefault volta a estourar na chave que vale None"),
 
     Mutacao(
+        "robo.py",
+        '    com_ressalva = [c for c in (col or ())\n'
+        '                    if c.get("sucesso") and c.get("avisos")]',
+        '    com_ressalva = []',
+        "R1. o aviso da rodada que FECHOU volta a ficar so no log"),
+
+    Mutacao(
+        "robo.py",
+        '                    if c.get("sucesso") and c.get("avisos")]',
+        '                    if not c.get("sucesso") and c.get("avisos")]',
+        "R2. a ressalva volta a olhar so quem falhou"),
+
+    Mutacao(
         "relatorio.py",
-        '        return (str(v or "").replace("&", "&amp;")\n'
-        '                .replace("<", "&lt;").replace(">", "&gt;"))',
-        '        return str(v or "")',
-        "Q7. o texto do coletor volta a poder derrubar o PDF"),
+        '        avisos_coleta = _avisos_da_coleta(dados)',
+        '        avisos_coleta = []',
+        "R3. o PDF volta a nao imprimir o aviso de cada coletor"),
+
+    Mutacao(
+        "relatorio.py",
+        '    return (str(v or "").replace("&", "&amp;")\n'
+        '            .replace("<", "&lt;").replace(">", "&gt;"))',
+        '    return str(v or "")',
+        "R4. a tag aberta do coletor volta a poder derrubar o PDF"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    return {"curto": curto, "longo": longo or curto}',
+        '    return {"curto": longo or curto, "longo": longo or curto}',
+        "S1. a prosa tecnica do coletor volta para a mensagem"),
+
+    Mutacao(
+        "robo.py",
+        '        linhas.append("  %s" % "; ".join(g.get("curtos") or g["motivos"][:1]))',
+        '        linhas.append("  %s" % "; ".join(g["motivos"]))',
+        "S2. a mensagem volta a imprimir o texto longo"),
+
+    Mutacao(
+        "robo.py",
+        '    for g in duvidosa[:3]:\n'
+        '        linhas += ["", "%s \\u00b7 %s \\u00b7 leitura com ressalva"',
+        '    for g in []:\n'
+        '        linhas += ["", "%s \\u00b7 %s \\u00b7 leitura com ressalva"',
+        "S3. a mensagem volta a nao dizer produto, praca nem o que faltou"),
+
+    Mutacao(
+        "coletores/vivo.py",
+        '            "pre\\u00e7o de tabela, fidelidade, multa e taxas ficaram vazios",',
+        '            "",',
+        "S4. o coletor para de declarar o que ficou vazio"),
 
     Mutacao(
         "relatorio.py",

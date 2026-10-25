@@ -37,13 +37,18 @@ from _apoio import (HOJE, ONTEM, banco, dados, em_todas, montar, oferta,
 #
 # Um grupo novo entra aqui e o teste passa a exigir a praca dele.
 GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
-          "voltaram", "renomeadas",
-          # "duvidosa" nao e evento de mercado - e a recusa do coletor em
-          # ler um campo -, mas diz em que praca do mesmo jeito, e por
-          # isso entra na varredura em vez de ganhar excecao. Excecao
-          # aqui e a escotilha que faz a guarda nao valer nada no dia em
-          # que um evento de verdade nascer.
-          "duvidosa")
+          "voltaram", "renomeadas")
+
+# GRUPOS QUE SAO RESSALVA, E NAO EVENTO DE MERCADO. A regra de "toda
+# mudanca diz em que praca" e sobre MUDANCA: na ressalva nada se moveu na
+# vitrine, e a cobertura e o ponto cego - da mesma familia - tambem nao
+# carregam praca. O detalhe por praca fica no relatorio.
+#
+# A lista existe DECLARADA, e nao como excecao escondida no teste: o
+# teste estrutural abaixo exige que todo grupo novo esteja em GRUPOS ou
+# aqui, entao um grupo de EVENTO novo continua sem poder nascer sem
+# praca - alguem teria de vir aqui e escrever que ele e ressalva.
+RESSALVAS = ("duvidosa",)
 
 # A mensagem corta cada grupo em tres e manda o resto para o PDF.
 MOSTRADOS = 3
@@ -166,8 +171,9 @@ class OsGruposQueOTesteVarre(unittest.TestCase):
         grupos = {traduz.get(k, k) for k, v in r.items()
                   if isinstance(v, list) and k not in sem_evento}
         self.assertTrue(grupos, "mudancas() tem de devolver algum grupo")
-        self.assertEqual(grupos - set(GRUPOS), set(),
-                         "grupo de eventos fora da varredura da praca")
+        self.assertEqual(grupos - set(GRUPOS) - set(RESSALVAS), set(),
+                         "grupo novo: ou e evento e entra em GRUPOS, ou e "
+                         "ressalva e entra em RESSALVAS")
 
 
 if __name__ == "__main__":

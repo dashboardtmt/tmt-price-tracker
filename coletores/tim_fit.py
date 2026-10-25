@@ -138,11 +138,12 @@ def da_etiqueta(t):
     if ma and janela:
         ano = float(ma.group(1).replace(".", "").replace(",", "."))
         if abs(ano - preco * janela) > 0.02:
-            avisos_oferta.append(
+            avisos_oferta.append(apps.ressalva(
+                "o total do ano n\u00e3o fecha com pre\u00e7o x meses",
                 "a etiqueta declara R$ %.2f no ano, e %s x %d meses d\u00e1 "
                 "R$ %.2f: um dos tr\u00eas n\u00fameros foi lido errado"
                 % (ano, ("%.2f" % preco).replace(".", ","), janela,
-                   preco * janela))
+                   preco * janela)))
 
     gb = _campo(t, "Franquia ", 24) or ""
     mg = re.search(r"(\d{1,4})\s*GB", gb, re.I)

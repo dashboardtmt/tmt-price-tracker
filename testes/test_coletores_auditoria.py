@@ -57,8 +57,14 @@ class ORegulamentoDeOutraOfertaNaoVale(unittest.TestCase):
         self.assertIsNone(o.get("fidelidade_meses"))
         self.assertIsNone(o.get("assinatura_sva"))
         self.assertIsNone(o.get("nome_regulamento"))
-        self.assertTrue(any("outra oferta" in a
-                            for a in o.get("avisos_oferta") or []))
+        # A RESSALVA PASSOU A TER DUAS FORMAS desde 25/10/2026: um
+        # rotulo curto para a mensagem e o texto longo para o
+        # relatorio. O "por que" esta no longo.
+        from coletores import apps as _apps
+
+        longos = [_apps._duas_formas(a)[1]
+                  for a in o.get("avisos_oferta") or []]
+        self.assertTrue(any("outra oferta" in a for a in longos))
 
     def test_franquia_que_contradiz_o_card_tambem(self):
         """O outro sinal, medido no Vivo Pre: um codigo cobre 5, 15 e 20

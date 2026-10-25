@@ -574,11 +574,46 @@ def aviso_de_leitura(texto, limite=None):
     quantos = len(_citados(texto))
     limite = LIMITE_DE_APPS if limite is None else limite
     if quantos > limite:
-        return ("o texto da oferta nomeia %d aplicativos, acima do limite "
-                "de %d: a leitura pegou a vitrine junto com o card, e a "
-                "lista de apps ficou vazia em vez de adivinhada"
-                % (quantos, limite))
+        return ressalva(
+            "a lista de apps ficou vazia",
+            "o texto da oferta nomeia %d aplicativos, acima do limite "
+            "de %d: a leitura pegou a vitrine junto com o card, e a "
+            "lista de apps ficou vazia em vez de adivinhada"
+            % (quantos, limite))
     return None
+
+
+def ressalva(curto, longo):
+    """Uma ressalva de leitura, nas duas formas que ela precisa ter.
+
+    O CURTO vai na mensagem e diz O QUE ficou vazio; o LONGO vai no
+    relatorio e explica POR QUE. Os dois nascem aqui, declarados pelo
+    coletor, porque derivar um do outro por recorte de texto nao
+    funciona: na Vivo, no Flex e no FIT a explicacao vem depois dos dois
+    pontos, e na Claro vem antes.
+    """
+    return {"curto": curto, "longo": longo or curto}
+
+
+# O QUE A MENSAGEM DIZ QUANDO NAO HA ROTULO CURTO. Curto e generico, e
+# nunca o texto longo: a falta do rotulo nao pode fazer a prosa tecnica
+# do coletor voltar para o Telegram em silencio, que e o que o usuario
+# reclamou. A mutacao S4 passou verde provando que nada impedia.
+SEM_ROTULO = "um campo n\u00e3o deu para confirmar"
+
+
+def _duas_formas(aviso):
+    """Normaliza o aviso para (curto, longo).
+
+    ROTULO QUE FALTA DEGRADA PARA O GENERICO, nunca para o longo. A
+    regra "a mensagem nao imprime o texto longo" passa a valer sem
+    excecao - inclusive para os avisos gravados como string nos dias
+    anteriores, que SAO o texto longo.
+    """
+    if isinstance(aviso, dict):
+        longo = aviso.get("longo") or aviso.get("curto") or ""
+        return (aviso.get("curto") or SEM_ROTULO), longo
+    return SEM_ROTULO, str(aviso or "")
 
 
 def juntar_avisos(existentes, novo):
@@ -590,10 +625,13 @@ def juntar_avisos(existentes, novo):
     porque ausencia e ausencia e nao lista vazia: "[]" compararia igual a
     "[]" entre dias e esconderia a chegada da primeira ressalva.
     """
-    if isinstance(existentes, str):
+    if isinstance(existentes, (str, dict)):
         existentes = [existentes]
     saida = [a for a in (existentes or ()) if a]
-    if novo and novo not in saida:
+    # a comparacao e pelo texto longo: o mesmo motivo com rotulo curto
+    # diferente ainda e o mesmo motivo
+    ja = {_duas_formas(a)[1] for a in saida}
+    if novo and _duas_formas(novo)[1] not in ja:
         saida.append(novo)
     return saida or None
 

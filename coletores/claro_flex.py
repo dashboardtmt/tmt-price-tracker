@@ -125,10 +125,13 @@ def extrair(texto):
             "composicao": meio.strip()[:400],
         })
         if not mc and tem_bonus:
-            ofertas[-1].setdefault("avisos_oferta", []).append(
-                "o card declara b\u00f4nus mas n\u00e3o diz quanto \u00e9 do plano: a "
-                "franquia garantida ficou vazia em vez de igualada \u00e0 "
-                "anunciada")
+            ofertas[-1]["avisos_oferta"] = apps.juntar_avisos(
+                ofertas[-1].get("avisos_oferta"),
+                apps.ressalva(
+                    "franquia garantida ficou vazia",
+                    "o card declara b\u00f4nus mas n\u00e3o diz quanto \u00e9 do plano: a "
+                    "franquia garantida ficou vazia em vez de igualada \u00e0 "
+                    "anunciada"))
     return ofertas
 
 
