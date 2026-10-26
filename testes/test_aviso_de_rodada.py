@@ -72,7 +72,18 @@ def coletas(avisos_por_operadora=None, falha=()):
     return saida
 
 
-class ARodadaQueFechouComAvisoSaiDita(unittest.TestCase):
+class ARodadaQueFechouComAvisoFicaNoRelatorio(unittest.TestCase):
+    u"""O aviso de rodada bem-sucedida NAO vai para a mensagem diaria.
+
+    Mesma decisao de 26/10/2026 e mesmo motivo: ele repete identico todo
+    dia. A Vivo carrega "regulamento falhou em 4 oferta(s)" desde que o
+    endpoint da Anatel passou a devolver 422, e isso nao muda de um dia
+    para o outro.
+
+    O que NAO sai e a manchete "COLETA INCOMPLETA": aquela olha quem nao
+    FECHOU, e e o unico aviso de que o dia nao foi coletado.
+    """
+
     def setUp(self):
         sem_declaracao(self)
 
@@ -80,60 +91,41 @@ class ARodadaQueFechouComAvisoSaiDita(unittest.TestCase):
         return montar(em_todas(data=ONTEM), em_todas(data=HOJE),
                       coletas=coletas(**kw))
 
-    def test_a_mensagem_diz_que_houve_aviso(self):
+    def test_a_mensagem_nao_tem_a_linha(self):
         t = self._msg(avisos_por_operadora={"Vivo": AVISOS_VIVO})
-        self.assertIn("A coleta fechou com 2 avisos (Vivo)", t)
-
-    def test_e_aponta_o_relatorio(self):
-        t = self._msg(avisos_por_operadora={"Vivo": AVISOS_VIVO})
-        self.assertIn("Estão no relatório", t)
-
-    def test_um_aviso_so_fala_no_singular(self):
-        t = self._msg(avisos_por_operadora={"Vivo": AVISOS_VIVO[:1]})
-        self.assertIn("A coleta fechou com 1 aviso (Vivo)", t)
-
-    def test_o_texto_do_aviso_NAO_vai_na_mensagem(self):
-        """Mesma regra da ressalva por oferta: o texto e de depuracao, e
-        o lugar dele e o PDF."""
-        t = self._msg(avisos_por_operadora={"Vivo": AVISOS_VIVO})
-        self.assertNotIn("HTTP 422", t)
-        self.assertNotIn("vigência encerrada", t)
-
-    def test_cabe_em_uma_linha(self):
-        t = self._msg(avisos_por_operadora={"Vivo": AVISOS_VIVO})
-        quais = [x for x in t.split("\n") if "A coleta fechou com" in x]
-        self.assertEqual(len(quais), 1)
-
-    def test_varios_coletores_na_mesma_linha(self):
-        t = self._msg(avisos_por_operadora={
-            "Vivo": AVISOS_VIVO,
-            "Unifique": [u"sem oferta de fibra em Curitiba"],
-        })
-        self.assertIn("A coleta fechou com 3 avisos (Unifique, Vivo)", t)
-
-    def test_rodada_limpa_nao_tem_a_linha(self):
-        t = self._msg()
         self.assertNotIn("A coleta fechou com", t)
 
-    def test_a_falha_continua_sendo_manchete_e_nao_ressalva(self):
-        """Coletor que NAO fechou e manchete - "COLETA INCOMPLETA" -, e
-        isso nao muda: a ressalva e para quem fechou e tinha algo a
-        dizer."""
+    def test_nem_o_texto_do_aviso(self):
+        t = self._msg(avisos_por_operadora={"Vivo": AVISOS_VIVO})
+        self.assertNotIn("HTTP 422", t)
+        self.assertNotIn("vig\u00eancia encerrada", t)
+
+    def test_a_falha_de_verdade_continua_sendo_manchete(self):
+        """Coletor que NAO fechou e alarme de robo quebrado, e sem ele
+        ninguem sabe que o dia nao foi coletado."""
         t = self._msg(falha=("Unifique",),
                       avisos_por_operadora={"Unifique": [u"o layout mudou"]})
         self.assertIn("COLETA INCOMPLETA", t)
-        self.assertNotIn("A coleta fechou com", t)
 
-    def test_falha_e_aviso_no_mesmo_dia_nao_se_misturam(self):
+    def test_falha_e_aviso_no_mesmo_dia(self):
+        """A falha sai; o aviso de quem fechou, nao."""
         t = self._msg(falha=("Unifique",),
                       avisos_por_operadora={"Unifique": [u"o layout mudou"],
                                             "Vivo": AVISOS_VIVO})
         self.assertIn("COLETA INCOMPLETA", t)
-        self.assertIn("A coleta fechou com 2 avisos (Vivo)", t)
-
-    def test_aviso_vazio_nao_conta(self):
-        t = self._msg(avisos_por_operadora={"Vivo": []})
         self.assertNotIn("A coleta fechou com", t)
+
+    def test_rodada_limpa_tambem_nao_tem(self):
+        t = self._msg()
+        self.assertNotIn("A coleta fechou com", t)
+
+    def test_o_dado_continua_viajando_para_o_relatorio(self):
+        """Apagar daqui apagaria o registro: o PDF o consome."""
+        d = dados(em_todas(data=ONTEM), em_todas(data=HOJE),
+                  coletas=coletas(avisos_por_operadora={"Vivo": AVISOS_VIVO}))
+        com = [c for c in d["coletas"] if c.get("avisos")]
+        self.assertTrue(com, "os avisos tem de chegar ao relatorio")
+        self.assertEqual(com[0]["operadora"], "Vivo")
 
 
 class ORelatorioListaOsAvisosDaColeta(unittest.TestCase):
@@ -227,12 +219,21 @@ class OPdfImprimeOsAvisosDaColeta(unittest.TestCase):
 class OCanalDeRodadaTemLeitor(unittest.TestCase):
     """A guarda contra a volta do estado anterior: escrito e nao lido."""
 
-    def test_a_mensagem_olha_as_rodadas_que_fecharam(self):
+    def test_o_relatorio_olha_as_rodadas_que_fecharam(self):
+        """O LEITOR MUDOU DE LUGAR, nao desapareceu.
+
+        Ate 26/10/2026 era a mensagem; o usuario pediu a linha fora do
+        Telegram, e o leitor passou a ser o PDF. O que esta guarda e que
+        continue existindo UM: sem leitor, o canal volta ao estado em
+        que nasceu - escrito por nove coletores e lido por ninguem.
+        """
         import inspect
 
-        fonte = inspect.getsource(robo.montar_mensagem)
-        self.assertIn('c.get("sucesso") and c.get("avisos")', fonte,
-                      "a mensagem tem de olhar o aviso de quem fechou")
+        import relatorio
+
+        fonte = inspect.getsource(relatorio.gerar)
+        self.assertIn("_avisos_da_coleta(dados)", fonte,
+                      "o relatorio tem de ler o aviso de quem fechou")
 
     def test_e_os_coletores_continuam_escrevendo(self):
         """Se um coletor parar de avisar, o canal fica sem carga - e isso

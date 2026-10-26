@@ -68,7 +68,7 @@
 <div class="wrap">
 <nav>
   <a href="#s1">1. O que é</a>
-  <a href="#s2">2. As 64 decisões</a>
+  <a href="#s2">2. As 65 decisões</a>
   <a href="#s3">3. Escopo</a>
   <a href="#s4">4. As 20 praças</a>
   <a href="#s5">5. Como a série funciona</a>
@@ -105,7 +105,7 @@
 </section>
 
 <section id="s2">
-  <h2><span class="num">2.</span> As 64 decisões</h2>
+  <h2><span class="num">2.</span> As 65 decisões</h2>
   <table class="decisoes">
     <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
     <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
@@ -170,8 +170,9 @@
     <tr><td>60</td><td>O que o coletor recusa ler <b>sai dito</b></td><td>Quando o coletor encontra um campo e não pode afirmar o valor, ele registra a razão. Quatro coletores faziam isso em sete lugares desde sempre — e <b>ninguém nunca leu o campo</b>: sete escritas, zero leituras. Houve dias em que a Vivo publicou o mesmo código Anatel em várias ofertas, o coletor recusou os campos contratuais com todas as palavras, e a única consequência foi um campo vazio na tela. Cada ressalva passou a ter duas formas — o rótulo curto, que diz <b>o que</b> ficou vazio e vai na mensagem, e o texto longo, que explica <b>por que</b> e vai no relatório. Rótulo que falta degrada para um genérico curto, nunca para a prosa técnica</td></tr>
     <tr><td>61</td><td>Aviso de rodada bem-sucedida também sai dito</td><td>A falha é decidida por &quot;fechou as praças e trouxe oferta&quot;, então coletor que fechou tudo é <b>sucesso mesmo com aviso</b> — e a manchete de coleta incompleta só olhava as falhas. Nove coletores escrevem 37 avisos de rodada, e os de quem fechou viviam só no log. Medido em 25/10/2026: a Vivo fechou 20/20 praças com 952 ofertas e carregou &quot;regulamento falhou em 4 oferta(s) — fidelidade, multa e preço de tabela ficam vazios&quot; por HTTP 422 da Anatel</td></tr>
     <tr><td>62</td><td>Produto e praça em toda linha de mudança</td><td>Cinco dos seis blocos da mensagem já abriam com o produto e fechavam com a praça; o das ofertas renomeadas não fazia nem um nem outro. Em 24/10/2026 a mensagem anunciou dois reajustes da Brisanet, de -7% e -6%, sem dizer se foram numa das sete praças ou nas sete, e sem dizer se na fibra, no combo ou no móvel. A praça <b>não</b> entra na ressalva de leitura, porque ali nada se moveu na vitrine — a cobertura e o ponto cego, da mesma família, também não a carregam</td></tr>
-    <tr><td>63</td><td>A ressalva nega a mudança no próprio cabeçalho</td><td>O bloco do que não deu para ler tinha o <b>mesmo formato visual</b> de uma mudança, e abria com &quot;leitura com ressalva&quot; — jargão interno. Lido no celular, não dava para saber se a oferta mudou, se o preço mudou ou se deu erro. Passou a abrir com <b>&quot;nada mudou, mas faltou dado&quot;</b>, e a linha seguinte diz o que falta em português: &quot;o contrato não deu para ler: sem preço de tabela, fidelidade, multa e taxas&quot;. O preço e a franquia anunciados <b>seguem valendo</b> nessas ofertas</td></tr>
+    <tr><td>63</td><td>A ressalva nega a mudança no próprio cabeçalho</td><td>Enquanto esteve na mensagem, o bloco do que não deu para ler tinha o <b>mesmo formato visual</b> de uma mudança e abria com &quot;leitura com ressalva&quot; — jargão interno. Lido no celular, não dava para saber se a oferta mudou, se o preço mudou ou se deu erro. Passou a abrir com <b>&quot;nada mudou, mas faltou dado&quot;</b>, com a linha seguinte dizendo o que falta em português. A redação ficou registrada porque vale para o relatório e para qualquer canal futuro; a <b>decisão 65</b> tirou o bloco da mensagem diária</td></tr>
     <tr><td>64</td><td>A ressalva conta <b>oferta</b>, não linha</td><td>Todos os blocos da mensagem contam ofertas e põem a praça em separado (&quot;2 mudanças&quot; + &quot;em todas as 7 praças&quot;). A ressalva dizia &quot;100 ofertas, em todas as 20 praças&quot; — e 100 era 5 vezes 20, a praça contada duas vezes na mesma linha. Era por isso que ela parecia enorme: são <b>5 ofertas</b>. A causa, medida em 26/10/2026: a Vivo imprime o mesmo código Anatel no card de ofertas diferentes — quatro códigos cobrem dez ofertas, e o VIV202604042336 aparece no 1 Giga de R$ 1.200, no 2 Giga de R$ 1.500 e no 10 Giga de R$ 3.000. O regulamento daquele código descreve <b>uma</b> delas, e para as outras duas ele contradiz o card. Não há o que recuperar: o regulamento das outras não existe publicado</td></tr>
+    <tr><td>65</td><td>A falha de leitura fica no relatório, não na mensagem</td><td>As ressalvas da Vivo e da Claro são <b>as mesmas todo dia</b>: quatro códigos Anatel que a operadora repete em cards de preços diferentes, mais o HTTP 422 do endpoint da agência. Aviso que se repete idêntico todo dia deixa de ser aviso — ensina o leitor a pular a seção, e o dia em que aparecer uma falha <b>nova</b> ele pula também. O buraco continua registrado, inteiro, no relatório: a seção &quot;Leitura com ressalva&quot; com o texto longo e a conta por operadora e praça, e os avisos por coletor abaixo da tabela &quot;Estado da coleta&quot;. Continuam na mensagem o <b>COLETA INCOMPLETA</b>, que é alarme de robô quebrado, e a <b>cobertura</b>, sem a qual &quot;nenhuma mudança&quot; não se distingue de cegueira</td></tr>
   </table>
   <div class="box">
     <span class="rotulo">Por que começar só com a Vivo</span>
@@ -547,17 +548,20 @@ Fibra · Brisanet · mudou de nome
 
 Relatório completo em anexo · tmt-price-tracker.vercel.app</pre>
 
-  <p class="legenda">E o que não deu para ler sai junto, num bloco que
-  <b>nega a mudança no próprio cabeçalho</b> (decisões 60, 61, 63 e 64):</p>
-  <pre style="background:var(--cinza-fundo);border:1px solid var(--borda);padding:12px;
-    font-size:13px;overflow-x:auto;margin:6px 0 16px">Combo · Vivo · nada mudou, mas faltou dado
-  5 ofertas, em todas as 20 praças
-  o contrato não deu para ler: sem preço de tabela, fidelidade, multa e taxas
-
-A coleta fechou com 3 avisos (Vivo). Estão no relatório.</pre>
-
   <div class="box">
-    <p>A mensagem <b>não repete a justificativa técnica do coletor</b>. Ela diz
+    <span class="rotulo">O que não entra na mensagem</span>
+    <p>A falha de leitura <b>não vai para o Telegram</b> (decisão 65). As
+    ressalvas da Vivo e da Claro são as mesmas todo dia, e aviso que se
+    repete idêntico deixa de ser aviso. Elas ficam no relatório em anexo,
+    na seção &quot;Leitura com ressalva&quot; e nos avisos por coletor —
+    com o texto longo e a conta por operadora e praça.</p>
+    <p>O que continua na mensagem é o <b>COLETA INCOMPLETA</b>, quando um
+    coletor não rodou, e a <b>cobertura</b> da comparação. Os dois são de
+    outra família: um avisa que o robô quebrou, o outro distingue
+    &quot;nenhuma mudança&quot; de cegueira.</p>
+  </div>
+  <div class="box">
+    <p>No relatório, a ressalva traz as duas formas: o rótulo curto, que diz
     o que ficou vazio; o porquê — que o regulamento é de outra oferta que
     divide o mesmo código Anatel, por exemplo — fica no relatório em anexo,
     onde há espaço para explicar. E o preço e a franquia anunciados dessas

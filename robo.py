@@ -2233,48 +2233,32 @@ def montar_mensagem(hoje, ontem):
     # E SEM PRACA, de proposito: a regra de "toda mudanca diz em que
     # praca" e sobre MUDANCA, e aqui nada se moveu na vitrine. A
     # cobertura e o ponto cego, da mesma familia, tambem nao a carregam.
-    # OS DETALHES, SEM A PROSA DO COLETOR. Produto, operadora, quantas
-    # ofertas, pracas e O QUE ficou vazio - que e o rotulo curto que o
-    # coletor declara. O "por que" e do relatorio.
+    # A FALHA DE LEITURA NAO VAI PARA A MENSAGEM - decisao do usuario
+    # em 26/10/2026, e a medicao explica por que ela se justifica: as
+    # ressalvas da Vivo e da Claro sao AS MESMAS todo dia. Quatro
+    # codigos Anatel que a operadora repete em cards de precos
+    # diferentes, mais o HTTP 422 do endpoint da agencia; dez ofertas
+    # em Sao Paulo, vezes vinte pracas. Aviso que se repete identico
+    # todo dia deixa de ser aviso: ensina o leitor a pular a secao, e
+    # o dia em que aparecer uma falha NOVA ele pula tambem.
     #
-    # Errei para os dois lados antes de chegar aqui: primeiro despejei a
-    # explicacao tecnica inteira (quinze linhas no Telegram), depois
-    # cortei para uma linha so e perdi produto e praca.
-    # O CABECALHO NEGA A MUDANCA. "leitura com ressalva" era jargao, e
-    # o bloco tinha o mesmo formato visual de uma mudanca - lia-se como
-    # se algo tivesse acontecido com a oferta. O usuario escolheu, entre
-    # quatro formatos, o que nega no proprio cabecalho.
-    for g in duvidosa[:3]:
-        linhas += ["", "%s \u00b7 %s \u00b7 nada mudou, mas faltou dado"
-                   % (g["categoria"], g["operadora"])]
-        linhas.append("  %d oferta%s, %s"
-                      % (g["quantas"], "" if g["quantas"] == 1 else "s",
-                         g["onde"]))
-        linhas.append("  %s" % "; ".join(g.get("curtos") or g["motivos"][:1]))
-    if len(duvidosa) > 3:
-        resto = sum(g["quantas"] for g in duvidosa[3:])
-        linhas += ["", "e mais %d oferta%s com ressalva de leitura, no "
-                   "relat\u00f3rio" % (resto, "" if resto == 1 else "s")]
+    # O buraco continua registrado - no RELATORIO, com o texto longo e
+    # a conta por operadora e praca. O grupo "duvidosa" segue
+    # calculado e segue viajando em dados, porque e o PDF que o
+    # consome: nada foi apagado do levantamento, so deixou de ir para
+    # o celular.
+    #
+    # NAO CONFUNDIR COM "COLETA INCOMPLETA", que fica: aquela e alarme
+    # de robo quebrado, e sem ela ninguem sabe que o dia nao foi
+    # coletado.
 
-    # AVISO DE RODADA BEM-SUCEDIDA TAMBEM E RESSALVA. A falha e decidida
-    # por "ok == len(pracas) and bool(ofertas)", entao coletor que fechou
-    # todas as pracas e sucesso MESMO COM AVISO - e a manchete de coleta
-    # incompleta so olha "falhas". O aviso ficava so no log do Actions.
+    # O AVISO DE RODADA BEM-SUCEDIDA TAMBEM NAO VAI PARA A MENSAGEM,
+    # pela mesma decisao de 26/10/2026 e pelo mesmo motivo: ele
+    # repete identico todo dia. Continua no relatorio, listado por
+    # coletor, logo abaixo da tabela "Estado da coleta".
     #
-    # Medido em 25/10/2026: a Vivo fechou 20/20 com 952 ofertas e
-    # carregou "regulamento falhou em 4 oferta(s) - fidelidade, multa e
-    # preco de tabela ficam vazios" - 80 linhas por dia de campo
-    # contratual vazio por HTTP 422 da Anatel, sem ninguem saber.
-    #
-    # Uma linha, e o texto de cada aviso e do relatorio.
-    com_ressalva = [c for c in (col or ())
-                    if c.get("sucesso") and c.get("avisos")]
-    if com_ressalva:
-        n = sum(len(c["avisos"]) for c in com_ressalva)
-        quem = ", ".join(sorted(c["operadora"] for c in com_ressalva))
-        linhas += ["", "A coleta fechou com %d aviso%s (%s). "
-                   "Est\u00e3o no relat\u00f3rio."
-                   % (n, "" if n == 1 else "s", quem)]
+    # A manchete "COLETA INCOMPLETA" nao e afetada: ela olha quem NAO
+    # fechou, e e o alarme de que o dia nao foi coletado.
 
     # A COLETA FORA DA JANELA SAI DITA. A guarda libera a coleta depois
     # das 10h "de qualquer jeito", porque dia sem dado nao volta - e isso

@@ -961,19 +961,6 @@ MUTACOES = [
         "Q6. setdefault volta a estourar na chave que vale None"),
 
     Mutacao(
-        "robo.py",
-        '    com_ressalva = [c for c in (col or ())\n'
-        '                    if c.get("sucesso") and c.get("avisos")]',
-        '    com_ressalva = []',
-        "R1. o aviso da rodada que FECHOU volta a ficar so no log"),
-
-    Mutacao(
-        "robo.py",
-        '                    if c.get("sucesso") and c.get("avisos")]',
-        '                    if not c.get("sucesso") and c.get("avisos")]',
-        "R2. a ressalva volta a olhar so quem falhou"),
-
-    Mutacao(
         "relatorio.py",
         '        avisos_coleta = _avisos_da_coleta(dados)',
         '        avisos_coleta = []',
@@ -993,21 +980,6 @@ MUTACOES = [
         "S1. a prosa tecnica do coletor volta para a mensagem"),
 
     Mutacao(
-        "robo.py",
-        '        linhas.append("  %s" % "; ".join(g.get("curtos") or g["motivos"][:1]))',
-        '        linhas.append("  %s" % "; ".join(g["motivos"]))',
-        "S2. a mensagem volta a imprimir o texto longo"),
-
-    # A T2 ja mede a troca do cabecalho; esta anula o LACO, e sem
-    # ele nao sai bloco nenhum - cai produto, praca e o que faltou
-    # de uma vez.
-    Mutacao(
-        "robo.py",
-        '    for g in duvidosa[:3]:',
-        '    for g in []:',
-        "S3. a mensagem volta a nao dizer produto, praca nem o que faltou"),
-
-    Mutacao(
         "coletores/vivo.py",
         '            "o contrato n\\u00e3o deu para ler: sem pre\\u00e7o de tabela, "\n'
         '            "fidelidade, multa e taxas",',
@@ -1020,11 +992,18 @@ MUTACOES = [
         '        quem = (l.get("chave"), l.get("nome_oferta"), l.get("praca"))',
         "T1. a ressalva volta a contar linha em vez de oferta"),
 
+    # A INVARIANTE NOVA, desde 26/10/2026: a falha de leitura NAO vai
+    # para a mensagem diaria. Esta mutacao reintroduz o bloco; a
+    # suite tem de ficar vermelha. Sem ela, a regra que o usuario
+    # pediu nao estaria protegida por nada.
     Mutacao(
         "robo.py",
-        'nada mudou, mas faltou dado"',
-        'leitura com ressalva"',
-        "T2. o cabecalho volta a nao negar a mudanca"),
+        '    # de robo quebrado, e sem ela ninguem sabe que o dia nao foi\n'
+        '    # coletado.',
+        '    for g in duvidosa[:3]:\n'
+        '        linhas += ["", "%s - %s - nada mudou, mas faltou dado"\n'
+        '                   % (g["categoria"], g["operadora"])]',
+        "U1. a falha de leitura volta para a mensagem diaria"),
 
     Mutacao(
         "relatorio.py",
