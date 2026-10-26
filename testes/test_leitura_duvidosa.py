@@ -48,7 +48,8 @@ RECUSA = (u"regulamento diz R$ 270,00 de tabela, abaixo dos R$ 290,00 da "
 # A FORMA QUE O COLETOR GRAVA desde 25/10/2026: o rotulo curto, que diz
 # O QUE ficou vazio e vai na mensagem, e o texto longo, que explica POR
 # QUE e vai no relatorio.
-CURTO = u"preço de tabela, fidelidade, multa e taxas ficaram vazios"
+CURTO = (u"o contrato não deu para ler: sem preço de tabela, "
+         u"fidelidade, multa e taxas")
 AVISO = {"curto": CURTO, "longo": RECUSA}
 
 
@@ -81,16 +82,25 @@ class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
 
     def test_abre_com_o_produto_e_a_operadora(self):
         t = montar(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertIn("Combo \u00b7 Vivo \u00b7 leitura com ressalva", t)
+        self.assertIn("Combo \u00b7 Vivo \u00b7 nada mudou, mas faltou dado", t)
 
-    def test_diz_quantas_ofertas_e_em_que_praca(self):
+    def test_conta_OFERTA_e_nao_linha(self):
+        """A MESMA oferta em tres pracas e UMA oferta.
+
+        Todos os outros blocos dizem "2 mudancas" para duas ofertas
+        e poem a praca em separado. Este dizia "100 ofertas, em
+        todas as 20 pracas", e 100 era 5 vezes 20 - a praca contada
+        duas vezes na mesma linha, o que fazia a ressalva parecer
+        enorme. Sao 5.
+        """
         t = montar(com_recusa(ONTEM), com_recusa(HOJE, quantas=3))
-        self.assertIn("3 ofertas, em 3 de 20", t)
+        self.assertIn("1 oferta, em 3 de 20", t)
+        self.assertNotIn("3 ofertas,", t)
 
     def test_diz_o_que_ficou_vazio(self):
         t = montar(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertIn("pre\u00e7o de tabela, fidelidade, multa e taxas "
-                      "ficaram vazios", t)
+        self.assertIn("sem pre\u00e7o de tabela, fidelidade, multa e "
+                      "taxas", t)
 
     def test_e_NAO_diz_por_que(self):
         """O "por que" e prosa de depuracao, e o lugar dele e o PDF."""
@@ -104,7 +114,7 @@ class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
 
     def test_dia_sem_recusa_nao_tem_o_bloco(self):
         t = montar(em_todas(data=ONTEM), em_todas(data=HOJE))
-        self.assertNotIn("leitura com ressalva", t)
+        self.assertNotIn("nada mudou, mas faltou dado", t)
 
     def test_nao_entra_na_contagem_de_mudancas(self):
         """Nada mudou na vitrine: foi a nossa leitura que disse "nao
@@ -121,8 +131,8 @@ class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
         t = montar(com_recusa(ONTEM), hoje)
         # a ordem e alfabetica, de proposito: ordem instavel mudaria a
         # mensagem de um dia para o outro sem nada ter mudado
-        self.assertIn("franquia garantida ficou vazia; pre", t)
-        self.assertIn("ficaram vazios", t)
+        self.assertIn("franquia garantida ficou vazia; o contrato", t)
+        self.assertIn("sem preço de tabela", t)
 
     def test_operadoras_diferentes_saem_em_blocos_separados(self):
         hoje = com_recusa(HOJE, quantas=2)
@@ -137,8 +147,8 @@ class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
                             nome="Claro Fibra", preco=99.9, gb=None,
                             mbps=500, data=ONTEM))
         t = montar(ontem, hoje + outra)
-        self.assertIn("Combo \u00b7 Vivo \u00b7 leitura com ressalva", t)
-        self.assertIn("Fibra \u00b7 Claro \u00b7 leitura com ressalva", t)
+        self.assertIn("Combo \u00b7 Vivo \u00b7 nada mudou, mas faltou dado", t)
+        self.assertIn("Fibra \u00b7 Claro \u00b7 nada mudou, mas faltou dado", t)
 
     def test_acima_de_tres_blocos_o_resto_vai_para_o_relatorio(self):
         """O mesmo corte que todos os outros blocos da mensagem usam."""
@@ -167,10 +177,11 @@ class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
         """
         d = dados(com_recusa(ONTEM), com_recusa(HOJE, quantas=2,
                                                 avisos=[RECUSA]))
-        self.assertEqual(d["duvidosa"][0]["quantas"], 2)
+        # duas PRACAS da mesma oferta sao UMA oferta
+        self.assertEqual(d["duvidosa"][0]["quantas"], 1)
         self.assertEqual(d["duvidosa"][0]["motivos"], [RECUSA])
         self.assertEqual(d["duvidosa"][0]["curtos"],
-                         [u"um campo não deu para confirmar"])
+                         [u"um campo do contrato não deu para ler"])
 
     def test_a_prosa_nunca_chega_na_mensagem_nem_sem_rotulo(self):
         """O ROTULO QUE FALTA DEGRADA PARA O GENERICO, nao para a prosa.
@@ -183,7 +194,7 @@ class ACoisaQueOColetorRecusouLerSaiDita(unittest.TestCase):
         t = montar(com_recusa(ONTEM),
                    com_recusa(HOJE, quantas=2,
                               avisos=[{"curto": "", "longo": RECUSA}]))
-        self.assertIn(u"um campo não deu para confirmar", t)
+        self.assertIn(u"um campo do contrato não deu para ler", t)
         self.assertNotIn("nenhum campo contratual dele foi usado", t)
 
     def test_o_longo_vai_para_o_relatorio(self):
@@ -314,8 +325,8 @@ class ORegulamentoSomaOAvisoSemEstourar(unittest.TestCase):
                        "avisos_oferta": None})
         curtos = [_apps._duas_formas(a)[0] for a in o["avisos_oferta"]]
         self.assertIn(
-            u"pre\u00e7o de tabela, fidelidade, multa e taxas ficaram vazios",
-            curtos)
+            u"o contrato n\u00e3o deu para ler: sem pre\u00e7o de tabela, "
+            u"fidelidade, multa e taxas", curtos)
         self.assertNotIn(_apps.SEM_ROTULO, curtos,
                          "o coletor tem de declarar, nao cair no generico")
 
@@ -350,7 +361,7 @@ class OAvisoDaLeituraLargaDeApps(unittest.TestCase):
         aviso = apps.aviso_de_leitura(self.SETE)
         self.assertTrue(aviso)
         curto, longo = apps._duas_formas(aviso)
-        self.assertEqual(curto, "a lista de apps ficou vazia")
+        self.assertEqual(curto, "sem a lista de apps")
         self.assertIn("7 aplicativos", longo)
         self.assertIn("acima do limite", longo)
 

@@ -495,7 +495,8 @@ def aplicar_regulamento(oferta, reg):
         oferta["avisos_oferta"] = apps.juntar_avisos(
             oferta.get("avisos_oferta"),
             apps.ressalva(
-            "pre\u00e7o de tabela, fidelidade, multa e taxas ficaram vazios",
+            "o contrato n\u00e3o deu para ler: sem pre\u00e7o de tabela, "
+            "fidelidade, multa e taxas",
             "o regulamento diz %s de tabela, abaixo dos %s da "
             "vitrine: o documento \u00e9 de outra oferta que divide o mesmo "
             "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
@@ -557,7 +558,7 @@ def aplicar_regulamento(oferta, reg):
             oferta["avisos_oferta"] = apps.juntar_avisos(
                 oferta.get("avisos_oferta"),
                 apps.ressalva(
-                "franquia garantida e campos do contrato ficaram vazios",
+                "sem franquia garantida",
                 "o regulamento declara %s GB para um card de %s GB: "
                 "o documento \u00e9 de outra oferta que divide o mesmo "
                 "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"

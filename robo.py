@@ -853,7 +853,7 @@ def _minoria_das_pracas(e):
 
 # o mesmo rotulo generico do coletor: a mensagem nao pode imprimir a
 # prosa longa nem quando o rotulo curto falta
-SEM_ROTULO = "um campo n\u00e3o deu para confirmar"
+SEM_ROTULO = "um campo do contrato n\u00e3o deu para ler"
 
 
 def _duas_formas_do_aviso(aviso):
@@ -923,17 +923,27 @@ def _leitura_duvidosa(h):
         k = (l.get("operadora"), l.get("produto"))
         d = grupos.setdefault(k, {
             "operadora": l.get("operadora"), "produto": l.get("produto"),
-            "motivos": [], "curtos": [], "pracas": [], "quantas": 0,
+            "motivos": [], "curtos": [], "pracas": [], "ofertas": [],
+            "quantas": 0,
             # O ROTULO EM PORTUGUES VIAJA COM O EVENTO, como em
             # bundle_antes: a mensagem e o PDF leem o mesmo texto e nao
             # podem divergir.
             "categoria": _categoria(l),
             # _rotulo e _categoria leem "atual" nos outros eventos
             "atual": l})
-        # CONTA OFERTA, NAO AVISO. Uma oferta com dois avisos e uma
-        # oferta com leitura duvidosa, e dizer "2 ofertas" ali seria
-        # inflar o tamanho do buraco.
-        d["quantas"] += 1
+        # CONTA OFERTA, NAO LINHA NEM AVISO.
+        #
+        # Uma oferta com dois avisos e uma oferta so - contar aviso
+        # inflaria o buraco. E a MESMA oferta em 20 pracas tambem e uma
+        # so: todos os outros blocos da mensagem dizem "2 mudancas" para
+        # duas ofertas e poem a praca em separado ("em todas as 7
+        # pracas"). Este dizia "100 ofertas, em todas as 20 pracas", e
+        # 100 era 5 vezes 20 - a praca contada duas vezes na mesma
+        # linha. Era por isso que a ressalva parecia enorme: sao 5.
+        quem = (l.get("chave"), l.get("nome_oferta"))
+        if quem not in d["ofertas"]:
+            d["ofertas"].append(quem)
+        d["quantas"] = len(d["ofertas"])
         for curto, longo in duas:
             if longo not in d["motivos"]:
                 d["motivos"].append(longo)
@@ -2230,8 +2240,12 @@ def montar_mensagem(hoje, ontem):
     # Errei para os dois lados antes de chegar aqui: primeiro despejei a
     # explicacao tecnica inteira (quinze linhas no Telegram), depois
     # cortei para uma linha so e perdi produto e praca.
+    # O CABECALHO NEGA A MUDANCA. "leitura com ressalva" era jargao, e
+    # o bloco tinha o mesmo formato visual de uma mudanca - lia-se como
+    # se algo tivesse acontecido com a oferta. O usuario escolheu, entre
+    # quatro formatos, o que nega no proprio cabecalho.
     for g in duvidosa[:3]:
-        linhas += ["", "%s \u00b7 %s \u00b7 leitura com ressalva"
+        linhas += ["", "%s \u00b7 %s \u00b7 nada mudou, mas faltou dado"
                    % (g["categoria"], g["operadora"])]
         linhas.append("  %d oferta%s, %s"
                       % (g["quantas"], "" if g["quantas"] == 1 else "s",

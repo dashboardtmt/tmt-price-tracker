@@ -575,7 +575,7 @@ def aviso_de_leitura(texto, limite=None):
     limite = LIMITE_DE_APPS if limite is None else limite
     if quantos > limite:
         return ressalva(
-            "a lista de apps ficou vazia",
+            "sem a lista de apps",
             "o texto da oferta nomeia %d aplicativos, acima do limite "
             "de %d: a leitura pegou a vitrine junto com o card, e a "
             "lista de apps ficou vazia em vez de adivinhada"
@@ -599,7 +599,7 @@ def ressalva(curto, longo):
 # nunca o texto longo: a falta do rotulo nao pode fazer a prosa tecnica
 # do coletor voltar para o Telegram em silencio, que e o que o usuario
 # reclamou. A mutacao S4 passou verde provando que nada impedia.
-SEM_ROTULO = "um campo n\u00e3o deu para confirmar"
+SEM_ROTULO = "um campo do contrato n\u00e3o deu para ler"
 
 
 def _duas_formas(aviso):

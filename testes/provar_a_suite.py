@@ -998,19 +998,33 @@ MUTACOES = [
         '        linhas.append("  %s" % "; ".join(g["motivos"]))',
         "S2. a mensagem volta a imprimir o texto longo"),
 
+    # A T2 ja mede a troca do cabecalho; esta anula o LACO, e sem
+    # ele nao sai bloco nenhum - cai produto, praca e o que faltou
+    # de uma vez.
     Mutacao(
         "robo.py",
-        '    for g in duvidosa[:3]:\n'
-        '        linhas += ["", "%s \\u00b7 %s \\u00b7 leitura com ressalva"',
-        '    for g in []:\n'
-        '        linhas += ["", "%s \\u00b7 %s \\u00b7 leitura com ressalva"',
+        '    for g in duvidosa[:3]:',
+        '    for g in []:',
         "S3. a mensagem volta a nao dizer produto, praca nem o que faltou"),
 
     Mutacao(
         "coletores/vivo.py",
-        '            "pre\\u00e7o de tabela, fidelidade, multa e taxas ficaram vazios",',
+        '            "o contrato n\\u00e3o deu para ler: sem pre\\u00e7o de tabela, "\n'
+        '            "fidelidade, multa e taxas",',
         '            "",',
         "S4. o coletor para de declarar o que ficou vazio"),
+
+    Mutacao(
+        "robo.py",
+        '        quem = (l.get("chave"), l.get("nome_oferta"))',
+        '        quem = (l.get("chave"), l.get("nome_oferta"), l.get("praca"))',
+        "T1. a ressalva volta a contar linha em vez de oferta"),
+
+    Mutacao(
+        "robo.py",
+        'nada mudou, mas faltou dado"',
+        'leitura com ressalva"',
+        "T2. o cabecalho volta a nao negar a mudanca"),
 
     Mutacao(
         "relatorio.py",
