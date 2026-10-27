@@ -2007,6 +2007,21 @@ def _porque_falhou(c):
     return "%s com aviso na rodada" % op
 
 
+def _tamanho_da_serie():
+    """Quantas linhas a serie tem, ou None - e NUNCA levanta.
+
+    Numero de rodape nao pode derrubar a mensagem do dia. A primeira
+    versao disto chamava armazenamento.contar() direto na montagem do
+    dicionario, e qualquer tropeco ali - segredo ausente, rede fora -
+    levava junto a mensagem inteira, que e a unica coisa que o robo
+    precisa entregar.
+    """
+    try:
+        return armazenamento.contar()[0]
+    except Exception:
+        return None
+
+
 def montar_mensagem(hoje, ontem):
     """O recado do dia: o mercado primeiro, o robo so quando falha."""
     dia = datetime.fromisoformat(hoje).strftime("%d/%m")
@@ -2475,6 +2490,16 @@ def montar_mensagem(hoje, ontem):
         "coletas": col, "falhas": falhas, "sem_registro": sem_registro,
         "denuncias": denuncias,
         "total_ofertas": total_ofertas,
+        # O TAMANHO DA SERIE, para o relatorio. A metodologia listava
+        # "arquivamento do historico" como pendencia desde 01/10/2026
+        # com a instrucao certa - "decidir antes de encher, nao depois" -
+        # e uma estimativa no lugar de um numero. Estimativa nao vence
+        # prazo: no dia em que os 500 MB do plano gratuito acabarem, a
+        # gravacao falha e o dia se perde, como o de hoje quase se
+        # perdeu por uma cota de outro servico.
+        #
+        # Custa uma requisicao por dia, sem trazer linha nenhuma.
+        "linhas_no_banco": _tamanho_da_serie(),
     }
     return "\n".join(linhas), dados
 

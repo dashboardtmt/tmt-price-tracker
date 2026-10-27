@@ -194,6 +194,79 @@ class GerarOPdf(unittest.TestCase):
         self.assertIn("preço não lido", texto)
         self.assertNotIn("None", texto)
 
+    def test_o_tamanho_da_serie_sai_no_anexo(self):
+        """O unico PRAZO do projeto, e ele vivia como estimativa num
+        documento em vez de numero num relatorio.
+
+        A secao so aparece quando a coleta fechou - ela mora junto do
+        "Estado da coleta" -, entao o dado tem de ir num dia cheio.
+        """
+        d = dict(DIA_CHEIO)
+        d["linhas_no_banco"] = 44687
+        d["total_ofertas"] = 1666
+        self._gerar(d, CATALOGO)
+        txt = relatorio._linha_do_armazenamento(d)
+        self.assertIn("44.687", txt)
+        self.assertIn("500 MB", txt)
+        self.assertIn("meses", txt)
+
+    def test_o_numero_chega_dentro_do_pdf(self):
+        """Funcao que devolve texto nao prova documento que o imprime.
+
+        Este projeto ja teve codigo quebrado em relatorio.py passando
+        despercebido porque nenhum teste GERAVA o PDF naquele ramo. Aqui
+        o PDF e gerado e lido de volta.
+        """
+        try:
+            import pypdf
+        except ImportError:
+            self.skipTest("pypdf nao instalado")
+        d = dict(DIA_CHEIO, linhas_no_banco=44687, total_ofertas=1666)
+        caminho = self._gerar(d, CATALOGO)
+        texto = " ".join(pg.extract_text() or ""
+                         for pg in pypdf.PdfReader(caminho).pages)
+        texto = " ".join(texto.split())
+        self.assertIn("44.687", texto)
+        self.assertIn("500 MB", texto)
+
+    def test_o_tamanho_sai_tambem_no_dia_que_falhou(self):
+        """O prazo nao pode depender de a coleta ter fechado.
+
+        Na primeira versao esta linha ficou DENTRO do "if" que so roda
+        no dia perfeito - entao no dia com falha o unico prazo do
+        projeto sumia da pagina, justamente no dia em que se olha o
+        anexo. O tamanho do banco nao tem relacao com a coleta.
+        """
+        try:
+            import pypdf
+        except ImportError:
+            self.skipTest("pypdf nao instalado")
+        d = dict(DIA_VAZIO, linhas_no_banco=44687, total_ofertas=0)
+        caminho = self._gerar(d, {})
+        texto = " ".join(" ".join((pg.extract_text() or "").split())
+                         for pg in pypdf.PdfReader(caminho).pages)
+        self.assertIn("44.687", texto)
+
+    def test_sem_contagem_a_secao_some_em_vez_de_mentir(self):
+        """Quando a contagem falha o campo vem None, e inventar um
+        numero ali seria pior do que nao dizer nada."""
+        d = dict(DIA_CHEIO)
+        d["linhas_no_banco"] = None
+        self.assertIsNone(relatorio._linha_do_armazenamento(d))
+        self._gerar(d, CATALOGO)
+
+    def test_a_cota_estourada_e_dita(self):
+        d = dict(DIA_CHEIO)
+        d["linhas_no_banco"] = 10 ** 9
+        d["total_ofertas"] = 1666
+        self.assertIn("estourou", relatorio._linha_do_armazenamento(d))
+
+    def test_a_conversao_para_mb_fica_declarada(self):
+        """A contagem e exata; a conversao e estimada. Misturar as duas
+        sem dizer qual e qual e o jeito de uma estimativa virar fato."""
+        d = dict(DIA_CHEIO, linhas_no_banco=1000, total_ofertas=10)
+        self.assertIn("estimados", relatorio._linha_do_armazenamento(d))
+
     def test_a_pracas_nao_sai_vazia(self):
         """AUDITORIA 9. O relatorio lia uma chave "onde" que ninguem
         escrevia, e a coluna Praças saia "—" em todas as linhas de toda

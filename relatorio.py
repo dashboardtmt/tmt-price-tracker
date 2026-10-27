@@ -527,6 +527,50 @@ def _avisos_da_coleta(d):
     return itens
 
 
+# Plano gratuito do Supabase. E o unico numero DURO desta conta.
+TETO_BANCO_MB = 500
+
+# Estimativa de bytes por linha, com indice. O JSON exportado da 700 B
+# por linha; no Postgres a linha e mais compacta e o indice unico de
+# sete colunas cobra por fora. 600 B e o meio-termo, e esta aqui
+# NOMEADO para poder ser corrigido com uma medicao - o tamanho real sai
+# do painel do Supabase, que este codigo nao alcanca.
+BYTES_POR_LINHA = 600
+
+
+def _linha_do_armazenamento(d):
+    """Quanto da cota de banco a serie ja ocupa, ou None.
+
+    POR QUE ESTA NO RELATORIO. A serie e append-only: ela so cresce, e
+    quando o banco encher a gravacao falha e o dia se perde. A
+    metodologia listava isso como pendencia desde 01/10/2026 com a
+    instrucao certa - "decidir antes de encher, nao depois" - e uma
+    ESTIMATIVA no lugar de um numero. Estimativa nao vence prazo.
+
+    Agora o numero de linhas e exato e aparece todo dia; o que continua
+    estimado e a conversao para megabytes, e ela esta declarada aqui
+    em cima para quem quiser calibrar com o painel do Supabase.
+    """
+    linhas = d.get("linhas_no_banco")
+    if not linhas:
+        return None
+    por_dia = d.get("total_ofertas") or 0
+    mb = linhas * BYTES_POR_LINHA / 1048576.0
+    txt = (u"A série tem <b>%s linhas</b> e ocupa cerca de <b>%d MB</b> "
+           u"dos %d MB do plano gratuito (estimados a %d bytes por linha)."
+           % ("{:,}".format(linhas).replace(",", "."), round(mb),
+              TETO_BANCO_MB, BYTES_POR_LINHA))
+    if por_dia > 0:
+        sobra = (TETO_BANCO_MB * 1048576.0 / BYTES_POR_LINHA) - linhas
+        dias = int(sobra / por_dia)
+        if dias <= 0:
+            txt += u" No ritmo de hoje, a cota <b>já estourou</b>."
+        else:
+            txt += (u" No ritmo de hoje, %s linhas por dia, ela enche em "
+                    u"cerca de <b>%d meses</b>." % (por_dia, max(1, dias // 30)))
+    return txt
+
+
 # ------------------------------------------------------------------ montagem
 
 def gerar(dados, entradas, caminho):
@@ -698,6 +742,17 @@ def gerar(dados, entradas, caminho):
                     "<b>%s</b> \u2014 %s" % (_sem_marcacao(op),
                                            _sem_marcacao(texto)),
                     ESTILOS["nota"]))
+
+    # O TAMANHO DA SERIE, TODO DIA - e FORA do "if" de cima, de
+    # proposito. Ele entrou ali dentro na primeira versao, e ali dentro
+    # quer dizer "so no dia em que a coleta fechou inteira": num dia com
+    # falha o unico prazo do projeto sumiria da pagina, justamente no
+    # dia em que se olha o anexo. O tamanho do banco nao tem relacao
+    # nenhuma com a coleta ter fechado.
+    armazenamento = _linha_do_armazenamento(dados)
+    if armazenamento:
+        hist.append(Spacer(1, 4))
+        hist.append(Paragraph(armazenamento, ESTILOS["nota"]))
 
     # A CONFERENCIA DO DADO, e nao do mercado. Sao perguntas diferentes:
     # as tabelas acima dizem o que mudou, esta diz se o que foi coletado

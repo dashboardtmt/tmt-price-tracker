@@ -102,6 +102,60 @@ class Mensagem(unittest.TestCase):
         self.assertIn("e mais 1 mudança de preço no relatório", t)
 
 
+class AContagemDoBancoNaoDerrubaAMensagem(unittest.TestCase):
+    """Numero de rodape nao pode levar a mensagem do dia junto.
+
+    A primeira versao chamava armazenamento.contar() direto na montagem
+    do dicionario de dados. Qualquer tropeco ali - segredo ausente,
+    rede fora, Supabase respondendo torto - levantava dentro de
+    montar_mensagem e o dia inteiro ficava sem aviso, por causa de uma
+    linha de rodape do anexo.
+
+    Nove testes ficaram vermelhos no mesmo instante em que ela entrou,
+    o que foi sorte: em producao o segredo existe, e o defeito so
+    apareceria no dia em que o banco tropecasse - que e o dia em que a
+    mensagem mais importa.
+    """
+
+    def _com_contagem(self, falsa):
+        import robo
+        original = robo.armazenamento.contar
+        robo.armazenamento.contar = falsa
+        self.addCleanup(setattr, robo.armazenamento, "contar", original)
+        return robo
+
+    def test_a_contagem_que_levanta_nao_para_a_montagem(self):
+        def explode():
+            raise RuntimeError("Supabase fora do ar")
+        robo = self._com_contagem(explode)
+        self.assertIsNone(robo._tamanho_da_serie())
+
+    def test_a_contagem_que_falha_vira_None(self):
+        robo = self._com_contagem(lambda: (None, "HTTP 500"))
+        self.assertIsNone(robo._tamanho_da_serie())
+
+    def test_a_contagem_boa_passa(self):
+        """Controle: sem isto os dois de cima passariam com uma funcao
+        que devolve None sempre."""
+        robo = self._com_contagem(lambda: (44687, None))
+        self.assertEqual(robo._tamanho_da_serie(), 44687)
+
+    def test_sem_segredo_a_contagem_responde_nao_sei(self):
+        """No local e no teste nao ha credencial, e isso nao e erro."""
+        from coletores import armazenamento
+        url = os.environ.pop("SUPABASE_URL", None)
+        chave = os.environ.pop("SUPABASE_SECRET_KEY", None)
+        try:
+            total, motivo = armazenamento.contar()
+        finally:
+            if url is not None:
+                os.environ["SUPABASE_URL"] = url
+            if chave is not None:
+                os.environ["SUPABASE_SECRET_KEY"] = chave
+        self.assertIsNone(total)
+        self.assertIn("SUPABASE", motivo)
+
+
 class JanelaDaColeta(unittest.TestCase):
     """A coleta leva ~50 minutos e a mensagem sai logo depois. Para
     chegar as 7h, a coleta comeca as 6h - e gatilho que chega antes disso

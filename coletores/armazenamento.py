@@ -239,6 +239,49 @@ def consultar_tudo(caminho, pagina=PAGINA):
     return tudo, None
 
 
+def contar(tabela="capturas"):
+    """Quantas linhas a tabela tem hoje, ou (None, motivo).
+
+    POR QUE EXISTE. O plano gratuito do Supabase da 500 MB, e a serie e
+    append-only: ela so cresce. A metodologia listava "arquivamento do
+    historico" como pendencia desde 01/10/2026 com a instrucao certa -
+    "decidir antes de encher, nao depois" - e uma estimativa no lugar de
+    um numero. Estimativa nao vence prazo: no dia em que o banco
+    encher, a gravacao falha e o dia se perde.
+
+    O PostgREST da a contagem exata sem trazer linha nenhuma: limit=0
+    com Prefer: count=exact devolve o total no cabecalho Content-Range,
+    na forma "* /123456". Custa uma requisicao por dia.
+    """
+    # NUNCA LEVANTA. Esta contagem e informacao de rodape: ela nao pode
+    # derrubar a mensagem do dia, que e o que o robo existe para
+    # entregar. Sem segredo configurado - em teste, no local - ela
+    # simplesmente nao sabe, e "nao sei" e uma resposta valida aqui.
+    try:
+        url, chave = _config()
+    except Exception as e:
+        return None, str(e)[:120]
+    req = urllib.request.Request(
+        "%s%s%s?select=data_captura&limit=0" % (url, API, tabela))
+    req.add_header("apikey", chave)
+    req.add_header("Authorization", "Bearer " + chave)
+    req.add_header("Prefer", "count=exact")
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            faixa = r.headers.get("Content-Range") or ""
+    except urllib.error.HTTPError as e:
+        return None, "HTTP %s" % e.code
+    except Exception as e:
+        return None, str(e)[:120]
+    # "* /123456" quando nao ha linha pedida; o que vale e depois da barra
+    if "/" not in faixa:
+        return None, "sem Content-Range na resposta"
+    total = faixa.rsplit("/", 1)[1].strip()
+    if not total.isdigit():
+        return None, "contagem ilegivel: %r" % faixa[:40]
+    return int(total), None
+
+
 def consultar(caminho):
     """GET simples na API, para a mensagem diaria comparar com ontem."""
     url, chave = _config()
