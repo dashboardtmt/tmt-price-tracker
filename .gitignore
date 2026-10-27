@@ -47,3 +47,6 @@ teste_local.html
 # relatorio gerado para teste local
 relatorio_teste.pdf
 relatorio-*.pdf
+
+# config local de sessao (caminhos da maquina de quem roda)
+.claude/
