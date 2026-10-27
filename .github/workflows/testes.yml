@@ -29,7 +29,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  testes:
+  # DOIS JOBS, E ELES RODAM EM PARALELO. Eram um so, e em 27/10/2026 o
+  # build foi CANCELADO aos 10m15s: o provador estourou o teto de 10
+  # minutos do job, e com isso a suite - que passou em 40 segundos -
+  # tambem nao reportou nada. Um passo lento derrubava o sinal rapido.
+  #
+  # Separados, a suite responde em menos de um minuto e o provador
+  # entrega depois, sem segurar o retorno. Os dois continuam rodando em
+  # todo push: minutos deixaram de ser medidos quando o repositorio
+  # virou publico, entao nao ha o que economizar aqui.
+  suite:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -53,6 +62,29 @@ jobs:
 
       - name: Rodar a suite
         run: python -m unittest discover -s testes -v
+
+  provador:
+    runs-on: ubuntu-latest
+    # MEDIDO, e nao chutado: 12min11s para as 136 mutacoes nesta
+    # maquina, em 27/10/2026. Cada mutacao roda a suite inteira, entao
+    # o tempo cresce nos DOIS eixos - mais testes e mais mutacoes. O
+    # runner do GitHub e mais lento que a maquina onde isso foi medido,
+    # e 35 minutos deixa folga para a suite crescer bastante antes de
+    # alguem precisar mexer aqui de novo.
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar o que o relatorio em PDF precisa
+        run: pip install --quiet reportlab pypdf
 
       - name: Conferir que a suite serve para alguma coisa
         # reintroduz cada defeito real e exige que a suite fique
