@@ -68,7 +68,7 @@
 <div class="wrap">
 <nav>
   <a href="#s1">1. O que é</a>
-  <a href="#s2">2. As 65 decisões</a>
+  <a href="#s2">2. As 71 decisões</a>
   <a href="#s3">3. Escopo</a>
   <a href="#s4">4. As 20 praças</a>
   <a href="#s5">5. Como a série funciona</a>
@@ -105,7 +105,7 @@
 </section>
 
 <section id="s2">
-  <h2><span class="num">2.</span> As 65 decisões</h2>
+  <h2><span class="num">2.</span> As 71 decisões</h2>
   <table class="decisoes">
     <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
     <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
@@ -173,6 +173,12 @@
     <tr><td>63</td><td>A ressalva nega a mudança no próprio cabeçalho</td><td>Enquanto esteve na mensagem, o bloco do que não deu para ler tinha o <b>mesmo formato visual</b> de uma mudança e abria com &quot;leitura com ressalva&quot; — jargão interno. Lido no celular, não dava para saber se a oferta mudou, se o preço mudou ou se deu erro. Passou a abrir com <b>&quot;nada mudou, mas faltou dado&quot;</b>, com a linha seguinte dizendo o que falta em português. A redação ficou registrada porque vale para o relatório e para qualquer canal futuro; a <b>decisão 65</b> tirou o bloco da mensagem diária</td></tr>
     <tr><td>64</td><td>A ressalva conta <b>oferta</b>, não linha</td><td>Todos os blocos da mensagem contam ofertas e põem a praça em separado (&quot;2 mudanças&quot; + &quot;em todas as 7 praças&quot;). A ressalva dizia &quot;100 ofertas, em todas as 20 praças&quot; — e 100 era 5 vezes 20, a praça contada duas vezes na mesma linha. Era por isso que ela parecia enorme: são <b>5 ofertas</b>. A causa, medida em 26/10/2026: a Vivo imprime o mesmo código Anatel no card de ofertas diferentes — quatro códigos cobrem dez ofertas, e o VIV202604042336 aparece no 1 Giga de R$ 1.200, no 2 Giga de R$ 1.500 e no 10 Giga de R$ 3.000. O regulamento daquele código descreve <b>uma</b> delas, e para as outras duas ele contradiz o card. Não há o que recuperar: o regulamento das outras não existe publicado</td></tr>
     <tr><td>65</td><td>A falha de leitura fica no relatório, não na mensagem</td><td>As ressalvas da Vivo e da Claro são <b>as mesmas todo dia</b>: quatro códigos Anatel que a operadora repete em cards de preços diferentes, mais o HTTP 422 do endpoint da agência. Aviso que se repete idêntico todo dia deixa de ser aviso — ensina o leitor a pular a seção, e o dia em que aparecer uma falha <b>nova</b> ele pula também. O buraco continua registrado, inteiro, no relatório: a seção &quot;Leitura com ressalva&quot; com o texto longo e a conta por operadora e praça, e os avisos por coletor abaixo da tabela &quot;Estado da coleta&quot;. Continuam na mensagem o <b>COLETA INCOMPLETA</b>, que é alarme de robô quebrado, e a <b>cobertura</b>, sem a qual &quot;nenhuma mudança&quot; não se distingue de cegueira</td></tr>
+    <tr><td>66</td><td>A coleta roda em <b>raias paralelas</b></td><td>Em 27/10/2026 a cota de 2.000 minutos de Actions acabou no dia 27. A coleta daquele dia rodou e <b>fechou</b> &mdash; 45m29s, dado gravado &mdash;, e os jobs seguintes, o do aviso e o da tela, n&atilde;o chegaram a iniciar: o dia foi coletado e ficou sem mensagem e sem painel. O alarme que existe justamente para o dia em que a mensagem n&atilde;o sai tamb&eacute;m &eacute; um job, e tamb&eacute;m n&atilde;o iniciou &mdash; <b>runner que n&atilde;o parte &eacute; o &uacute;nico modo de falha que nenhum alarme dentro do Actions cobre</b>. A causa era o rel&oacute;gio: 46 min/dia de coleta mais 1 min em cada um dos oito gatilhos, ~59 min/dia, 88% da cota sem margem. Medido por operadora: Vivo 18m51s, Claro 7m57s, Brisanet 7m53s, TIM 7m12s, e as outras cinco somando 2 minutos. Em paralelo o rel&oacute;gio vira o da raia mais lenta &mdash; 19 minutos &mdash; em vez da soma de 43. <b>A pra&ccedil;a continua em s&eacute;rie dentro de cada operadora</b>, de prop&oacute;sito: &eacute; ali que est&aacute; a rajada que derruba. TIM e TIM FIT dividem raia porque batem no mesmo dom&iacute;nio; Unifique, NuCel e Claro Flex dividem outra porque sobem Chromium e somam 35 segundos &mdash; paralelizar n&atilde;o compra nada e paga risco</td></tr>
+    <tr><td>67</td><td>Texto da fonte <b>n&atilde;o entra cru</b> na tela</td><td>O nome da oferta vem do site da operadora e ia direto para dentro do HTML em seis lugares: um &quot;&amp;&quot; j&aacute; sai torto, e marca&ccedil;&atilde;o no nome executaria na p&aacute;gina publicada. Pior: a tela embutida p&otilde;e a s&eacute;rie inteira dentro de um <code>&lt;script&gt;</code>, e bastava a sequ&ecirc;ncia que <b>fecha</b> essa tag aparecer num nome para a p&aacute;gina morrer inteira &mdash; medido no navegador, &quot;Uncaught SyntaxError&quot;, sem tabela, sem gr&aacute;fico, sem nada. O relat&oacute;rio em PDF j&aacute; tratava disso desde a auditoria: <b>mesmo defeito, outro canal</b>, que &eacute; onde quase todo defeito deste projeto mora</td></tr>
+    <tr><td>68</td><td>A faixa aparece como <b>frase</b>, nunca como n&uacute;mero</td><td>O plano M&aacute;x da Starlink perde o degrau de prop&oacute;sito &mdash; &quot;At&eacute; mais de 400 Mbps&quot; &eacute; faixa, e virava um ponto falso de 400 no gr&aacute;fico &mdash;, e com isso ele aparecia na tela <b>sem velocidade nenhuma</b>, o que &eacute; menos verdade do que a frase. A frase estava gravada desde 26/10 e ningu&eacute;m a exportava: campo gravado sem leitor. Agora ela aparece na coluna de entrega, em corpo menor e com explica&ccedil;&atilde;o &mdash; e <b>n&atilde;o passa pelo c&aacute;lculo</b>: n&atilde;o ordena tabela, n&atilde;o divide R$/Mbps e n&atilde;o vira ponto de gr&aacute;fico</td></tr>
+    <tr><td>69</td><td>A Unifique por <b>rota de cidade</b>, e o acento que escondia uma capital</td><td>O coletor abria o seletor, digitava a cidade e clicava no resultado &mdash; o trecho mais fr&aacute;gil do projeto. O seletor, na verdade, s&oacute; <b>navega</b>: cada cidade tem rota pr&oacute;pria, que responde 200 com os pre&ccedil;os e 404 quando a cidade n&atilde;o &eacute; atendida. A investiga&ccedil;&atilde;o de 30/09 tinha procurado &quot;?cidade=x&quot; e &quot;/cidade/x&quot;; a rota estava pendurada no caminho do <b>produto</b>. E dentro desse defeito havia outro, mais caro: o casamento do bot&atilde;o era <b>sens&iacute;vel a acento</b>, ent&atilde;o &quot;Florianopolis&quot; nunca casava com &quot;Florian&oacute;polis - SC&quot; e o coletor respondia &quot;a Unifique n&atilde;o atende&quot;. Essa frase virou coment&aacute;rio no c&oacute;digo como <b>fato da fonte</b>, refor&ccedil;ada por uma explica&ccedil;&atilde;o plaus&iacute;vel vinda da Anatel (a Unifique seria forte no interior e fraca na capital). Uma capital ficou um m&ecirc;s fora da s&eacute;rie por causa de um acento, e o registro do erro parecia uma descoberta</td></tr>
+    <tr><td>70</td><td>O tamanho da s&eacute;rie &eacute; <b>n&uacute;mero no anexo</b>, n&atilde;o estimativa no documento</td><td>&quot;Arquivamento do hist&oacute;rico&quot; estava aqui como pend&ecirc;ncia desde 01/10 com a instru&ccedil;&atilde;o certa em cima &mdash; <i>decidir antes de encher, n&atilde;o depois</i> &mdash; e nenhum n&uacute;mero para decidir. Estimativa n&atilde;o vence prazo: no dia em que os 500 MB acabarem, a grava&ccedil;&atilde;o falha e o dia se perde. O relat&oacute;rio passa a dizer todo dia quantas linhas a s&eacute;rie tem (exato) e em quantos meses ela enche no ritmo do dia (estimado, com os bytes por linha declarados no c&oacute;digo para quem quiser calibrar)</td></tr>
+    <tr><td>71</td><td>N&atilde;o existe <b>reposit&oacute;rio central</b> de ofertas na Anatel</td><td>Ficou anotado em 26/10 que o novo RGC teria criado um reposit&oacute;rio central de ofertas em vigor desde 01/09/2026, e que ele seria o caminho para recuperar os campos contratuais das ~200 ofertas/dia que ficam vazias. <b>Era falso.</b> O Despacho Decis&oacute;rio n&ordm; 74/2026 exige o contr&aacute;rio: que o consumidor chegue &quot;de forma direta e imediata&quot; aos documentos <b>daquela</b> oferta, e diz expressamente que link para reposit&oacute;rio gen&eacute;rico <b>n&atilde;o basta</b>. N&atilde;o h&aacute; fonte alternativa a abrir: o buraco &eacute; descumprimento da operadora, e registr&aacute;-lo como tal j&aacute; &eacute; o que o projeto faz</td></tr>
   </table>
   <div class="box">
     <span class="rotulo">Por que começar só com a Vivo</span>
@@ -647,6 +653,28 @@ Relatório completo em anexo · tmt-price-tracker.vercel.app</pre>
     captura do dia seguinte</b>, ou se vier com código de oferta novo. Dia isolado fica registrado,
     mas não dispara alerta.</p>
   </div>
+
+  <h3>O relat&oacute;rio em PDF, que vai anexado</h3>
+  <p>Metade do que chega todo dia &eacute; o anexo, e ele n&atilde;o era descrito aqui.
+  A divis&atilde;o de trabalho entre os dois &eacute; deliberada: <b>a mensagem diz o que
+  mudou; o relat&oacute;rio diz tudo o que se sabe sobre o dia</b>, inclusive o que
+  foi decidido n&atilde;o mandar para o celular.</p>
+  <table>
+    <tr><th>Se&ccedil;&atilde;o do anexo</th><th>O que traz</th></tr>
+    <tr><td>Cobertura da coleta</td><td>Aviso no topo quando o dia n&atilde;o cobriu todas as operadoras ou pra&ccedil;as &mdash; os n&uacute;meros abaixo passam a valer s&oacute; para o universo coletado</td></tr>
+    <tr><td>As cinco tabelas de mudan&ccedil;a</td><td>Pre&ccedil;o, composi&ccedil;&atilde;o, remodeladas, grade e degraus retomados, com pra&ccedil;as por extenso</td></tr>
+    <tr><td>Altera&ccedil;&otilde;es atribu&iacute;veis &agrave; leitura</td><td>Mudan&ccedil;as que o pr&oacute;prio rob&ocirc; identifica como sendo dele, e n&atilde;o do mercado</td></tr>
+    <tr><td>Ofertas em S&atilde;o Paulo</td><td>Uma tabela por produto, a pra&ccedil;a de refer&ecirc;ncia</td></tr>
+    <tr><td>Estado da coleta</td><td>Pra&ccedil;as e ofertas por coletor, e <b>o que cada um avisou</b> &mdash; inclusive nas rodadas que fecharam</td></tr>
+    <tr><td>Leitura com ressalva</td><td>O texto longo de cada recusa de leitura, com a conta por operadora e pra&ccedil;a (decis&atilde;o 65)</td></tr>
+    <tr><td>Cobertura da compara&ccedil;&atilde;o</td><td>Quanto da vitrine de hoje teve par ontem, por operadora</td></tr>
+    <tr><td>Confer&ecirc;ncia dos dados</td><td>As verifica&ccedil;&otilde;es autom&aacute;ticas sobre a coleta do dia, por gravidade</td></tr>
+    <tr><td>Tamanho da s&eacute;rie</td><td>Quantas linhas o banco tem e em quantos meses a cota enche (decis&atilde;o 70)</td></tr>
+  </table>
+  <div class="box neutro">
+    <p>O anexo &eacute; gerado em todo dia em que h&aacute; mensagem, <b>inclusive no dia em
+    que a coleta falhou</b> &mdash; que &eacute; o dia em que mais se olha para ele.</p>
+  </div>
 </section>
 
 <section id="s9">
@@ -789,6 +817,31 @@ Relatório completo em anexo · tmt-price-tracker.vercel.app</pre>
     dia</b>, e a data da captura é a do dia — mas vale olhar o aviso do Telegram: ele é o que
     denuncia o dia em que nada rodou.</p>
   </div>
+
+  <h3>27/10/2026: a cota acabou mesmo assim</h3>
+  <div class="box alerta">
+    <p>O conserto do repique comprou tempo e n&atilde;o resolveu. Em 27/10 a cota
+    acabou no dia 27: a coleta rodou e <b>fechou</b>, e os jobs do aviso e da
+    tela <b>n&atilde;o chegaram a iniciar</b>. O dia foi coletado e ficou sem
+    mensagem e sem painel.</p>
+    <p>E o alarme n&atilde;o podia avisar: o job que existe para o dia em que a
+    mensagem n&atilde;o sai tamb&eacute;m &eacute; um job. <b>Runner que n&atilde;o parte &eacute; o &uacute;nico
+    modo de falha que nenhum alarme dentro do Actions cobre.</b></p>
+  </div>
+  <p>A conta, medida em outubro: ~59 minutos por dia entre a coleta (46) e o
+  gatilho de guarda rodando oito vezes (8), mais os testes de cada push. Dá
+  88% da cota sem margem nenhuma.</p>
+  <p>Duas coisas mudaram:</p>
+  <table>
+    <tr><th>O qu&ecirc;</th><th>Efeito</th></tr>
+    <tr><td><b>O reposit&oacute;rio passou a ser p&uacute;blico</b></td><td>Actions deixa de ser medido. Verificado antes: nenhuma credencial no c&oacute;digo nem nos 192 commits do hist&oacute;rico</td></tr>
+    <tr><td><b>A coleta passou a rodar em raias</b></td><td>46 minutos viram ~20. O rel&oacute;gio deixa de ser a soma dos nove coletores e passa a ser o da raia mais lenta (decis&atilde;o 66)</td></tr>
+  </table>
+  <div class="box neutro">
+    <p>Abrir o reposit&oacute;rio sozinho teria resolvido a cota e deixado o
+    desperd&iacute;cio de p&eacute;. As raias valem por si: coleta que leva 20 minutos em
+    vez de 46 chega mais cedo e ocupa menos fila.</p>
+  </div>
 </section>
 
 <section id="s11">
@@ -844,13 +897,25 @@ Relatório completo em anexo · tmt-price-tracker.vercel.app</pre>
 <section id="s12">
   <h2><span class="num">12.</span> Em aberto</h2>
   <table>
-    <tr><th>Pendência</th><th>O que falta</th></tr>
-    <tr><td><b>Cabeçalhos das outras cinco</b></td><td>A Vivo exige cabeçalhos completos de navegador. Falta verificar se Claro, Brisanet, Unifique e NuCel têm exigência parecida — provável, e a correção é a mesma.</td></tr>
-    <tr><td><b>Arquivamento do histórico</b></td><td>O plano gratuito do Supabase dá 500 MB. Com cerca de 900 mil linhas por ano, segura uns dois anos — depois é preciso mover o histórico antigo para o Storage comprimido. Decidir antes de encher, não depois.</td></tr>
-    <tr><td><b>Dicionário de serviços</b></td><td class="ok">Fechado em 01/10, e o resultado foi magro por limite da fonte: <b>1 dos 20 códigos</b> ficou nomeado. A tradução código→nome é impossível para o resto, e o que sobrou de útil foi a assinatura de composição — seção 7.</td></tr>
-    <tr><td><b>Regionalização da Brisanet</b></td><td>Não confirmada — a API GraphQL foi identificada, mas não se sabe se ela varia por cidade.</td></tr>
-    <tr><td><b>Unifique sem navegador</b></td><td>Verificar se existe endereço de dados por trás do seletor de cidade, o que evitaria simular cliques.</td></tr>
+    <tr><th>Pend&ecirc;ncia</th><th>O que falta</th></tr>
+    <tr><td><b>Calibrar o tamanho do banco</b></td><td>O anexo passou a dizer quantas linhas a s&eacute;rie tem (exato) e quanto isso ocupa (estimado a 600 bytes por linha). O n&uacute;mero real sai do painel do Supabase, numa leitura s&oacute; &mdash; e depois dela a proje&ccedil;&atilde;o deixa de ser estimativa. &Eacute; a &uacute;nica pend&ecirc;ncia com <b>prazo</b>.</td></tr>
+    <tr><td><b>Os campos contratuais da Vivo</b></td><td>~200 ofertas por dia sem fidelidade, multa nem pre&ccedil;o de tabela, porque a operadora imprime o mesmo c&oacute;digo Anatel em cards de pre&ccedil;os diferentes. <b>N&atilde;o h&aacute; fonte alternativa</b> &mdash; ver decis&atilde;o 71. O que resta &eacute; continuar registrando, e eventualmente perguntar &agrave; pr&oacute;pria Vivo.</td></tr>
+    <tr><td><b>A Unifique sem navegador</b></td><td>Meio feita: a rota de cidade dispensa a simula&ccedil;&atilde;o de cliques (decis&atilde;o 69), mas a <b>leitura</b> continua rodando sobre o texto renderizado pelo Chromium. Trocar por HTML cru mudaria o que se l&ecirc; &mdash; e o que se l&ecirc; &eacute; a chave da s&eacute;rie.</td></tr>
+    <tr><td><b>O limite de seis aplicativos</b></td><td>Quando o texto nomeia mais de seis apps a leitura &eacute; descartada, e lista vazia vira n&iacute;vel 0 &mdash; que na tela &eacute; &quot;s&oacute; internet e liga&ccedil;&otilde;es&quot;, uma <b>afirma&ccedil;&atilde;o</b> sobre uma oferta cuja leitura foi justamente descartada. Medido em 27/10 sobre 80 ofertas: o m&aacute;ximo real &eacute; <b>dois</b> apps, ent&atilde;o isso hoje n&atilde;o acontece. O conserto seria o n&iacute;vel virar desconhecido em vez de zero.</td></tr>
+    <tr><td><b>Cabe&ccedil;alhos das outras cinco</b></td><td class="ok">Fechado em 27/10, por medi&ccedil;&atilde;o. A <b>Vivo</b> &eacute; a &uacute;nica que barra: 403 s&oacute; com identifica&ccedil;&atilde;o de navegador, 200 com o conjunto completo, reproduzido duas vezes. Claro e TIM j&aacute; mandavam o conjunto. Brisanet devolve bytes id&ecirc;nticos nos tr&ecirc;s casos e TIM FIT tamb&eacute;m. Unifique, NuCel e Claro Flex sobem Chromium. <b>A li&ccedil;&atilde;o foi a Starlink:</b> o status n&atilde;o mudava, mas sem <code>Accept-Language</code> ela responde em ingl&ecirc;s &mdash; o nome da oferta vira outro e a velocidade declarada some. Cabe&ccedil;alho que n&atilde;o muda o status ainda pode mudar o conte&uacute;do.</td></tr>
+    <tr><td><b>Regionaliza&ccedil;&atilde;o da Brisanet</b></td><td class="ok">Fechado em 27/10: j&aacute; estava feito. A consulta GraphQL filtra por cidade, e as ofertas <b>diferem de verdade</b> &mdash; Aracaju tem 7, Fortaleza e Natal t&ecirc;m 9. A API lista 400 cidades ativas; a cesta cobre as 7 do Nordeste que interessam.</td></tr>
+    <tr><td><b>Dicion&aacute;rio de servi&ccedil;os</b></td><td class="ok">Fechado em 01/10, e o resultado foi magro por limite da fonte: <b>1 dos 20 c&oacute;digos</b> ficou nomeado. A tradu&ccedil;&atilde;o c&oacute;digo&rarr;nome &eacute; imposs&iacute;vel para o resto, e o que sobrou de &uacute;til foi a assinatura de composi&ccedil;&atilde;o &mdash; se&ccedil;&atilde;o 7.</td></tr>
   </table>
+  <div class="box">
+    <span class="rotulo">O que 27/10 ensinou sobre pend&ecirc;ncia</span>
+    <p>Das cinco pend&ecirc;ncias desta tabela, <b>duas j&aacute; estavam resolvidas</b> e
+    uma era <b>defeito nosso descrito como fato da fonte</b>. A Brisanet j&aacute;
+    coletava por cidade; os cabe&ccedil;alhos s&oacute; faltavam na Vivo, que j&aacute; os tinha;
+    e &quot;a Unifique n&atilde;o atende Florian&oacute;polis&quot; era um acento.</p>
+    <p>Pend&ecirc;ncia que ningu&eacute;m mede envelhece como se fosse verdade, e ganha
+    explica&ccedil;&atilde;o plaus&iacute;vel por cima. <b>Antes de implementar o que a lista
+    pede, medir se a lista ainda est&aacute; certa.</b></p>
+  </div>
 </section>
 
 </main>
@@ -859,7 +924,7 @@ Relatório completo em anexo · tmt-price-tracker.vercel.app</pre>
 <footer>
   Documento de trabalho. Publicado como <b>página privada</b>, a pedido — nunca no dashboard
   oficial de TMT.
-  Repositório privado <code>dashboardtmt/tmt-price-tracker</code>.
+  Repositório <code>dashboardtmt/tmt-price-tracker</code>, p&uacute;blico desde 27/10/2026 por causa da cota de Actions (se&ccedil;&atilde;o 10) &mdash; sem credencial no c&oacute;digo nem no hist&oacute;rico.
   Separado do Dashboard TMT (Anatel).
 </footer>
 
