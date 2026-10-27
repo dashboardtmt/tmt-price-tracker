@@ -17,11 +17,13 @@ Uso:
 
 import argparse
 import collections
+import concurrent.futures
 import io
 import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -56,6 +58,64 @@ COLETORES = {"Vivo": vivo, "TIM": tim, "Claro": claro,
              # disputa degrau com ela (ver coletores/starlink.py)
              "Starlink": starlink}
 
+# AS RAIAS DA COLETA. Cada raia roda numa thread; dentro de uma raia, os
+# coletores rodam um depois do outro.
+#
+# POR QUE EXISTE. Em sequencia a coleta levava 46 minutos, medidos em
+# 27/10/2026: Vivo 18m51s, Claro 7m57s, Brisanet 7m53s, TIM 7m12s, e os
+# outros cinco somando 2 minutos. Contra a cota de 2.000 minutos/mes do
+# Actions isso dava ~59 min/dia com os oito gatilhos - 88% da cota, sem
+# margem. Em 27/10 a cota acabou no dia 27: a coleta rodou e os jobs do
+# aviso e da tela nao chegaram a iniciar, entao o dia foi coletado e
+# ficou sem mensagem e sem tela.
+#
+# Em paralelo o relogio vira o da raia mais lenta - a Vivo, 19 minutos -
+# em vez da soma. O ganho e de ~25 minutos por dia, e o custo do Actions
+# e tempo de relogio do job.
+#
+# POR QUE NAO UMA RAIA POR COLETOR. Duas razoes, e as duas sao medidas:
+#
+#   MESMO HOST, MESMA FILA. TIM e TIM FIT batem no mesmo dominio: o FIT
+#   sai das etiquetas linkadas na pagina de Controle da TIM. Dobrar a
+#   batida de um host so para ganhar segundos convida bloqueio - e a
+#   Vivo ja bloqueou o acesso quando as requisicoes sairam em rajada,
+#   durante a investigacao de 10/2026. (O Claro Flex NAO entra nesta
+#   regra: ele tem dominio proprio, fora de claro.com.br. Ele esta na
+#   raia de navegador pela razao de baixo.)
+#
+#   NAVEGADOR NAO VAI PARA THREAD. Unifique, NuCel e Claro Flex sobem
+#   Chromium pelo Playwright, cuja API sincrona nao foi feita para
+#   varias instancias concorrentes. Os tres somam 35 segundos: paralelizar
+#   nao compra nada e paga risco. Ficam todos na mesma raia.
+#
+# A praca continua SEQUENCIAL dentro de cada operadora, de proposito. E
+# ali que esta a rajada que derruba: 20 requisicoes simultaneas no mesmo
+# host e o padrao que anti-bot existe para barrar.
+RAIAS = (
+    ("Vivo",),                      # a mais lenta: e ela que define o relogio
+    ("Claro",),
+    ("TIM", "TIM FIT"),             # mesmo dominio
+    ("Brisanet",),
+    ("Starlink",),
+    ("Claro Flex", "Unifique", "NuCel"),   # os tres de navegador
+)
+
+# COLETOR FORA DAS RAIAS NAO COLETA, e nao coletar calado e o pior jeito
+# de falhar que este projeto tem: a serie e append-only, entao o dia que
+# nao entra nao volta. Quem adicionar um coletor em COLETORES e esquecer
+# de lhe dar raia descobre aqui, na importacao, e nao em marco olhando um
+# grafico com um buraco de cinco meses.
+_nas_raias = [n for raia in RAIAS for n in raia]
+if sorted(_nas_raias) != sorted(COLETORES):
+    faltam = sorted(set(COLETORES) - set(_nas_raias))
+    sobram = sorted(set(_nas_raias) - set(COLETORES))
+    raise RuntimeError(
+        "RAIAS e COLETORES nao batem%s%s"
+        % (" - sem raia: %s" % ", ".join(faltam) if faltam else "",
+           " - raia sem coletor: %s" % ", ".join(sobram) if sobram else ""))
+if len(_nas_raias) != len(set(_nas_raias)):
+    raise RuntimeError("coletor repetido nas RAIAS: coletaria duas vezes")
+
 
 def agora():
     return datetime.now(BRT)
@@ -63,7 +123,19 @@ def agora():
 
 # ------------------------------------------------------------------ coleta
 
-def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True):
+def _dizer(linha):
+    print(linha, flush=True)
+
+
+def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True,
+                      escrever=_dizer):
+    """Coleta uma operadora nas suas pracas e grava o que veio.
+
+    `escrever` recebe cada linha de progresso. Em paralelo as raias
+    escrevem ao mesmo tempo, e quem chama passa uma funcao que prefixa a
+    linha com o nome da operadora - sem isso o log vira nove conversas
+    sobrepostas e deixa de servir para achar onde travou.
+    """
     inicio = agora()
     ofertas, avisos, ok = [], [], 0
 
@@ -80,8 +152,8 @@ def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True):
             # uma praca que quebra nao pode derrubar as outras 19
             avisos.append("%s: erro %s" % (rotulo(p), e))
         if verbose:
-            print("  [%2d/%2d] %-22s %d ofertas acumuladas"
-                  % (i, len(pracas), rotulo(p), len(ofertas)), flush=True)
+            escrever("  [%2d/%2d] %-22s %d ofertas acumuladas"
+                     % (i, len(pracas), rotulo(p), len(ofertas)))
 
     registro = {
         "data_captura": inicio.date().isoformat(),
@@ -96,7 +168,7 @@ def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True):
     }
 
     if simular:
-        print("  [simulacao] %d ofertas nao gravadas" % len(ofertas))
+        escrever("  [simulacao] %d ofertas nao gravadas" % len(ofertas))
         return ofertas, registro, None
 
     gravadas, erro = armazenamento.gravar_capturas(ofertas)
@@ -110,37 +182,79 @@ def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True):
     # mesmo dia, com ~50 minutos de Actions cada.
     ok, erro_registro = armazenamento.registrar_coleta(registro)
     if not ok:
-        print("     ATENCAO: o registro da rodada nao gravou (%s)."
-              % str(erro_registro)[:80])
-        print("     O dia pode ser recoletado pelo proximo gatilho.")
+        escrever("     ATENCAO: o registro da rodada nao gravou (%s)."
+                 % str(erro_registro)[:80])
+        escrever("     O dia pode ser recoletado pelo proximo gatilho.")
         erro = erro or ("registro da rodada: %s" % erro_registro)
     return ofertas, registro, erro
 
 
-def rodar_coleta(uma_praca=None, simular=False):
+def pracas_da_operadora(nome, modulo, uma_praca=None):
+    # operadora nacional roda uma vez: repetir nas 20 pracas gravaria
+    # 20 copias do mesmo preco
+    if getattr(modulo, "NACIONAL", False):
+        # o filtro de praca (modo teste) nao se aplica a operadora nacional
+        return [{"cidade": "Brasil", "uf": "BR", "regiao": "Nacional",
+                 "capital": False}]
+    pracas = pracas_de(nome)
+    if uma_praca:
+        cidade, uf = uma_praca.split("/")
+        pracas = [p for p in pracas if p["cidade"] == cidade and p["uf"] == uf]
+    return pracas
+
+
+def rodar_coleta(uma_praca=None, simular=False, raias=RAIAS):
+    """Roda as raias em paralelo e devolve o resumo na ordem de COLETORES.
+
+    Ver RAIAS para por que o paralelo existe e por que ele para no nivel
+    da operadora. Passar raias=(tuple(COLETORES),) poe tudo numa raia so,
+    que e a coleta em serie de antes - e o que --em-serie faz.
+    """
     print("=" * 70)
     print("COLETA  %s" % agora().strftime("%d/%m/%Y %H:%M"))
     print("=" * 70)
-    resumo = []
-    for nome, modulo in COLETORES.items():
-        # operadora nacional roda uma vez: repetir nas 20 pracas gravaria
-        # 20 copias do mesmo preco
-        if getattr(modulo, "NACIONAL", False):
-            pracas = [{"cidade": "Brasil", "uf": "BR", "regiao": "Nacional", "capital": False}]
-        else:
-            pracas = pracas_de(nome)
-        # o filtro de praca (modo teste) nao se aplica a operadora nacional
-        if uma_praca and not getattr(modulo, "NACIONAL", False):
-            cidade, uf = uma_praca.split("/")
-            pracas = [p for p in pracas if p["cidade"] == cidade and p["uf"] == uf]
-        print("\n%s - %d pracas" % (nome, len(pracas)))
-        ofertas, registro, erro = coletar_operadora(nome, modulo, pracas, simular)
-        resumo.append(registro)
-        print("  %s: %d ofertas, %d/%d pracas%s" % (
-            nome, len(ofertas), registro["pracas_ok"], registro["pracas_pedidas"],
-            "" if registro["sucesso"] else "  (COM AVISOS)"))
-        for a in (registro["avisos"] or [])[:5]:
-            print("     " + a)
+
+    # UMA LINHA POR VEZ. Sem a tranca, duas raias escrevendo juntas
+    # partem a linha uma da outra e o log deixa de servir para achar
+    # onde travou - que e justamente para o que ele existe num job de
+    # 20 minutos sem ninguem olhando.
+    tranca = threading.Lock()
+
+    def falar(linha):
+        with tranca:
+            print(linha, flush=True)
+
+    def correr_raia(nomes):
+        registros = []
+        for nome in nomes:
+            modulo = COLETORES[nome]
+            pracas = pracas_da_operadora(nome, modulo, uma_praca)
+            marcar = lambda l, n=nome: falar("%-11s %s" % (n, l))
+            marcar("- %d pracas" % len(pracas))
+            ofertas, registro, _ = coletar_operadora(
+                nome, modulo, pracas, simular, escrever=marcar)
+            marcar("  %d ofertas, %d/%d pracas%s" % (
+                len(ofertas), registro["pracas_ok"], registro["pracas_pedidas"],
+                "" if registro["sucesso"] else "  (COM AVISOS)"))
+            for a in (registro["avisos"] or [])[:5]:
+                marcar("     " + a)
+            registros.append(registro)
+        return registros
+
+    # A EXCECAO CONTINUA DERRUBANDO A RODADA, de proposito: e assim que o
+    # job da coleta falha e o repique roda. As outras raias terminam
+    # assim mesmo - o executor espera todas - e cada operadora ja gravou
+    # o que coletou antes de voltar, entao o que entrou no banco fica.
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max(1, len(raias))) as pool:
+        por_raia = list(pool.map(correr_raia, raias))
+
+    # A ORDEM DE COLETORES, e nao a de quem terminou primeiro. O resumo
+    # alimenta a mensagem e o relatorio, e ordem que muda a cada dia
+    # conforme a rede estava faria a tabela "Estado da coleta" dancar
+    # sem nada ter mudado.
+    por_nome = {r["operadora"]: r for raia in por_raia for r in raia}
+    resumo = [por_nome[n] for n in COLETORES if n in por_nome]
 
     falhas = [r["operadora"] for r in resumo if not r["sucesso"]]
     if falhas:
@@ -2454,6 +2568,12 @@ def main():
     ap.add_argument("--avisar", action="store_true")
     ap.add_argument("--praca")
     ap.add_argument("--simular", action="store_true")
+    # Para depurar um coletor: poe as nove operadoras numa raia so, o que
+    # devolve a coleta em serie e o log sem raia nenhuma escrevendo por
+    # cima. Custa os 46 minutos de antes, entao nao e para a rodada
+    # diaria - e para quem esta olhando.
+    ap.add_argument("--em-serie", action="store_true",
+                    help="coleta uma operadora por vez, como antes das raias")
     a = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -2461,7 +2581,8 @@ def main():
     if not (a.coletar or a.avisar):
         ap.error("escolha --coletar ou --avisar")
     if a.coletar:
-        _, falhas = rodar_coleta(a.praca, a.simular)
+        _, falhas = rodar_coleta(a.praca, a.simular,
+                                 (tuple(COLETORES),) if a.em_serie else RAIAS)
         # Sair diferente de zero quando algo ficou incompleto. Isto existe
         # para o repique poder ser condicional: antes ele rodava a coleta
         # inteira de novo TODO dia, o que dobrava o consumo de minutos do
