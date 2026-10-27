@@ -1,20 +1,35 @@
 """Coletor da Unifique.
 
-A unica das seis que exige navegador de verdade.
+CADA CIDADE TEM ROTA PROPRIA, e o seletor do site so NAVEGA para ela.
+Medido em 27/10/2026, abrindo o seletor no navegador e olhando para onde
+ele foi: clicar em "Blumenau - SC" leva a
 
-POR QUE: os precos vem no HTML, mas o servidor so os inclui quando a
-sessao ja tem uma cidade escolhida - e a escolha mora num cookie que o
-JavaScript nao enxerga. Testado e descartado, em 30/09/2026:
+    /para-voce/internet-fibra/sc/blumenau
 
-  - parametro na URL (?cidade=blumenau)  -> ignorado, devolve a sessao atual
-  - rotas /cidade/x, /set-cidade/x       -> 404
-  - forjar cookie                        -> o cookie e HttpOnly
-  - API por tras                         -> nao existe; nenhuma chamada e feita
+que responde 200 com os precos no HTML servido, sem sessao, sem cookie e
+sem JavaScript. Cidade inexistente responde 404 - conferido com dois
+nomes inventados -, entao a propria rota distingue "nao atende" de
+"quebrou".
 
-Sobra abrir a pagina, clicar no seletor, buscar a cidade e ler. E o que
-este modulo faz.
+A INVESTIGACAO DE 30/09/2026 TINHA PROCURADO A FORMA ERRADA. Ela testou
+"?cidade=blumenau", "/cidade/x" e "/set-cidade/x", todas 404 ou
+ignoradas, e concluiu que so restava simular o clique. A rota existia o
+tempo todo, pendurada no caminho do PRODUTO e nao num caminho de cidade.
 
-FRAGILIDADE ASSUMIDA: depende do layout do site, nao de um formato de
+O NAVEGADOR CONTINUA AQUI, de proposito. Ele nao e mais necessario para
+ESCOLHER a cidade - a URL faz isso -, mas a leitura roda em cima do
+texto renderizado, e trocar isso por HTML cru mudaria o que se le. O que
+saiu foi a coreografia: abrir o seletor, achar o campo de busca, digitar
+e clicar no resultado certo. Era o trecho mais fragil do projeto.
+
+E ERA TAMBEM O QUE ESCONDIA FLORIANOPOLIS. O casamento do botao era
+sensivel a acento - "Florianopolis" nunca casa com "Florianopolis - SC"
+escrito com o "o" acentuado -, entao o coletor respondia "a Unifique nao
+atende Florianopolis/SC" e isso virou comentario em pracas.py como se
+fosse fato da fonte. Era defeito nosso. A rota /sc/florianopolis
+responde 200 com tres ofertas.
+
+FRAGILIDADE QUE RESTA: a leitura depende do layout, nao de um formato de
 dado. Quando a Unifique mexer na tela, isto quebra - e por isso avisa em
 vez de devolver vazio em silencio.
 
@@ -25,6 +40,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from . import apps
 from datetime import datetime, timedelta, timezone
 
@@ -97,36 +113,20 @@ def extrair(texto):
     return unicas
 
 
-def _escolher_cidade(pg, cidade, uf):
-    """Abre o seletor (ou o 'mudar', se ja houver cidade) e escolhe."""
-    abriu = False
-    for rotulo in (r"ver ofertas", r"^mudar$"):
-        try:
-            pg.get_by_text(re.compile(rotulo, re.I)).first.click(timeout=6000)
-            abriu = True
-            break
-        except Exception:
-            continue
-    if not abriu:
-        return False, "nao encontrei o seletor de cidade"
+def sem_acento(s):
+    return "".join(c for c in unicodedata.normalize("NFD", s or "")
+                   if unicodedata.category(c) != "Mn")
 
-    pg.wait_for_timeout(1200)
-    try:
-        pg.locator('input[type="search"]').first.fill(cidade)
-    except Exception as e:
-        return False, "campo de busca ausente: %s" % str(e)[:60]
-    pg.wait_for_timeout(1200)
 
-    alvo = pg.locator("button.select-city",
-                      has_text=re.compile(r"%s\s*-\s*%s" % (re.escape(cidade), uf), re.I))
-    if alvo.count() == 0:
-        return False, "a Unifique nao atende %s/%s" % (cidade, uf)
-    try:
-        alvo.first.click(timeout=8000)
-    except Exception as e:
-        return False, "nao consegui selecionar a cidade: %s" % str(e)[:60]
-    pg.wait_for_timeout(4000)
-    return True, None
+def rota_da_cidade(cidade, uf):
+    """A URL propria da cidade, que e para onde o seletor navega.
+
+    O endereco e sem acento e com hifen: "Sao Jose dos Campos" vira
+    "sao-jose-dos-campos". Foi so por causa do acento que Florianopolis
+    passou um mes fora da coleta.
+    """
+    pedaco = re.sub(r"[^a-z0-9]+", "-", sem_acento(cidade).lower()).strip("-")
+    return "%s/%s/%s" % (PAGINA, uf.lower(), pedaco)
 
 
 def coletar(cidade, uf, verbose=True, pagina=None):
@@ -157,18 +157,24 @@ def coletar(cidade, uf, verbose=True, pagina=None):
             contexto = nav.new_context(locale="pt-BR")
             pagina = contexto.new_page()
 
-        pagina.goto(PAGINA, wait_until="domcontentloaded", timeout=60000)
-        pagina.wait_for_timeout(ESPERA)
-
-        ok, err = _escolher_cidade(pagina, cidade, uf)
-        if not ok:
+        # A ROTA DA CIDADE responde 404 quando a Unifique nao atende, e
+        # isso e melhor sinal do que "nao achei o botao": separa
+        # ausencia real de layout quebrado, sem depender de nada na tela.
+        resposta = pagina.goto(rota_da_cidade(cidade, uf),
+                               wait_until="domcontentloaded", timeout=60000)
+        if resposta is not None and resposta.status == 404:
+            err = "a Unifique nao atende %s/%s" % (cidade, uf)
             saida["avisos"].append(err)
             if verbose:
                 print("  %s" % err)
             return saida
+        pagina.wait_for_timeout(ESPERA)
 
         texto = pagina.inner_text("body")
-        if cidade.lower() not in texto.lower():
+        # SEM ACENTO DOS DOIS LADOS. A cesta guarda "Florianopolis" e a
+        # pagina escreve "Florianopolis" com acento: comparar cru faz a
+        # confirmacao falhar justamente nas cidades acentuadas.
+        if sem_acento(cidade).lower() not in sem_acento(texto).lower():
             saida["avisos"].append("a pagina nao confirmou a cidade %s" % cidade)
 
         for o in extrair(texto):
@@ -189,7 +195,7 @@ def coletar(cidade, uf, verbose=True, pagina=None):
             # oferta, a Unifique simplesmente nao vende fibra ali - foi o
             # caso de Curitiba, medido em 01/10/2026. Se nem a cidade
             # confirmou, ai sim algo quebrou.
-            if cidade.lower() in texto.lower():
+            if sem_acento(cidade).lower() in sem_acento(texto).lower():
                 saida["avisos"].append(
                     "sem oferta de fibra em %s - a Unifique atende a cidade "
                     "mas nao vende fibra residencial ali" % cidade)

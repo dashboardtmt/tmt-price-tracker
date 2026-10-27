@@ -368,5 +368,54 @@ class OIndiceTrazOCampoDoBruto(unittest.TestCase):
         self.assertIn("avisos_oferta:bruto->avisos_oferta", fonte)
 
 
+class ORiscoLatenteDoLimiteDeApps(unittest.TestCase):
+    """O limite nao dispara hoje - e o que aconteceria se disparasse.
+
+    MEDIDO EM 27/10/2026 sobre as 80 ofertas de Sao Paulo da Vivo, da
+    Claro e da TIM: o maximo real e DOIS apps numa oferta. A medicao foi
+    conferida contra um controle - um texto com nove apps faz a funcao
+    devolver a ressalva -, entao o zero e ausencia, e nao falta de
+    procura.
+
+    ESTES TESTES FIXAM O COMPORTAMENTO ERRADO DE PROPOSITO, porque o
+    erro e latente e vale estar escrito: lista vazia vira nivel 0, e
+    nivel 0 na tela e "So internet e ligacoes" - uma AFIRMACAO sobre uma
+    oferta cuja leitura foi justamente descartada.
+
+    O conserto seria o nivel virar DESCONHECIDO (None, que a tela ja
+    mostra como "—") em vez de zero. Nao foi feito porque mexeria nos
+    nove coletores para um caso que hoje nao acontece. Se estes testes
+    comecarem a falhar, foi porque alguem consertou - e ai e so apagar
+    a classe.
+    """
+
+    MUITOS = ("inclui netflix, globoplay, disney+, max, paramount+, "
+              "telecine, spotify, deezer e amazon prime video")
+
+    def test_o_texto_largo_dispara_a_ressalva(self):
+        """O controle: sem isto os testes de baixo mediriam um texto que
+        nunca estourou o limite."""
+        aviso = apps.aviso_de_leitura(self.MUITOS)
+        self.assertIsNotNone(aviso)
+        self.assertIn("acima do limite", aviso["longo"])
+
+    def test_a_leitura_descartada_vira_lista_vazia(self):
+        self.assertEqual(apps.apps_do_texto(self.MUITOS), [])
+
+    def test_e_a_lista_vazia_vira_nivel_zero_e_nao_desconhecido(self):
+        """AQUI MORA O DEFEITO LATENTE. Zero afirma "nao tem nenhum";
+        o certo para uma leitura descartada seria None, que e "nao sei".
+        """
+        self.assertEqual(apps.nivel_dos_apps([]), 0)
+        self.assertEqual(apps.nivel_dos_apps(apps.apps_do_texto(self.MUITOS)),
+                         0)
+
+    def test_dois_apps_continuam_sendo_lidos(self):
+        """O outro controle: o limite nao pode ter comido o caso normal,
+        que e o que acontece em producao."""
+        lidos = apps.apps_do_texto("com netflix e globoplay inclusos")
+        self.assertEqual(len(lidos), 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

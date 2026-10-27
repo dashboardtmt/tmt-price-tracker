@@ -656,9 +656,26 @@ def apps_do_texto(texto, limite=None):
     vitrine junto. Acima do limite, a leitura e descartada.
 
     O DESCARTE NAO E SILENCIOSO desde 25/10/2026: aviso_de_leitura()
-    devolve o motivo, o coletor o grava em avisos_oferta, e a mensagem e
-    o relatorio o leem. A lista continua vazia - eleger seis dos oito
-    seria sorteio -, mas o buraco passa a ser anunciado.
+    devolve o motivo, o coletor o grava em avisos_oferta, e o relatorio
+    o le. A lista continua vazia - eleger seis dos oito seria sorteio -,
+    mas o buraco passa a ser anunciado.
+
+    O LIMITE NAO DISPARA EM PRODUCAO, medido em 27/10/2026 sobre as 80
+    ofertas de Sao Paulo da Vivo, da Claro e da TIM: o maximo real e
+    DOIS apps numa oferta. A medicao foi conferida contra um controle -
+    um texto com nove apps faz a funcao devolver a ressalva -, entao o
+    zero e ausencia e nao falta de procura.
+
+    O RISCO LATENTE FICA REGISTRADO, porque ele e pior do que parece. A
+    lista vazia vira nivel 0, e nivel 0 na tela e "So internet e
+    ligacoes": uma AFIRMACAO sobre uma oferta cuja leitura foi
+    justamente descartada. No dia em que o limite disparar, a tela vai
+    dizer que a oferta nao tem assinatura nenhuma - o oposto do que o
+    texto dizia. Consertar isso significa o nivel virar DESCONHECIDO
+    (None, que a tela ja mostra como "—") em vez de zero, e nao foi
+    feito porque mexeria nos nove coletores para um caso que hoje nao
+    acontece. Se o teste do limite comecar a falhar em producao, e este
+    paragrafo que diz o que fazer.
     """
     limite = LIMITE_DE_APPS if limite is None else limite
     t = (texto or "").lower()

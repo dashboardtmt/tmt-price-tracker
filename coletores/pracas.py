@@ -53,13 +53,24 @@ COBERTURA = {
     # cidades ativas - ausencia esperada, nao falha de coleta.
     "Brisanet": {"Fortaleza", "Recife", "Natal", "Joao Pessoa", "Maceio",
                  "Aracaju", "Teresina"},
-    # Medido no proprio seletor da Unifique em 30/09/2026: ela NAO atende
-    # Florianopolis - o site nem lista a cidade. Confirma o que o dado da
-    # Anatel ja sugeria, que ela e forte no interior e fraca na capital.
-    # Curitiba saiu depois de investigada em 01/10/2026: a Unifique atende
-    # a cidade, mas nao vende fibra residencial ali - a pagina confirma a
-    # praca e nao lista nenhuma oferta. Pedir todo dia so geraria alarme.
-    "Unifique": {"Blumenau", "Joinville", "Porto Alegre"},
+    # FLORIANOPOLIS VOLTOU EM 27/10/2026, e a licao e sobre a medicao e
+    # nao sobre a Unifique. Dizia aqui que "ela NAO atende Florianopolis
+    # - o site nem lista a cidade", e que isso "confirma o que o dado da
+    # Anatel ja sugeria, que ela e forte no interior e fraca na
+    # capital". Nada disso era verdade: o seletor lista
+    # "Florianopolis - SC" com acento, e o coletor casava o nome SEM
+    # acento, entao ele respondia "a Unifique nao atende" sobre um
+    # defeito nosso. A frase da Anatel deu a essa resposta errada a cara
+    # de confirmacao - que e o jeito mais facil de um erro durar.
+    # Medido agora, pela rota propria da cidade: 4 ofertas de fibra em
+    # Florianopolis, as mesmas de Joinville e Porto Alegre.
+    #
+    # Curitiba continua fora, e esta foi investigada em 01/10/2026: a
+    # Unifique atende a cidade, mas nao vende fibra residencial ali - a
+    # pagina confirma a praca e nao lista nenhuma oferta. Reconferido em
+    # 27/10 pela rota nova, que responde 200 e sem oferta: e ausencia de
+    # produto, nao de cobertura. Pedir todo dia so geraria alarme.
+    "Unifique": {"Blumenau", "Joinville", "Porto Alegre", "Florianopolis"},
 }
 
 
