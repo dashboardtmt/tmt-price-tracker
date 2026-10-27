@@ -23,10 +23,27 @@ const REPO = "dashboardtmt/tmt-price-tracker";
 const WORKFLOW = "diario.yml";
 
 export default async function handler(req, res) {
-  // O agendador do Vercel manda o segredo no Authorization. Em producao
-  // ele e obrigatorio: sem ele a rota fica aberta para qualquer um.
+  // O agendador do Vercel manda o segredo no Authorization.
+  //
+  // FECHA QUANDO NAO SABE. O codigo aqui dizia "em producao ele e
+  // obrigatorio" e fazia o contrario: a guarda era "se o segredo
+  // existir, confira" - entao CRON_SECRET ausente PULAVA a conferencia
+  // e deixava a rota aberta para qualquer um disparar a coleta. O
+  // comentario descrevia a intencao; o `esperado &&` descrevia o
+  // oposto.
+  //
+  // Virou defeito de verdade em 27/10/2026, quando o repositorio passou
+  // a ser publico: a URL da rota deixou de depender de alguem adivinhar
+  // o caminho.
   const esperado = process.env.CRON_SECRET;
-  if (esperado && req.headers.authorization !== `Bearer ${esperado}`) {
+  if (!esperado) {
+    return res.status(503).json({
+      erro: "CRON_SECRET ausente",
+      comofazer: "gravar CRON_SECRET nas variaveis de ambiente do Vercel; " +
+                 "sem ele a rota nao dispara nada, de proposito",
+    });
+  }
+  if (req.headers.authorization !== `Bearer ${esperado}`) {
     return res.status(401).json({ erro: "nao autorizado" });
   }
 

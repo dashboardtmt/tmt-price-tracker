@@ -409,7 +409,7 @@ jobs:
       - name: Guardar no repositorio
         run: |
           git config user.name "dashboardtmt"
-          git config user.email "leonardojdesousa@gmail.com"
+          git config user.email "dashboardtmt@users.noreply.github.com"
           git add tela.html site
           if git diff --staged --quiet; then
             echo "tela sem mudanca - nada a guardar"
