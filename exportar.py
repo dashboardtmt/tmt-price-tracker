@@ -41,7 +41,15 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           # e QUAL tier de cada app, quando a operadora declarou. O preco
           # avulso pertence ao tier, nao ao app: sem isto a tela mostraria
           # o preco de um plano que a oferta pode nao incluir.
-          "apps_planos:bruto->apps_planos")
+          "apps_planos:bruto->apps_planos,"
+          # A FRASE DA FONTE SOBRE VELOCIDADE, quando ela declara faixa e
+          # nao degrau. O plano Max da Starlink perde o degrau_mbps de
+          # proposito - "Ate mais de 400 Mbps" e faixa, e virava um ponto
+          # falso de 400 no grafico -, e com isso ele aparecia na tela
+          # sem velocidade NENHUMA. O coletor guardava a frase em bruto
+          # desde 26/10/2026 e ninguem a exportava: campo gravado sem
+          # leitor, que e o defeito que este projeto mais encontra.
+          "velocidade_declarada:bruto->>velocidade_declarada")
 
 def exportar(dias):
     desde = (date.today() - timedelta(days=dias)).isoformat()

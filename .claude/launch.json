@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tela-de-teste",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8731",
+        "--directory",
+        "C:/Users/leona/AppData/Local/Temp"
+      ],
+      "port": 8731
+    }
+  ]
+}

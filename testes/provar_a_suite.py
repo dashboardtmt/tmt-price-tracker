@@ -46,19 +46,19 @@ MUTACOES = [
         '            max_workers=max(1, len(raias))) as pool:\n'
         '        por_raia = list(pool.map(correr_raia, raias))\n',
         '    por_raia = [correr_raia(raia) for raia in raias]\n',
-        "V1. a coleta volta a ser em serie e a cota estoura de novo"),
+        "X1. a coleta volta a ser em serie e a cota estoura de novo"),
 
     Mutacao(
         "robo.py",
         '    resumo = [por_nome[n] for n in COLETORES if n in por_nome]\n',
         '    resumo = [r for raia in por_raia for r in raia]\n',
-        "V2. o resumo volta a sair na ordem de quem terminou primeiro"),
+        "X2. o resumo volta a sair na ordem de quem terminou primeiro"),
 
     Mutacao(
         "robo.py",
         '        with tranca:\n            print(linha, flush=True)\n',
         '        print(linha, flush=True)\n',
-        "V3. as raias voltam a escrever por cima uma da outra"),
+        "X3. as raias voltam a escrever por cima uma da outra"),
 
     # ESTA E A QUE PROTEGE O DADO. Coletor sem raia nao coleta, e a
     # serie e append-only: o dia que nao entra nao volta.
@@ -66,7 +66,7 @@ MUTACOES = [
         "robo.py",
         '    ("Brisanet",),\n',
         '',
-        "V4. um coletor some das raias e para de coletar calado"),
+        "X4. um coletor some das raias e para de coletar calado"),
 
     Mutacao(
         "coletores/apps.py",

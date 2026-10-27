@@ -60,6 +60,25 @@ FAMILIAS = {
 }
 
 
+# O CABECALHO DE LINGUA E CARGA, nao enfeite. Medido em 27/10/2026, na
+# API de verdade: sem "Accept-Language: pt-BR" a Starlink responde em
+# INGLES, e 33 campos mudam. Dois deles importam.
+#
+#   O NOME DA OFERTA MUDA. "Residencial: 100 Mbps" vira "Residential -
+#   100 Mbps", e "Residencial - Max" vira "Residential - Max". O nome
+#   entra na identidade da oferta: trocar a lingua faria TODAS as
+#   ofertas da Starlink parecerem novas no mesmo dia, e a continuidade
+#   da serie se partiria sem nada ter mudado no produto.
+#
+#   A VELOCIDADE DECLARADA SOME. Em portugues o Max traz "Ate mais de
+#   400 Mbps"; em ingles, "Up to 400+ Mbps". A frase em ingles nao casa
+#   com a leitura - o "+" fica entre o numero e a unidade -, entao
+#   velocidade_declarada volta None e o unico dado que existe sobre a
+#   velocidade daquele plano se perde calado.
+#
+# Nenhum dos dois quebra: os dois ficam ERRADOS EM SILENCIO, que e pior.
+# Medido tambem que o Referer e o Accept nao mudam nada - a lingua e a
+# unica carga aqui.
 def _http(url, timeout=45, avisos=None):
     def uma():
         req = urllib.request.Request(url)

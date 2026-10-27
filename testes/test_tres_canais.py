@@ -124,7 +124,7 @@ class ATelaDizOMesmoQueAMensagem(unittest.TestCase):
         r = subprocess.run(
             [sys.executable, os.path.join(RAIZ, "gerar_tela.py"),
              "--dados", cls.dados, "--saida", cls.tela],
-            capture_output=True, text=True, cwd=RAIZ)
+            capture_output=True, text=True, encoding="utf-8", cwd=RAIZ)
         if r.returncode:
             raise unittest.SkipTest("gerar_tela falhou: %s" % r.stderr[-300:])
 
@@ -136,7 +136,7 @@ class ATelaDizOMesmoQueAMensagem(unittest.TestCase):
         r = subprocess.run(
             [NODE, os.path.join(AQUI, "tela_em_node.mjs"),
              self.tela, self.dados, json.dumps(consultas)],
-            capture_output=True, text=True, cwd=AQUI)
+            capture_output=True, text=True, encoding="utf-8", cwd=AQUI)
         if r.returncode:
             self.fail("o JS da tela quebrou: %s" % r.stderr[-600:])
         return json.loads(r.stdout)

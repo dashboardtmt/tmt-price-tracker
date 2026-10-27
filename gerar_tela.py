@@ -331,6 +331,11 @@ MOLDE = r"""<!DOCTYPE html>
   /* a segunda perna do combo: presente, mas sem competir com o numero
      que ordena a tabela */
   .perna{color:var(--cor-texto-suave);font-size:11.5px;white-space:nowrap}
+  /* a frase da fonte no lugar do numero: menor e mais suave, para
+     nao ser lida como se fosse um degrau comparavel */
+  .declarada{color:var(--cor-texto-suave);font-size:11.5px;
+    white-space:nowrap;border-bottom:1px dotted var(--cor-borda);
+    cursor:help}
   .tabela-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   /* Barra horizontal flutuante e cabecalho preso no topo: o mesmo par de
      solucoes do Dashboard da Anatel. O thead ja poderia ser sticky, mas
@@ -592,6 +597,7 @@ const T = {
       fonte:"Source: site das companhias / vitrines virtuais de cada região.",
       fonte_tabela:"Source: site das companhias / vitrines virtuais de cada região.",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
+      d_declarada:"A operadora declara uma faixa, e não um degrau. A frase é a dela; o número não entra em nenhum cálculo porque faixa não se compara com degrau.",
       ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Praças",
       sec_pr:"As 20 praças lado a lado",
       pr_t:"O catálogo de cada praça",
@@ -701,6 +707,7 @@ const T = {
       fonte:"Source: carrier websites / regional online storefronts.",
       fonte_tabela:"Source: carrier websites / regional online storefronts.",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
+      d_declarada:"The carrier states a range, not a tier. The wording is theirs; the number enters no calculation, because a range does not compare with a tier.",
       ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Cities",
       sec_pr:"The 20 cities side by side",
       pr_t:"The catalogue of each city",
@@ -907,6 +914,19 @@ function detalheApps(o){
   return partes.join(" · ");
 }
 
+// TEXTO DA FONTE NAO ENTRA CRU NO HTML. O nome da oferta vem do site da
+// operadora, e ia direto para dentro de template string em seis lugares:
+// um "&" no nome ja sai torto, e uma marcacao no nome executaria na
+// pagina publicada. O relatorio em PDF ja tratava isso - _sem_marcacao()
+// existe em relatorio.py pelo mesmo motivo -, e a tela, que e o canal
+// publico, nao tratava. Mesmo defeito, outro canal: e a fronteira entre
+// dois canais onde quase todo defeito deste projeto mora.
+function esc(v){
+  return String(v == null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function escopo(v){
   escopoAtual = v;
   desenhar();
@@ -979,7 +999,22 @@ function t(k){ return T[lang][k]; }
 // que o R$/Mbps divide e a tabela ordena -, e o movel entra ao lado.
 function celulaEntrega(o){
   const e = entregaDe(o), contr = o.franquia_contratual_gb;
-  if (e.v == null) return `<td class="num">—</td>`;
+  // A PROMESSA DA FONTE, quando ela declarou faixa e nao degrau. O Max
+  // da Starlink nao tem degrau de proposito - "Ate mais de 400 Mbps" nao
+  // e um numero comparavel - e por isso aparecia aqui como "—", sem
+  // velocidade nenhuma, que e menos verdade do que a frase.
+  //
+  // ENTRA COMO TEXTO, E SO. Nao passa por entregaDe, entao nao ordena
+  // tabela, nao divide R$/Mbps e nao vira ponto de grafico: era
+  // exatamente isso que o 400 falso fazia antes de ser tirado.
+  if (e.v == null) {
+    const decl = o.velocidade_declarada;
+    if (decl) {
+      return `<td class="num"><span class="declarada" title="${
+        t("d_declarada")}">${esc(decl)}</span></td>`;
+    }
+    return `<td class="num">—</td>`;
+  }
   let txt = e.v + " " + e.u;
   const gbMovel = num(o.franquia_anunciada_gb);
   if (o.produto === "combo" && e.u === t("mbps") && gbMovel) {
@@ -2121,7 +2156,7 @@ function tabela(){
     const contr = num(o.franquia_contratual_gb);
     return `<tr>
       <td><span class="op-tag"><span class="marcador" style="background:${CORES[op]||"#999"}"></span>${op}</span></td>
-      <td>${o.nome_oferta||"—"}</td>
+      <td>${esc(o.nome_oferta)||"—"}</td>
       <td>${e.v!=null?e.v+" "+e.u:"—"}</td>
       <td>${contr!=null?contr+" "+t("gb"):"—"}</td>
       <td class="num">${reais(precoDe(o))}</td></tr>`;
@@ -2207,7 +2242,7 @@ function quadroOperadora(dia, operadora){
           .replace("{n}", totalPracas).replace("{o}", g.itens.length)}</span></div>
       <div class="cat-lista">${g.itens.map(i =>
         `<span class="cat-item"><b>${reais(i.preco).replace("R$ ", "")}</b>`
-        + `${(i.nome || "").slice(0, 34)}</span>`).join("")}</div>
+        + `${esc((i.nome || "").slice(0, 34))}</span>`).join("")}</div>
     </div>`;
   }
 
@@ -2241,7 +2276,7 @@ function quadroOperadora(dia, operadora){
       ? `<td class="num">${reais(x.preco).replace("R$ ", "")}</td>`
       : `<td class="num vazia">—</td>`).join("");
     return `<tr${exclusiva ? ' class="so-aqui"' : ""}>`
-      + `<td class="cat-nome">${(i.nome || "").slice(0, 44)}`
+      + `<td class="cat-nome">${esc((i.nome || "").slice(0, 44))}`
       + (exclusiva ? `<span class="selo">${t("pr_exclusiva")}</span>` : "")
       + `</td>${celulas}</tr>`;
   }).join("");
@@ -2335,7 +2370,7 @@ function tabelaPorPlayer(){
     const e = entregaDe(o), p = precoDe(o);
     const contr = o.franquia_contratual_gb;
     linhas += `<tr>
-      <td>${o.nome_oferta || "—"}</td>
+      <td>${esc(o.nome_oferta) || "—"}</td>
       ${celulaEntrega(o)}
       <td class="num">${reais(p)}</td>
       <td class="num">${e.v ? (p / e.v).toLocaleString("pt-BR",
@@ -2383,7 +2418,7 @@ function tabelaComparacao(){
     const marca = (i.unit != null && i.unit === melhor) ? ' class="destaque-linha"' : "";
     return `<tr${marca}>
       <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
-      <td>${i.o.nome_oferta || "—"}</td>
+      <td>${esc(i.o.nome_oferta) || "—"}</td>
       ${celulaEntrega(i.o)}
       <td class="num">${reais(i.p)}</td>
       <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
@@ -2420,7 +2455,7 @@ function tabelaTopo(){
     const marca = (melhor != null && i.unit === melhor) ? ' class="destaque-linha"' : "";
     return `<tr${marca}>
       <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
-      <td>${i.o.nome_oferta || "—"}</td>
+      <td>${esc(i.o.nome_oferta) || "—"}</td>
       ${celulaEntrega(i.o)}
       <td class="num">${reais(i.p)}</td>
       <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
@@ -2497,7 +2532,7 @@ function tabelaFaixas(){
       const marca = i.unit === melhor ? ' class="destaque-linha"' : "";
       return `<tr${marca}>
         <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
-        <td>${i.o.nome_oferta || "—"}</td>
+        <td>${esc(i.o.nome_oferta) || "—"}</td>
         ${celulaEntrega(i.o)}
         <td class="num">${reais(i.p)}</td>
         <td class="num">${i.unit.toLocaleString("pt-BR",
@@ -2746,6 +2781,35 @@ if (FONTE) {
 """
 
 
+def para_script(obj):
+    """JSON que pode morar DENTRO de uma tag <script>.
+
+    POR QUE EXISTE. A tela embutida poe a serie inteira num "let DADOS =
+    ..." dentro de <script>, e json.dumps sozinho nao protege contra a
+    sequencia que FECHA a tag. Basta um "</script>" dentro de um
+    nome_oferta - texto que vem do site da operadora - para o navegador
+    encerrar o script ali: a pagina inteira morre com "Uncaught
+    SyntaxError", sem tabela, sem grafico, sem nada. Nao e cosmetico, e
+    a tela toda.
+
+    Medido em 27/10/2026: pondo "</script>" num nome de oferta, a tela
+    gerada quebrou inteira no navegador. O mesmo defeito ja havia
+    aparecido no PDF, por outra porta - uma tag ABERTA no texto do
+    coletor derrubava o relatorio, e e por isso que _sem_marcacao()
+    existe em relatorio.py. Dois canais, a mesma fronteira: texto da
+    fonte entrando em formato que interpreta marcacao.
+
+    "<\\/" e JSON valido - a barra escapada e permitida - e nao fecha
+    tag nenhuma. U+2028 e U+2029 entram porque sao quebra de linha para
+    o JavaScript e nao para o JSON: dentro de uma string literal elas
+    tambem partem o script.
+    """
+    return (json.dumps(obj, ensure_ascii=False)
+            .replace("</", "<\\/")
+            .replace(" ", "\\u2028")
+            .replace(" ", "\\u2029"))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dados", required=True)
@@ -2762,13 +2826,13 @@ def main():
     # no modo remoto o HTML vai sem os dados: fica leve e nao envelhece
     embutidos = [] if a.remoto else dados
     html = (MOLDE
-            .replace("__DADOS__", json.dumps(embutidos, ensure_ascii=False))
+            .replace("__DADOS__", para_script(embutidos))
             .replace("__FONTE__", a.remoto)
-            .replace("__CORES__", json.dumps(CORES, ensure_ascii=False))
+            .replace("__CORES__", para_script(CORES))
             # a tabela de apps vai junto: a tela escreve a dica a
             # partir dela, e o preco avulso e so referencia
-            .replace("__APPS__", json.dumps(apps.APPS, ensure_ascii=False))
-            .replace("__TIERS__", json.dumps(apps.TIERS, ensure_ascii=False))
+            .replace("__APPS__", para_script(apps.APPS))
+            .replace("__TIERS__", para_script(apps.TIERS))
             .replace("__GERADO__", agora))
     io.open(a.saida, "w", encoding="utf-8").write(html)
     print("tela gerada: %s (%d KB)%s"
