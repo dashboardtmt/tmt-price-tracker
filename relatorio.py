@@ -447,20 +447,42 @@ def _bloco_cobertura(d):
     duas afirmacoes diferentes, e as duas saiam escritas igual. A
     operadora cuja serie partiu aparece aqui antes de alguem precisar
     desconfiar.
+
+    E DESDE 29/10/2026 ESTE E O UNICO CANAL. A mensagem do Telegram
+    trazia a proporcao quando ela caia abaixo de 85%; o usuario pediu
+    para tirar, e com isso o anexo passou a ser o lugar onde a diferenca
+    entre silencio e cegueira ainda esta escrita. Devolve uma LISTA de
+    pecas porque a nota de identidade entrou junto - ver abaixo.
     """
+    cabecalho = ["Operadora", "Ofertas com par", "Total", "Cobertura"]
+    larguras = [44 * mm, 44 * mm, 44 * mm, 46 * mm]
     cob = d.get("cobertura")
     if not cob:
-        return _tabela(["Operadora", "Ofertas com par", "Total", "Cobertura"],
-                       [], [44 * mm, 44 * mm, 44 * mm, 46 * mm],
-                       vazio="Comparação não realizada na data.")
+        return [_tabela(cabecalho, [], larguras,
+                        vazio="Comparação não realizada na data.")]
     linhas = []
     for op, (pares, total) in sorted(cob["por_operadora"].items()):
         linhas.append([op, str(pares), str(total),
                        "%d%%" % round(100.0 * pares / total) if total else "—"])
     linhas.append(["Total", str(cob["pares"]), str(cob["hoje"]),
                    "%d%%" % round(100.0 * cob["fracao"])])
-    return _tabela(["Operadora", "Ofertas com par", "Total", "Cobertura"],
-                   linhas, [44 * mm, 44 * mm, 44 * mm, 46 * mm])
+    pecas = [_tabela(cabecalho, linhas, larguras)]
+
+    # QUANTO DO BURACO JA TEM EXPLICACAO. Sem esta linha, uma cobertura
+    # de 52% fica igualmente aberta a duas leituras muito diferentes: a
+    # vitrine virou, ou a nossa chave de serie mudou e a oferta e a
+    # mesma. O numero existia desde 21/10/2026 e so a mensagem o lia -
+    # quando a mensagem deixou de carregar a cobertura, ele ficaria sem
+    # leitor nenhum, que e o defeito que este projeto mais encontra.
+    trocaram = cob.get("trocaram_de_identidade") or 0
+    if trocaram:
+        pecas.append(Spacer(1, 4))
+        pecas.append(Paragraph(
+            "Das ofertas sem correspondência, <b>%d</b> constam no dia "
+            "anterior com mesmo nome, mesma praça e mesmo preço, sob "
+            "identificador diferente: alteração de identidade na série, "
+            "não movimentação de oferta." % trocaram, ESTILOS["nota"]))
+    return pecas
 
 
 def _bloco_denuncias(d):
@@ -765,7 +787,7 @@ def gerar(dados, entradas, caminho):
                   "interpretável à luz desta proporção: ofertas sem "
                   "correspondência no dia anterior não integram a "
                   "comparação.", ESTILOS["corpo"]),
-        _bloco_cobertura(dados)))
+        *_bloco_cobertura(dados)))
 
     hist.append(_com_titulo(
         "Conferência dos dados coletados",

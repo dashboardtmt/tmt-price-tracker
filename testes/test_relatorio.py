@@ -84,7 +84,10 @@ DIA_CHEIO = {
     "erro_comparacao": None,
     "ponto_cego": "2 oferta(s) não foram comparadas (Vivo Família 2 + TV).",
     "cobertura": {"pares": 900, "hoje": 1000, "ontem": 980, "fracao": 0.9,
-                  "por_operadora": {"Vivo": (400, 420), "Claro": (500, 580)}},
+                  "por_operadora": {"Vivo": (400, 420), "Claro": (500, 580)},
+                  # 100 ofertas de hoje ficaram sem par; destas, 61 sao a
+                  # mesma oferta de ontem com identificador novo
+                  "trocaram_de_identidade": 61},
     "denuncias": [("grave", "Brisanet: 119 de 119 ofertas sem velocidade"),
                   ("atencao", "3 oferta(s) sem preco")],
     "coletas": [{"operadora": "Vivo", "pracas_ok": 20, "pracas_pedidas": 20,
@@ -276,6 +279,56 @@ class GerarOPdf(unittest.TestCase):
         texto = "".join(p.extract_text()
                         for p in pypdf.PdfReader(caminho).pages)
         self.assertIn("Rio de Janeiro", texto)
+
+
+@unittest.skipIf(relatorio is None, "reportlab nao instalado")
+class ACoberturaNoPdf(unittest.TestCase):
+    """Desde 29/10/2026 o PDF e o UNICO canal da cobertura.
+
+    A mensagem do Telegram trazia a proporcao quando ela caia abaixo de
+    85%, e quem le pediu para tirar. Com isso duas coisas passaram a
+    depender exclusivamente daqui: distinguir "mercado parado" de
+    "comparacao cega", e dizer quanto do buraco e a nossa chave de serie
+    tendo mudado - numero que, ate a mudanca, so a mensagem lia.
+
+    Mede no PDF de verdade, lido de volta: a tabela e a nota sao duas
+    pecas diferentes no mesmo bloco, e um erro de montagem ali nao
+    aparece em teste de funcao nenhum.
+    """
+
+    def _texto(self, dados):
+        import pypdf
+        caminho = os.path.join(tempfile.mkdtemp(), "r.pdf")
+        relatorio.gerar(dados, CATALOGO, caminho)
+        return "".join(p.extract_text()
+                       for p in pypdf.PdfReader(caminho).pages)
+
+    def test_a_proporcao_sai_no_anexo(self):
+        texto = self._texto(DIA_CHEIO)
+        self.assertIn("Cobertura da comparação", texto)
+        self.assertIn("90%", texto)
+
+    def test_e_a_nota_diz_quantas_so_trocaram_de_identidade(self):
+        texto = self._texto(DIA_CHEIO)
+        # palavra inteira: o paragrafo quebra em varias linhas e uma
+        # frase a cavalo na quebra nao casaria
+        self.assertIn("identificador", texto)
+        self.assertIn("61", texto)
+
+    def test_sem_troca_de_identidade_a_nota_nao_aparece(self):
+        """Nota que sai com zero afirmaria que parte do buraco tem
+        explicacao quando nenhuma parte tem."""
+        d = dict(DIA_CHEIO,
+                 cobertura=dict(DIA_CHEIO["cobertura"],
+                                trocaram_de_identidade=0))
+        texto = self._texto(d)
+        self.assertIn("Cobertura da comparação", texto)
+        self.assertNotIn("identificador", texto)
+
+    def test_dia_sem_comparacao_nao_perde_a_secao(self):
+        texto = self._texto(DIA_VAZIO)
+        self.assertIn("Cobertura da comparação", texto)
+        self.assertIn("não realizada", texto)
 
 
 if __name__ == "__main__":

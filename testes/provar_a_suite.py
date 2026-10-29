@@ -68,6 +68,23 @@ MUTACOES = [
         '',
         "X4. um coletor some das raias e para de coletar calado"),
 
+    # A COBERTURA DEPOIS DE 29/10/2026. Ela saiu da mensagem a pedido de
+    # quem le, e com isso o PDF ficou sendo o unico canal - o que troca
+    # o lugar onde a cegueira pode voltar a passar por dia normal. As
+    # duas mutacoes abaixo ocupam o lugar da antiga numero 24, que
+    # apontava para a frase do Telegram.
+    Mutacao(
+        "relatorio.py",
+        '    cob = d.get("cobertura")',
+        '    cob = None',
+        "X5. comparacao cega volta a nao sair em canal nenhum"),
+
+    Mutacao(
+        "relatorio.py",
+        '    trocaram = cob.get("trocaram_de_identidade") or 0',
+        '    trocaram = 0',
+        "X6. o numero que explica o buraco volta a ficar sem leitor"),
+
     Mutacao(
         "coletores/apps.py",
         '    tiers = TIERS.get(app)\n    if not tiers:\n        return None\n',
@@ -272,12 +289,6 @@ MUTACOES = [
         '    total = max(universo or len(PRACAS), quantas)',
         '    total = len(PRACAS)',
         "22. oferta nacional volta a sair como 'em 1 de 20'"),
-
-    Mutacao(
-        "robo.py",
-        '        if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:',
-        '        if False:',
-        "24. comparacao cega volta a ser reportada como mercado parado"),
 
     Mutacao(
         "ja_coletou.py",

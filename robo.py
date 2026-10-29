@@ -2118,43 +2118,28 @@ def montar_mensagem(hoje, ontem):
             linhas.append("%d mudan\u00e7a%s hoje"
                           % (total_mud, "" if total_mud == 1 else "s"))
 
-        # A COBERTURA QUALIFICA A CONTAGEM, qualquer que ela seja. Com
-        # poucas ofertas pareadas, "nenhuma mudanca" descreve a
-        # comparacao que nao aconteceu e nao o mercado que ficou
-        # parado - e e essa a frase que soa como noticia verificada.
+        # A COBERTURA SAIU DA MENSAGEM EM 29/10/2026, por decisao de
+        # quem le. Ela ficava aqui em tres variantes e dizia, quando a
+        # proporcao caia abaixo de COBERTURA_MINIMA, que parte da vitrine
+        # de hoje teve par em ontem - "A comparacao alcancou so 79% das
+        # ofertas de hoje". O usuario pediu para tirar: a frase aparecia
+        # em todo dia de vitrine girada e nao mudava o que ele fazia com
+        # o recado.
         #
-        # E COM MUDANCA TAMBEM. Escrevi esta ressalva so para o dia
-        # parado, e isso deixava o buraco inverso: cobertura de 40% com
-        # tres mudancas encontradas fazia a mensagem contar as tres sem
-        # dizer que nao olhou o resto, e quem le entende que tres e a
-        # historia inteira do dia.
-        if cobertura and cobertura["fracao"] < COBERTURA_MINIMA:
-            # QUANDO A CAUSA E CONHECIDA, A FRASE DIZ A CAUSA. Sem isto a
-            # mensagem mostrava um buraco de 48% como duvida sobre o
-            # dado, no dia em que o buraco era inteiramente nosso e
-            # estava declarado tres linhas abaixo.
-            trocaram = (cobertura or {}).get("trocaram_de_identidade") or 0
-            declarado = LEITURA_MUDOU_EM.get(hoje)
-            if trocaram and declarado:
-                linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou %d%% das ofertas de "
-                           "hoje, e %d das que faltam s\u00e3o a mesma oferta com "
-                           "identidade nova \u2014 mesmo nome, mesma pra\u00e7a e "
-                           "mesmo pre\u00e7o. A leitura mudou hoje: %s."
-                           % (round(cobertura["fracao"] * 100), trocaram,
-                              declarado)]
-            elif trocaram:
-                linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 %d%% das ofertas "
-                           "de hoje. %d das que faltam s\u00e3o a mesma oferta "
-                           "com identidade nova; o resto n\u00e3o d\u00e1 para "
-                           "explicar daqui."
-                           % (round(cobertura["fracao"] * 100), trocaram)]
-            else:
-                linhas += ["", "A compara\u00e7\u00e3o alcan\u00e7ou s\u00f3 %d%% das ofertas "
-                           "de hoje: %s."
-                           % (round(cobertura["fracao"] * 100),
-                              "o sil\u00eancio n\u00e3o confirma que o mercado ficou "
-                              "parado" if not total_mud else
-                              "pode haver mudan\u00e7a fora do que foi comparado")]
+        # O NUMERO NAO FOI EMBORA, trocou de canal. O PDF que vai
+        # anexado traz a secao "Cobertura da comparacao" com a tabela por
+        # operadora, o total e - acrescentado junto com esta mudanca -
+        # quantas das ofertas sem par sao a mesma oferta com identidade
+        # nova. Esse ultimo numero tinha a mensagem como unico leitor, e
+        # campo sem leitor e o defeito que este projeto mais encontra.
+        #
+        # O QUE A DECISAO ACEITA: no Telegram, um dia de cobertura baixa
+        # volta a ler como dia limpo. "Nenhuma mudanca" sobre 40% da
+        # vitrine e "nenhuma mudanca" sobre 100% saem escritas igual, e
+        # quem quiser distinguir as duas abre o anexo. A classe de teste
+        # AMensagemNaoCarregaMaisACobertura prende a decisao, para ela
+        # nao voltar sozinha num refactor - e para ninguem a desfazer
+        # sem ler este comentario.
 
     # O PONTO CEGO QUALIFICA A LINHA DE CIMA, e por isso vem colado
     # nela. "Nenhuma mudanca" com 20 ofertas fora da comparacao nao e a
@@ -2321,14 +2306,10 @@ def montar_mensagem(hoje, ontem):
         # quando a mexida foi declarada, a mensagem diz QUAL foi - e
         # melhor do que "costuma ser", que e o que sobra sem declaracao
         declarado = LEITURA_MUDOU_EM.get(hoje)
-        # o motivo ja saiu na linha da cobertura quando ela falou: aqui
-        # basta apontar, senao a mesma explicacao aparece duas vezes
-        ja_disse = bool(cobertura
-                        and cobertura["fracao"] < COBERTURA_MINIMA
-                        and (cobertura.get("trocaram_de_identidade") or 0)
-                        and declarado)
-        porque = ("pela mesma mudan\u00e7a de leitura" if ja_disse
-                  else "a leitura mudou hoje: %s" % declarado if declarado
+        # a mensagem nao traz mais a linha de cobertura (29/10/2026),
+        # entao a explicacao nao corre risco de sair duas vezes: ela vem
+        # inteira aqui quando a mexida foi declarada
+        porque = ("a leitura mudou hoje: %s" % declarado if declarado
                   else "isso costuma ser mudan\u00e7a na nossa leitura, e "
                        "n\u00e3o no mercado")
         linhas += ["", "%d oferta%s %s de vers\u00e3o sem mexer em "

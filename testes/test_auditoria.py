@@ -233,8 +233,13 @@ class PontoCegoChegaNaMensagem(unittest.TestCase):
         # distintas e sao comparaveis. O efeito dela sobre hoje e a perda
         # do par, e e a cobertura que diz isso - a frase "fora da
         # comparação de hoje" seria falsa (auditoria 2, A5)
-        self.assertIn("alcançou só", t)
         self.assertNotIn("ficaram fora da comparação de hoje", t)
+        # a cobertura saiu da mensagem em 29/10/2026 e virou linha do PDF
+        # (ver test_detectores.AMensagemNaoCarregaMaisACobertura), mas a
+        # perda do par continua tendo de aparecer no numero
+        r = dados(par(ONTEM, "Vivo|combo|700mbps|familia"),
+                  par(HOJE, "Vivo|combo|700mbps|familia_tv"))
+        self.assertLess(r["cobertura"]["fracao"], 1.0)
 
     def test_e_a_cobertura_conta_as_que_sairam(self):
         """Tirar as colididas do indice faria a cobertura parecer melhor

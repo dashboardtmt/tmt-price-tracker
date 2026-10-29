@@ -21,7 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import robo                                                   # noqa: E402
-from _apoio import HOJE, ONTEM, em_todas, montar, oferta       # noqa: E402
+from _apoio import (HOJE, ONTEM, dados, em_todas, montar,      # noqa: E402
+                    oferta, sem_declaracao)
 
 
 def indexar(linhas):
@@ -242,7 +243,14 @@ class DegrauQueVoltou(unittest.TestCase):
 class CoberturaDaComparacao(unittest.TestCase):
     """Zero mudancas pode ser mercado parado ou comparacao cega, e as
     duas saiam escritas igual. O numero que separa as duas e quantas
-    ofertas de hoje encontraram par em ontem."""
+    ofertas de hoje encontraram par em ontem.
+
+    EM 29/10/2026 ESSE NUMERO SAIU DA MENSAGEM, a pedido de quem le, e
+    passou a viver so no PDF anexado. O detector nao mudou, e os testes
+    daqui continuam medindo ele; quem prende o outro lado - que a frase
+    nao volte ao Telegram sozinha num refactor - e a classe
+    AMensagemNaoCarregaMaisACobertura, no fim deste arquivo.
+    """
 
     def test_dia_pareado_tem_cobertura_alta(self):
         c = robo._cobertura(indexar(em_todas(data=HOJE)),
@@ -256,34 +264,96 @@ class CoberturaDaComparacao(unittest.TestCase):
             indexar(em_todas(nome="Oferta velha", data=ONTEM)))
         self.assertEqual(c["fracao"], 0.0)
 
-    def test_a_mensagem_avisa_quando_a_comparacao_foi_cega(self):
+    def test_a_comparacao_cega_fica_medida_como_zero(self):
         """Nome e degrau trocados com o preco parado: nenhum detector
         consegue parear, e com razao - nao ha o que identifique a oferta
-        de ontem na de hoje. O que nao pode e a mensagem dizer "nenhuma
-        mudanca" sobre uma vitrine que ela nao conseguiu ler."""
-        t = montar(em_todas(nome="Oferta velha", gb=50, data=ONTEM),
-                   em_todas(nome="Oferta nova", gb=40, data=HOJE))
-        self.assertIn("alcançou só 0%", t)
-        self.assertIn("não confirma", t)
+        de ontem na de hoje. O que nao pode e o dia passar sem registro
+        de que a vitrine nao foi lida. Ate 29/10/2026 esse registro era
+        a frase da mensagem; agora e este numero, que o relatorio
+        imprime."""
+        r = dados(em_todas(nome="Oferta velha", gb=50, data=ONTEM),
+                  em_todas(nome="Oferta nova", gb=40, data=HOJE))
+        self.assertEqual(r["cobertura"]["fracao"], 0.0)
+        self.assertEqual(r["cobertura"]["pares"], 0)
 
-    def test_a_ressalva_vale_tambem_no_dia_com_mudanca(self):
+    def test_o_dia_com_mudanca_tambem_tem_cobertura_medida(self):
         """O buraco inverso: cobertura baixa COM mudanca encontrada fazia
         a mensagem contar as mudancas sem dizer que nao olhou o resto, e
-        quem le entende que aquilo e a historia inteira do dia."""
+        quem le entende que aquilo e a historia inteira do dia. A
+        ressalva saiu da mensagem, a medicao nao - e sem ela o relatorio
+        tambem ficaria sem o que imprimir."""
         ontem = (em_todas(nome="Fica", preco=100.0, data=ONTEM)
                  + em_todas(nome="Sai", preco=50.0, gb=30, data=ONTEM)
                  + em_todas(nome="Sai 2", preco=60.0, gb=20, data=ONTEM))
         hoje = (em_todas(nome="Fica", preco=120.0, data=HOJE)
                 + em_todas(nome="Entra", preco=50.0, gb=25, data=HOJE)
                 + em_todas(nome="Entra 2", preco=60.0, gb=15, data=HOJE))
-        t = montar(ontem, hoje)
-        self.assertIn("100,00 → 120,00", t)
-        self.assertIn("pode haver mudança fora do que foi comparado", t)
+        self.assertIn("100,00 → 120,00", montar(ontem, hoje))
+        self.assertLess(dados(ontem, hoje)["cobertura"]["fracao"],
+                        robo.COBERTURA_MINIMA)
 
-    def test_e_nao_avisa_quando_a_comparacao_foi_inteira(self):
+    def test_e_a_comparacao_inteira_da_cem_por_cento(self):
         t = montar(em_todas(data=ONTEM), em_todas(data=HOJE))
         self.assertIn("Nenhuma mudança de preço", t)
-        self.assertNotIn("não confirma", t)
+        self.assertEqual(
+            dados(em_todas(data=ONTEM), em_todas(data=HOJE))["cobertura"]
+            ["fracao"], 1.0)
+
+
+class AMensagemNaoCarregaMaisACobertura(unittest.TestCase):
+    """29/10/2026: "tinha aquela parte 'a comparação alcançou'... nao
+    quero mais isso".
+
+    A ressalva tinha tres formas - a duvida, a causa declarada e a
+    versao para o dia COM mudanca -, e cada uma nasceu de um dia real da
+    serie. Nenhuma delas volta ao Telegram; o numero vive no PDF, na
+    secao "Cobertura da comparacao".
+
+    CADA TESTE PROVA O SINAL ANTES DE PROVAR O SILENCIO: mede a
+    cobertura e confere que ela esta abaixo do limite que fazia a frase
+    sair. Sem isso, "a frase nao aparece" seria so um cenario sem
+    cobertura baixa nenhuma - medicao sem sinal, que parece prova.
+    """
+
+    MARCAS = ("alcançou", "comparação alcan", "não confirma que o mercado",
+              "pode haver mudança fora", "identidade nova")
+
+    def _sem_as_marcas(self, t):
+        for m in self.MARCAS:
+            self.assertNotIn(m, t, "a ressalva de cobertura voltou: %r" % m)
+
+    def test_nem_na_cegueira_total(self):
+        sem_declaracao(self)
+        ontem = em_todas(nome="Oferta velha", gb=50, data=ONTEM)
+        hoje = em_todas(nome="Oferta nova", gb=40, data=HOJE)
+        self.assertEqual(dados(ontem, hoje)["cobertura"]["fracao"], 0.0)
+        self._sem_as_marcas(montar(ontem, hoje))
+
+    def test_nem_quando_a_causa_estava_declarada(self):
+        """O caso de 21/10/2026, que e a data declarada do fixture: a
+        chave mudou por mexida nossa e a frase dizia o tamanho do
+        buraco junto com a causa."""
+        ontem = em_todas(operadora="Vivo", produto="movel", nome="Vivo Pós",
+                         preco=119.90, gb=60, data=ONTEM,
+                         chave="Vivo|movel|60gb|simples")
+        hoje = em_todas(operadora="Vivo", produto="movel", nome="Vivo Pós",
+                        preco=119.90, gb=60, data=HOJE,
+                        chave="Vivo|movel|60gb|com_netflix")
+        r = dados(ontem, hoje)
+        self.assertLess(r["cobertura"]["fracao"], robo.COBERTURA_MINIMA)
+        self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 20)
+        self._sem_as_marcas(montar(ontem, hoje))
+
+    def test_nem_no_dia_com_mudanca_encontrada(self):
+        ontem = (em_todas(nome="Fica", preco=100.0, data=ONTEM)
+                 + em_todas(nome="Sai", preco=50.0, gb=30, data=ONTEM))
+        hoje = (em_todas(nome="Fica", preco=120.0, data=HOJE)
+                + em_todas(nome="Entra", preco=50.0, gb=25, data=HOJE))
+        self.assertLess(dados(ontem, hoje)["cobertura"]["fracao"],
+                        robo.COBERTURA_MINIMA)
+        t = montar(ontem, hoje)
+        self.assertIn("100,00 → 120,00", t, "o dia tem de ter mudanca")
+        self._sem_as_marcas(t)
 
 
 if __name__ == "__main__":

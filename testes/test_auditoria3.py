@@ -868,11 +868,16 @@ class ACoberturaDizOTamanhoDaParteConhecida(unittest.TestCase):
         r = dados(ontem, hoje)
         self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 20)
 
-    def test_e_a_mensagem_diz_o_numero(self):
+    def test_e_o_relatorio_diz_o_numero(self):
+        """A frase que dizia o tamanho saiu da mensagem em 29/10/2026, a
+        pedido de quem le. O numero continua, com um leitor novo: a nota
+        embaixo da tabela de cobertura no PDF. Medido no proprio PDF em
+        test_relatorio.ACoberturaNoPdf - aqui basta que ele
+        chegue ao relatorio com o valor certo."""
         ontem, hoje = self._trocou_a_chave()
-        t = montar(ontem, hoje)
-        self.assertIn("20 das que faltam são a mesma oferta", t)
-        self.assertNotIn("o silêncio não confirma", t)
+        r = dados(ontem, hoje)
+        self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 20)
+        self.assertNotIn("o silêncio não confirma", montar(ontem, hoje))
 
     def test_preco_diferente_nao_conta_como_identidade_nova(self):
         """Mesmo nome e mesma praca com OUTRO preco e mudanca de
@@ -887,10 +892,15 @@ class ACoberturaDizOTamanhoDaParteConhecida(unittest.TestCase):
         r = dados(ontem, hoje)
         self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 0)
 
-    def test_sem_troca_de_identidade_a_frase_volta_a_ser_a_duvida(self):
-        t = montar(em_todas(nome="Oferta velha", gb=50, data=ONTEM),
-                   em_todas(nome="Oferta nova", gb=40, data=HOJE))
-        self.assertIn("não confirma", t)
+    def test_sem_troca_de_identidade_o_buraco_fica_sem_explicacao(self):
+        """A vitrine inteira trocada nao e troca de identidade: nome
+        diferente e degrau diferente sao oferta diferente, e a conta que
+        serve para explicar o buraco tem de ficar em zero - senao ela
+        explicaria o que nao sabe."""
+        r = dados(em_todas(nome="Oferta velha", gb=50, data=ONTEM),
+                  em_todas(nome="Oferta nova", gb=40, data=HOJE))
+        self.assertEqual(r["cobertura"]["fracao"], 0.0)
+        self.assertEqual(r["cobertura"]["trocaram_de_identidade"], 0)
 
 
 if __name__ == "__main__":
