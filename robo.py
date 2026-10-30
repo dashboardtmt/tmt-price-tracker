@@ -805,7 +805,7 @@ def mudancas(hoje, ontem):
     precos, composicao = list(precos.values()), list(composicao.values())
     # O ALCANCE PRIMEIRO: a separacao abaixo usa em quantas pracas cada
     # evento valeu, e esse numero e escrito aqui.
-    _assinar_alcance(h, precos, composicao, renomeadas, grades,
+    _assinar_alcance(h, o, precos, composicao, renomeadas, grades,
                      remodeladas)
     remodeladas, leitura = _separar_o_que_e_nosso(remodeladas, hoje)
 
@@ -887,7 +887,7 @@ def mudancas(hoje, ontem):
     # chamada existe porque a separacao precisa do universo antes.
     contratuais = _contratual_mudou(h, o) if o else []
 
-    _assinar_alcance(h, precos, composicao, renomeadas, grades, voltaram,
+    _assinar_alcance(h, o, precos, composicao, renomeadas, grades, voltaram,
                      remodeladas, leitura, duvidosa, contratuais)
 
     # A ORDEM E PARTE DA NOTICIA, e e decidida aqui para a mensagem e o
@@ -1215,7 +1215,18 @@ def _por_efeito(e):
     return max(pesos) if pesos else 0.0
 
 
-def _assinar_alcance(h, *grupos):
+def _nome_de_serie(l):
+    """O nome da oferta sem a etiqueta de campanha, em minusculas.
+
+    A mesma normalizacao de _oferta_remodelada.pareia: "[NOV] 500MB" e
+    "500MB" sao a mesma oferta com selo de mes diferente, e e por este
+    nome que a pegada comparavel da oferta e montada.
+    """
+    nome = re.sub(r"\[[^\]]*\]", " ", l.get("nome_oferta") or "")
+    return " ".join(nome.lower().split())
+
+
+def _assinar_alcance(h, o, *grupos):
     """Escreve "onde" e "universo" em cada evento, uma vez so.
 
     A MENSAGEM E O PDF NAO PODEM DISCORDAR. A frase do alcance era
@@ -1232,23 +1243,83 @@ def _assinar_alcance(h, *grupos):
     onde_existe = collections.defaultdict(set)
     for l in h.values():
         onde_existe[(l["operadora"], l["produto"])].add(l["praca"])
+
+    # A PEGADA COMPARAVEL DA OFERTA, e nao a do produto. E dela que sai
+    # a frase "em 19 das 20 cidades, ex-Sao Paulo": nomear a cidade que
+    # ficou de fora e AFIRMAR que lá a oferta foi olhada e nao se mexeu,
+    # e isso so e verdade onde a oferta existia nos DOIS dias.
+    #
+    # MEDIDO EM 30/10/2026, nas 9 frases que os 30 dias publicados
+    # produziriam com o denominador do produto: nenhuma se sustentava.
+    #   - 6 nomeavam cidade em que a oferta NAO E VENDIDA ("TIM
+    #     Ultracombo 3" nao existe em Sao Paulo, e o anexo dizia
+    #     "ex-Sao Paulo" como se lá ela tivesse ficado parada)
+    #   - 1 nomeava Belo Horizonte em 13/10, onde a coleta de 12/10
+    #     falhou: o reajuste da Claro alcancou BH como as outras 19, e o
+    #     que faltou foi o dia anterior
+    #   - 2 nomeavam Sao Paulo no dia em que a perna de Sao Paulo da
+    #     MESMA oferta saiu como evento separado tres linhas abaixo
+    comparavel = collections.defaultdict(set)
+    por_nome_o = collections.defaultdict(set)
+    for l in o.values():
+        por_nome_o[(l["operadora"], l["produto"], _nome_de_serie(l))].add(
+            l["praca"])
+    for l in h.values():
+        k = (l["operadora"], l["produto"], _nome_de_serie(l))
+        if l["praca"] in por_nome_o.get(k, ()):
+            comparavel[k].add(l["praca"])
+
+    # E A PRACA TOMADA POR OUTRO EVENTO DA MESMA OFERTA NAO FICA DE
+    # FORA. Em 30/10 as duas pernas do Ultracombo 7 eram eventos
+    # distintos porque em Sao Paulo o preco e outro - e a mensagem
+    # dizia "ex-Sao Paulo" na linha de cima e contava a mudanca de Sao
+    # Paulo na ressalva do fim. A varredura e de TODOS os grupos antes
+    # de escrever qualquer frase, senao a ordem decide a verdade.
+    tomadas = collections.defaultdict(set)
+    for grupo in grupos:
+        for e in grupo:
+            k = _serie_do_evento(e)
+            if k:
+                tomadas[k].update(e.get("pracas") or ())
+
     for grupo in grupos:
         for e in grupo:
             base = e.get("atual") or e
             op = e.get("operadora") or base.get("operadora")
             pr = e.get("produto") or base.get("produto")
             e["universo"] = len(onde_existe.get((op, pr)) or ())
-            # O CONJUNTO, e nao so o tamanho: a frase da excecao
-            # precisa dos NOMES das cidades que ficaram de fora.
-            onde_todas_elas = onde_existe.get((op, pr)) or ()
+            # AS CIDADES QUE FORAM OLHADAS E NAO SE MEXERAM. Evento sem
+            # nome de oferta - a escada e o degrau que voltou - nao tem
+            # pegada comparavel para calcular, e ai a frase da excecao
+            # nao pode sair: eles falam do portfolio, e nao de uma
+            # oferta.
+            k = _serie_do_evento(e)
+            paradas = ((comparavel.get(k) or set()) - tomadas.get(k, set())
+                       if k else set())
             e["onde"] = _onde(e.get("pracas") or (), e["universo"],
-                              todas=onde_todas_elas)
+                              paradas=paradas)
             # A LISTA INTEIRA, para o relatorio: e para ela que o "e
             # mais N, no relatorio" da mensagem manda o leitor. Escrita
             # aqui, junto com a curta, pelo mesmo motivo de sempre - as
             # duas saem do mesmo campo e nao podem discordar.
             e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],
-                                    limite=None, todas=onde_todas_elas)
+                                    limite=None, paradas=paradas)
+
+
+def _serie_do_evento(e):
+    """A oferta de que este evento fala, ou None quando ele fala do
+    portfolio.
+
+    A escada de grade e o degrau que voltou nao tem nome de oferta: o
+    primeiro compara a escada inteira da operadora e o segundo um degrau
+    que pode ter voltado com outro nome. Para os dois, "a cidade X foi
+    olhada e a oferta nao se mexeu" nao e uma frase que o evento
+    autoriza.
+    """
+    base = e.get("atual")
+    if not isinstance(base, dict) or not base.get("nome_oferta"):
+        return None
+    return (base["operadora"], base["produto"], _nome_de_serie(base))
 
 
 # Como cada degrau da escada de bundle (decisao 10) se chama em
@@ -1305,9 +1376,17 @@ def _texto_apps(antes, agora):
     e evidencia de exclusao da oferta. Lugar de explicacao e onde ha
     espaco para explicar.
     """
-    a, d = set(antes or ()), set(agora or ())
-    saiu = _nomes_dos_apps(sorted(a - d))
-    entrou = _nomes_dos_apps(sorted(d - a))
+    # O DIFF E POR NOME RESOLVIDO, E NAO POR ID. Medido em 19/10/2026
+    # na Brisanet: a lista passou de ["Skeelo", "Reforça"] para ["max",
+    # "skeelo"] - o coletor trocou rotulo por id no mesmo dia. Diffando
+    # por id, a frase saia "passou a listar "Max" e "Skeelo", e deixou
+    # de listar "Reforça" e "Skeelo"": o MESMO app nos dois lados,
+    # porque "Skeelo" cai no fallback do id cru e "skeelo" resolve pelo
+    # catalogo. Resolver primeiro e comparar depois fecha isso.
+    a = set(_nomes_dos_apps(antes or ()))
+    d = set(_nomes_dos_apps(agora or ()))
+    saiu = sorted(a - d)
+    entrou = sorted(d - a)
     if not saiu and not entrou:
         return None
     partes = []
@@ -1320,8 +1399,13 @@ def _texto_apps(antes, agora):
 
 
 def _entre_aspas(nomes):
-    """As aspas que o bloco de bundle usa, em volta de cada nome."""
-    return " e ".join('"%s"' % n for n in nomes)
+    """As aspas que o bloco de bundle usa, em volta de cada nome.
+
+    COSTURA COMO O RESTO DO PROJETO: com tres apps a frase saia
+    "Globoplay" e "Max" e "Netflix", sem virgula nenhuma. Ha ofertas com
+    seis apps na base.
+    """
+    return _costurar(['"%s"' % n for n in nomes])
 
 
 def _texto_contratual(antes, agora):
@@ -1565,7 +1649,10 @@ def _oferta_remodelada(h, o, usadas=()):
             # dois viajam como texto pronto, pela mesma razao que o
             # rotulo de bundle e o "onde" viajam - a mensagem e o PDF
             # leem a mesma frase e nao podem divergir.
-            "apps_antes": list(apps_a), "apps_agora": list(apps_d),
+            # A LISTA CRUA NAO VIAJA: quem le e a frase, nos dois
+            # canais, e campo gravado sem leitor e o defeito que este
+            # projeto mais encontra. A lista continua no evento por
+            # dentro de "antes" e "atual", para quem precisar medir.
             "apps_texto": _texto_apps(apps_a, apps_d),
             "antes_contratual": ka, "agora_contratual": kd,
             "contratual_texto": _texto_contratual(ka, kd),
@@ -1621,15 +1708,25 @@ def _contratual_mudou(h, o):
         pa = antes.get("preco_promocional")
         pd = atual.get("preco_promocional")
         preco_mudou = None not in (pa, pd) and pa != pd
-        ident = (atual["operadora"], atual["produto"],
-                 (atual.get("nome_oferta") or "").lower(), ka, kd,
-                 preco_mudou)
+        # A CHAVE E OS DOIS PRECOS ENTRAM NO IDENT. Sem a chave, dois
+        # degraus com o MESMO nome - "Vivo Controle" de 50 GB e de 100
+        # GB - caiam no mesmo evento: a mensagem dizia "mesma entrega
+        # (50 GB)" e o degrau de 100 desaparecia, com "1 mudanca hoje"
+        # no lugar de 2. Sem os precos, vinte pracas com Sao Paulo a
+        # outro valor colapsavam e a linha saia "mesmo preco (69,90)" -
+        # o numero de uma praca afirmado para as vinte.
+        #
+        # E O MESMO DEFEITO QUE "precos" JA DOCUMENTA: eleger um
+        # representante do grupo e publicar o numero dele como fato. Os
+        # outros seis detectores carregam a chave no ident; este era o
+        # unico que nao.
+        ident = (atual["operadora"], atual["produto"], atual["chave"],
+                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd)
         d = achados.setdefault(ident, {
             "operadora": atual["operadora"], "produto": atual["produto"],
             "nome": atual.get("nome_oferta"),
             "antes_contratual": ka, "agora_contratual": kd,
             "contratual_texto": texto,
-            "contratual_curto": _contratual_curto(ka, kd),
             "unidade": _unidade(atual),
             "texto_entrega": _texto_entrega(_entrega(antes), _entrega(atual),
                                             _unidade(atual), False),
@@ -1928,7 +2025,7 @@ def _costurar(nomes):
     return "%s e %s" % (", ".join(nomes[:-1]), nomes[-1])
 
 
-def _onde(pracas, universo=None, limite=3, todas=None):
+def _onde(pracas, universo=None, limite=3, paradas=None):
     """"em todas as 20 praças", "em 19 das 20 cidades, ex-Rio de Janeiro"
     ou "em 3 de 20: SP, RJ, BH".
 
@@ -1965,18 +2062,23 @@ def _onde(pracas, universo=None, limite=3, todas=None):
     #
     # E E MAIS INFORMACAO, e nao so mais curta: "Aracaju, Belo Horizonte,
     # Blumenau e mais 16" nao diz onde o movimento NAO foi, e e isso que
-    # distingue um reposicionamento nacional de um teste de praca. Os
-    # dezesseis nomes que faltavam estavam no anexo; o UM que importa
-    # agora esta na mensagem.
+    # distingue um reposicionamento nacional de um teste de praca.
     #
-    # VALE PARA OS DOIS CANAIS, com limite ou sem: dezenove nomes numa
-    # celula de 38 mm sao um paredao, e a frase da excecao e completa -
-    # dela se deduz a lista inteira, o que nao era verdade do corte em
-    # tres.
-    fora = sorted({p.split("/")[0] for p in (todas or ())} - set(nomes))
+    # "paradas" SAO AS CIDADES OLHADAS NOS DOIS DIAS EM QUE A OFERTA NAO
+    # SE MEXEU - nao as que faltam para fechar o universo do produto.
+    # A primeira versao usava a diferenca contra o universo e nomeava
+    # cidade em que a oferta nem e vendida, cidade sem coleta ontem e
+    # cidade em que a mesma mudanca saiu como outro evento. Ver
+    # _assinar_alcance: as tres formas estao medidas la.
+    #
+    # E O DENOMINADOR SAI DAQUI, e nao do universo do produto: "19 das
+    # 20" quer dizer "das 20 cidades comparadas, 19 se mexeram e uma
+    # nao" - uma frase da qual a lista inteira se deduz, e e por isso
+    # que ela vale igual nos dois canais.
+    fora = sorted({p.split("/")[0] for p in (paradas or ())})
     if fora and len(fora) <= EXCECOES_QUE_CABEM and len(fora) < len(nomes):
-        return "em %d das %d cidades, ex-%s" % (quantas, total,
-                                                _costurar(fora))
+        return "em %d das %d cidades, ex-%s" % (
+            quantas, quantas + len(paradas), _costurar(fora))
 
     if limite and len(nomes) > limite:
         # O NUMERO QUE FALTA SAI DE "quantas", para a conta fechar com o

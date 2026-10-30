@@ -444,5 +444,217 @@ class AFranquiaDoContrato(unittest.TestCase):
         self.assertIn("Nenhuma alteração de franquia contratual", texto)
 
 
+class AFraseDaExcecaoSoAfirmaOQueFoiOlhado(unittest.TestCase):
+    """"ex-Rio de Janeiro" diz que no Rio a oferta foi olhada e nao se
+    mexeu. Medido em 30/10/2026 nos 30 dias publicados: com o
+    denominador do PRODUTO, as 9 frases que sairiam eram todas falsas -
+    6 nomeavam cidade em que a oferta nem e vendida, 1 nomeava cidade
+    sem coleta no dia anterior, 2 nomeavam a cidade em que a MESMA
+    mudanca saiu como outro evento.
+    """
+
+    def setUp(self):
+        sem_declaracao(self)
+
+    def test_cidade_sem_coleta_ontem_nao_entra_como_excecao(self):
+        """O caso de 13/10/2026: a coleta de Belo Horizonte falhou em
+        12/10, e o reajuste da Claro alcancou BH como as outras 19. A
+        frase saia "ex-Belo Horizonte" - afirmando que lá o preco ficou
+        parado no dia em que nao houve com que comparar."""
+        ontem = tim(preco=58.99, data=ONTEM, pracas=TODAS[:19])
+        hoje = (tim(preco=69.99, data=HOJE, pracas=TODAS[:19])
+                + tim(preco=69.99, data=HOJE, pracas=TODAS[19:]))
+        t = montar(ontem, hoje)
+        self.assertNotIn("ex-", t)
+        self.assertIn("em 19 de 20:", t)
+
+    def test_cidade_sem_a_oferta_nao_entra_como_excecao(self):
+        """Seis das nove frases eram desta forma: "TIM Ultracombo 3" nao
+        e vendida em Sao Paulo, e o anexo dizia "ex-Sao Paulo" como se lá
+        ela tivesse ficado parada. O denominador era a pegada do
+        PRODUTO; a frase fala de uma OFERTA."""
+        ontem = (tim(nome="TIM Controle Smart", preco=58.99, data=ONTEM,
+                     pracas=TODAS[:5])
+                 + tim(nome="TIM Controle Premium", preco=84.99, gb=55,
+                       data=ONTEM, pracas=TODAS[5:]))
+        hoje = (tim(nome="TIM Controle Smart", preco=69.99, data=HOJE,
+                    pracas=TODAS[:5])
+                + tim(nome="TIM Controle Premium", preco=84.99, gb=55,
+                      data=HOJE, pracas=TODAS[5:]))
+        t = montar(ontem, hoje)
+        self.assertNotIn("ex-", t)
+
+    def test_praca_de_outro_evento_da_mesma_oferta_nao_entra(self):
+        """O caso de 30/10/2026: em Sao Paulo o preco da oferta e outro,
+        entao a perna de lá sai como evento separado - e a mensagem
+        dizia "ex-Sao Paulo" na linha de cima e contava a mudanca de Sao
+        Paulo tres linhas abaixo. O anexo chegava a dizer "ex-Sao Paulo"
+        numa secao e "em 1 de 20: Sao Paulo" na seguinte."""
+        ontem = (tim(preco=58.99, data=ONTEM, pracas=TODAS[:19])
+                 + tim(preco=48.99, data=ONTEM, pracas=TODAS[19:]))
+        hoje = (tim(preco=69.99, data=HOJE, pracas=TODAS[:19])
+                + tim(preco=58.99, data=HOJE, pracas=TODAS[19:]))
+        t = montar(ontem, hoje)
+        self.assertNotIn("ex-", t)
+        self.assertIn("58,99 → 69,99", t)
+        self.assertIn("48,99 → 58,99", t)
+
+    def test_o_denominador_e_o_que_foi_comparado(self):
+        """"19 das 20" quer dizer "das 20 cidades comparadas, 19 se
+        mexeram" - e e isso que faz a lista inteira se deduzir da frase.
+        Com o universo do produto no lugar, a conta nao fecha com nada
+        que o leitor possa verificar."""
+        ontem = (tim(nome="TIM Controle Smart", preco=58.99, data=ONTEM,
+                     pracas=TODAS[:15])
+                 + tim(nome="TIM Controle Premium", preco=84.99, gb=55,
+                       data=ONTEM, pracas=TODAS[15:]))
+        hoje = (tim(nome="TIM Controle Smart", preco=69.99, data=HOJE,
+                    pracas=TODAS[:14])
+                + tim(nome="TIM Controle Smart", preco=58.99, data=HOJE,
+                      pracas=TODAS[14:15])
+                + tim(nome="TIM Controle Premium", preco=84.99, gb=55,
+                      data=HOJE, pracas=TODAS[15:]))
+        t = montar(ontem, hoje)
+        de_fora = TODAS[14].split("/")[0]
+        self.assertIn("em 14 das 15 cidades, ex-%s" % de_fora, t)
+        self.assertNotIn("das 20 cidades", t)
+
+    def test_a_escada_e_o_degrau_que_voltou_nao_usam_a_frase(self):
+        """Os dois falam do PORTFOLIO, e nao de uma oferta: "a cidade X
+        foi olhada e a oferta nao se mexeu" nao e frase que eles
+        autorizem. _serie_do_evento devolve None para quem nao tem nome
+        de oferta, e e isso que desliga a frase."""
+        self.assertIsNone(robo._serie_do_evento(
+            {"operadora": "TIM", "produto": "controle", "pracas": []}))
+        self.assertIsNone(robo._serie_do_evento(
+            {"operadora": "TIM", "produto": "controle",
+             "atual": {"operadora": "TIM", "produto": "controle",
+                       "nome_oferta": ""}}))
+
+
+class OsConsertosDaAuditoria(unittest.TestCase):
+    """Cada um destes defeitos passou pela suite de 548 testes verde."""
+
+    def setUp(self):
+        sem_declaracao(self)
+
+    def test_dois_degraus_do_mesmo_nome_sao_dois_eventos_de_contrato(self):
+        """O ident do contrato nao levava a chave: o degrau de 100 GB
+        desaparecia dentro do evento do de 50, e o dia saia com "1
+        mudanca" em vez de 2."""
+        ontem = (tim(gb=50, preco=58.99, data=ONTEM, contratual=20)
+                 + tim(gb=100, preco=98.99, data=ONTEM, contratual=20))
+        hoje = (tim(gb=50, preco=58.99, data=HOJE, contratual=15)
+                + tim(gb=100, preco=98.99, data=HOJE, contratual=15))
+        t = montar(ontem, hoje)
+        self.assertIn("2 mudanças hoje", t)
+        self.assertIn("mesma entrega (50 GB)", t)
+        self.assertIn("mesma entrega (100 GB)", t)
+
+    def test_o_preco_de_uma_praca_nao_vale_para_as_vinte(self):
+        """Sem os precos no ident, as vinte pracas colapsavam num evento
+        e a linha saia "mesmo preco (69,90)" - o numero de Sao Paulo
+        afirmado para todas as outras."""
+        ontem = (tim(preco=58.99, data=ONTEM, pracas=TODAS[:19],
+                     contratual=20)
+                 + tim(preco=48.99, data=ONTEM, pracas=TODAS[19:],
+                       contratual=20))
+        hoje = (tim(preco=58.99, data=HOJE, pracas=TODAS[:19],
+                    contratual=15)
+                + tim(preco=48.99, data=HOJE, pracas=TODAS[19:],
+                      contratual=15))
+        t = montar(ontem, hoje)
+        self.assertIn("mesmo preço (58,99)", t)
+        self.assertIn("mesmo preço (48,99)", t)
+        self.assertNotIn("em todas as 20 praças", t)
+
+    def test_o_mesmo_app_nao_sai_dos_dois_lados_da_frase(self):
+        """Medido em 19/10/2026 na Brisanet: a lista passou de ["Skeelo",
+        "Reforça"] para ["max", "skeelo"] - o coletor trocou rotulo por
+        id. Diffando por id, a frase dizia "passou a listar "Max" e
+        "Skeelo", e deixou de listar "Reforça" e "Skeelo""."""
+        t = montar(tim(data=ONTEM, apps=["Skeelo", "Reforça"],
+                       variante="rotulo"),
+                   tim(data=HOJE, apps=["max", "skeelo"], variante="id"))
+        self.assertEqual(t.count('"Skeelo"'), 0,
+                         "app presente nos dois dias nao mudou de lado")
+        self.assertIn('"Max"', t)
+        self.assertIn('"Reforça"', t)
+
+    def test_tres_apps_saem_costurados(self):
+        t = montar(tim(data=ONTEM, apps=["aya_books"], variante="um"),
+                   tim(data=HOJE, apps=["aya_books", "exa", "max",
+                                        "paramount"], variante="quatro"))
+        self.assertIn('"EXA Segurança", "Max" e "Paramount+"', t)
+
+    @unittest.skipIf(relatorio is None, "reportlab nao instalado")
+    def test_a_secao_do_contrato_nao_nega_a_tabela_de_cima(self):
+        """Em 23/10 e em 30/10/2026 o PDF imprimia "contrato: 5 -> 15
+        GB" na tabela das remodeladas e, trinta linhas abaixo, "Nenhuma
+        alteracao de franquia contratual identificada" - 2 dos 4 dias
+        com movimento nos 30 publicados."""
+        import pypdf
+        d = dados(tim(data=ONTEM, contratual=5, apps=["aya_books"],
+                      variante="com_um"),
+                  tim(data=HOJE, contratual=15,
+                      apps=["aya_books", "exa"], variante="com_dois"))
+        caminho = os.path.join(tempfile.mkdtemp(), "r.pdf")
+        relatorio.gerar(d, {}, caminho)
+        texto = "".join(p.extract_text()
+                        for p in pypdf.PdfReader(caminho).pages)
+        self.assertNotIn("Nenhuma alteração de franquia contratual", texto)
+        self.assertIn("Alterações de franquia contratual", texto)
+
+    @unittest.skipIf(relatorio is None, "reportlab nao instalado")
+    def test_nome_com_e_comercial_atravessa_o_pdf(self):
+        """A celula do PDF e mini-XML, e em 30/10/2026 ela passou a
+        receber nome de app vindo da vitrine. A suspeita era de que um
+        "&" derrubasse o relatorio do dia; medido, ele atravessa."""
+        import pypdf
+        d = dados(tim(nome="TIM Controle Sky & Max", preco=58.99,
+                      data=ONTEM),
+                  tim(nome="TIM Controle Sky & Max", preco=69.99,
+                      data=HOJE))
+        caminho = os.path.join(tempfile.mkdtemp(), "r.pdf")
+        relatorio.gerar(d, {}, caminho)
+        texto = "".join(p.extract_text()
+                        for p in pypdf.PdfReader(caminho).pages)
+        self.assertIn("Sky & Max", texto)
+
+
+@unittest.skipIf(relatorio is None, "reportlab nao instalado")
+class OQueDerrubariaOPdf(unittest.TestCase):
+    """O risco latente da celula, escrito com o que o mede.
+
+    ESTE TESTE FIXA O COMPORTAMENTO SEM GUARDA DE PROPOSITO, como
+    ORiscoLatenteDoLimiteDeApps faz com o limite de apps: a guarda que
+    eu escrevi primeiro escapava o "&", que nao e o que quebra, e nao
+    tinha um caso em 49.605 linhas. Salvaguarda morta esconde o risco de
+    verdade em vez de cobri-lo.
+
+    SE UM COLETOR COMECAR A TRAZER "<" SEGUIDO DE LETRA, a guarda entra
+    em _p e este teste muda de lado - com dado para apontar, e nao com
+    suspeita.
+    """
+
+    def test_o_que_o_reportlab_recusa_e_tag_aberta(self):
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph
+        estilo = ParagraphStyle("x")
+        for texto in ("Sky & Max", "A < B", "A <b>B</b>"):
+            Paragraph(texto, estilo).wrap(200, 100)
+        with self.assertRaises(ValueError):
+            Paragraph("A & <B", estilo).wrap(200, 100)
+
+    def test_e_a_vitrine_nao_traz_nenhum_dos_tres_sinais(self):
+        """A medicao que decide: 49.605 linhas publicadas, zero
+        ocorrencias. O teste roda sobre a fixture, que e o que esta a
+        mao aqui; o numero da base esta na docstring de _p."""
+        linhas = tim(data=HOJE) + tim(data=ONTEM)
+        for l in linhas:
+            for campo in ("nome_oferta", "destaque"):
+                self.assertNotRegex(str(l.get(campo) or ""), r"[<>&]")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

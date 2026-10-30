@@ -91,8 +91,8 @@ MUTACOES = [
     # volta a ser silencioso, o campo volta a ficar sem leitor.
     Mutacao(
         "robo.py",
-        '    a, d = set(antes or ()), set(agora or ())\n',
-        '    return None\n    a, d = set(antes or ()), set(agora or ())\n',
+        '    a = set(_nomes_dos_apps(antes or ()))\n',
+        '    return None\n    a = set(_nomes_dos_apps(antes or ()))\n',
         "X7. a mensagem volta a nao dizer qual app entrou ou saiu"),
 
     Mutacao(
@@ -132,7 +132,7 @@ MUTACOES = [
     Mutacao(
         "robo.py",
         '            e["onde"] = _onde(e.get("pracas") or (), e["universo"],\n'
-        '                              todas=onde_todas_elas)\n',
+        '                              paradas=paradas)\n',
         '            e["onde"] = _onde(e.get("pracas") or (), e["universo"])\n',
         "X23. a frase da excecao perde os nomes e nunca dispara"),
 
@@ -154,11 +154,79 @@ MUTACOES = [
         '                      "o conteúdo do plano.",\n',
         '                      "uma única oferta correspondente em cada data.",\n',
         "X25. a ressalva do app desaparece dos dois canais"),
+    # ======================= A AUDITORIA DE 30/10/2026 =======================
+    # Oito defeitos, todos passando por uma suite de 548 testes verde. Os
+    # tres primeiros publicavam afirmacao falsa; os outros cinco
+    # afirmavam o numero de uma praca para as vinte, ou derrubavam o PDF.
+    Mutacao(
+        "robo.py",
+        '            paradas = ((comparavel.get(k) or set()) - tomadas.get(k, set())\n'
+        '                       if k else set())\n',
+        '            paradas = ((onde_existe.get((op, pr)) or set())\n'
+        '                       - set(e.get("pracas") or ()))\n',
+        "Y1. a excecao volta a sair da pegada do produto"),
+
+    Mutacao(
+        "robo.py",
+        ' - tomadas.get(k, set())\n',
+        '\n',
+        "Y2. a praca de outro evento da mesma oferta volta a ser excecao"),
+
+    Mutacao(
+        "robo.py",
+        '        if l["praca"] in por_nome_o.get(k, ()):\n'
+        '            comparavel[k].add(l["praca"])\n',
+        '        comparavel[k].add(l["praca"])\n',
+        "Y3. cidade sem coleta ontem volta a sair como excecao"),
+
+    Mutacao(
+        "robo.py",
+        '    if not isinstance(base, dict) or not base.get("nome_oferta"):\n',
+        '    if not isinstance(base, dict):\n',
+        "Y4. evento sem nome de oferta volta a poder nomear excecao"),
+
+    Mutacao(
+        "robo.py",
+        '            quantas, quantas + len(paradas), _costurar(fora))\n',
+        '            quantas, total, _costurar(fora))\n',
+        "Y5. o denominador da excecao volta a ser o do produto"),
+
+    Mutacao(
+        "robo.py",
+        '        ident = (atual["operadora"], atual["produto"], atual["chave"],\n'
+        '                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd)\n',
+        '        ident = (atual["operadora"], atual["produto"],\n'
+        '                 (atual.get("nome_oferta") or "").lower(), ka, kd)\n',
+        "Y6. dois degraus do mesmo nome voltam a virar um evento so"),
+
+    Mutacao(
+        "robo.py",
+        '    a = set(_nomes_dos_apps(antes or ()))\n'
+        '    d = set(_nomes_dos_apps(agora or ()))\n'
+        '    saiu = sorted(a - d)\n'
+        '    entrou = sorted(d - a)\n',
+        '    a, d = set(antes or ()), set(agora or ())\n'
+        '    saiu = _nomes_dos_apps(sorted(a - d))\n'
+        '    entrou = _nomes_dos_apps(sorted(d - a))\n',
+        "Y7. o mesmo app volta a poder sair dos dois lados da frase"),
+
+    Mutacao(
+        "robo.py",
+        "    return _costurar(['\"%s\"' % n for n in nomes])\n",
+        "    return \" e \".join('\"%s\"' % n for n in nomes)\n",
+        "Y8. tres apps voltam a sair sem virgula"),
+
+    Mutacao(
+        "relatorio.py",
+        '    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):\n',
+        '    for r in ():\n',
+        "Y9. a secao do contrato volta a negar a tabela de cima"),
+
 
     Mutacao(
         "robo.py",
         '            e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],\n'
-        '                                    limite=None, todas=onde_todas_elas)\n',
+        '                                    limite=None, paradas=paradas)\n',
         '',
         "X11. o relatorio volta a nao ter a lista inteira de pracas"),
 

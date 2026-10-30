@@ -105,7 +105,23 @@ def _curto(txt, limite):
 
 
 def _p(txt, estilo="celula"):
-    """Celula como paragrafo, para o texto quebrar em vez de vazar."""
+    """Celula como paragrafo, para o texto quebrar em vez de vazar.
+
+    O TEXTO VAI CRU, E ISSO ESTA MEDIDO. A celula e mini-XML e em
+    30/10/2026 ela passou a receber nome de app vindo da vitrine, o que
+    levantou a suspeita de um "&" derrubar o PDF do dia. Medido antes de
+    escrever guarda nenhuma:
+
+      - o reportlab aceita "&" solto e "<" solto; o que ele recusa e
+        TAG ABERTA - "A & <B" levanta ValueError com "1 unclosed tag"
+      - nas 49.605 linhas publicadas nao ha um unico "<", ">" ou "&" em
+        nome_oferta, destaque, apps_rotulo ou campanha
+
+    Escapar o "&" seria salvaguarda morta contra o que nao quebra. A
+    medicao vive em OQueDerrubariaOPdf, com o caso que derrubaria de
+    verdade - se um coletor comecar a trazer "<" seguido de letra, a
+    guarda entra ali e com dado para apontar.
+    """
     return Paragraph(str(txt if txt is not None else "—"), ESTILOS[estilo])
 
 
@@ -401,6 +417,29 @@ def _bloco_contratuais(d):
             "%s GB" % c.get("agora_contratual"),
             _pc(c.get("antes_contratual"), c.get("agora_contratual")),
             _pracas(c),
+        ])
+
+    # E AS QUE CHEGARAM PELO OUTRO CAMINHO. O detector de cima so ve
+    # par de MESMA chave; quando a chave mudou junto, a oferta vem pelo
+    # detector de remodelada e a linha do contrato sai na tabela dela.
+    #
+    # SEM ISTO A SECAO NEGAVA O QUE A TABELA DE CIMA IMPRIMIA, no mesmo
+    # PDF: em 23/10 e em 30/10/2026 a tabela das remodeladas trazia
+    # "contrato: 5 -> 15 GB" e trinta linhas abaixo esta secao dizia
+    # "Nenhuma alteracao de franquia contratual identificada" - 2 dos 4
+    # dias com movimento nos 30 dias publicados.
+    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):
+        a, b = r.get("antes_contratual"), r.get("agora_contratual")
+        if a is None or b is None or a == b:
+            continue
+        linhas.append([
+            r.get("operadora"),
+            _curto(r.get("nome"), 34),
+            r.get("texto_entrega") or "—",
+            "%s GB" % a,
+            "%s GB" % b,
+            _pc(a, b),
+            _pracas(r),
         ])
     return _tabela(
         ["Operadora", "Oferta", "Entrega anunciada", "Contratual anterior",
@@ -760,14 +799,16 @@ def gerar(dados, entradas, caminho):
 
         hist.append(_com_titulo(
             "Alterações de franquia contratual",
-            Paragraph("Ofertas cuja franquia contratual foi alterada sem "
-                      "modificação da franquia anunciada na vitrine. A "
-                      "franquia anunciada compreende a franquia do "
-                      "contrato somada aos bônus de vigência temporária; "
-                      "a contratual é a parcela que permanece após o "
-                      "término desses bônus, conforme declarado pela "
-                      "própria vitrine. Registram-se aqui as alterações "
-                      "identificadas na parcela contratual.",
+            Paragraph("Ofertas cuja franquia contratual foi alterada. A "
+                      "franquia anunciada compreende a "
+                      "franquia do contrato somada aos bônus de vigência "
+                      "temporária; a contratual é a parcela que permanece "
+                      "após o término desses bônus, conforme declarado pela "
+                      "própria vitrine. Registram-se aqui todas as "
+                      "alterações identificadas na parcela contratual, "
+                      "inclusive quando a oferta também alterou preço, "
+                      "entrega ou versão na mesma data — nesses casos a "
+                      "oferta consta igualmente na seção correspondente.",
                       ESTILOS["corpo"]),
             _bloco_contratuais(dados)))
 
