@@ -32,7 +32,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import vigia                                                   # noqa: E402
-from coletores import (armazenamento, brisanet, claro, claro_flex, nucel, starlink, tim_fit,  # noqa: E402
+from coletores import (apps, armazenamento, brisanet, claro, claro_flex, nucel, starlink, tim_fit,  # noqa: E402
                        tim, unifique, vivo)
 from coletores.pracas import PRACAS, pracas_de, rotulo   # noqa: E402
 
@@ -403,7 +403,17 @@ def _indexar(dia):
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
               "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
               "nivel_bundle,codigo_anatel,"
+              # A FRANQUIA DO CONTRATO. A anunciada e contrato mais bonus
+              # temporario e e ela que entra na chave; a contratual e o
+              # que sobra quando o bonus expira, e mexia sem ninguem
+              # ver - o detector dela e de 30/10/2026.
+              "franquia_contratual_gb,"
               "assinatura_sva:bruto->>assinatura_sva,"
+              # QUAL app a vitrine nomeia. O indice ja trazia o NIVEL de
+              # bundle, e nivel igual com app diferente era exatamente o
+              # caso que a mensagem descrevia como "outra versao da
+              # oferta" - o fato nomeado e nao contado.
+              "apps:bruto->apps,"
               # A RECUSA DO COLETOR, que ninguem lia. Quatro coletores
               # escrevem avisos_oferta em sete lugares - regulamento de
               # outra oferta, card sem composicao, total anual que nao
@@ -680,6 +690,7 @@ def mudancas(hoje, ontem):
       grades        a escada de preco por entrega reorganizada
       voltaram      degrau que saiu dias atras e voltou com outro preco
       remodeladas   preco E entrega mudando no mesmo dia
+      contratuais   a franquia do contrato mexendo com a anunciada parada
       erro          a consulta caiu: nao houve comparacao
       cego          ofertas que nao deu para comparar, e por que
       duvidosa      ofertas em que o coletor recusou um campo, por motivo
@@ -709,6 +720,7 @@ def mudancas(hoje, ontem):
     duvidosa = _leitura_duvidosa(h)
     vazio = {"precos": [], "composicao": [], "renomeadas": [], "grades": [],
              "voltaram": [], "remodeladas": [], "leitura": [],
+             "contratuais": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
              "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
@@ -873,18 +885,20 @@ def mudancas(hoje, ontem):
     # 20" sobre uma lista que agora tem 20. A funcao e idempotente: ela
     # recalcula universo e onde a partir de "pracas", e a primeira
     # chamada existe porque a separacao precisa do universo antes.
+    contratuais = _contratual_mudou(h, o) if o else []
+
     _assinar_alcance(h, precos, composicao, renomeadas, grades, voltaram,
-                     remodeladas, leitura, duvidosa)
+                     remodeladas, leitura, duvidosa, contratuais)
 
     # A ORDEM E PARTE DA NOTICIA, e e decidida aqui para a mensagem e o
     # PDF nao poderem discordar. Ver _por_efeito.
     for grupo in (precos, composicao, renomeadas, grades, voltaram,
-                  remodeladas, leitura):
+                  remodeladas, leitura, contratuais):
         grupo.sort(key=_por_efeito, reverse=True)
     return {"precos": precos, "composicao": composicao,
             "renomeadas": renomeadas, "grades": grades,
             "voltaram": voltaram, "remodeladas": remodeladas,
-            "leitura": leitura,
+            "leitura": leitura, "contratuais": contratuais,
             "erro": None, "cego": cego, "cego_ontem": cego_o,
             # a recusa do coletor nao passa por _assinar_alcance nem pela
             # ordenacao: nao e evento de mercado, e ressalva sobre o dado
@@ -1155,6 +1169,11 @@ def _por_efeito(e):
     if "antes_preco" in e:
         return max(pc(e.get("antes_preco"), e.get("agora_preco")),
                    pc(e.get("antes_entrega"), e.get("agora_entrega")))
+    # CONTRATUAL: pesa pela propria variacao. Vem DEPOIS do ramo de
+    # cima de proposito - a remodelada tambem carrega os dois campos, e
+    # nela o preco e a entrega sao a noticia.
+    if "antes_contratual" in e:
+        return pc(e.get("antes_contratual"), e.get("agora_contratual"))
     # degrau que voltou
     if "quando" in e:
         return pc(e.get("antes"), e.get("agora"))
@@ -1219,7 +1238,17 @@ def _assinar_alcance(h, *grupos):
             op = e.get("operadora") or base.get("operadora")
             pr = e.get("produto") or base.get("produto")
             e["universo"] = len(onde_existe.get((op, pr)) or ())
-            e["onde"] = _onde(e.get("pracas") or (), e["universo"])
+            # O CONJUNTO, e nao so o tamanho: a frase da excecao
+            # precisa dos NOMES das cidades que ficaram de fora.
+            onde_todas_elas = onde_existe.get((op, pr)) or ()
+            e["onde"] = _onde(e.get("pracas") or (), e["universo"],
+                              todas=onde_todas_elas)
+            # A LISTA INTEIRA, para o relatorio: e para ela que o "e
+            # mais N, no relatorio" da mensagem manda o leitor. Escrita
+            # aqui, junto com a curta, pelo mesmo motivo de sempre - as
+            # duas saem do mesmo campo e nao podem discordar.
+            e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],
+                                    limite=None, todas=onde_todas_elas)
 
 
 # Como cada degrau da escada de bundle (decisao 10) se chama em
@@ -1237,6 +1266,92 @@ BUNDLE = ("sem assinatura inclusa", "com apps de catálogo",
 
 def _bundle(n):
     return BUNDLE[n] if isinstance(n, int) and 0 <= n < len(BUNDLE) else None
+
+
+def _nomes_dos_apps(ids):
+    """Os apps pelo nome do catalogo, ou o id cru quando ele falta.
+
+    O id ("aya_ensinah") e como o coletor guarda; o nome ("Aya Ensinah")
+    e o que a vitrine escreve. Sair com o id seria o mesmo defeito que a
+    decisao 10 ja evitou com a variante: codigo sem dicionario e ruido
+    com cara de informacao.
+    """
+    return [(apps.APPS.get(a) or {}).get("nome") or a for a in (ids or ())]
+
+
+def _texto_apps(antes, agora):
+    """Qual app entrou ou saiu da lista da oferta - ou None.
+
+    PEDIDO DE QUEM LE, EM 30/10/2026: "vc escreveu que esta com o mesmo
+    preco e mesma entrega, mas nao explicou o que mudou". Era o caso das
+    tres ofertas da TIM do dia: a escada de bundle nao se mexeu - as
+    tres seguiram em "com apps de catalogo" -, entao a unica frase que
+    sobrava era "voltou a vitrine como outra versao da oferta", que
+    nomeia o fato e nao o conta. O dado estava gravado nas duas datas.
+
+    A VITRINE QUE CALA NAO DIZ QUE A OFERTA PERDEU O APP. Mesma regra da
+    transicao de bundle para o nivel zero: app que desaparece da lista e
+    silencio da vitrine, e silencio nao e ausencia. Por isso o sujeito da
+    frase e A VITRINE e o verbo e "listar": "a vitrine deixou de listar
+    X" fala do que a pagina escreve, e nunca "a oferta deixou de incluir
+    X", que afirmaria sobre o plano.
+
+    E A RESSALVA SAIU DA LINHA, em 30/10/2026, a pedido de quem le: "o
+    que e 'silencio nao confirma que saiu'? isso nao faz sentido". Era
+    jargao desta metodologia na frase que a pessoa le no telefone. Ela
+    nao foi apagada - mudou de canal, como a cobertura na decisao 72: o
+    paragrafo da secao "Ofertas reapresentadas com outra configuracao",
+    no PDF, diz que a ausencia de mencao a um aplicativo na vitrine nao
+    e evidencia de exclusao da oferta. Lugar de explicacao e onde ha
+    espaco para explicar.
+    """
+    a, d = set(antes or ()), set(agora or ())
+    saiu = _nomes_dos_apps(sorted(a - d))
+    entrou = _nomes_dos_apps(sorted(d - a))
+    if not saiu and not entrou:
+        return None
+    partes = []
+    if entrou:
+        partes.append("a vitrine passou a listar %s" % _entre_aspas(entrou))
+    if saiu:
+        partes.append("%sdeixou de listar %s"
+                      % ("" if entrou else "a vitrine ", _entre_aspas(saiu)))
+    return ", e ".join(partes)
+
+
+def _entre_aspas(nomes):
+    """As aspas que o bloco de bundle usa, em volta de cada nome."""
+    return " e ".join('"%s"' % n for n in nomes)
+
+
+def _texto_contratual(antes, agora):
+    """A franquia DO CONTRATO mexeu - ou None.
+
+    A anunciada e contrato mais bonus temporario; a contratual e o que
+    sobra quando o bonus expira (ver coletores/tim.py). As duas andam
+    separadas, e e a segunda que diz o que o cliente leva no mes 13.
+
+    AFIRMAR MOVIMENTO EXIGE OS DOIS LADOS LIDOS, como em _parado: a
+    contratual vem None em sete dos nove coletores, e "de None para 15"
+    seria movimento inventado sobre um campo que nunca foi lido.
+    """
+    if antes is None or agora is None or antes == agora:
+        return None
+    return ("a franquia contratual foi de %s para %s GB%s"
+            % (antes, agora, _pct(antes, agora)))
+
+
+def _contratual_curto(antes, agora):
+    """A mesma mudanca em tres palavras, para a celula de 24 mm do PDF.
+
+    MESMO PAR LONGO/CURTO DO PONTO CEGO: a frase inteira vai na
+    mensagem, onde ha linha para ela, e a curta na tabela. As duas saem
+    do mesmo par de numeros e por isso nao podem discordar - que e a
+    razao de nenhuma delas ser montada no relatorio.
+    """
+    if antes is None or agora is None or antes == agora:
+        return None
+    return "contrato: %s → %s GB" % (antes, agora)
 
 
 def _variante(l):
@@ -1389,6 +1504,16 @@ def _oferta_remodelada(h, o, usadas=()):
         pa, pd = antes["preco_promocional"], atual["preco_promocional"]
         ea, ed = _entrega(antes), _entrega(atual)
         ba, bd = antes.get("nivel_bundle"), atual.get("nivel_bundle")
+        # A LISTA DE APPS E A CONTRATUAL ENTRAM NA IDENTIDADE DO EVENTO,
+        # e nao so no texto. Sem isto, duas ofertas que mudaram de
+        # versao por motivos DIFERENTES na mesma praca cairiam no mesmo
+        # evento e a frase do representante valeria para as duas - o
+        # mesmo defeito de eleger um representante e publicar como fato
+        # que o projeto ja consertou em "onde" e em "outras_leituras".
+        apps_a = tuple(antes.get("apps") or ())
+        apps_d = tuple(atual.get("apps") or ())
+        ka = antes.get("franquia_contratual_gb")
+        kd = atual.get("franquia_contratual_gb")
 
         preco_mudou = None not in (pa, pd) and pa != pd
         entrega_mudou = None not in (ea, ed) and ea != ed
@@ -1404,7 +1529,7 @@ def _oferta_remodelada(h, o, usadas=()):
             continue
 
         ident = (atual["operadora"], atual["produto"], k[3],
-                 pa, pd, ea, ed, ba, bd)
+                 pa, pd, ea, ed, ba, bd, apps_a, apps_d, ka, kd)
         d = achados.setdefault(ident, {
             "operadora": atual["operadora"], "produto": atual["produto"],
             "nome": atual.get("nome_oferta"),
@@ -1436,6 +1561,81 @@ def _oferta_remodelada(h, o, usadas=()):
             "versao_apenas": (pa is not None and pd is not None
                               and pa == pd and _parado(ea, ed)),
             "unidade": _unidade(atual),
+            # O APP QUE A VITRINE NOMEIA, e a franquia do contrato: os
+            # dois viajam como texto pronto, pela mesma razao que o
+            # rotulo de bundle e o "onde" viajam - a mensagem e o PDF
+            # leem a mesma frase e nao podem divergir.
+            "apps_antes": list(apps_a), "apps_agora": list(apps_d),
+            "apps_texto": _texto_apps(apps_a, apps_d),
+            "antes_contratual": ka, "agora_contratual": kd,
+            "contratual_texto": _texto_contratual(ka, kd),
+            "contratual_curto": _contratual_curto(ka, kd),
+            "atual": atual, "antes": antes, "pracas": []})
+        if atual["praca"] not in d["pracas"]:
+            d["pracas"].append(atual["praca"])
+    return list(achados.values())
+
+
+def _contratual_mudou(h, o):
+    """A franquia do CONTRATO mexeu numa oferta que seguiu a mesma.
+
+    O QUE NINGUEM VIA. A chave de continuidade e
+    operadora|produto|degrau|variante, e o degrau e a franquia
+    ANUNCIADA - contrato mais bonus. Oferta que mantem os 45 GB da
+    vitrine e troca 5 GB de contrato por 15 tem a mesma chave nos dois
+    dias, o mesmo preco e a mesma entrega: nenhum dos seis detectores
+    tinha o que reportar, e o campo ficava gravado sem leitor.
+
+    MEDIDO NOS 30 DIAS PUBLICADOS antes de escrever este detector: a
+    contratual se move em 2 dos 30 pares de dias, 0,8 oferta e 0,1
+    evento por dia. Nao e bloco que inunda a mensagem - e por isso ele
+    pode sair por evento, com o nome da oferta, em vez de virar uma
+    contagem agregada no fim.
+
+      24/10  Claro Flex 40 GB  40 -> 30 de contrato
+      28/10  Vivo Controle     20 -> 15, no mesmo dia em que a anunciada
+             do degrau de 50 GB caiu de 75,00 para 59,00
+
+    NAO COLIDE COM A REMODELADA, que e o outro caminho em que a
+    contratual aparece: la o par existe porque a CHAVE mudou e o nome
+    ficou, aqui porque a chave ficou. Uma oferta nao pode estar nos
+    dois - as chaves de hoje sem par em ontem sao exatamente o que um
+    procura e o outro descarta.
+
+    E NAO REPETE O BLOCO DE PRECO quando os dois mexeram: sao fatos
+    diferentes sobre a mesma oferta, e o preco so entra na frase daqui
+    quando NAO se mexeu, onde ele e o contraste - mesmo preco, menos
+    contrato - e nenhum outro bloco o diz.
+    """
+    achados = {}
+    for k, antes in o.items():
+        atual = h.get(k)
+        if atual is None:
+            continue
+        texto = _texto_contratual(antes.get("franquia_contratual_gb"),
+                                  atual.get("franquia_contratual_gb"))
+        if not texto:
+            continue
+        ka = antes.get("franquia_contratual_gb")
+        kd = atual.get("franquia_contratual_gb")
+        pa = antes.get("preco_promocional")
+        pd = atual.get("preco_promocional")
+        preco_mudou = None not in (pa, pd) and pa != pd
+        ident = (atual["operadora"], atual["produto"],
+                 (atual.get("nome_oferta") or "").lower(), ka, kd,
+                 preco_mudou)
+        d = achados.setdefault(ident, {
+            "operadora": atual["operadora"], "produto": atual["produto"],
+            "nome": atual.get("nome_oferta"),
+            "antes_contratual": ka, "agora_contratual": kd,
+            "contratual_texto": texto,
+            "contratual_curto": _contratual_curto(ka, kd),
+            "unidade": _unidade(atual),
+            "texto_entrega": _texto_entrega(_entrega(antes), _entrega(atual),
+                                            _unidade(atual), False),
+            # o preco so quando ficou parado; mudou, o bloco dele conta
+            "texto_preco": (None if preco_mudou
+                            else _texto_preco(pa, pd, False)),
             "atual": atual, "antes": antes, "pracas": []})
         if atual["praca"] not in d["pracas"]:
             d["pracas"].append(atual["praca"])
@@ -1715,8 +1915,22 @@ def _operadora_da_rodada(nome):
     return nome
 
 
-def _onde(pracas, universo=None):
-    """"em todas as 20 praças" ou "em 3 de 20: SP, RJ, BH".
+# Quantas cidades de FORA cabem na frase antes de ela virar uma lista
+# tao longa quanto a que ela substitui. Com mais que isto, a frase volta
+# a nomear as cidades em que o movimento ACONTECEU.
+EXCECOES_QUE_CABEM = 4
+
+
+def _costurar(nomes):
+    """"Rio de Janeiro, Salvador e Vitória" - o "e" antes do último."""
+    if len(nomes) == 1:
+        return nomes[0]
+    return "%s e %s" % (", ".join(nomes[:-1]), nomes[-1])
+
+
+def _onde(pracas, universo=None, limite=3, todas=None):
+    """"em todas as 20 praças", "em 19 das 20 cidades, ex-Rio de Janeiro"
+    ou "em 3 de 20: SP, RJ, BH".
 
     O DENOMINADOR E ONDE A OFERTA EXISTE. A NuCel e a Starlink nao tem
     praca e gravam "Brasil/BR": contra as 20 do painel, qualquer
@@ -1732,7 +1946,44 @@ def _onde(pracas, universo=None):
         if total == 1:
             return "na única praça em que a oferta é vendida"
         return "em todas as %d praças" % total
-    nomes = sorted({p.split("/")[0] for p in pracas})[:3]
+    # O CORTE DA LISTA SE DECLARA, como no bloco de grade. Cobrado em
+    # 30/10/2026: "vc colocou em 10 de 20 mas so escreveu o nome de 3
+    # cidades, tambem nao entendi". A lista saia com tres nomes em ordem
+    # alfabetica e nenhuma marca de que havia mais - e o PDF, que lia a
+    # MESMA frase, nao tinha a lista inteira em lugar nenhum.
+    #
+    # O limite vem de fora: a mensagem corta em tres, o relatorio chama
+    # com limite None e imprime todas. Nao sao duas frases diferentes
+    # sobre o mesmo fato - e a mesma frase, uma delas apontando para a
+    # outra.
+    nomes = sorted({p.split("/")[0] for p in pracas})
+
+    # A EXCECAO, QUANDO ELA E MAIS CURTA QUE A REGRA. Pedido de quem le,
+    # em 30/10/2026: "quando for em muitas cidades, coloque apenas as
+    # cidades que nao mudaram. No caso de 19, coloque em '19 das 20
+    # cidades, ex-Rio de Janeiro'".
+    #
+    # E E MAIS INFORMACAO, e nao so mais curta: "Aracaju, Belo Horizonte,
+    # Blumenau e mais 16" nao diz onde o movimento NAO foi, e e isso que
+    # distingue um reposicionamento nacional de um teste de praca. Os
+    # dezesseis nomes que faltavam estavam no anexo; o UM que importa
+    # agora esta na mensagem.
+    #
+    # VALE PARA OS DOIS CANAIS, com limite ou sem: dezenove nomes numa
+    # celula de 38 mm sao um paredao, e a frase da excecao e completa -
+    # dela se deduz a lista inteira, o que nao era verdade do corte em
+    # tres.
+    fora = sorted({p.split("/")[0] for p in (todas or ())} - set(nomes))
+    if fora and len(fora) <= EXCECOES_QUE_CABEM and len(fora) < len(nomes):
+        return "em %d das %d cidades, ex-%s" % (quantas, total,
+                                                _costurar(fora))
+
+    if limite and len(nomes) > limite:
+        # O NUMERO QUE FALTA SAI DE "quantas", para a conta fechar com o
+        # "de %d" da propria frase: nomes sao cidades distintas e
+        # quantas sao pracas distintas, e e quantas que o leitor soma.
+        return "em %d de %d: %s e mais %d, no relatório" % (
+            quantas, total, ", ".join(nomes[:limite]), quantas - limite)
     return "em %d de %d: %s" % (quantas, total, ", ".join(nomes))
 
 
@@ -1853,10 +2104,15 @@ def _agrupar_remodeladas(remodeladas):
     grupos, ordem = {}, []
     for r in remodeladas or ():
         sozinha = r.get("preco_mudou") or r.get("entrega_mudou")
+        # O TEXTO DO APP E DA CONTRATUAL ENTRAM NA CHAVE DO GRUPO. O
+        # bloco imprime as linhas da PRIMEIRA oferta sob um cabecalho que
+        # fala de todas; com dois apps diferentes no mesmo grupo, a frase
+        # de uma sairia afirmada para as outras.
         k = (id(r) if sozinha else
              (r.get("operadora"), r.get("produto"), r.get("antes_bundle"),
               r.get("agora_bundle"), bool(r.get("versao_mudou")),
-              r.get("onde")))
+              r.get("onde"), r.get("apps_texto"),
+              r.get("contratual_texto")))
         if k not in grupos:
             grupos[k] = []
             ordem.append(k)
@@ -1960,17 +2216,34 @@ def _o_que_mudou(r, sem_numero=False):
         # vitrine declara os dois lados e a recomposicao e real.
         if bd == 0:
             linhas.append("e a vitrine parou de nomear os apps que "
-                          "listava (\"%s\") \u2014 sil\u00eancio n\u00e3o confirma "
-                          "que sa\u00edram" % de)
+                          "listava (\"%s\")" % de)
         elif ba == 0:
             linhas.append("e a vitrine passou a nomear \"%s\", que antes "
                           "n\u00e3o aparecia" % para)
         else:
             linhas.append("e passou de \"%s\" para \"%s\"" % (de, para))
     elif r["versao_mudou"]:
-        # a versao mudou e a escada de bundle nao: e outra coisa que o
-        # nome da oferta nao diz, e o relatorio tem o detalhe
-        linhas.append("e voltou \u00e0 vitrine como outra vers\u00e3o da oferta")
+        # A VERSAO MUDOU E A ESCADA DE BUNDLE NAO. Ate 30/10/2026 isto
+        # saia como "voltou a vitrine como outra versao da oferta" e
+        # parava ai - o leitor perguntou, com razao, o que havia mudado.
+        # Quando a vitrine nomeia os apps, a resposta esta no dado.
+        #
+        # A ESCADA DE BUNDLE SEGUE DONA DO SEU RAMO, acima: quando o
+        # NIVEL muda, a frase dele diz mais do que o nome de um app -
+        # "passou de com apps de catalogo para com varios streamings" e
+        # a noticia, e e ela que a tela tambem mostra.
+        if r.get("apps_texto"):
+            linhas.append("e %s" % r["apps_texto"])
+        else:
+            linhas.append("e voltou \u00e0 vitrine como outra vers\u00e3o da oferta")
+
+    # A FRANQUIA DO CONTRATO, quando ela andou junto. Vale para qualquer
+    # dos ramos acima: a oferta pode mudar de preco, de entrega, de app
+    # ou de nada disso e ainda assim mexer no que o cliente leva depois
+    # do bonus expirar. Medido em 30/10/2026 na TIM Controle Smart: 5 GB
+    # de contrato viraram 15, com a anunciada parada em 45.
+    if r.get("contratual_texto"):
+        linhas.append("e %s" % r["contratual_texto"])
     return linhas
 
 
@@ -2031,6 +2304,7 @@ def montar_mensagem(hoje, ontem):
     duvidosa = r.get("duvidosa") or []
     erro_cmp, ponto_cego, cobertura = r["erro"], r["cego"], r["cobertura"]
     leitura = r.get("leitura") or []
+    contratuais = r.get("contratuais") or []
 
     # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
     # tambem pode. Este retorno era descartado num `_`, e `col` vazio
@@ -2088,7 +2362,7 @@ def montar_mensagem(hoje, ontem):
 
     # 2. o que mudou
     total_mud = (len(mud) + len(comp) + len(renom) + len(grades)
-                 + len(voltaram) + len(remodeladas))
+                 + len(voltaram) + len(remodeladas) + len(contratuais))
     # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
     # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
     # soa como noticia verificada num dia em que nao se verificou nada.
@@ -2212,6 +2486,26 @@ def montar_mensagem(hoje, ontem):
         n = sum(len(g) for g in juntas[3:])
         linhas += ["", "e mais %d oferta%s remodelada%s no relat\u00f3rio"
                    % (n, "" if n == 1 else "s", "" if n == 1 else "s")]
+
+    # A FRANQUIA DO CONTRATO. Fica junto das remodeladas porque e a
+    # mesma familia - oferta que muda por dentro sem mudar de nome -, e
+    # depois delas porque preco e entrega pesam mais no bolso do mes.
+    for c in contratuais[:3]:
+        linhas += ["", "%s · %s" % (_categoria(c["atual"]),
+                                      c.get("nome") or c["operadora"])]
+        linhas.append("  %s" % c["contratual_texto"])
+        # A ANUNCIADA SAI SEMPRE, e e o contraste: ela ficou parada por
+        # construcao - a chave carrega o degrau -, entao "mesma entrega
+        # (45 GB)" ao lado de "contrato de 5 para 15" e o que separa
+        # bonus de contrato para quem le.
+        resto = [c["texto_entrega"]]
+        if c.get("texto_preco"):
+            resto.append(c["texto_preco"])
+        linhas.append("  %s" % " e ".join(resto))
+        linhas.append("  %s" % c["onde"])
+    if len(contratuais) > 3:
+        n = len(contratuais) - 3
+        linhas += ["", "e mais %d de franquia contratual no relatório" % n]
 
 
     # MESMO PRECO, OUTRA ENTREGA. E o movimento mais facil de nao
@@ -2452,6 +2746,7 @@ def montar_mensagem(hoje, ontem):
         "mudancas_preco": mud, "mudancas_composicao": comp,
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "remodeladas": remodeladas, "leitura": leitura,
+        "contratuais": contratuais,
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio
         "duvidosa": duvidosa,

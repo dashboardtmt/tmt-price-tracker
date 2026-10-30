@@ -85,6 +85,158 @@ MUTACOES = [
         '    trocaram = 0',
         "X6. o numero que explica o buraco volta a ficar sem leitor"),
 
+    # AS TRES MUDANCAS DE 30/10/2026, todas de TEXTO sobre dado que ja
+    # existia - e por isso sao as que mais facilmente voltam atras num
+    # refactor sem quebrar nada: a frase volta a ser a generica, o corte
+    # volta a ser silencioso, o campo volta a ficar sem leitor.
+    Mutacao(
+        "robo.py",
+        '    a, d = set(antes or ()), set(agora or ())\n',
+        '    return None\n    a, d = set(antes or ()), set(agora or ())\n',
+        "X7. a mensagem volta a nao dizer qual app entrou ou saiu"),
+
+    Mutacao(
+        "robo.py",
+        '        if r.get("apps_texto"):\n'
+        '            linhas.append("e %s" % r["apps_texto"])\n'
+        '        else:\n',
+        '        if False:\n'
+        '            linhas.append("e %s" % r["apps_texto"])\n'
+        '        else:\n',
+        "X8. o nome do app volta a nao chegar ao Telegram"),
+
+    Mutacao(
+        "relatorio.py",
+        '    if r.get("apps_texto"):\n        return r["apps_texto"]\n',
+        '',
+        "X9. a coluna Versao volta a dizer so \"outra versao da oferta\""),
+
+    # O CORTE SILENCIOSO. Cobrado em 30/10/2026: "em 10 de 20" com tres
+    # nomes e nenhuma marca de que havia mais sete.
+    Mutacao(
+        "robo.py",
+        '        return "em %d de %d: %s e mais %d, no relatório" % (\n'
+        '            quantas, total, ", ".join(nomes[:limite]), quantas - limite)\n',
+        '        return "em %d de %d: %s" % (\n'
+        '            quantas, total, ", ".join(nomes[:limite]))\n',
+        "X10. a lista de pracas volta a ser cortada sem dizer"),
+
+    # A EXCECAO NOMEADA, pedida em 30/10/2026: "no caso de 19, coloque
+    # em 19 das 20 cidades, ex-Rio de Janeiro".
+    Mutacao(
+        "robo.py",
+        '    if fora and len(fora) <= EXCECOES_QUE_CABEM and len(fora) < len(nomes):\n',
+        '    if False:\n',
+        "X22. a frase volta a nomear tres de dezenove cidades"),
+
+    Mutacao(
+        "robo.py",
+        '            e["onde"] = _onde(e.get("pracas") or (), e["universo"],\n'
+        '                              todas=onde_todas_elas)\n',
+        '            e["onde"] = _onde(e.get("pracas") or (), e["universo"])\n',
+        "X23. a frase da excecao perde os nomes e nunca dispara"),
+
+    Mutacao(
+        "robo.py",
+        '    if len(nomes) == 1:\n        return nomes[0]\n',
+        '    if True:\n        return ", ".join(nomes)\n',
+        "X24. duas cidades de fora voltam a sair sem o \"e\""),
+
+    # A RESSALVA QUE SAIU DA MENSAGEM e tem de estar no anexo: sem ela
+    # o projeto publica "deixou de listar" sem dizer, em canal nenhum,
+    # que a frase e sobre a pagina e nao sobre o plano.
+    Mutacao(
+        "relatorio.py",
+        '                      "uma única oferta correspondente em cada data. A "\n'
+        '                      "ausência de menção a um aplicativo na vitrine não "\n'
+        '                      "constitui evidência de sua exclusão da oferta: "\n'
+        '                      "registra-se o que a página passou a declarar, e não "\n'
+        '                      "o conteúdo do plano.",\n',
+        '                      "uma única oferta correspondente em cada data.",\n',
+        "X25. a ressalva do app desaparece dos dois canais"),
+
+    Mutacao(
+        "robo.py",
+        '            e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],\n'
+        '                                    limite=None, todas=onde_todas_elas)\n',
+        '',
+        "X11. o relatorio volta a nao ter a lista inteira de pracas"),
+
+    # A FRANQUIA DO CONTRATO: campo gravado desde o primeiro dia e sem
+    # leitor nenhum ate 30/10/2026.
+    Mutacao(
+        "robo.py",
+        '    achados = {}\n    for k, antes in o.items():\n',
+        '    return []\n    achados = {}\n    for k, antes in o.items():\n',
+        "X12. o movimento de contrato volta a nao ser detectado"),
+
+    Mutacao(
+        "robo.py",
+        '    if r.get("contratual_texto"):\n'
+        '        linhas.append("e %s" % r["contratual_texto"])\n',
+        '',
+        "X13. a remodelada volta a esconder o contrato que mexeu"),
+
+    Mutacao(
+        "robo.py",
+        '                 + len(voltaram) + len(remodeladas) + len(contratuais))\n',
+        '                 + len(voltaram) + len(remodeladas))\n',
+        "X14. o dia com mudanca de contrato volta a contar como parado"),
+
+    Mutacao(
+        "robo.py",
+        '    if antes is None or agora is None or antes == agora:\n'
+        '        return None\n'
+        '    return ("a franquia contratual foi de %s para %s GB%s"\n',
+        '    if antes == agora:\n'
+        '        return None\n'
+        '    return ("a franquia contratual foi de %s para %s GB%s"\n',
+        "X15. contrato nao lido num dos dias volta a virar movimento"),
+
+    # OS DOIS QUE O SELECT DECIDE. Detector perfeito lendo None todos os
+    # dias e o defeito de avisos_oferta, que ficou semanas sem leitor -
+    # e o replay offline nao pega, porque o JSON publicado traz tudo.
+    Mutacao(
+        "robo.py",
+        '              "apps:bruto->apps,"\n',
+        '',
+        "X16. o indice volta a nao pedir a lista de apps"),
+
+    Mutacao(
+        "robo.py",
+        '              "franquia_contratual_gb,"\n'
+        '              "assinatura_sva:bruto->>assinatura_sva,"\n',
+        '              "assinatura_sva:bruto->>assinatura_sva,"\n',
+        "X17. o indice volta a nao pedir a franquia contratual"),
+
+    # OS TRES DE REPRESENTANTE: uma frase verdadeira sobre uma oferta
+    # afirmada para as outras do grupo.
+    Mutacao(
+        "robo.py",
+        '              r.get("onde"), r.get("apps_texto"),\n'
+        '              r.get("contratual_texto")))\n',
+        '              r.get("onde")))\n',
+        "X18. o grupo volta a juntar ofertas que mudaram diferente"),
+
+    Mutacao(
+        "robo.py",
+        '                 pa, pd, ea, ed, ba, bd, apps_a, apps_d, ka, kd)\n',
+        '                 pa, pd, ea, ed, ba, bd)\n',
+        "X19. o evento volta a juntar pracas que mudaram diferente"),
+
+    Mutacao(
+        "relatorio.py",
+        '    for c in d.get("contratuais") or []:\n',
+        '    for c in d.get("contratual") or []:\n',
+        "X20. a tabela do contrato volta a sair vazia todo dia"),
+
+    Mutacao(
+        "relatorio.py",
+        '        if r.get("contratual_curto"):\n'
+        '            entrega = "%s<br/>%s" % (entrega, r["contratual_curto"])\n',
+        '',
+        "X21. a tabela das remodeladas volta a omitir o contrato"),
+
     Mutacao(
         "coletores/apps.py",
         '    tiers = TIERS.get(app)\n    if not tiers:\n        return None\n',
@@ -218,7 +370,7 @@ MUTACOES = [
 
     Mutacao(
         "relatorio.py",
-        '            m.get("onde") or "—",\n'
+        '            _pracas(m),\n'
         '        ])\n'
         '    return _tabela(\n'
         '        ["Operadora", "Oferta", "Entrega", "Anterior", "Atual", "Var.",',

@@ -106,7 +106,7 @@ def sem_declaracao(caso):
 
 def oferta(operadora="Vivo", produto="movel", nome="Vivo Pós", preco=119.90,
            gb=50, mbps=None, praca="Sao Paulo/SP", chave=None, data=HOJE,
-           sva=None, anatel=None):
+           sva=None, anatel=None, apps=None, contratual=None):
     """Uma linha de captura como o banco a devolveria.
 
     data_captura e NOT NULL no esquema, e a coluna e o que o robo filtra:
@@ -122,6 +122,13 @@ def oferta(operadora="Vivo", produto="movel", nome="Vivo Pós", preco=119.90,
             # o padrao e ausente de proposito: grupo sem codigo continua
             # indistinguivel, e e isso que os testes de colisao medem
             "codigo_anatel": anatel,
+            # OS DOIS CAMPOS DE DENTRO DA OFERTA, ausentes por padrao
+            # como no banco: sete dos nove coletores nao leem contratual,
+            # e a vitrine que nao nomeia app grava lista vazia. Fixture
+            # que preenchesse por padrao esconderia justamente o estado
+            # em que os detectores novos tem de ficar calados.
+            "apps": apps,
+            "franquia_contratual_gb": contratual,
             "chave": chave or "%s|%s|%s|simples" % (operadora, produto, degrau)}
 
 

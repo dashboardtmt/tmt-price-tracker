@@ -73,9 +73,17 @@ class ASilenciosaNaoDizQueSaiu(unittest.TestCase):
         sem_declaracao(self)
 
     def test_a_frase_fala_da_vitrine_e_nao_da_oferta(self):
+        """O SUJEITO E A VITRINE, e e nisso que a ressalva mora.
+
+        A oracao "silencio nao confirma que sairam" saiu da linha em
+        30/10/2026, a pedido de quem le - era jargao desta metodologia
+        na frase do telefone. O que ela dizia continua dito: a frase fala
+        do que a PAGINA nomeia, e o paragrafo da secao no PDF explica
+        que isso nao e evidencia sobre o plano (decisao 73).
+        """
         t = montar(as_quatro(ONTEM, 1), as_quatro(HOJE, 0))
         self.assertIn("a vitrine parou de nomear os apps", t)
-        self.assertIn("silêncio não confirma que saíram", t)
+        self.assertNotIn("silêncio", t)
 
     def test_e_nao_afirma_que_a_oferta_perdeu_a_assinatura(self):
         """A frase antiga. Nivel 0 e "nada nomeado": dali nao se conclui

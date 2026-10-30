@@ -198,7 +198,7 @@ def _bloco_precos(d):
             _reais(a.get("preco_promocional")),
             _reais(at.get("preco_promocional")),
             _pc(a.get("preco_promocional"), at.get("preco_promocional")),
-            m.get("onde") or "—",
+            _pracas(m),
         ])
     return _tabela(
         ["Operadora", "Oferta", "Entrega", "Anterior", "Atual", "Var.",
@@ -222,7 +222,7 @@ def _bloco_composicao(d):
             at.get("operadora"),
             _curto(at.get("nome_oferta"), 40),
             preco,
-            m.get("onde") or "—",
+            _pracas(m),
         ])
     return _tabela(
         ["Operadora", "Oferta", "Preço", "Praças"], linhas,
@@ -312,15 +312,33 @@ def _unidade(e):
 def _versao(r):
     """Como a versao da oferta mudou, em portugues.
 
-    O texto vem pronto do robo - ver BUNDLE em robo.py. Monta-lo aqui
-    faria o PDF e a mensagem poderem divergir sobre a mesma oferta.
+    O texto vem pronto do robo - ver BUNDLE e _texto_apps em robo.py.
+    Monta-lo aqui faria o PDF e a mensagem poderem divergir sobre a
+    mesma oferta.
     """
     de, para = r.get("bundle_antes"), r.get("bundle_agora")
     if de and para and de != para:
         return "%s → %s" % (de, para)
+    # O APP QUE A VITRINE PASSOU A NOMEAR, quando o NIVEL de bundle nao
+    # se mexeu. Ate 30/10/2026 esta coluna dizia "outra versao da
+    # oferta" nas tres ofertas da TIM do dia - o fato nomeado e nao
+    # contado, e com o detalhe gravado nas duas datas.
+    if r.get("apps_texto"):
+        return r["apps_texto"]
     if r.get("versao_mudou"):
         return "outra versão da oferta"
     return "—"
+
+
+def _pracas(e):
+    """A lista INTEIRA de pracas do evento.
+
+    A mensagem corta em tres nomes e escreve "e mais 7, no relatorio" -
+    e ate 30/10/2026 o relatorio lia a MESMA frase cortada, entao a
+    lista completa nao existia em canal nenhum. As duas saem de "pracas"
+    no robo, uma com limite e outra sem.
+    """
+    return e.get("onde_todas") or e.get("onde") or "—"
 
 
 def _bloco_remodeladas(itens, vazio):
@@ -339,19 +357,57 @@ def _bloco_remodeladas(itens, vazio):
         # tabela imprimia "None" (terceira auditoria, N4).
         preco = r.get("texto_preco") or _reais(r.get("agora_preco"))
         entrega = r.get("texto_entrega") or "—"
+        # A FRANQUIA DO CONTRATO VEM COLADA NA ENTREGA ANUNCIADA, porque
+        # e contra ela que se le: 45 GB na vitrine com 5 GB de contrato e
+        # uma oferta diferente dos mesmos 45 GB com 15. A forma curta e
+        # do robo - a longa saiu na mensagem.
+        if r.get("contratual_curto"):
+            entrega = "%s<br/>%s" % (entrega, r["contratual_curto"])
         linhas.append([
             r.get("operadora"),
             _curto(r.get("nome"), 30),
             preco,
             entrega,
             _versao(r),
-            r.get("onde") or "—",
+            _pracas(r),
         ])
     return _tabela(
         ["Operadora", "Oferta", "Preço", "Entrega", "Versão", "Praças"],
         linhas,
         [19 * mm, 30 * mm, 30 * mm, 24 * mm, 37 * mm, 38 * mm],
         vazio=vazio)
+
+
+def _bloco_contratuais(d):
+    """A franquia do contrato, que a vitrine nao destaca.
+
+    POR QUE ELA MERECE SECAO. A anunciada e contrato mais bonus; o bonus
+    expira. Oferta que mantem os 45 GB da vitrine e troca 5 GB de
+    contrato por 15 nao mexeu em nada que os outros seis detectores
+    olham - mesma chave, mesmo preco, mesma entrega -, e e uma oferta
+    diferente no mes 13.
+
+    Medido nos 30 dias publicados: 2 dias com movimento, 0,1 evento por
+    dia. A secao fica vazia quase sempre, e a frase de vazio diz isso em
+    vez de somir - mesma regra das outras seis.
+    """
+    linhas = []
+    for c in d.get("contratuais") or []:
+        linhas.append([
+            c.get("operadora"),
+            _curto(c.get("nome"), 34),
+            c.get("texto_entrega") or "—",
+            "%s GB" % c.get("antes_contratual"),
+            "%s GB" % c.get("agora_contratual"),
+            _pc(c.get("antes_contratual"), c.get("agora_contratual")),
+            _pracas(c),
+        ])
+    return _tabela(
+        ["Operadora", "Oferta", "Entrega anunciada", "Contratual anterior",
+         "Contratual atual", "Var.", "Praças"],
+        linhas,
+        [19 * mm, 34 * mm, 24 * mm, 22 * mm, 22 * mm, 14 * mm, 43 * mm],
+        vazio="Nenhuma alteração de franquia contratual identificada.")
 
 
 def _bloco_grades(d):
@@ -370,7 +426,7 @@ def _bloco_grades(d):
             g.get("operadora"),
             g.get("produto"),
             "; ".join(movimento) or "—",
-            g.get("onde") or "—",
+            _pracas(g),
         ])
     return _tabela(
         ["Operadora", "Produto", "Movimento observado", "Praças"], linhas,
@@ -393,7 +449,7 @@ def _bloco_voltaram(d):
             _reais(v.get("antes")),
             _reais(v.get("agora")),
             _pc(v.get("antes"), v.get("agora")),
-            v.get("onde") or "—",
+            _pracas(v),
         ])
     return _tabela(
         ["Operadora", "Produto", "Entrega", "Última venda", "Preço então",
@@ -429,7 +485,7 @@ def _bloco_renomeadas(d):
                              (" (+%d)" % (len(outras) - 1))
                              if len(outras) > 1 else ""))
              if outra else "—"),
-            m.get("onde") or "—",
+            _pracas(m),
         ])
     return _tabela(
         ["Operadora", "Nome anterior", "Nome atual", "Preço antes",
@@ -657,7 +713,11 @@ def gerar(dados, entradas, caminho):
                       "modificada sem variação de preço ou de entrega. O "
                       "pareamento utiliza o nome da oferta na mesma praça, "
                       "e aplica-se exclusivamente aos casos em que resta "
-                      "uma única oferta correspondente em cada data.",
+                      "uma única oferta correspondente em cada data. A "
+                      "ausência de menção a um aplicativo na vitrine não "
+                      "constitui evidência de sua exclusão da oferta: "
+                      "registra-se o que a página passou a declarar, e não "
+                      "o conteúdo do plano.",
                       ESTILOS["corpo"]),
             _bloco_remodeladas(
                 dados.get("remodeladas"),
@@ -697,6 +757,19 @@ def gerar(dados, entradas, caminho):
                       "de alguma das datas não o registrou, essa "
                       "circunstância.", ESTILOS["corpo"]),
             _bloco_composicao(dados)))
+
+        hist.append(_com_titulo(
+            "Alterações de franquia contratual",
+            Paragraph("Ofertas cuja franquia contratual foi alterada sem "
+                      "modificação da franquia anunciada na vitrine. A "
+                      "franquia anunciada compreende a franquia do "
+                      "contrato somada aos bônus de vigência temporária; "
+                      "a contratual é a parcela que permanece após o "
+                      "término desses bônus, conforme declarado pela "
+                      "própria vitrine. Registram-se aqui as alterações "
+                      "identificadas na parcela contratual.",
+                      ESTILOS["corpo"]),
+            _bloco_contratuais(dados)))
 
         hist.append(_com_titulo(
             "Reorganização de grade",

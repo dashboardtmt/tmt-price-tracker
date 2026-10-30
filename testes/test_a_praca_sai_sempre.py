@@ -37,7 +37,7 @@ from _apoio import (HOJE, ONTEM, banco, dados, em_todas, montar, oferta,
 #
 # Um grupo novo entra aqui e o teste passa a exigir a praca dele.
 GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
-          "voltaram", "renomeadas")
+          "voltaram", "renomeadas", "contratuais")
 
 # GRUPOS QUE SAO RESSALVA, E NAO EVENTO DE MERCADO. A regra de "toda
 # mudanca diz em que praca" e sobre MUDANCA: na ressalva nada se moveu na
@@ -130,6 +130,18 @@ class TodoEventoDizAPraca(unittest.TestCase):
                 + em_todas(data=HOJE))
         vistos, t = self._varre(ontem, hoje)
         self.assertGreaterEqual(vistos, 2, "o dia tem de ter dois eventos")
+
+    def test_a_contratual_diz_a_praca(self):
+        """O grupo mais novo, de 30/10/2026: a mesma oferta na vitrine e
+        outro numero no contrato."""
+        pracas = nordeste(6)
+        ontem = [dict(l, franquia_contratual_gb=20)
+                 for l in brisa("500MB", 99.90, ONTEM, pracas)]
+        hoje = [dict(l, franquia_contratual_gb=15)
+                for l in brisa("500MB", 99.90, HOJE, pracas)]
+        vistos, t = self._varre(ontem, hoje)
+        self.assertTrue(vistos, "o fixture tem de produzir algum evento")
+        self.assertIn("franquia contratual foi de 20 para 15 GB", t)
 
     def test_a_praca_unica_sai_dita_por_extenso(self):
         """Oferta vendida numa praca so nao pode sair como "em 1 de 1",
