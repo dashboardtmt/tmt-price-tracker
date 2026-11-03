@@ -37,7 +37,7 @@ from _apoio import (HOJE, ONTEM, banco, dados, em_todas, montar, oferta,
 #
 # Um grupo novo entra aqui e o teste passa a exigir a praca dele.
 GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
-          "voltaram", "renomeadas", "contratuais")
+          "voltaram", "renomeadas", "contratuais", "saidas")
 
 # GRUPOS QUE SAO RESSALVA, E NAO EVENTO DE MERCADO. A regra de "toda
 # mudanca diz em que praca" e sobre MUDANCA: na ressalva nada se moveu na
@@ -142,6 +142,22 @@ class TodoEventoDizAPraca(unittest.TestCase):
         vistos, t = self._varre(ontem, hoje)
         self.assertTrue(vistos, "o fixture tem de produzir algum evento")
         self.assertIn("franquia contratual foi de 20 para 15 GB", t)
+
+    def test_a_saida_diz_a_praca(self):
+        """O grupo de 03/11/2026: a oferta que deixou a vitrine.
+
+        Em 01/11 a Vivo Lite Anual II saiu das 20 pracas e a mensagem
+        disse "nenhuma mudanca" - nao havia detector de ausencia.
+        """
+        onde = nordeste(4)
+        antes = (brisa("Brisa Essencial", 99.90, "2026-10-18", onde)
+                 + brisa("Brisa Essencial", 99.90, "2026-10-19", onde))
+        vistos, t = self._varre(
+            brisa("Brisa Essencial", 99.90, ONTEM, onde),
+            brisa("Brisa Gamer Turbo", 149.90, HOJE, onde, mbps=900),
+            extras=antes)
+        self.assertTrue(vistos, "o fixture tem de produzir algum evento")
+        self.assertIn("saiu da vitrine", t)
 
     def test_a_praca_unica_sai_dita_por_extenso(self):
         """Oferta vendida numa praca so nao pode sair como "em 1 de 1",

@@ -221,6 +221,76 @@ MUTACOES = [
         '    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):\n',
         '    for r in ():\n',
         "Y9. a secao do contrato volta a negar a tabela de cima"),
+    # ============== A OFERTA QUE SAI DA VITRINE (03/11/2026) ==============
+    # Em 01/11 a Vivo Lite Anual II e a Mensal II sairam das 20 pracas e
+    # a mensagem disse "nenhuma mudanca". Ausencia era a unica mudanca de
+    # portfolio sem detector. Cinco filtros, cinco mutacoes.
+    Mutacao(
+        "robo.py",
+        '        comparaveis = set(x for x in pracas_ontem\n'
+        '                          if (operadora, x) in coletadas)\n',
+        '        comparaveis = set(pracas_ontem)\n',
+        "B1. praca sem coleta hoje volta a render saida"),
+
+    Mutacao(
+        "robo.py",
+        '            m[(l.get("operadora"),\n'
+        '               _serie_sem_safra(l.get("nome_oferta")))].add(l.get("praca"))\n',
+        '            m[(l.get("operadora"), l.get("produto"),\n'
+        '               _serie_sem_safra(l.get("nome_oferta")))].add(l.get("praca"))\n',
+        "B2. troca de balde volta a virar saida"),
+
+    Mutacao(
+        "robo.py",
+        'VIVEU_PARA_SAIR = 3\n',
+        'VIVEU_PARA_SAIR = 1\n',
+        "B3. piscada de um dia volta a virar saida"),
+
+    Mutacao(
+        "robo.py",
+        '        if not comparaveis or comparaveis & de_hoje.get(k, set()):\n'
+        '            continue\n',
+        '        if not comparaveis or comparaveis <= de_hoje.get(k, set()):\n'
+        '            continue\n',
+        "B4. sair de algumas pracas volta a virar saida"),
+
+    Mutacao(
+        "robo.py",
+        '        if difflib.get_close_matches(serie, sorted(novas.get(operadora, ())),\n'
+        '                                     n=1, cutoff=PARECIDO_E_RENOME):\n'
+        '            continue\n',
+        '',
+        "B5. nome parecido entrando no mesmo dia volta a virar saida"),
+
+    Mutacao(
+        "robo.py",
+        '    return re.sub(r"[^a-z0-9]+", " ", SAFRA.sub(" ", (nome or "").lower())).strip()\n',
+        '    return re.sub(r"[^a-z0-9]+", " ", (nome or "").lower()).strip()\n',
+        "B6. a safra volta a fazer parte da identidade"),
+
+    Mutacao(
+        "robo.py",
+        '                 + len(voltaram) + len(remodeladas) + len(contratuais)\n'
+        '                 + len(saidas))\n',
+        '                 + len(voltaram) + len(remodeladas) + len(contratuais))\n',
+        "B7. o dia de saida volta a abrir com \"nenhuma mudanca\""),
+
+    Mutacao(
+        "robo.py",
+        '        quanto = ("estava há pelo menos %d dias" % dias\n'
+        '                  if janela and dias >= janela - 1\n'
+        '                  else "depois de %d dia%s na vitrine"\n'
+        '                  % (dias, "" if dias == 1 else "s"))\n',
+        '        quanto = ("depois de %d dia%s na vitrine"\n'
+        '                  % (dias, "" if dias == 1 else "s"))\n',
+        "B8. o tamanho da janela volta a ser afirmado como idade"),
+
+    Mutacao(
+        "relatorio.py",
+        '            _bloco_saidas(dados)))\n',
+        '            _tabela(["Operadora"], [], [19 * mm])))\n',
+        "B9. a secao de saida desaparece do relatorio"),
+
     # ================== A PAGINA-HUB NAO E A VITRINE (03/11/2026) ==================
     # O tracker publicava R$169,99 como entrada do pos da TIM e a
     # propria TIM vende o Black a R$129,99. Oito planos entraram, e com
@@ -286,8 +356,10 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '                 + len(voltaram) + len(remodeladas) + len(contratuais))\n',
-        '                 + len(voltaram) + len(remodeladas))\n',
+        '                 + len(voltaram) + len(remodeladas) + len(contratuais)\n'
+        '                 + len(saidas))\n',
+        '                 + len(voltaram) + len(remodeladas)\n'
+        '                 + len(saidas))\n',
         "X14. o dia com mudanca de contrato volta a contar como parado"),
 
     Mutacao(

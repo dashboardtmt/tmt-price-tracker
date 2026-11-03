@@ -103,7 +103,8 @@ class ACoisaQueOColetorRecusouLerFicaNoRelatorio(unittest.TestCase):
         """Sem a ressalva, "nenhuma mudanca" e a mensagem inteira - e
         tem de continuar saindo."""
         t = montar(com_recusa(ONTEM), com_recusa(HOJE))
-        self.assertIn("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome", t)
+        self.assertIn("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o, "
+                      "nome ou sa\u00edda de oferta", t)
 
     def test_a_mensagem_nao_fica_vazia(self):
         """Sem a ressalva, o dia parado vira tres linhas - e as tres

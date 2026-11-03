@@ -499,6 +499,25 @@ def _bloco_voltaram(d):
         vazio="Nenhum degrau retornou à vitrine com preço diferente.")
 
 
+def _bloco_saidas(d):
+    """Oferta que deixou a vitrine, com a lista inteira de pracas."""
+    linhas = []
+    for s in d.get("saidas") or []:
+        linhas.append([
+            s.get("operadora"),
+            s.get("produto"),
+            s.get("nome_oferta"),
+            _reais(s.get("preco")),
+            str(s.get("dias") or "—"),
+            _pracas(s),
+        ])
+    return _tabela(
+        ["Operadora", "Produto", "Oferta", "Último preço", "Dias",
+         "Praças"], linhas,
+        [19 * mm, 17 * mm, 54 * mm, 21 * mm, 12 * mm, 37 * mm],
+        vazio="Nenhuma oferta deixou a vitrine.")
+
+
 def _bloco_renomeadas(d):
     """Oferta que trocou de nome, e o preco que ela levou na troca.
 
@@ -828,6 +847,21 @@ def gerar(dados, entradas, caminho):
                       "distinto do praticado na última oferta registrada "
                       "nos 45 dias precedentes.", ESTILOS["corpo"]),
             _bloco_voltaram(dados)))
+
+        hist.append(_com_titulo(
+            "Ofertas que deixaram a vitrine",
+            Paragraph("Ofertas presentes na véspera e ausentes na data em "
+                      "todas as praças comparáveis, após permanência "
+                      "mínima de três dias, quando nenhuma oferta de "
+                      "denominação semelhante foi apresentada pela mesma "
+                      "operadora na mesma data. A comparação desconsidera "
+                      "o carimbo de safra da denominação e abrange todos "
+                      "os produtos da operadora: reclassificação interna "
+                      "entre fibra e combo, bem como recarimbo mensal do "
+                      "catálogo, não constituem saída. Praças sem coleta "
+                      "na véspera ou na data não são computadas.",
+                      ESTILOS["corpo"]),
+            _bloco_saidas(dados)))
 
         hist.append(_com_titulo(
             "Alterações de denominação",

@@ -18,6 +18,7 @@ Uso:
 import argparse
 import collections
 import concurrent.futures
+import difflib
 import io
 import json
 import os
@@ -691,6 +692,7 @@ def mudancas(hoje, ontem):
       voltaram      degrau que saiu dias atras e voltou com outro preco
       remodeladas   preco E entrega mudando no mesmo dia
       contratuais   a franquia do contrato mexendo com a anunciada parada
+      saidas        oferta que deixou a vitrine, com nome e praca
       erro          a consulta caiu: nao houve comparacao
       cego          ofertas que nao deu para comparar, e por que
       duvidosa      ofertas em que o coletor recusou um campo, por motivo
@@ -720,7 +722,7 @@ def mudancas(hoje, ontem):
     duvidosa = _leitura_duvidosa(h)
     vazio = {"precos": [], "composicao": [], "renomeadas": [], "grades": [],
              "voltaram": [], "remodeladas": [], "leitura": [],
-             "contratuais": [],
+             "contratuais": [], "saidas": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
              "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
@@ -887,6 +889,15 @@ def mudancas(hoje, ontem):
     # chamada existe porque a separacao precisa do universo antes.
     contratuais = _contratual_mudou(h, o) if o else []
 
+    # A SAIDA NAO SAI DO INDICE, e sim das capturas cruas: _indexar
+    # descarta o par indistinguivel, e oferta descartada apareceria como
+    # saida todo dia. A janela de oito dias e a mesma que o vigia usa, e
+    # vem de uma consulta so - montar_mensagem reaproveita o que esta
+    # aqui, em vez de pedir de novo.
+    do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
+    saidas = (_ofertas_que_sairam(do_dia, antes, ontem)
+              if not erro_vigia else [])
+
     _assinar_alcance(h, o, precos, composicao, renomeadas, grades, voltaram,
                      remodeladas, leitura, duvidosa, contratuais)
 
@@ -899,6 +910,9 @@ def mudancas(hoje, ontem):
             "renomeadas": renomeadas, "grades": grades,
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura, "contratuais": contratuais,
+            "saidas": saidas,
+            # a janela crua, para o vigia nao repetir a consulta
+            "_vigia": (do_dia, antes, erro_vigia),
             "erro": None, "cego": cego, "cego_ontem": cego_o,
             # a recusa do coletor nao passa por _assinar_alcance nem pela
             # ordenacao: nao e evento de mercado, e ressalva sobre o dado
@@ -2025,6 +2039,126 @@ def _costurar(nomes):
     return "%s e %s" % (", ".join(nomes[:-1]), nomes[-1])
 
 
+# O CARIMBO DE SAFRA NO NOME, que faz oferta parecer que saiu.
+#
+# A Brisanet recarimba o catalogo todo mes: "AGO26 500MB + 20GB",
+# "[SET] 500MB + 20GB" e "[NOV] 500MB + 20GB" sao a MESMA oferta. Sem
+# tirar a safra, 80% das saidas medidas nos 35 dias publicados eram
+# renomeacao - 2.560 linhas cruas contra 502 depois deste corte.
+SAFRA = re.compile(
+    r"\[[^\]]*\]|(^|[^a-z])(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)"
+    r"\s*\d{0,2}([^a-z]|$)", re.I)
+
+# Quantos dias a oferta precisa ter vivido para a saida dela ser
+# noticia. Piscada de um dia e ruido de pagina, e a vitrine da Vivo Lite
+# prova isso sozinha: em 03/11/2026 ela respondeu com um conjunto em 2
+# pracas e outro nas 18 restantes, na mesma rodada.
+VIVEU_PARA_SAIR = 3
+
+# Quao parecido um nome novo precisa ser do nome que sumiu para a saida
+# virar renomeacao. Medido: com 0,75 os doze casos de recarimbo da
+# Brisanet em 21/10 e as quatro renumeracoes do Ultracombo em 27/10 sao
+# reconhecidos, e as 22 saidas que sobram nenhum deles.
+PARECIDO_E_RENOME = 0.75
+
+
+def _serie_sem_safra(nome):
+    """O nome sem o carimbo de mes, sem colchete e sem pontuacao."""
+    return re.sub(r"[^a-z0-9]+", " ", SAFRA.sub(" ", (nome or "").lower())).strip()
+
+
+def _ofertas_que_sairam(do_dia, antes, ontem):
+    """A oferta que deixou a vitrine: qual, de onde, e por quanto.
+
+    Pedido de quem le, em 03/11/2026, depois de 01/11 ter passado em
+    silencio: a Vivo Lite Anual II e a Mensal II sairam das 20 pracas e
+    a mensagem disse "nenhuma mudanca". Ausencia nao tinha detector.
+
+    CINCO FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
+    desenhou a regra: a definicao ingenua - chave que estava ontem e nao
+    esta hoje - rende 2.560 linhas em 34 dias, e quase nenhuma e saida.
+
+      1. A PRACA TEM DE TER SIDO COLETADA HOJE pela mesma operadora.
+         Em 13/10 a coleta de Belo Horizonte falhou no dia anterior, e
+         sem este filtro a oferta "sai" de uma praca que ninguem olhou.
+      2. A SERIE E POR OPERADORA, E NAO POR BALDE. "SET26 500MB +
+         TELECINE" estava em fibra em 20/10 e em combo em 21/10: mesma
+         oferta, classificador nosso. Vinte das 35 saidas do corte
+         anterior eram isso.
+      3. A OFERTA TEM DE TER VIVIDO VIVEU_PARA_SAIR dias.
+      4. ELA SAI DE TODAS AS PRACAS COMPARAVEIS onde existia. Sair de
+         algumas e rotacao de praca, que e outro evento - e foi o que a
+         pagina do Vivo Lite fez dentro de uma rodada so.
+      5. NADA PARECIDO PODE TER ENTRADO no mesmo dia, na mesma
+         operadora: ai e renomeacao, e tem detector proprio.
+
+    Com isso: 22 saidas em 34 dias, em 6 dias - e as que sobram sao
+    oferta de verdade saindo, como a promo "Relampago" da Claro que
+    viveu 6 dias em 20 pracas, as sete da Brisanet em 24/10 e os tres
+    Controle FIT que a TIM cortou em 30/10, de quatro que tinha.
+    """
+    if not do_dia or not antes or not antes.get(ontem):
+        return []
+
+    def mapa(linhas):
+        m = collections.defaultdict(set)
+        for l in linhas:
+            m[(l.get("operadora"),
+               _serie_sem_safra(l.get("nome_oferta")))].add(l.get("praca"))
+        return m
+
+    de_hoje, de_ontem = mapa(do_dia), mapa(antes[ontem])
+    vividos = collections.defaultdict(set)
+    for dia, linhas in list(antes.items()) + [("hoje", do_dia)]:
+        for l in linhas:
+            vividos[(l.get("operadora"),
+                     _serie_sem_safra(l.get("nome_oferta")))].add(dia)
+    coletadas = set((l.get("operadora"), l.get("praca")) for l in do_dia)
+    novas = collections.defaultdict(set)
+    for k in de_hoje:
+        if k not in de_ontem:
+            novas[k[0]].add(k[1])
+
+    saidas = []
+    for k, pracas_ontem in de_ontem.items():
+        operadora, serie = k
+        comparaveis = set(x for x in pracas_ontem
+                          if (operadora, x) in coletadas)
+        if not comparaveis or comparaveis & de_hoje.get(k, set()):
+            continue
+        if len(vividos[k]) < VIVEU_PARA_SAIR:
+            continue
+        if difflib.get_close_matches(serie, sorted(novas.get(operadora, ())),
+                                     n=1, cutoff=PARECIDO_E_RENOME):
+            continue
+        irmas = [l for l in antes[ontem] if l.get("operadora") == operadora
+                 and _serie_sem_safra(l.get("nome_oferta")) == serie]
+        precos = sorted(l["preco_promocional"] for l in irmas
+                        if l.get("preco_promocional"))
+        pracas = sorted(comparaveis)
+        saidas.append({
+            "operadora": operadora,
+            "produto": irmas[0].get("produto"),
+            "nome_oferta": irmas[0].get("nome_oferta"),
+            "preco": precos[0] if precos else None,
+            "dias": len(vividos[k]),
+            # A JANELA, PORQUE O NUMERO DE DIAS E CEGO ALEM DELA. A
+            # consulta olha oito dias; a Vivo Lite que saiu em 01/11
+            # vivia 25, e a primeira versao desta linha dizia "depois de
+            # 7 dias na vitrine" - o tamanho da janela afirmado como
+            # idade da oferta. Quando os dois numeros batem, a frase
+            # passa a dizer "pelo menos".
+            "janela": len(antes) + 1,
+            "pracas": pracas,
+            "universo": len(comparaveis),
+            "onde": _onde(pracas, len(comparaveis)),
+            "onde_todas": _onde(pracas, len(comparaveis), limite=None),
+        })
+    saidas.sort(key=lambda s: (-len(s["pracas"]), s["operadora"],
+                               s["nome_oferta"] or ""))
+    return saidas
+
+
 def _onde(pracas, universo=None, limite=3, paradas=None):
     """"em todas as 20 praças", "em 19 das 20 cidades, ex-Rio de Janeiro"
     ou "em 3 de 20: SP, RJ, BH".
@@ -2407,6 +2541,7 @@ def montar_mensagem(hoje, ontem):
     erro_cmp, ponto_cego, cobertura = r["erro"], r["cego"], r["cobertura"]
     leitura = r.get("leitura") or []
     contratuais = r.get("contratuais") or []
+    saidas = r.get("saidas") or []
 
     # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
     # tambem pode. Este retorno era descartado num `_`, e `col` vazio
@@ -2464,7 +2599,8 @@ def montar_mensagem(hoje, ontem):
 
     # 2. o que mudou
     total_mud = (len(mud) + len(comp) + len(renom) + len(grades)
-                 + len(voltaram) + len(remodeladas) + len(contratuais))
+                 + len(voltaram) + len(remodeladas) + len(contratuais)
+                 + len(saidas))
     # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
     # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
     # soa como noticia verificada num dia em que nao se verificou nada.
@@ -2489,7 +2625,8 @@ def montar_mensagem(hoje, ontem):
                 linhas.append("Nenhuma oferta foi capturada hoje: n\u00e3o h\u00e1 o "
                               "que comparar.")
         elif not total_mud:
-            linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o ou nome.")
+            linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o, "
+                          "nome ou sa\u00edda de oferta.")
         else:
             linhas.append("%d mudan\u00e7a%s hoje"
                           % (total_mud, "" if total_mud == 1 else "s"))
@@ -2608,6 +2745,28 @@ def montar_mensagem(hoje, ontem):
     if len(contratuais) > 3:
         n = len(contratuais) - 3
         linhas += ["", "e mais %d de franquia contratual no relatório" % n]
+
+    # A OFERTA QUE SAIU, que ate 03/11/2026 nao tinha canal: em 01/11 a
+    # Vivo Lite Anual II e a Mensal II sairam das 20 pracas e a mensagem
+    # disse "nenhuma mudanca". Ausencia de oferta e a unica mudanca de
+    # portfolio que nao deixa linha nenhuma para comparar, e por isso
+    # precisou de detector proprio - ver _ofertas_que_sairam.
+    for s in saidas[:3]:
+        linhas += ["", "%s · %s" % (_categoria(s), _rotulo(s))]
+        preco = _reais(s.get("preco"))
+        linhas.append("  saiu da vitrine%s"
+                      % (", estava a %s" % preco if preco != "—" else ""))
+        dias, janela = s["dias"], s.get("janela") or 0
+        quanto = ("estava há pelo menos %d dias" % dias
+                  if janela and dias >= janela - 1
+                  else "depois de %d dia%s na vitrine"
+                  % (dias, "" if dias == 1 else "s"))
+        linhas.append("  %s, %s" % (s["onde"], quanto))
+    if len(saidas) > 3:
+        n = len(saidas) - 3
+        linhas += ["", "e mais %s da vitrine, no relatório"
+                   % ("1 oferta que saiu" if n == 1
+                      else "%d ofertas que saíram" % n)]
 
 
     # MESMO PRECO, OUTRA ENTREGA. E o movimento mais facil de nao
@@ -2827,7 +2986,8 @@ def montar_mensagem(hoje, ontem):
     # e podre no segundo - foi o caso dos 18 dias em que a Brisanet veio
     # inteira sem velocidade.
     denuncias = []
-    do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
+    do_dia, antes, erro_vigia = (r.get("_vigia")
+                                 or _capturas_para_o_vigia(hoje))
     if erro_vigia:
         # GRAVE, e nao atencao: resumo so leva graves a mensagem, e a
         # mensagem saia sem uma palavra sobre a conferencia do dado nao
@@ -2848,7 +3008,7 @@ def montar_mensagem(hoje, ontem):
         "mudancas_preco": mud, "mudancas_composicao": comp,
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "remodeladas": remodeladas, "leitura": leitura,
-        "contratuais": contratuais,
+        "contratuais": contratuais, "saidas": saidas,
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio
         "duvidosa": duvidosa,
