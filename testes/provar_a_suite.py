@@ -221,6 +221,45 @@ MUTACOES = [
         '    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):\n',
         '    for r in ():\n',
         "Y9. a secao do contrato volta a negar a tabela de cima"),
+    # ================== A PAGINA-HUB NAO E A VITRINE (03/11/2026) ==================
+    # O tracker publicava R$169,99 como entrada do pos da TIM e a
+    # propria TIM vende o Black a R$129,99. Oito planos entraram, e com
+    # eles quatro decisoes que precisam de vermelho.
+    Mutacao(
+        "coletores/tim.py",
+        '        nome = _do_card(cabecalho, r"<h4[^>]*>(.*?)</h4>")\n'
+        '        desc = _do_card(cabecalho, r"<p[^>]*>(.*?)</p>")\n',
+        '        nome = _do_card(cabecalho, r"<h4[^>]*>(.*?)</h4>")\n'
+        '        desc = _do_card(bloco, r\'alt="([^"]*)"\')\n',
+        "Z1. a franquia volta a sair do alt da imagem"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '        if ufs and uf.lower() not in [x.strip() for x in ufs.split(",")]:\n'
+        '            continue\n',
+        '',
+        "Z3. a oferta de uma UF volta a ser gravada nas vinte"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '    if not blocos:\n'
+        '        return None, "nenhum <tim-card-dynamic> na pagina - o formato mudou"\n',
+        '    if not blocos:\n'
+        '        return [], None\n',
+        "Z4. pagina de formato novo volta a virar silencio"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '            "variante": _degrau_no_nome(nome) if not franquia else None,\n',
+        '',
+        "Z5. os tres Express voltam a dividir uma chave so"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '            "variante": _degrau_no_nome(nome) if not franquia else None,\n',
+        '            "variante": _degrau_no_nome(nome),\n',
+        "Z6. a variante do nome passa por cima de quem tem degrau"),
+
 
 
     Mutacao(

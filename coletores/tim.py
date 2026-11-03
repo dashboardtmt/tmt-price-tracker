@@ -28,6 +28,7 @@ import json
 import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -57,6 +58,21 @@ PAGINAS = {
 
 # O combo tem pagina propria, com outro formato - ver ler_combos.
 COMBO = "https://www.tim.com.br/%s/internet/tim-ultracombo"
+
+# O POS-PAGO TAMBEM TEM PAGINA PROPRIA, e e ela a vitrine de verdade: a
+# pagina-hub /para-voce/planos destaca DOIS planos Black e esta lista
+# DEZ. Medido em 03/11/2026, comparando o tracker com o report de precos
+# da JPMorgan de 30/10: eles publicavam R$129,99 como preco de entrada
+# do pos da TIM e o tracker publicava R$169,99, 31% acima, nos 35 dias e
+# nas 20 pracas da serie inteira - o valor 129,99 aparecia zero vezes na
+# base. A TIM era a unica das seis lida por hub, e o balde tinha 2
+# planos onde a Vivo tem 11 e a Claro 5.
+#
+# NENHUMA GUARDA OLHAVA PARA ISSO. O vigia compara a contagem de hoje
+# com a dos dias anteriores, nunca com o que a fonte publica: balde que
+# nasce magro fica magro para sempre, e o tracker afirma um piso de
+# mercado que a propria operadora desmente na pagina ao lado.
+POS = "https://www.tim.com.br/%s/para-voce/planos/pos-pago"
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "deezer"}
@@ -169,6 +185,16 @@ def classificar(nome, destaque):
     if "black" in n or "pos" in n or "pós" in n:
         return "movel"
     return "movel"
+
+
+def _nome_curto(nome):
+    """O nome sem o sufixo de franquia que so uma das paginas usa.
+
+    A pagina-hub anuncia "TIM Pre XIP Plus - 16GB" e a pagina de pre
+    anuncia o mesmo plano como "TIM Pre XIP Plus".
+    """
+    return re.sub(r"\s*[-–]\s*\d+\s*GB\s*$", "", nome or "",
+                  flags=re.I).strip().lower()
 
 
 def ler_ofertas(op, url, uf):
@@ -321,6 +347,104 @@ def ler_combos(op, url):
     return saida, None
 
 
+def _degrau_no_nome(nome):
+    """A identidade de um plano que nao declara franquia.
+
+    SEM FRANQUIA, A CHAVE COLIDE. Medido em 03/11/2026 na pagina de
+    produto do pos: sete dos dez planos cairiam em DUAS chaves - os tres
+    Express dividem "TIM|movel|0gb|com_deezer" com precos de R$ 119,99,
+    R$ 144,99 e R$ 164,99, e os quatro Familia dividem
+    "TIM|movel|0gb|familia" de R$ 219,99 a R$ 399,99. A serie de cada
+    chave ficaria alternando entre os precos como se houvesse reajuste
+    todo dia, que e exatamente o defeito que a variante existe para
+    impedir.
+
+    AQUI O NOME E DEGRAU, E NAO CAMPANHA. "A Express", "Plus", "VIP" sao
+    niveis do mesmo produto e atravessam a virada do mes - ao contrario
+    do carimbo de mes da Brisanet ("AGO26 600MB + NETFLIX PCA"), que
+    mataria a chave em 1o de novembro e e por isso que _variante se
+    recusa a ler nome. Se a TIM renomear o nivel, esta serie parte em
+    duas; fica dito, porque o preco de tres planos diferentes numa chave
+    so e pior do que uma serie que recomeca.
+    """
+    base = _nome_curto(nome)
+    base = unicodedata.normalize("NFKD", base)
+    base = base.encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "_", base).strip("_") or None
+
+
+def _do_card(bloco, padrao):
+    m = re.search(padrao, bloco or "", re.S)
+    return re.sub(r"\s+", " ", m.group(1)).strip() if m else None
+
+
+def ler_cards_dinamicos(op, url, uf):
+    """Os planos da pagina de produto, que vem em <tim-card-dynamic>.
+
+    Formato diferente do drupalSettings do hub: cada card e um elemento
+    proprio, com o nome no <h4> do cabecalho, a franquia na descricao, o
+    preco no rodape, e a lista de UFs onde o card vale no atributo de
+    regionalizacao - que e lido, para nao gravar em Manaus uma oferta
+    que a TIM so vende em Sao Paulo.
+
+    A FRANQUIA SAI SO DA DESCRICAO. O mesmo card traz tres numeros
+    diferentes para o TIM Black Premium: "110GB" na descricao, "com 100
+    gigas" no alt da imagem, e a pagina-hub anunciando 125GB. E os tres
+    cards Express dizem "ate 67 gigas", que e teto e nao franquia. Ler o
+    alt seria gravar como contrato o numero que a pagina usa para
+    acessibilidade; ler "ate N" seria afirmar franquia que a operadora
+    nao prometeu. Sem numero na descricao a oferta entra SEM franquia,
+    do jeito que a fibra da Brisanet ja entra - a mensagem sabe lidar
+    com entrega vazia, e nao sabe lidar com entrega inventada.
+    """
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    blocos = h.split("<tim-card-dynamic")[1:]
+    if not blocos:
+        return None, "nenhum <tim-card-dynamic> na pagina - o formato mudou"
+
+    saida, vistos = [], set()
+    for bruto in blocos:
+        bloco = bruto.split("</tim-card-dynamic>")[0]
+        # o cabecalho isola nome e descricao do rodape, onde fica o preco
+        cabecalho = _do_card(bloco, r'slot="header"(.*?)</div>') or bloco
+        nome = _do_card(cabecalho, r"<h4[^>]*>(.*?)</h4>")
+        desc = _do_card(cabecalho, r"<p[^>]*>(.*?)</p>")
+        preco = numero(_do_card(bloco, r"R\$\s*([\d.]+,\d{2})\s*/\s*m[êe]s"))
+        if not nome or preco is None:
+            continue          # card decorativo, sem identidade ou sem preco
+        ufs = _do_card(bloco, r'regionalization-toggle="([^"]*)"')
+        if ufs and uf.lower() not in [x.strip() for x in ufs.split(",")]:
+            continue
+        if _nome_curto(nome) in vistos:
+            continue          # a pagina repete os cards no layout mobile
+        vistos.add(_nome_curto(nome))
+        franquia = gb(desc)
+        lista = apps.apps_do_texto(desc)
+        saida.append({
+            "nome_oferta": nome,
+            "variante": _degrau_no_nome(nome) if not franquia else None,
+            "destaque": ("%dGB" % franquia) if franquia else None,
+            "franquia_anunciada_gb": franquia,
+            "franquia_contratual_gb": franquia_contratual(desc),
+            "preco_promocional": preco,
+            "nivel_bundle": nivel_bundle(desc or ""),
+            "apps": lista or None,
+            "apps_rotulo": apps.rotulo(lista, desc) or None,
+            "apps_planos": apps.planos_dos_apps(lista, desc),
+            "composicao": desc,
+        })
+    # mesma razao de ler_ofertas: lista vazia sem erro faz a rodada
+    # afirmar que a operadora nao tem o produto, quando o que houve foi
+    # a leitura nao reconhecer nada
+    if not saida:
+        return [], ("nenhum card reconhecido na pagina de produto - a "
+                    "leitura falhou, e nao ha como afirmar que a "
+                    "operadora nao vende o produto nesta praca")
+    return saida, None
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op = navegador()
@@ -385,6 +509,36 @@ def coletar(cidade, uf, verbose=True):
             print("  %-9s %d ofertas" % ("combo", len(combos)))
     time.sleep(PAUSA)
 
+    # A PAGINA DO PRODUTO, depois da hub e so com o que a hub nao
+    # trouxe. Quando o mesmo plano aparece nas duas, a HUB MANDA: e ela
+    # que a TIM atualiza na campanha - o TIM Black Premium saiu de 110GB
+    # para 125GB na hub em 31/10/2026 enquanto a pagina de produto
+    # seguia dizendo 110. Sem esta regra os dois virariam duas ofertas,
+    # porque a deduplicacao do fim compara franquia e preco, e a
+    # franquia difere.
+    pos, err = ler_cards_dinamicos(op, POS % uf.lower(), uf)
+    if err:
+        saida["avisos"].append("pos-pago: %s" % err)
+        if verbose:
+            print("  %-9s FALHOU (%s)" % ("pos-pago", err))
+    else:
+        ja = set(_nome_curto(o.get("nome_oferta")) for o in saida["ofertas"])
+        novas = 0
+        for o in pos:
+            if _nome_curto(o["nome_oferta"]) in ja:
+                continue
+            o.update({"operadora": "TIM",
+                      "produto": classificar(o["nome_oferta"], o["destaque"]),
+                      "praca": praca, "pagina": "pos-pago",
+                      "capturado_em": agora.isoformat(),
+                      "preco_cheio": None, "degrau_mbps": None,
+                      "codigo_anatel": None, "campanha": None})
+            saida["ofertas"].append(o)
+            novas += 1
+        if verbose:
+            print("  %-9s %d ofertas, %d novas" % ("pos-pago", len(pos), novas))
+    time.sleep(PAUSA)
+
     # A pagina geral repete ofertas da pagina de controle, com nid diferente
     # para o mesmo produto. Deduplica pelo que o cliente ve - nome, franquia
     # e preco - e nao pelo identificador interno do CMS.
@@ -394,10 +548,8 @@ def coletar(cidade, uf, verbose=True):
     # plano como "TIM Pre XIP Plus". Com o sufixo, as duas passavam, e o
     # pre aparecia com uma oferta a mais do que existe.
     def identidade(o):
-        nome = re.sub(r"\s*[-–]\s*\d+\s*GB\s*$", "", o["nome_oferta"] or "",
-                      flags=re.I).strip().lower()
-        return (nome, o["produto"], o.get("franquia_anunciada_gb"),
-                o["preco_promocional"])
+        return (_nome_curto(o["nome_oferta"]), o["produto"],
+                o.get("franquia_anunciada_gb"), o["preco_promocional"])
 
     vistos, unicas = set(), []
     for o in saida["ofertas"]:
