@@ -74,6 +74,19 @@ COMBO = "https://www.tim.com.br/%s/internet/tim-ultracombo"
 # mercado que a propria operadora desmente na pagina ao lado.
 POS = "https://www.tim.com.br/%s/para-voce/planos/pos-pago"
 
+# A FIBRA TEM O MESMO PROBLEMA DO POS, e em dose maior: a pagina-hub
+# publica UM card de Ultrafibra e a pagina de produto tem a escada
+# inteira. Medido em 03/11/2026 em Sao Paulo: dez degraus, de 1GIGA a
+# R$ 99,99 ate 2GIGA a R$ 369,99. O balde da fibra da TIM tinha 1 oferta
+# onde a Claro tem 6 e a Vivo 9.
+#
+# E O FORMATO E UM TERCEIRO: nem o array do drupalSettings do hub, nem
+# o <tim-card-dynamic> do pos. Aqui a escada vem ESCAPADA dentro do
+# JSON, e cada degrau tem dois atributos proprios - data-ic-franquia
+# com a velocidade e data-ic-valor com o preco - num bloco que declara
+# em que UFs vale. Tres paginas da mesma operadora, tres formatos.
+FIBRA = "https://www.tim.com.br/%s/internet/tim-ultrafibra"
+
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "deezer"}
 APPS_CATALOGO = {"tim mais", "ampli", "babbel", "funcional", "leia", "skeelo",
@@ -373,6 +386,112 @@ def _degrau_no_nome(nome):
     return re.sub(r"[^a-z0-9]+", "_", base).strip("_") or None
 
 
+# O HTML da escada de fibra vem escapado: "\\u003Cp class=..." em vez de
+# "<p class=...". Desescapar e o primeiro passo da leitura.
+ESCAPES = (("u003C", "<"), ("u003E", ">"), ("u0022", chr(34)),
+           ("u0026quot;", chr(34)), ("/", "/"))
+DEGRAU_FIBRA = re.compile(
+    r"data-ic-franquia\s*>\s*([^<]{1,30}?)\s*</p>.{0,300}?"
+    r"data-ic-valor\s*>\s*R\$\s*([\d.]+,\d{2})")
+UFS_DO_BLOCO = re.compile(r'regionalization-toggle="([^"]*)"')
+
+
+def _desescapar(html):
+    barra = chr(92)
+    for de, para in ESCAPES:
+        html = html.replace(barra + de, para)
+    return re.sub(r"\s+", " ", html)
+
+
+def ler_escada_de_fibra(op, url, uf):
+    """Os degraus de fibra da pagina de produto, por UF.
+
+    CADA DEGRAU DECLARA EM QUE UFS VALE, e isso e lido: o card de
+    "600 Mega" a R$ 109,99 aparece em dois blocos, um para 17 UFs e
+    outro para 2, e o de 400 Mega a R$ 79,99 vale em uma so. Sem olhar
+    o bloco, a escada de Sao Paulo ganharia degraus que a TIM nao vende
+    ali - que e o defeito que _onde existe para nao cometer na mensagem.
+    """
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    d = _desescapar(h)
+    pares = list(DEGRAU_FIBRA.finditer(d))
+    if not pares:
+        return None, ("nenhum degrau de fibra na pagina - o formato "
+                      "mudou")
+
+    saida, vistos = [], set()
+    for m in pares:
+        franquia, preco = m.group(1), m.group(2)
+        # o bloco que vale e o ULTIMO toggle antes do degrau
+        ufs = ""
+        for mt in UFS_DO_BLOCO.finditer(d[:m.start()]):
+            ufs = mt.group(1)
+        lista = [x.strip() for x in ufs.split(",") if x.strip()]
+        if lista and uf.lower() not in lista:
+            continue
+        mbps_ = mbps(franquia)
+        valor = numero(preco)
+        if not mbps_ or valor is None:
+            continue
+        nome = "TIM Ultrafibra %s" % re.sub(r"\s+", " ", franquia).strip()
+        if (mbps_, valor) in vistos:
+            continue        # a pagina repete o degrau em mais de um bloco
+        vistos.add((mbps_, valor))
+        lista_apps = apps.apps_do_texto(franquia)
+        saida.append({
+            "nome_oferta": nome[:60],
+            "destaque": re.sub(r"\s+", " ", franquia).strip(),
+            "degrau_mbps": mbps_,
+            "franquia_anunciada_gb": None,
+            "franquia_contratual_gb": None,
+            "preco_promocional": valor,
+            "nivel_bundle": nivel_bundle(franquia),
+            "apps": lista_apps or None,
+            "apps_rotulo": apps.rotulo(lista_apps, franquia) or None,
+            "apps_planos": apps.planos_dos_apps(lista_apps, franquia),
+            "composicao": re.sub(r"\s+", " ", franquia).strip(),
+        })
+    if not saida:
+        return [], ("nenhum degrau de fibra para %s - a leitura nao "
+                    "reconheceu nada, e nao ha como afirmar que a TIM "
+                    "nao vende fibra nesta UF" % uf)
+
+    # O MESMO DEGRAU A DOIS PRECOS NAO VIRA UM PRECO ESCOLHIDO.
+    #
+    # Medido em 03/11/2026: em Recife a pagina publica "1GIGA" em dois
+    # blocos que ambos valem no PE, um a R$ 99,99 e outro a R$ 129,99 -
+    # a pagina nao diz qual e qual, e os dois caem na mesma chave de
+    # continuidade (TIM|fibra|1000mbps|simples). Em Sao Paulo isso nao
+    # acontece: os dez degraus sao distintos.
+    #
+    # Eleger um e publicar como o preco daquele degrau e o defeito que
+    # este projeto mais guarda - "eleger um representante do grupo e
+    # publicar o numero dele como fato". O degrau ambiguo SAI, e sai
+    # dito: o aviso nomeia o degrau e os dois precos, entao a ausencia
+    # dele na serie tem explicacao no mesmo documento.
+    por_degrau = {}
+    for o in saida:
+        k = (o["degrau_mbps"], tuple(sorted(o.get("apps") or ())))
+        por_degrau.setdefault(k, []).append(o)
+    limpas, ambiguos = [], []
+    for k, grupo in por_degrau.items():
+        precos = sorted(set(o["preco_promocional"] for o in grupo))
+        if len(precos) > 1:
+            ambiguos.append("%s Mbps a %s" % (
+                k[0], " e a ".join(("%.2f" % x).replace(".", ",")
+                                   for x in precos)))
+            continue
+        limpas.append(grupo[0])
+    if ambiguos:
+        return limpas, ("a pagina publica o mesmo degrau a dois precos em "
+                        "%s e nao diz qual vale (%s) - o degrau ficou fora "
+                        "em vez de sair com um dos dois"
+                        % (uf, "; ".join(sorted(ambiguos))))
+    return limpas, None
+
+
 def _do_card(bloco, padrao):
     m = re.search(padrao, bloco or "", re.S)
     return re.sub(r"\s+", " ", m.group(1)).strip() if m else None
@@ -537,6 +656,40 @@ def coletar(cidade, uf, verbose=True):
             novas += 1
         if verbose:
             print("  %-9s %d ofertas, %d novas" % ("pos-pago", len(pos), novas))
+    time.sleep(PAUSA)
+
+    # A ESCADA DE FIBRA, da pagina de produto. Mesma regra do pos: entra
+    # com o que a hub nao trouxe, e quando o degrau aparece nas duas a
+    # HUB MANDA. O 400 Mega a R$ 79,99 que a hub publica em Sao Paulo
+    # nao esta na escada de la - fica pelo hub, e a divergencia esta
+    # dita na metodologia em vez de resolvida a palpite.
+    # AVISO E OFERTA CONVIVEM AQUI, ao contrario dos outros leitores:
+    # quando a pagina publica um degrau ambiguo, ele sai e os outros
+    # ficam. Tratar o aviso como falha jogaria a escada inteira fora por
+    # causa de um degrau - foi o primeiro jeito que eu escrevi, e em
+    # Recife isso custava nove degraus para esconder um.
+    fibra, err = ler_escada_de_fibra(op, FIBRA % uf.lower(), uf)
+    if err:
+        saida["avisos"].append("fibra: %s" % err)
+        if verbose:
+            print("  %-9s aviso (%s)" % ("fibra", err[:60]))
+    if fibra:
+        ja = set((o.get("degrau_mbps"), o.get("preco_promocional"))
+                 for o in saida["ofertas"] if o.get("produto") == "fibra")
+        novas = 0
+        for o in fibra:
+            if (o["degrau_mbps"], o["preco_promocional"]) in ja:
+                continue
+            o.update({"operadora": "TIM", "produto": "fibra", "praca": praca,
+                      "pagina": "fibra",
+                      "capturado_em": agora.isoformat(),
+                      "preco_cheio": None,
+                      "codigo_anatel": None, "campanha": None})
+            saida["ofertas"].append(o)
+            novas += 1
+        if verbose:
+            print("  %-9s %d degraus, %d novos" % ("fibra", len(fibra),
+                                                   novas))
     time.sleep(PAUSA)
 
     # A pagina geral repete ofertas da pagina de controle, com nid diferente

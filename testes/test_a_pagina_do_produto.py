@@ -139,6 +139,133 @@ class ALeituraDaPaginaDeProduto(unittest.TestCase):
         self.assertIn("leitura falhou", erro)
 
 
+BARRA = chr(92)
+
+
+def degrau(franquia, preco, ufs="sp,rj,pe"):
+    """Um degrau da escada de fibra, na forma ESCAPADA que a TIM serve.
+
+    A escada mora dentro do JSON do Drupal, entao o HTML dela chega com
+    "\\u003Cp class=..." em vez de "<p class=...". Desescapar e o
+    primeiro passo da leitura, e a fixture tem de vir escapada para
+    medir esse passo.
+    """
+    cru = (
+        '<div regionalization-toggle="%s" >'
+        ' <p class="coh-heading" data-ic-franquia > %s </p>'
+        ' <p class="coh-heading title" data-ic-valor > R$ %s/mes </p>'
+        '</div>' % (ufs, franquia, preco))
+    return (cru.replace("<", BARRA + "u003C").replace(">", BARRA + "u003E")
+               .replace(chr(34), BARRA + "u0022"))
+
+
+class AEscadaDeFibraDaPaginaDeProduto(unittest.TestCase):
+    """A fibra da TIM tinha 1 degrau de 10, pela causa do pos-pago.
+
+    O hub publica UM card de Ultrafibra; a pagina de produto tem a
+    escada. Medido em 03/11/2026 em Sao Paulo: dez degraus, de 1GIGA a
+    R$ 99,99 ate 2GIGA a R$ 369,99. E o formato e um TERCEIRO - nem o
+    array do drupalSettings do hub, nem o <tim-card-dynamic> do pos.
+    """
+
+    def _pagina(self, html):
+        guarda = tim.buscar
+        tim.buscar = lambda op, url, **k: (200, html)
+        self.addCleanup(lambda: setattr(tim, "buscar", guarda))
+
+    def test_le_a_escada_do_html_escapado(self):
+        self._pagina(degrau("1GIGA", "99,99") + degrau("600 Mega", "109,99"))
+        lido, erro = tim.ler_escada_de_fibra(None, "http://x", "SP")
+        self.assertIsNone(erro, erro)
+        self.assertEqual(sorted((o["degrau_mbps"], o["preco_promocional"])
+                                for o in lido),
+                         [(600, 109.99), (1000, 99.99)])
+
+    def test_o_nome_sai_do_degrau(self):
+        self._pagina(degrau("800 MEGA Youtube Premium", "129,99"))
+        lido, _ = tim.ler_escada_de_fibra(None, "http://x", "SP")
+        self.assertEqual(lido[0]["nome_oferta"],
+                         "TIM Ultrafibra 800 MEGA Youtube Premium")
+        self.assertEqual(lido[0]["degrau_mbps"], 800)
+
+    def test_o_degrau_de_outra_uf_nao_entra(self):
+        """O card de 400 Mega a R$ 79,99 vale em uma UF so. Sem olhar o
+        bloco, a escada de Sao Paulo ganharia degrau que a TIM nao vende
+        ali."""
+        html = (degrau("1GIGA", "99,99", ufs="sp,pe")
+                + degrau("400 Mega", "79,99", ufs="mg"))
+        self._pagina(html)
+        lido, _ = tim.ler_escada_de_fibra(None, "http://x", "SP")
+        self.assertEqual([o["degrau_mbps"] for o in lido], [1000])
+        self._pagina(html)
+        lido, _ = tim.ler_escada_de_fibra(None, "http://x", "MG")
+        self.assertEqual([o["degrau_mbps"] for o in lido], [400])
+
+    def test_o_mesmo_degrau_a_dois_precos_sai_e_sai_dito(self):
+        """Medido em Recife em 03/11/2026: a pagina publica "1GIGA" em
+        dois blocos que ambos valem no PE, a R$ 99,99 e a R$ 129,99, e
+        nao diz qual vale. Eleger um e publicar como o preco do degrau e
+        o defeito que este projeto mais guarda."""
+        self._pagina(degrau("1GIGA", "99,99", ufs="pe")
+                     + degrau("1GIGA", "129,99", ufs="pe")
+                     + degrau("2GIGA", "369,99", ufs="pe"))
+        lido, erro = tim.ler_escada_de_fibra(None, "http://x", "PE")
+        self.assertEqual([o["degrau_mbps"] for o in lido], [2000],
+                         "o degrau ambiguo tem de sair")
+        self.assertIn("mesmo degrau a dois precos", erro)
+        self.assertIn("99,99", erro)
+        self.assertIn("129,99", erro)
+
+    def test_o_aviso_nao_derruba_a_escada_inteira(self):
+        """O primeiro jeito que eu escrevi tratava o aviso como falha, e
+        em Recife isso custava nove degraus para esconder um."""
+        self._pagina(degrau("1GIGA", "99,99", ufs="pe")
+                     + degrau("1GIGA", "129,99", ufs="pe")
+                     + degrau("600 Mega", "109,99", ufs="pe")
+                     + degrau("2GIGA", "369,99", ufs="pe"))
+        lido, erro = tim.ler_escada_de_fibra(None, "http://x", "PE")
+        self.assertTrue(erro)
+        self.assertEqual(len(lido), 2)
+
+    def test_o_coletor_guarda_os_degraus_limpos_apesar_do_aviso(self):
+        """TESTE DE PECA NAO PROVA MONTAGEM. A funcao devolve
+        (degraus, aviso) e quem decide o que fazer com os dois e
+        coletar() - o primeiro jeito que eu escrevi tratava o aviso como
+        falha e jogava a escada inteira fora, e em Recife isso custava
+        nove degraus para esconder um. Aqui roda coletar().
+        """
+        html = (degrau("1GIGA", "99,99", ufs="pe")
+                + degrau("1GIGA", "129,99", ufs="pe")
+                + degrau("600 Mega", "109,99", ufs="pe")
+                + degrau("2GIGA", "369,99", ufs="pe"))
+        guarda_b, guarda_p = tim.buscar, tim.PAUSA
+        tim.buscar = lambda op, url, **k: (200, html)
+        tim.PAUSA = 0
+        self.addCleanup(lambda: setattr(tim, "buscar", guarda_b))
+        self.addCleanup(lambda: setattr(tim, "PAUSA", guarda_p))
+        saida = tim.coletar("Recife", "PE", verbose=False)
+        fibra = sorted(o["degrau_mbps"] for o in saida["ofertas"]
+                       if o["produto"] == "fibra")
+        self.assertEqual(fibra, [600, 2000],
+                         "o aviso nao pode levar os degraus limpos junto")
+        self.assertTrue(any("dois precos" in a for a in saida["avisos"]))
+
+    def test_pagina_sem_degrau_devolve_erro(self):
+        self._pagina("<html>nada aqui</html>")
+        lido, erro = tim.ler_escada_de_fibra(None, "http://x", "SP")
+        self.assertIsNone(lido)
+        self.assertIn("formato", erro)
+
+    def test_o_degrau_repetido_no_mesmo_preco_nao_duplica(self):
+        """A pagina repete o degrau em mais de um bloco; repetido com o
+        MESMO preco nao e ambiguidade, e duplicata."""
+        self._pagina(degrau("1GIGA", "99,99", ufs="sp")
+                     + degrau("1GIGA", "99,99", ufs="sp,pe"))
+        lido, erro = tim.ler_escada_de_fibra(None, "http://x", "SP")
+        self.assertIsNone(erro)
+        self.assertEqual(len(lido), 1)
+
+
 class OQueOAltNaoConsegueAfirmar(unittest.TestCase):
     """O risco latente do alt, escrito com o que o mede.
 

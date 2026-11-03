@@ -221,6 +221,31 @@ MUTACOES = [
         '    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):\n',
         '    for r in ():\n',
         "Y9. a secao do contrato volta a negar a tabela de cima"),
+    Mutacao(
+        "coletores/tim.py",
+        '        if lista and uf.lower() not in lista:\n'
+        '            continue\n',
+        '',
+        "D6. a fibra de outra UF volta a entrar na praca"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '        if len(precos) > 1:\n',
+        '        if False:\n',
+        "D7. o degrau a dois precos volta a eleger um deles"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '    if fibra:\n',
+        '    if fibra and not err:\n',
+        "D8. um degrau ambiguo volta a derrubar a escada inteira"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '    d = _desescapar(h)\n',
+        '    d = h\n',
+        "D9. a escada volta a ser lida sem desescapar o HTML"),
+
     # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
     Mutacao(
         "coletores/unifique.py",
