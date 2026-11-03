@@ -221,6 +221,35 @@ MUTACOES = [
         '    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):\n',
         '    for r in ():\n',
         "Y9. a secao do contrato volta a negar a tabela de cima"),
+    # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
+    Mutacao(
+        "coletores/unifique.py",
+        '        if status == 404:\n'
+        '            err = "a Unifique nao atende %s/%s" % (cidade, uf)\n',
+        '        if status == 0:\n'
+        '            err = "a Unifique nao atende %s/%s" % (cidade, uf)\n',
+        "E2. o 404 deixa de ser \"nao atende\" e vira layout quebrado"),
+
+    Mutacao(
+        "coletores/unifique.py",
+        '        if status != 200:\n'
+        '            err = "HTTP %s ao ler %s/%s" % (status, cidade, uf)\n',
+        '        if False:\n'
+        '            err = "HTTP %s ao ler %s/%s" % (status, cidade, uf)\n',
+        "E3. erro de servidor volta a poder sair como ausencia"),
+
+    Mutacao(
+        "relatorio.py",
+        'BYTES_POR_LINHA = 1150\n',
+        'BYTES_POR_LINHA = 600\n',
+        "E4. a linha volta ao palpite de 600 bytes"),
+
+    Mutacao(
+        "robo.py",
+        'EXCECOES_QUE_CABEM = 4\n',
+        'EXCECOES_QUE_CABEM = 9\n',
+        "E5. a frase da excecao volta a caber nove cidades de fora"),
+
     # ============ O PICO DE UM DIA (03/11/2026) ============
     # A contratual do TIM Controle Smart foi de 5 para 15 GB em 10 das
     # 20 cidades em 30/10 e de 15 para 5 nas mesmas 10 em 31/10: a

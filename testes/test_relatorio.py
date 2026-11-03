@@ -264,6 +264,32 @@ class GerarOPdf(unittest.TestCase):
         d["total_ofertas"] = 1666
         self.assertIn("estourou", relatorio._linha_do_armazenamento(d))
 
+    def test_a_conversao_calibrada_fica_fixada(self):
+        """CALIBRADO EM 03/11/2026, e o numero dobrou: era 600 bytes por
+        linha, escolhido como meio-termo entre os 700 B do JSON
+        exportado e um palpite de que a linha do Postgres seria mais
+        compacta. Ela nao e - o bruto jsonb guarda a oferta inteira e as
+        colunas tipadas repetem metade dela por fora.
+
+        Medido somando o que a linha carrega: as 21 ofertas que o
+        coletor da TIM devolveu naquele dia dao mediana de 922 B; a
+        mesma conta sobre 4.009 das 56.117 linhas publicadas da media de
+        1.160 B. Ficou a mais alta, porque subestimar aqui e o erro que
+        faz o banco encher sem aviso.
+
+        O teste existe para a constante nao voltar ao palpite sem que
+        alguem refaca a conta: com 600 B o relatorio anunciava cerca de
+        500 dias de sobra, e com 1.150 ele anuncia cerca de 250.
+        """
+        self.assertEqual(relatorio.BYTES_POR_LINHA, 1150)
+        d = dict(DIA_CHEIO, linhas_no_banco=56117, total_ofertas=1620)
+        txt = relatorio._linha_do_armazenamento(d)
+        self.assertIn("1150 bytes por linha", txt)
+        # 500 MB a 1.150 B cabem ~456 mil linhas; a ~1.620 por dia, a
+        # sobra e de uns 8 meses, e nao de uns 16
+        self.assertIn("meses", txt)
+        self.assertNotIn("16 meses", txt)
+
     def test_a_conversao_para_mb_fica_declarada(self):
         """A contagem e exata; a conversao e estimada. Misturar as duas
         sem dizer qual e qual e o jeito de uma estimativa virar fato."""

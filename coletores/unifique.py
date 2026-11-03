@@ -16,11 +16,21 @@ A INVESTIGACAO DE 30/09/2026 TINHA PROCURADO A FORMA ERRADA. Ela testou
 ignoradas, e concluiu que so restava simular o clique. A rota existia o
 tempo todo, pendurada no caminho do PRODUTO e nao num caminho de cidade.
 
-O NAVEGADOR CONTINUA AQUI, de proposito. Ele nao e mais necessario para
-ESCOLHER a cidade - a URL faz isso -, mas a leitura roda em cima do
-texto renderizado, e trocar isso por HTML cru mudaria o que se le. O que
-saiu foi a coreografia: abrir o seletor, achar o campo de busca, digitar
-e clicar no resultado certo. Era o trecho mais fragil do projeto.
+O NAVEGADOR SAIU EM 03/11/2026, e a medicao foi esta: o HTML cru das
+quatro pracas que a Unifique atende, passado pela MESMA funcao
+extrair(), devolve exatamente as ofertas que o caminho com Chromium
+publicou no mesmo dia - velocidade e preco iguais nas quatro, zero
+diferenca. A versao anterior deste comentario dizia que trocar o texto
+renderizado por HTML cru "mudaria o que se le"; nao muda.
+
+Antes dele tinha saido a coreografia - abrir o seletor, achar o campo de
+busca, digitar e clicar no resultado certo -, que era o trecho mais
+fragil do projeto. Agora sai o navegador inteiro: a coleta da Unifique
+deixa de ser a mais lenta das nove e deixa de depender de layout
+renderizado.
+
+O PLAYWRIGHT CONTINUA NO WORKFLOW, porque claro_flex e nucel ainda
+precisam dele. O que esta coleta ganha e nao abrir browser nenhum.
 
 E ERA TAMBEM O QUE ESCONDIA FLORIANOPOLIS. O casamento do botao era
 sensivel a acento - "Florianopolis" nunca casa com "Florianopolis - SC"
@@ -41,11 +51,15 @@ import json
 import re
 import sys
 import unicodedata
+import urllib.error
+import urllib.request
 from . import apps
 from datetime import datetime, timedelta, timezone
 
 PAGINA = "https://unifique.com.br/para-voce/internet-fibra"
-ESPERA = 2000
+
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/129.0 Safari/537.36")
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "deezer"}
@@ -113,6 +127,34 @@ def extrair(texto):
     return unicas
 
 
+def buscar(url):
+    """A rota da cidade, em texto. Devolve (status, texto).
+
+    O status importa: 404 e a Unifique NAO ATENDER a cidade, que e
+    informacao, e nao falha. Era o navegador que lia isso antes.
+    """
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA, "Accept-Language": "pt-BR,pt;q=0.9"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            bruto = r.read().decode("utf-8", "replace")
+            status = r.status
+    except urllib.error.HTTPError as e:
+        return e.code, ""
+    except Exception as e:
+        return 0, str(e)
+    # O TEXTO NO LUGAR DO RENDERIZADO. extrair() le texto corrido, e era
+    # o inner_text do body que o alimentava; aqui o mesmo texto sai do
+    # HTML servido. As tags viram espaco - sem isto "500" e "Mega"
+    # colariam em "500Mega" ou grudariam no numero do card vizinho.
+    t = re.sub(r"<script.*?</script>", " ", bruto, flags=re.S)
+    t = re.sub(r"<style.*?</style>", " ", t, flags=re.S)
+    t = re.sub(r"<br\s*/?>", " ", t)
+    t = re.sub(r"<[^>]+>", " ", t)
+    t = t.replace("&nbsp;", " ").replace("&amp;", "&")
+    return status, re.sub(r"[ \t]+", " ", t)
+
+
 def sem_acento(s):
     return "".join(c for c in unicodedata.normalize("NFD", s or "")
                    if unicodedata.category(c) != "Mn")
@@ -130,6 +172,13 @@ def rota_da_cidade(cidade, uf):
 
 
 def coletar(cidade, uf, verbose=True, pagina=None):
+    """As ofertas de fibra da cidade, lidas do HTML servido.
+
+    O parametro "pagina" sobreviveu a saida do navegador e e IGNORADO:
+    ele existia para reaproveitar uma aba do playwright entre pracas.
+    Fica na assinatura porque main() e quem chama de fora passam por
+    nome, e tirar agora quebraria a chamada sem ganho nenhum.
+    """
     agora = datetime.now(timezone(timedelta(hours=-3)))
     praca = "%s/%s" % (cidade, uf)
     saida = {"operadora": "Unifique", "praca": praca,
@@ -141,36 +190,22 @@ def coletar(cidade, uf, verbose=True, pagina=None):
         print("=" * 70)
 
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        saida["avisos"].append(
-            "playwright nao instalado - a Unifique exige navegador "
-            "(pip install playwright && playwright install chromium)")
-        return saida
-
-    proprio = pagina is None
-    contexto = nav = p = None
-    try:
-        if proprio:
-            p = sync_playwright().start()
-            nav = p.chromium.launch(headless=True)
-            contexto = nav.new_context(locale="pt-BR")
-            pagina = contexto.new_page()
-
         # A ROTA DA CIDADE responde 404 quando a Unifique nao atende, e
         # isso e melhor sinal do que "nao achei o botao": separa
         # ausencia real de layout quebrado, sem depender de nada na tela.
-        resposta = pagina.goto(rota_da_cidade(cidade, uf),
-                               wait_until="domcontentloaded", timeout=60000)
-        if resposta is not None and resposta.status == 404:
+        status, texto = buscar(rota_da_cidade(cidade, uf))
+        if status == 404:
             err = "a Unifique nao atende %s/%s" % (cidade, uf)
             saida["avisos"].append(err)
             if verbose:
                 print("  %s" % err)
             return saida
-        pagina.wait_for_timeout(ESPERA)
-
-        texto = pagina.inner_text("body")
+        if status != 200:
+            err = "HTTP %s ao ler %s/%s" % (status, cidade, uf)
+            saida["avisos"].append(err)
+            if verbose:
+                print("  %s" % err)
+            return saida
         # SEM ACENTO DOS DOIS LADOS. A cesta guarda "Florianopolis" e a
         # pagina escreve "Florianopolis" com acento: comparar cru faz a
         # confirmacao falhar justamente nas cidades acentuadas.
@@ -207,20 +242,9 @@ def coletar(cidade, uf, verbose=True, pagina=None):
         if verbose:
             print("  fibra  %d ofertas" % len(saida["ofertas"]))
     except Exception as e:
-        saida["avisos"].append("navegador: %s" % str(e)[:140])
+        saida["avisos"].append("leitura: %s" % str(e)[:140])
         if verbose:
             print("  ERRO: %s" % str(e)[:140])
-    finally:
-        if proprio:
-            for fechar in (contexto, nav):
-                try:
-                    fechar and fechar.close()
-                except Exception:
-                    pass
-            try:
-                p and p.stop()
-            except Exception:
-                pass
     return saida
 
 

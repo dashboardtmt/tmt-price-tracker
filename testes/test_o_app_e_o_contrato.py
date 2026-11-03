@@ -656,5 +656,45 @@ class OQueDerrubariaOPdf(unittest.TestCase):
                 self.assertNotRegex(str(l.get(campo) or ""), r"[<>&]")
 
 
+class OLimiteDeExcecoesQueCabemNaFrase(unittest.TestCase):
+    """EXCECOES_QUE_CABEM = 4, e ate 03/11/2026 nenhum teste olhava.
+
+    A constante decide quando a frase nomeia o complemento - "em 19 das
+    20 cidades, ex-Rio de Janeiro" - e quando ela volta a nomear onde o
+    movimento aconteceu. Com a regra honesta de 30/10, a forma nao
+    aparece em nenhum dos 30 dias publicados, e e justamente por isso
+    que ela precisa de teste: comportamento que o dado nao exercita so
+    tem a suite para segurar.
+    """
+
+    def _onde(self, mexeram, paradas):
+        return robo._onde(mexeram, len(mexeram) + len(paradas),
+                          paradas=paradas)
+
+    def test_quatro_cidades_de_fora_ainda_cabem(self):
+        mexeram = ["A/AA", "B/BB", "C/CC", "D/DD", "E/EE"]
+        paradas = ["X/XX", "Y/YY", "Z/ZZ", "W/WW"]
+        frase = self._onde(mexeram, paradas)
+        self.assertIn("em 5 das 9 cidades, ex-", frase)
+        for nome in ("W", "X", "Y", "Z"):
+            self.assertIn(nome, frase)
+
+    def test_cinco_nao_cabem_e_a_frase_volta_a_nomear_quem_mexeu(self):
+        mexeram = ["A/AA", "B/BB", "C/CC", "D/DD", "E/EE", "F/FF"]
+        paradas = ["V/VV", "X/XX", "Y/YY", "Z/ZZ", "W/WW"]
+        frase = self._onde(mexeram, paradas)
+        self.assertNotIn("ex-", frase)
+        self.assertIn("em 6 de 11", frase)
+
+    def test_e_a_excecao_nao_pode_ser_maioria(self):
+        """Duas cidades mexendo e tres paradas: "em 2 das 5, ex-tres
+        nomes" e mais longo e mais confuso do que dizer as duas."""
+        frase = self._onde(["A/AA", "B/BB"], ["X/XX", "Y/YY", "Z/ZZ"])
+        self.assertNotIn("ex-", frase)
+
+    def test_a_constante_e_a_medida(self):
+        self.assertEqual(robo.EXCECOES_QUE_CABEM, 4)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

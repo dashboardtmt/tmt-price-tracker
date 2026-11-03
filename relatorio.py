@@ -671,12 +671,33 @@ def _avisos_da_coleta(d):
 # Plano gratuito do Supabase. E o unico numero DURO desta conta.
 TETO_BANCO_MB = 500
 
-# Estimativa de bytes por linha, com indice. O JSON exportado da 700 B
-# por linha; no Postgres a linha e mais compacta e o indice unico de
-# sete colunas cobra por fora. 600 B e o meio-termo, e esta aqui
-# NOMEADO para poder ser corrigido com uma medicao - o tamanho real sai
-# do painel do Supabase, que este codigo nao alcanca.
-BYTES_POR_LINHA = 600
+# Bytes por linha, com indices. CALIBRADO EM 03/11/2026, e o numero
+# dobrou: era 600, escolhido como "meio-termo" entre os 700 B do JSON
+# exportado e um palpite de que a linha do Postgres seria mais
+# compacta. Ela nao e - o bruto jsonb guarda a oferta INTEIRA, e as
+# colunas tipadas repetem metade dela por fora.
+#
+# A conta, que nao precisa do painel do Supabase e e reproduzivel:
+#
+#   cabecalho da linha      24 + 8 de bitmap e alinhamento
+#   id, datas               8 + 8 + 8 + 4
+#   colunas text            1 + tamanho, por coluna preenchida
+#   int4 / numeric / int2   4 / 8 / 2, por coluna preenchida
+#   text[]                  20 + os elementos
+#   bruto jsonb             o JSON compacto + 4 por par chave/valor
+#   tres indices            16 + as colunas da chave, cada um
+#
+# Medido assim em 03/11/2026: as 21 ofertas que o coletor da TIM
+# devolveu naquele dia dao mediana de 922 B e media de 940 B, com o
+# bruto sozinho em 692 B; a MESMA conta sobre 4.009 das 56.117 linhas
+# publicadas da media de 1.160 B - mais alta porque a Vivo, que e 60%
+# da base, carrega SVA e dados de regulamento que a TIM nao tem.
+#
+# FICA A MAIS ALTA DAS DUAS. Subestimar aqui e o erro que faz o banco
+# encher sem aviso e o dia se perder, que e o motivo desta linha existir
+# no relatorio. Com 600 B a sobra anunciada era de cerca de 500 dias;
+# com 1.150 ela e de cerca de 250 - e nenhum dado mudou, so a conta.
+BYTES_POR_LINHA = 1150
 
 
 def _linha_do_armazenamento(d):
