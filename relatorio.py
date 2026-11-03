@@ -415,7 +415,12 @@ def _bloco_contratuais(d):
             c.get("texto_entrega") or "—",
             "%s GB" % c.get("antes_contratual"),
             "%s GB" % c.get("agora_contratual"),
-            _pc(c.get("antes_contratual"), c.get("agora_contratual")),
+            # NA REVERSAO O PERCENTUAL E RUIDO: um "-67%" sobre o
+            # desfazer de um "+200%" de ontem soa como reposicionamento.
+            # Os dois numeros continuam nas colunas ao lado, entao nada
+            # fica escondido - o que muda e o que a coluna AFIRMA.
+            ("voltou em 24h" if c.get("reverteu")
+             else _pc(c.get("antes_contratual"), c.get("agora_contratual"))),
             _pracas(c),
         ])
 

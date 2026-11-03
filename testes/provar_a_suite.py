@@ -194,7 +194,7 @@ MUTACOES = [
     Mutacao(
         "robo.py",
         '        ident = (atual["operadora"], atual["produto"], atual["chave"],\n'
-        '                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd)\n',
+        '                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd,\n',
         '        ident = (atual["operadora"], atual["produto"],\n'
         '                 (atual.get("nome_oferta") or "").lower(), ka, kd)\n',
         "Y6. dois degraus do mesmo nome voltam a virar um evento so"),
@@ -221,6 +221,47 @@ MUTACOES = [
         '    for r in (d.get("remodeladas") or []) + (d.get("leitura") or []):\n',
         '    for r in ():\n',
         "Y9. a secao do contrato volta a negar a tabela de cima"),
+    # ============ O PICO DE UM DIA (03/11/2026) ============
+    # A contratual do TIM Controle Smart foi de 5 para 15 GB em 10 das
+    # 20 cidades em 30/10 e de 15 para 5 nas mesmas 10 em 31/10: a
+    # mensagem publicou "+200%" num dia e "-67%" no outro sobre uma
+    # piscada. Medido por campo: 13 casos em 2 dias na contratual, e
+    # ZERO em preco, franquia anunciada, Mbps e apps.
+    Mutacao(
+        "robo.py",
+        '        if reverteu:\n'
+        '            texto = ("a franquia contratual voltou aos %s GB em 24 horas"\n'
+        '                     % kd)\n',
+        '',
+        "D1. o desfazer volta a sair como percentual novo"),
+
+    Mutacao(
+        "robo.py",
+        '        reverteu = bool(velhos) and len(velhos) == 1 and kd in velhos\n',
+        '        reverteu = bool(velhos) and kd in velhos\n',
+        "D2. nome repetido volta a poder afirmar reversao"),
+
+    Mutacao(
+        "robo.py",
+        '                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd,\n',
+        '                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd,\n'
+        '                 0 *',
+        "D3. a reversao sai do ident e os dois casos do dia colapsam"),
+
+    Mutacao(
+        "robo.py",
+        '              "preco_promocional,franquia_anunciada_gb,degrau_mbps,"\n'
+        '              "franquia_contratual_gb")\n',
+        '              "preco_promocional,franquia_anunciada_gb,degrau_mbps")\n',
+        "D4. a contratual sai do select e a reversao morre em producao"),
+
+    Mutacao(
+        "relatorio.py",
+        '            ("voltou em 24h" if c.get("reverteu")\n'
+        '             else _pc(c.get("antes_contratual"), c.get("agora_contratual"))),\n',
+        '            _pc(c.get("antes_contratual"), c.get("agora_contratual")),\n',
+        "D5. a coluna da variacao volta a afirmar percentual na reversao"),
+
     # ============== A OFERTA QUE SAI DA VITRINE (03/11/2026) ==============
     # Em 01/11 a Vivo Lite Anual II e a Mensal II sairam das 20 pracas e
     # a mensagem disse "nenhuma mudanca". Ausencia era a unica mudanca de
@@ -343,8 +384,8 @@ MUTACOES = [
     # leitor nenhum ate 30/10/2026.
     Mutacao(
         "robo.py",
-        '    achados = {}\n    for k, antes in o.items():\n',
-        '    return []\n    achados = {}\n    for k, antes in o.items():\n',
+        '    achados = {}\n    for k, ontem_l in o.items():\n',
+        '    return []\n    achados = {}\n    for k, ontem_l in o.items():\n',
         "X12. o movimento de contrato volta a nao ser detectado"),
 
     Mutacao(

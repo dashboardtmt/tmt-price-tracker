@@ -381,8 +381,13 @@ def _capturas_para_o_vigia(hoje):
     """
     desde = (datetime.fromisoformat(hoje).date()
              - timedelta(days=DIAS_DE_REFERENCIA)).isoformat()
+    # A CONTRATUAL ENTRA AQUI desde 03/11/2026, para o detector dela
+    # poder olhar anteontem e reconhecer pico de um dia. Sao duas
+    # colunas numericas da propria tabela - nao mexe no bruto, que e a
+    # parte pesada e e o que este select evita.
     campos = ("data_captura,operadora,produto,praca,chave,nome_oferta,"
-              "preco_promocional,franquia_anunciada_gb,degrau_mbps")
+              "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
+              "franquia_contratual_gb")
     linhas, erro = armazenamento.consultar_tudo(
         "capturas?data_captura=gte.%s&data_captura=lte.%s&select=%s"
         "&order=data_captura.asc" % (desde, hoje, campos))
@@ -887,16 +892,21 @@ def mudancas(hoje, ontem):
     # 20" sobre uma lista que agora tem 20. A funcao e idempotente: ela
     # recalcula universo e onde a partir de "pracas", e a primeira
     # chamada existe porque a separacao precisa do universo antes.
-    contratuais = _contratual_mudou(h, o) if o else []
-
-    # A SAIDA NAO SAI DO INDICE, e sim das capturas cruas: _indexar
-    # descarta o par indistinguivel, e oferta descartada apareceria como
-    # saida todo dia. A janela de oito dias e a mesma que o vigia usa, e
-    # vem de uma consulta so - montar_mensagem reaproveita o que esta
-    # aqui, em vez de pedir de novo.
+    # A JANELA CRUA, que dois detectores usam: a saida precisa das
+    # capturas que o indice descarta, e a contratual precisa de
+    # anteontem para reconhecer pico de um dia. Uma consulta so - e
+    # montar_mensagem reaproveita o que esta aqui, em vez de pedir de
+    # novo.
+    #
+    # A SAIDA NAO SAI DO INDICE de proposito: _indexar descarta o par
+    # indistinguivel, e oferta descartada apareceria como saida todo dia.
     do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
     saidas = (_ofertas_que_sairam(do_dia, antes, ontem)
               if not erro_vigia else [])
+
+    contratuais = (_contratual_mudou(h, o, antes if not erro_vigia else None,
+                                     ontem)
+                   if o else [])
 
     _assinar_alcance(h, o, precos, composicao, renomeadas, grades, voltaram,
                      remodeladas, leitura, duvidosa, contratuais)
@@ -1677,7 +1687,33 @@ def _oferta_remodelada(h, o, usadas=()):
     return list(achados.values())
 
 
-def _contratual_mudou(h, o):
+def _contratual_de_anteontem(antes, ontem):
+    """O valor do contrato dois dias atras, por identidade VISIVEL.
+
+    A chave de continuidade nao serve aqui: ela carrega a lista de apps,
+    e no caso que motivou isto a lista mudou no mesmo dia. A identidade
+    que atravessa e a que o leitor ve - operadora, produto, praca e
+    nome.
+
+    DEVOLVE CONJUNTO, E NAO VALOR. Duas ofertas podem dividir o nome:
+    quatro planos "Vivo Pre" tem o mesmo nome e contratos diferentes.
+    Elegendo um representante, a resposta dependeria da ordem em que o
+    banco devolvesse as linhas - e foi assim que a primeira medicao
+    desta reversao achou 20 casos de preco que nao existem. Com mais de
+    um valor, nao se afirma nada.
+    """
+    dias = sorted(d for d in (antes or {}) if d < ontem)
+    if not dias:
+        return {}
+    valores = collections.defaultdict(set)
+    for l in antes[dias[-1]]:
+        valores[(l.get("operadora"), l.get("produto"), l.get("praca"),
+                 (l.get("nome_oferta") or "").lower())].add(
+                     l.get("franquia_contratual_gb"))
+    return valores
+
+
+def _contratual_mudou(h, o, antes=None, ontem=None):
     """A franquia do CONTRATO mexeu numa oferta que seguiu a mesma.
 
     O QUE NINGUEM VIA. A chave de continuidade e
@@ -1708,19 +1744,35 @@ def _contratual_mudou(h, o):
     quando NAO se mexeu, onde ele e o contraste - mesmo preco, menos
     contrato - e nenhum outro bloco o diz.
     """
+    anteontem = _contratual_de_anteontem(antes, ontem) if ontem else {}
     achados = {}
-    for k, antes in o.items():
+    for k, ontem_l in o.items():
         atual = h.get(k)
         if atual is None:
             continue
-        texto = _texto_contratual(antes.get("franquia_contratual_gb"),
+        texto = _texto_contratual(ontem_l.get("franquia_contratual_gb"),
                                   atual.get("franquia_contratual_gb"))
         if not texto:
             continue
-        ka = antes.get("franquia_contratual_gb")
+        ka = ontem_l.get("franquia_contratual_gb")
         kd = atual.get("franquia_contratual_gb")
-        pa = antes.get("preco_promocional")
+        pa = ontem_l.get("preco_promocional")
         pd = atual.get("preco_promocional")
+        # PICO DE UM DIA NAO E DUAS NOTICIAS. Em 30/10/2026 a contratual
+        # do TIM Controle Smart foi de 5 para 15 GB em 10 das 20
+        # cidades, e em 31/10 de 15 para 5 nas mesmas 10: a mensagem
+        # publicou "+200%" num dia e "-67%" no outro sobre uma piscada.
+        # Quando o valor de hoje e o de anteontem e o de ontem e outro,
+        # o fato nao e um movimento novo - e o desfazer do de ontem, e a
+        # frase diz isso em vez de um percentual que soa como
+        # reposicionamento.
+        velhos = anteontem.get((atual.get("operadora"), atual.get("produto"),
+                                atual.get("praca"),
+                                (atual.get("nome_oferta") or "").lower()))
+        reverteu = bool(velhos) and len(velhos) == 1 and kd in velhos
+        if reverteu:
+            texto = ("a franquia contratual voltou aos %s GB em 24 horas"
+                     % kd)
         preco_mudou = None not in (pa, pd) and pa != pd
         # A CHAVE E OS DOIS PRECOS ENTRAM NO IDENT. Sem a chave, dois
         # degraus com o MESMO nome - "Vivo Controle" de 50 GB e de 100
@@ -1735,19 +1787,24 @@ def _contratual_mudou(h, o):
         # outros seis detectores carregam a chave no ident; este era o
         # unico que nao.
         ident = (atual["operadora"], atual["produto"], atual["chave"],
-                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd)
+                 (atual.get("nome_oferta") or "").lower(), ka, kd, pa, pd,
+                 # a reversao entra no ident: num dia em que metade das
+                 # pracas desfez e a outra metade mexeu pela primeira
+                 # vez, um evento so diria a frase errada para metade
+                 reverteu)
         d = achados.setdefault(ident, {
             "operadora": atual["operadora"], "produto": atual["produto"],
             "nome": atual.get("nome_oferta"),
             "antes_contratual": ka, "agora_contratual": kd,
-            "contratual_texto": texto,
+            "contratual_texto": texto, "reverteu": reverteu,
             "unidade": _unidade(atual),
-            "texto_entrega": _texto_entrega(_entrega(antes), _entrega(atual),
+            "texto_entrega": _texto_entrega(_entrega(ontem_l),
+                                            _entrega(atual),
                                             _unidade(atual), False),
             # o preco so quando ficou parado; mudou, o bloco dele conta
             "texto_preco": (None if preco_mudou
                             else _texto_preco(pa, pd, False)),
-            "atual": atual, "antes": antes, "pracas": []})
+            "atual": atual, "antes": ontem_l, "pracas": []})
         if atual["praca"] not in d["pracas"]:
             d["pracas"].append(atual["praca"])
     return list(achados.values())
