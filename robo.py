@@ -948,6 +948,16 @@ LEITURA_MUDOU_EM = {
                   "lista de apps, e não do nome — que carregava a safra "
                   "do mês e morria na virada; e o nível de bundle passou "
                   "a sair da lista de apps, e não só do texto do card",
+    # tres ofertas trocam de versao da chave neste dia, medido no
+    # caminho de producao em Sao Paulo: Vivo Pre 25 GB (R$ 35) de
+    # com_vale_saude para com_google_one_vale_saude, e as duas Claro
+    # Pos de cima (R$ 239,90 e R$ 339,90) de com_apps para
+    # com_google_one. O degrau e da NOSSA leitura: o servico novo da
+    # Vivo e de 03/11, e a assinatura SVA do regulamento nem se mexeu.
+    "2026-11-04": "a leitura passou a nomear o Google One, que a "
+                  "vitrine cita e a régua não tinha; e serviço oferecido "
+                  "à ESCOLHA (Google One ou iCloud+, na Claro) deixou "
+                  "de entrar na lista como se fosse incluso",
 }
 
 

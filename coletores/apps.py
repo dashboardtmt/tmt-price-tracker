@@ -141,6 +141,20 @@ APPS = {
                "evidencia": "app de catalogo"},
     "claro_musica": {"nome": "Claro Música", "preco_avulso": None, "fonte": None, "conferido_em": None,
                      "evidencia": "servico da propria Claro"},
+    # ARMAZENAMENTO EM NUVEM, e nao streaming: nao sobe nivel de bundle.
+    # Entrou porque a Vivo pos o Google One na recarga de R$ 35 do pre em
+    # 03/11/2026 e a vitrine escreve "Armazenamento extra com Google One"
+    # no card - o nome faltava na regua, nao na fonte.
+    "google_one": {"nome": "Google One", "preco_avulso": None,
+                   "fonte": "https://one.google.com/about/plans",
+                   "conferido_em": "2026-11-04",
+                   "evidencia": "tres planos pagos: Lite (30 GB) "
+                                "R$ 4,50, Basic (100 GB) R$ 9,99 e AI "
+                                "Pro (5 TB) R$ 96,99, mais o AI Plus "
+                                "com 400 GB. O card da Vivo "
+                                "escreve so \"Google One\", entao "
+                                "nenhum dos tres precos vale para a "
+                                "oferta - o preco pertence ao tier"},
 }
 
 # O tier de cada app, e o preco avulso DAQUELE tier quando conferido.
@@ -169,6 +183,22 @@ TIERS = {
     "youtube": (
         ("Lite", 16.90),
         ("Premium", None),
+    ),
+    # A Vivo diz "Google One Lite" na pagina e so "Google One" no card.
+    # Com os tiers aqui, card sem tier sai sem preco - que e o que a
+    # operadora de fato disse. A janela de tier_do_texto comeca DEPOIS
+    # do nome do app, entao "Vivo Lite ... Google One" nao vira tier
+    # Lite por acidente: o "lite" tem de vir depois da marca.
+    "google_one": (
+        ("AI Pro", 96.99),
+        # o tier que a Claro declara nos dois planos de cima:
+        # "Google one (AI Plus) e iCloud+". Preco None porque a
+        # pagina de planos de IA do Google nao o entrega a
+        # leitura automatica - tier sem preco conferido mostra o
+        # tier e nao mostra preco.
+        ("AI Plus", None),
+        ("Basic", 9.99),
+        ("Lite", 4.50),
     ),
     # A Vivo registra "SPOTIFY PREMIUM" na Anatel. O Premium tem quatro
     # assinaturas (Individual, Duo, Familia, Universitario) e um plano de
@@ -353,6 +383,10 @@ DO_TEXTO = (
     (r"\bexa\b", "exa"),
     (r"\bgoread\b", "goread"),
     (r"claro\s*m[úu]sica", "claro_musica"),
+    # "GOOGLE ONE", E NAO "GOOGLE" SOLTO. Texto de vitrine vem com
+    # googletagmanager, Google Play e Google Fotos em volta; "one"
+    # colado a marca e o que nomeia o produto assinado.
+    (r"google\s*one", "google_one"),
 )
 
 
@@ -371,6 +405,21 @@ DEGUSTACAO = re.compile(
 # frase de vitrine cabe nisso; dois paragrafos, nao - e ai a janela
 # comecaria a pegar oferta vizinha.
 JANELA = 110
+
+# ESCOLHA EXCLUSIVA: "Google One ou iCloud+". O cliente leva UM dos
+# dois, e nomear um deles afirma o que a fonte nao diz. Medido na
+# pagina de planos da Claro em 04/11/2026: os cards de R$ 124,90 e
+# R$ 179,90 dizem "Armazenamento na nuvem: Google One ou iCloud+", e
+# os de R$ 239,90 e R$ 339,90 dizem "Google one (AI Plus) e iCloud+"
+# - a mesma pagina usa as duas conjuncoes, e elas dizem coisas
+# diferentes. Com "e" os dois entram; com "ou" nenhum entra, e a
+# lista fica sem o servico como ja ficava antes desta regra.
+#
+# A ADJACENCIA E O QUE VALE: o "ou" tem de estar colado ao nome do
+# app. O trecho da frente ja vem cortado no ponto e no ponto-e-virgula,
+# entao "Google One. Ou ligue para" nao casa.
+ESCOLHA = re.compile(r"^\W{0,3}(?:ou|/)\s", re.I)
+ESCOLHA_ATRAS = re.compile(r"(?:\bou\b|/)\W{0,3}$", re.I)
 
 # DE QUEM E A DEGUSTACAO, quando a propria frase diz. "12 meses gratis
 # DE Gemini" declara o sujeito logo depois da marca; "3 meses por conta
@@ -741,6 +790,10 @@ def apps_do_texto(texto, limite=None):
         marcas += [(fim + m.start(), fim + m.end())
                    for m in DEGUSTACAO.finditer(trecho)]
         if any(not _degustacao_de_outro(t, a, b, app) for a, b in marcas):
+            continue
+        # ESCOLHA EXCLUSIVA NAO E INCLUSAO, e a adjacencia e o que a
+        # distingue de um "ou" de outra frase.
+        if ESCOLHA.match(trecho) or ESCOLHA_ATRAS.search(t[atras:ini]):
             continue
         achados.append(app)
     return [] if len(achados) > limite else achados

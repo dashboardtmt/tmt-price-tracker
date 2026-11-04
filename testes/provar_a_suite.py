@@ -245,6 +245,31 @@ MUTACOES = [
         '    d = _desescapar(h)\n',
         '    d = h\n',
         "D9. a escada volta a ser lida sem desescapar o HTML"),
+    Mutacao(
+        "coletores/apps.py",
+        '    (r"google\\s*one", "google_one"),\n',
+        '',
+        "Gb1. o Google One perde o nome e a vitrine da Vivo volta a nao ser lida"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '    (r"google\\s*one", "google_one"),\n',
+        '    (r"google", "google_one"),\n',
+        "Gb2. o padrao afrouxa e googletagmanager vira app incluso"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        if ESCOLHA.match(trecho) or ESCOLHA_ATRAS.search(t[atras:ini]):\n'
+        '            continue\n',
+        '',
+        "Gb3. a escolha exclusiva volta a entrar na lista como inclusao"),
+
+    Mutacao(
+        "coletores/apps.py",
+        '        ("AI Plus", None),\n',
+        '',
+        "Gb4. o tier AI Plus sai e a Claro perde o plano que declara"),
+
 
     # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
     Mutacao(
