@@ -412,6 +412,18 @@ MUTACOES = [
         '    recusadas = []',
         "Ad5. a secao da conferencia desaparece e a mensagem manda ler o que nao existe"),
 
+    Mutacao(
+        "ferramentas/ensaio_da_coleta.py",
+        '    if tudo or d["cruas"][0] != d["cruas"][1]:',
+        '    if False:',
+        "Eb5. o replay infiel volta a passar por comparacao valida"),
+
+    Mutacao(
+        "ferramentas/ensaio_da_coleta.py",
+        '        marca = hashlib.sha1(corpo).hexdigest()',
+        '        marca = ""',
+        "Eb6. a chave da chamada volta a ignorar o corpo do POST"),
+
 
     # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
     Mutacao(

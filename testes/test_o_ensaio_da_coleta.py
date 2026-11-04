@@ -163,6 +163,75 @@ class AIdentidadeRepetida(unittest.TestCase):
         self.assertEqual(d["lidas"], (1, 1))
 
 
+class AChaveDaChamada(unittest.TestCase):
+    """DOIS POST NA MESMA URL SAO DUAS CHAMADAS. A Brisanet faz varios
+    POST de GraphQL em produtos.brisanet.net.br, e os corpos comecam
+    identicos: "query($cityId: ID)...". Com a chave olhando so o
+    comeco do corpo, um sobrescrevia o outro na gravacao e a releitura
+    devolvia a mesma resposta para todos - 4 ofertas desapareciam."""
+
+    def test_corpos_diferentes_dao_chaves_diferentes(self):
+        url = "https://produtos.brisanet.net.br/api/graphql"
+        comum = b'{"query": "query($cityId: ID) { plans(cityId: $cityId) '
+        a = ensaio._chave("brisanet", "_http", (url,),
+                          {"dados": comum + b'{ id } }", "id": 11}'})
+        b = ensaio._chave("brisanet", "_http", (url,),
+                          {"dados": comum + b'{ id } }", "id": 22}'})
+        self.assertNotEqual(a, b)
+
+    def test_a_mesma_chamada_da_a_mesma_chave(self):
+        url = "https://x.com.br/a"
+        self.assertEqual(ensaio._chave("tim", "buscar", (None, url), {}),
+                         ensaio._chave("tim", "buscar", (None, url), {}))
+
+    def test_sem_url_a_chave_usa_os_outros_argumentos(self):
+        """regulamento(op, codigo) nao recebe url: sem isto as 25
+        chamadas cairiam na mesma chave, e a releitura receberia o
+        regulamento de outra oferta - defeito que o projeto ja teve."""
+        a = ensaio._chave("vivo", "regulamento", (None, "VIV1"), {})
+        b = ensaio._chave("vivo", "regulamento", (None, "VIV2"), {})
+        self.assertNotEqual(a, b)
+
+
+class OControleDeFidelidade(unittest.TestCase):
+    """A PREMISSA DO ENSAIO, medida em toda rodada.
+
+    Em 04/11/2026 a chave da chamada usava 40 caracteres do corpo, e a
+    Brisanet faz varios POST de GraphQL cujos corpos comecam iguais: um
+    sobrescrevia o outro na gravacao e a releitura devolvia a mesma
+    resposta para todos. Quatro ofertas desapareciam EM SILENCIO, e a
+    diferenca saia do outro lado como "oferta nova" - rodada verde sobre
+    comparacao que nao valia. Agora o mesmo codigo rele as paginas
+    gravadas antes de tudo, e qualquer diferenca aborta.
+    """
+
+    def vazio(self, **kw):
+        base = {"perdas": [], "trocas": [], "ganhos": [], "novas": [],
+                "colididas": [], "cruas": (24, 24)}
+        base.update(kw)
+        return base
+
+    def test_replay_fiel_passa(self):
+        self.assertEqual(ensaio.veredito_do_controle(self.vazio()), 0)
+
+    def test_oferta_que_o_replay_perdeu_aborta(self):
+        self.assertEqual(
+            ensaio.veredito_do_controle(
+                self.vazio(novas=[(("Brisanet",), "oferta nova", None, 89.9)],
+                           cruas=(20, 24))), 3)
+
+    def test_ganho_tambem_aborta_no_controle(self):
+        """Aqui nao ha leitor novo para melhorar nada: os dois lados sao
+        o mesmo codigo, entao ganho e defeito do replay."""
+        self.assertEqual(
+            ensaio.veredito_do_controle(
+                self.vazio(ganhos=[(("x",), "apps", [], ["max"])])), 3)
+
+    def test_contagem_diferente_aborta_mesmo_sem_diferenca_listada(self):
+        self.assertEqual(
+            ensaio.veredito_do_controle(self.vazio(cruas=(23, 24))), 3)
+
+
 class NenhumColetorFicaDeFora(unittest.TestCase):
 
     def test_todo_coletor_tem_torneira_ou_navegador(self):

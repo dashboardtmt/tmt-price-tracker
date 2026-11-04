@@ -41,6 +41,7 @@ Uso:
 import argparse
 import base64
 import collections
+import hashlib
 import io
 import json
 import os
@@ -153,11 +154,19 @@ def _chave(modulo, funcao, args, kwargs):
     corpo = next((a for a in valores if isinstance(a, bytes)), None)
     if corpo is None:
         corpo = kwargs.get("dados")
+    # O CORPO INTEIRO, EM HASH - e nao os 40 primeiros caracteres.
+    # Medido em 04/11/2026: a Brisanet faz varios POST de GraphQL na
+    # mesma url, e os corpos comecam identicos ("query($cityId: ID)...").
+    # Com o prefixo de 40, um sobrescrevia o outro na gravacao e a
+    # releitura devolvia a mesma resposta para todos: 4 ofertas
+    # desapareciam, EM SILENCIO, e saiam do outro lado como "oferta
+    # nova". Falha que parece resultado e o modo de falhar que este
+    # projeto mais guarda.
     marca = ""
+    if isinstance(corpo, str):
+        corpo = corpo.encode("utf-8")
     if isinstance(corpo, bytes):
-        marca = base64.b64encode(corpo).decode("ascii")[:40]
-    elif isinstance(corpo, str):
-        marca = corpo[:40]
+        marca = hashlib.sha1(corpo).hexdigest()
     return "%s.%s|%s|%s|%s" % (modulo, funcao, url, resto, marca)
 
 
@@ -320,8 +329,14 @@ def _ler(arvore, paginas, pracas, gravando, verbose=False):
         except Exception:
             pass
     if faltou:
+        # FALHA ALTO, e nao como aviso. A premissa do ensaio e os dois
+        # lados lerem o MESMO corpo; chamada sem pagina gravada quebra
+        # a premissa, e comparacao sobre premissa quebrada nao vale.
+        # Como aviso isso ficava invisivel: o lado que leu menos saia
+        # como "oferta nova" do outro lado.
         avisos.setdefault("ensaio", []).append(
-            "%d chamada(s) sem pagina gravada" % len(faltou))
+            "%d chamada(s) sem pagina gravada: %s"
+            % (len(faltou), faltou[0][:120]))
     return ofertas, avisos
 
 
@@ -433,16 +448,25 @@ def imprimir(d, avisos_antes=None, avisos_depois=None):
             print(linha(t))
         if len(d[chave]) > 12:
             print("  e mais %d" % (len(d[chave]) - 12))
-    novos_avisos = []
-    for nome, lista in sorted((avisos_depois or {}).items()):
-        antes = set((avisos_antes or {}).get(nome) or ())
-        for a in lista:
-            if a not in antes:
-                novos_avisos.append("%s: %s" % (nome, a))
-    print("")
-    print("aviso que a referencia nao dava: %d" % len(novos_avisos))
-    for a in novos_avisos[:8]:
-        print("  %s" % a)
+    # OS AVISOS DOS DOIS LADOS. Imprimir so os novos escondia o que
+    # importa mais: o aviso que a REFERENCIA deu e o trabalho nao -
+    # coletor que falhou na releitura, por exemplo - e exatamente o
+    # caso em que o lado que leu menos sai do outro lado como "oferta
+    # nova", e a comparacao nao vale.
+    for titulo, a, b in (("aviso que a referencia nao dava", avisos_antes,
+                          avisos_depois),
+                         ("aviso que SO a referencia deu", avisos_depois,
+                          avisos_antes)):
+        novos = []
+        for nome, lista in sorted((b or {}).items()):
+            antes = set((a or {}).get(nome) or ())
+            for x in lista:
+                if x not in antes:
+                    novos.append("%s: %s" % (nome, x))
+        print("")
+        print("%s: %d" % (titulo, len(novos)))
+        for x in novos[:8]:
+            print("  %s" % x)
 
 
 # -------------------------------------------------------------------- modos
@@ -456,12 +480,45 @@ def _abrir(caminho):
         return json.load(f)
 
 
+def veredito_do_controle(d):
+    """0 se o replay reproduziu a leitura ao vivo; 3 se nao.
+
+    O CONTROLE DE FIDELIDADE E A PREMISSA DO ENSAIO: o mesmo codigo,
+    lendo as paginas gravadas, tem de reproduzir a leitura ao vivo
+    EXATAMENTE. Sem ele o ensaio comparava uma leitura completa com uma
+    truncada e chamava a diferenca de "oferta nova" - medido em
+    04/11/2026, quando a chave da chamada usava 40 caracteres do corpo e
+    um POST de GraphQL da Brisanet sobrescrevia o outro: 4 ofertas
+    desapareciam, em silencio, e a rodada passava.
+
+    QUALQUER diferenca aborta, inclusive ganho: aqui nao ha leitor novo
+    para melhorar nada - os dois lados sao o mesmo codigo.
+    """
+    tudo = (d["perdas"] + d["trocas"] + d["ganhos"] + d["novas"]
+            + d["colididas"])
+    if tudo or d["cruas"][0] != d["cruas"][1]:
+        print("")
+        print("ABORTADO: o replay nao reproduziu a leitura ao vivo "
+              "(%d diferenca(s), %d ofertas ao vivo e %d na releitura). A "
+              "premissa do ensaio e os dois lados lerem o MESMO corpo - "
+              "sem ela a comparacao nao vale."
+              % (len(tudo), d["cruas"][1], d["cruas"][0]))
+        return 3
+    print("")
+    print("controle: o replay reproduz a leitura ao vivo, oferta por oferta")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gravar", metavar="DIR")
     ap.add_argument("--reler", metavar="DIR")
     ap.add_argument("--leitor", metavar="ARVORE")
     ap.add_argument("--comparar", nargs=2, metavar=("ANTES", "DEPOIS"))
+    ap.add_argument("--saida", default="referencia.json")
+    ap.add_argument("--estrito", action="store_true",
+                    help="qualquer diferenca falha (o controle de "
+                         "fidelidade do replay)")
     ap.add_argument("--referencia", default="origin/main")
     ap.add_argument("--pracas")
     ap.add_argument("--verbose", action="store_true")
@@ -474,7 +531,11 @@ def main():
         antes, depois = _abrir(a.comparar[0]), _abrir(a.comparar[1])
         d = comparar(antes["ofertas"], depois["ofertas"])
         imprimir(d, antes.get("avisos"), depois.get("avisos"))
+        if a.estrito:
+            return veredito_do_controle(d)
         return 1 if (d["perdas"] or d["trocas"] or d["colididas"]) else 0
+
+
 
     if a.gravar:
         os.makedirs(a.gravar, exist_ok=True)
@@ -490,7 +551,7 @@ def main():
         paginas = _abrir(os.path.join(a.reler, "paginas.json"))
         ofertas, avisos = _ler(a.leitor or RAIZ, paginas, pracas, False,
                                a.verbose)
-        _salvar(os.path.join(a.reler, "referencia.json"),
+        _salvar(os.path.join(a.reler, a.saida),
                 {"ofertas": ofertas, "avisos": avisos})
         print("relido: %d ofertas" % len(ofertas))
         return 0
@@ -504,7 +565,13 @@ def main():
     # entupia a rodada seguinte.
     dir_ensaio = os.path.join(RAIZ, ".ensaio")
     os.makedirs(dir_ensaio, exist_ok=True)
-    arvore = os.path.join(tempfile.mkdtemp(prefix="ensaio-"), "referencia")
+    # NOME UNICO, E PODA ANTES. O git guarda o metadado da worktree por
+    # BASENAME, e no Windows ele as vezes nao sai (OneDrive, antivirus,
+    # arquivo aberto): com nome fixo, a rodada seguinte morreria em
+    # "already exists" por causa de sujeira da anterior.
+    subprocess.call(["git", "worktree", "prune"], cwd=RAIZ)
+    arvore = os.path.join(tempfile.mkdtemp(prefix="ensaio-"),
+                          "ref-%d" % os.getpid())
     print("referencia: %s" % a.referencia, flush=True)
     if subprocess.call(["git", "worktree", "add", "--detach", arvore,
                         a.referencia], cwd=RAIZ) != 0:
@@ -515,6 +582,18 @@ def main():
         if subprocess.call(eu + ["--gravar", dir_ensaio] + args_pracas,
                            cwd=RAIZ) != 0:
             return 2
+        # O CONTROLE VEM PRIMEIRO: ler as paginas gravadas com ESTE
+        # codigo tem de reproduzir a leitura ao vivo. E a premissa do
+        # ensaio, e ela ja falhou uma vez - em silencio.
+        if subprocess.call(eu + ["--reler", dir_ensaio, "--leitor", RAIZ,
+                                 "--saida", "controle.json"] + args_pracas,
+                           cwd=RAIZ) != 0:
+            return 2
+        if subprocess.call(
+                eu + ["--comparar", os.path.join(dir_ensaio, "controle.json"),
+                      os.path.join(dir_ensaio, "trabalho.json"), "--estrito"],
+                cwd=RAIZ) != 0:
+            return 3
         if subprocess.call(eu + ["--reler", dir_ensaio, "--leitor", arvore]
                            + args_pracas, cwd=RAIZ) != 0:
             return 2
