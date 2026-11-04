@@ -292,7 +292,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '                   if id(r) not in ja and _ganhou_leitura(r)]',
+        '                   if id(r) not in ja and _ganhou_leitura(r)\n'
+        '                   and (declarado or _leitor_mudou(r))]',
         '                   if False]',
         "Gb8. o campo que a leitura ganhou volta a ser movimento de mercado"),
 
@@ -319,6 +320,56 @@ MUTACOES = [
         '        for ressalva in (s.get("substituta_texto"), s.get("piscou_texto")):',
         '        for ressalva in ():',
         "Gb12. a mensagem volta a afirmar saida sem dizer que o degrau ficou"),
+
+    Mutacao(
+        "ferramentas/ensaio_da_coleta.py",
+        'COM_DIRECAO = ("nivel_bundle",)',
+        'COM_DIRECAO = ()',
+        "Eb1. o nivel de bundle volta a barrar quando SOBE, e o conserto nao passa"),
+
+    Mutacao(
+        "ferramentas/ensaio_da_coleta.py",
+        '    colididas = [(k, "identidade repetida que a mudanca criou",'
+        ' None, None)\n'
+        '                 for k in sorted(agora_rep - antes_rep,',
+        '    colididas = [(k, "identidade repetida que a mudanca criou",'
+        ' None, None)\n'
+        '                 for k in sorted(agora_rep,',
+        "Eb2. a colisao que a vitrine ja tinha volta a barrar todo push"),
+
+    Mutacao(
+        "ferramentas/ensaio_da_coleta.py",
+        '            if _vazio(vb) and not _vazio(va):\n'
+        '                perdas.append((k, campo, va, vb))',
+        '            if False:\n'
+        '                perdas.append((k, campo, va, vb))',
+        "Eb3. o campo que ficou vazio volta a passar pelo portao"),
+
+    Mutacao(
+        "ferramentas/ensaio_da_coleta.py",
+        '    for modulo, funcao in TORNEIRAS:\n'
+        '        torneira(modulo, funcao)',
+        '    for modulo, funcao in TORNEIRAS[:1]:\n'
+        '        torneira(modulo, funcao)',
+        "Eb4. o ensaio volta a buscar de verdade nas duas leituras"),
+
+    Mutacao(
+        "coletores/armazenamento.py",
+        '    curta = digest.hexdigest()[:12]',
+        '    curta = "0" * 12',
+        "Vb1. a digital do leitor volta a ser a mesma para todo codigo"),
+
+    Mutacao(
+        "robo.py",
+        '    return bool(a) and bool(b) and a != b',
+        '    return a != b',
+        "Vb2. linha sem digital volta a contar como leitor diferente"),
+
+    Mutacao(
+        "coletores/armazenamento.py",
+        '            "bruto": dict(o, versao_leitura=versao),',
+        '            "bruto": o,',
+        "Vb3. a captura volta a ser gravada sem a digital do leitor"),
 
 
     # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
@@ -819,8 +870,9 @@ MUTACOES = [
     Mutacao(
         "robo.py",
         '    nossas = [r for r in so_versao\n'
-        '              if declarado or varias_operadoras'
-        ' or _minoria_das_pracas(r)]',
+        '              if declarado or _leitor_mudou(r)'
+        ' or varias_operadoras\n'
+        '              or _minoria_das_pracas(r)]',
         '    nossas = []',
         "26. mudanca da nossa leitura volta a sair como do mercado"),
 
@@ -839,8 +891,9 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '              if declarado or varias_operadoras'
-        ' or _minoria_das_pracas(r)]',
+        '              if declarado or _leitor_mudou(r)'
+        ' or varias_operadoras\n'
+        '              or _minoria_das_pracas(r)]',
         '              if varias_operadoras or _minoria_das_pracas(r)]',
         "28. a data declarada volta a nao mandar na heuristica"),
 

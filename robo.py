@@ -420,6 +420,11 @@ def _indexar(dia):
               # caso que a mensagem descrevia como "outra versao da
               # oferta" - o fato nomeado e nao contado.
               "apps:bruto->apps,"
+              # A DIGITAL DO LEITOR que produziu a linha. Com ela, "o
+              # leitor mudou entre as duas coletas" e fato do dado, e
+              # nao data que alguem lembrou de escrever - ver
+              # armazenamento.versao_da_leitura e LEITURA_MUDOU_EM.
+              "versao_leitura:bruto->>versao_leitura,"
               # A RECUSA DO COLETOR, que ninguem lia. Quatro coletores
               # escrevem avisos_oferta em sete lugares - regulamento de
               # outra oferta, card sem composicao, total anual que nao
@@ -1063,18 +1068,40 @@ def _separar_o_que_e_nosso(remodeladas, hoje=None):
     so_versao = [r for r in remodeladas if r.get("versao_apenas")]
     varias_operadoras = len({r["operadora"] for r in so_versao}) >= 2
     nossas = [r for r in so_versao
-              if declarado or varias_operadoras or _minoria_das_pracas(r)]
+              if declarado or _leitor_mudou(r) or varias_operadoras
+              or _minoria_das_pracas(r)]
     # E O CAMPO QUE PASSOU A SER LIDO, que nenhuma das duas heuristicas
-    # pode julgar. Entra SO com data declarada, que e o unico caso em
-    # que o codigo sabe a resposta em vez de estimar: sem declaracao,
-    # "nao lido ontem, 500 Mbps hoje" pode ser a vitrine comecando a
-    # publicar a velocidade, e chutar seria inventar causa.
-    if declarado:
+    # pode julgar. Entra so quando SE SABE que a leitura mudou - data
+    # declarada ou digital do leitor diferente nas duas pontas -, que
+    # sao os dois casos em que o codigo sabe a resposta em vez de
+    # estimar: sem isso, "nao lido ontem, 500 Mbps hoje" pode ser a
+    # vitrine comecando a publicar, e chutar seria inventar causa.
+    if declarado or any(_leitor_mudou(r) for r in remodeladas):
         ja = {id(r) for r in nossas}
         nossas += [r for r in remodeladas
-                   if id(r) not in ja and _ganhou_leitura(r)]
+                   if id(r) not in ja and _ganhou_leitura(r)
+                   and (declarado or _leitor_mudou(r))]
     ids = {id(r) for r in nossas}
     return [r for r in remodeladas if id(r) not in ids], nossas
+
+
+def _leitor_mudou(r):
+    """A linha de hoje e a de ontem sairam de leitores diferentes?
+
+    FATO DO DADO, e nao data lembrada. A digital de
+    armazenamento.versao_da_leitura viaja em cada captura; quando as
+    duas pontas trazem digitais diferentes, o codigo que leu mudou no
+    meio - e mudanca so-de-versao num dia assim e nossa, sem
+    heuristica.
+
+    EXIGE AS DUAS PONTAS. Linha gravada antes de 04/11/2026 nao tem
+    digital, e ausencia nao e diferenca: sem as duas, vale o que valia
+    antes (a declaracao e as duas heuristicas). Afirmar com meia
+    informacao e o defeito que este projeto mais encontra.
+    """
+    a = (r.get("antes") or {}).get("versao_leitura")
+    b = (r.get("atual") or {}).get("versao_leitura")
+    return bool(a) and bool(b) and a != b
 
 
 def _ganhou_leitura(r):
@@ -3098,7 +3125,14 @@ def montar_mensagem(hoje, ontem):
         # a mensagem nao traz mais a linha de cobertura (29/10/2026),
         # entao a explicacao nao corre risco de sair duas vezes: ela vem
         # inteira aqui quando a mexida foi declarada
+        # TRES FRASES, E A DO MEIO E NOVA. Com a digital do leitor
+        # diferente nas duas pontas, "costuma ser" virou "foi": o codigo
+        # que leu mudou, e isso esta no dado. Sem a causa declarada a
+        # frase pede a declaracao em vez de inventar o motivo.
+        leitor = any(_leitor_mudou(x) for x in leitura)
         porque = ("a leitura mudou hoje: %s" % declarado if declarado
+                  else "o leitor mudou entre as duas coletas, e a causa "
+                       "n\u00e3o foi declarada (LEITURA_MUDOU_EM)" if leitor
                   else "isso costuma ser mudan\u00e7a na nossa leitura, e "
                        "n\u00e3o no mercado")
         # DUAS FRASES, PORQUE SAO DOIS FATOS. "sem mexer em preco nem

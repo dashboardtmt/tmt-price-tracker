@@ -26,6 +26,63 @@ def _config():
     return url, chave
 
 
+# A IMPRESSAO DIGITAL DO LEITOR, gravada em cada captura.
+#
+# POR QUE NO DADO, E NAO NUMA LISTA DE DATAS. A atribuicao de "foi o
+# mercado ou fomos nos" dependia de alguem escrever a data a mao em
+# robo.LEITURA_MUDOU_EM. Em 04/11/2026 duas datas estavam erradas por um
+# dia - a coleta roda de madrugada e o commit entrou depois dela - e as
+# duas custaram afirmacao falsa publicada: "a vitrine passou a listar
+# Max e Telecine" nas 20 pracas, que era commit nosso.
+#
+# Com a digital na linha, "o leitor mudou entre as duas coletas" e fato
+# lido do dado. A declaracao continua, porque ela diz a causa em
+# portugues; o que ela deixa de ser e a unica fonte da verdade.
+#
+# E ELA IGNORA COMENTARIO. Aqui o comentario e maior que o codigo e muda
+# todo dia; o que muda a leitura e o codigo. A digital sai do ast.dump
+# do modulo - reescrever um comentario nao vira "o leitor mudou".
+#
+# Vai dentro do bruto, como a assinatura SVA: campo novo no mesmo dia
+# em que passa a ser lido, sem ALTER TABLE.
+_versao = None
+
+
+def versao_da_leitura(onde=None):
+    """12 hex do codigo de todos os coletores, sem comentario.
+
+    "onde" existe para o teste poder medir que a digital DEPENDE do
+    codigo: sem o parametro, so dava para conferir o formato dela - e
+    uma digital constante tem o formato certo. O provador mostrou isso
+    (Vb1 passou sem ninguem notar).
+    """
+    global _versao
+    if onde is None and _versao:
+        return _versao
+    import ast
+    import hashlib
+    aqui = onde or os.path.dirname(os.path.abspath(__file__))
+    digest = hashlib.sha256()
+    for nome in sorted(os.listdir(aqui)):
+        if not nome.endswith(".py"):
+            continue
+        caminho = os.path.join(aqui, nome)
+        with open(caminho, encoding="utf-8") as f:
+            fonte = f.read()
+        try:
+            marca = ast.dump(ast.parse(fonte))
+        except SyntaxError:
+            # arquivo que nem compila nao vai coletar nada; a digital
+            # ainda tem de mudar, entao entra o texto cru
+            marca = fonte
+        digest.update(nome.encode("utf-8"))
+        digest.update(marca.encode("utf-8"))
+    curta = digest.hexdigest()[:12]
+    if onde is None:
+        _versao = curta
+    return curta
+
+
 def chave_continuidade(o):
     """A identidade que sobrevive a renomeacao e reedicao da oferta.
 
@@ -128,6 +185,7 @@ def gravar_capturas(ofertas):
     url, chave = _config()
 
     linhas = []
+    versao = versao_da_leitura()
     for o in ofertas:
         data = (o.get("capturado_em") or "")[:10]
         praca = o.get("praca") or ""
@@ -160,7 +218,11 @@ def gravar_capturas(ofertas):
             # coletor passa a ler - sem coluna nova e sem ALTER TABLE, que e
             # passo manual e portanto dia de coleta em risco. A assinatura
             # dos codigos SVA e lida daqui, por bruto->>assinatura_sva.
-            "bruto": o,
+            #
+            # A DIGITAL DO LEITOR VIAJA JUNTO, e com uma copia: mexer no
+            # dicionario de quem chamou faria o coletor devolver um
+            # campo que ele nao leu.
+            "bruto": dict(o, versao_leitura=versao),
         })
 
     # Deduplica dentro do proprio lote. O Postgres rejeita o lote INTEIRO
