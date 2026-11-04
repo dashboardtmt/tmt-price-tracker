@@ -371,6 +371,47 @@ MUTACOES = [
         '            "bruto": o,',
         "Vb3. a captura volta a ser gravada sem a digital do leitor"),
 
+    Mutacao(
+        "auditor.py",
+        '            faltam = sorted(ditas - boas - incertas)',
+        '            faltam = []',
+        "Ad1. a afirmacao que o dado nao sustenta volta a ser publicada"),
+
+    Mutacao(
+        "auditor.py",
+        '        a, d = _uma(idx_o, ident, praca), _uma(idx_h, ident, praca)\n'
+        '        if a is None or d is None:\n'
+        '            incertas.add(praca)',
+        '        a, d = _uma(idx_o, ident, praca), _uma(idx_h, ident, praca)\n'
+        '        if a is None or d is None:\n'
+        '            boas.discard(praca)',
+        "Ad2. o que nao deu para conferir volta a ser tratado como falso"),
+
+    Mutacao(
+        "auditor.py",
+        '            dados[tipo] = [x for x in (dados.get(tipo) or ())\n'
+        '                           if id(x) not in ids]',
+        '            dados[tipo] = list(dados.get(tipo) or ())',
+        "Ad3. o evento recusado volta a sair na mensagem"),
+
+    Mutacao(
+        "auditor.py",
+        '        if (e.get("operadora"), praca) not in coletadas:\n'
+        '            # praca que ninguem leu hoje nao sustenta nem nega a saida\n'
+        '            incertas.add(praca)\n'
+        '            continue',
+        '        if False:\n'
+        '            # praca que ninguem leu hoje nao sustenta nem nega a saida\n'
+        '            incertas.add(praca)\n'
+        '            continue',
+        "Ad4. a saida volta a ser negada em praca que ninguem leu hoje"),
+
+    Mutacao(
+        "relatorio.py",
+        '    recusadas = dados.get("recusadas") or []',
+        '    recusadas = []',
+        "Ad5. a secao da conferencia desaparece e a mensagem manda ler o que nao existe"),
+
 
     # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
     Mutacao(

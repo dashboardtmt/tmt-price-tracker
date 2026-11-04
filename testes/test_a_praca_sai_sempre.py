@@ -48,7 +48,13 @@ GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
 # teste estrutural abaixo exige que todo grupo novo esteja em GRUPOS ou
 # aqui, entao um grupo de EVENTO novo continua sem poder nascer sem
 # praca - alguem teria de vir aqui e escrever que ele e ressalva.
-RESSALVAS = ("duvidosa",)
+#
+# "recusadas" e "nao_auditado" sao do auditor (04/11/2026): a primeira
+# diz que afirmacao NAO saiu porque o dado nao a sustentava, e a segunda
+# diz o que o auditor nao sabe conferir. Nenhuma das duas afirma
+# movimento de vitrine - elas dizem o contrario -, e a praca de cada
+# caso fica no relatorio, junto do motivo.
+RESSALVAS = ("duvidosa", "recusadas", "nao_auditado")
 
 # A mensagem corta cada grupo em tres e manda o resto para o PDF.
 MOSTRADOS = 3

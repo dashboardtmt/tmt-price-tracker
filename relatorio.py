@@ -1013,6 +1013,59 @@ def gerar(dados, entradas, caminho):
                    _sem_marcacao(g.get("onde")), _sem_marcacao(g.get("motivo"))),
                 ESTILOS["nota"]))
 
+    # O QUE A CONFERENCIA RECUSOU PUBLICAR, e o que ela nao sabe
+    # conferir. A mensagem traz uma linha e manda ler aqui; sem esta
+    # secao a promessa era falsa - "canal sem leitor" e o defeito que
+    # este projeto mais encontra.
+    #
+    # VEM COM A RAZAO, oferta por oferta: recusa sem motivo nao da para
+    # conferir de volta, e auditor com defeito tem de poder ser
+    # auditado.
+    recusadas = dados.get("recusadas") or []
+    nao_auditado = dados.get("nao_auditado") or {}
+    if recusadas or nao_auditado:
+        hist.append(Spacer(1, 10))
+        hist += _secao("Confer\u00eancia das afirma\u00e7\u00f5es")
+        hist.append(Paragraph(
+            "Cada evento deste relat\u00f3rio \u00e9 rededuzido das capturas "
+            "cruas antes de ser publicado, por c\u00f3digo independente do "
+            "detector que o produziu. Afirma\u00e7\u00e3o que o dado n\u00e3o "
+            "sustenta n\u00e3o sai \u2014 e a recusa aparece aqui, com a "
+            "raz\u00e3o, porque recusa calada seria o mesmo defeito na "
+            "dire\u00e7\u00e3o oposta.", ESTILOS["corpo"]))
+        if recusadas:
+            for tipo, rotulo, motivo in recusadas:
+                hist.append(Spacer(1, 4))
+                hist.append(Paragraph(
+                    "<b>Recusada \u00b7 %s</b> \u2014 %s: %s"
+                    % (_sem_marcacao(tipo), _sem_marcacao(rotulo),
+                       _sem_marcacao(motivo)), ESTILOS["nota"]))
+        else:
+            hist.append(Spacer(1, 4))
+            hist.append(Paragraph(
+                "Nenhuma afirma\u00e7\u00e3o foi recusada nesta data.",
+                ESTILOS["nota"]))
+        por_oferta = sorted((k, v) for k, v in nao_auditado.items()
+                            if ":" in k)
+        if por_oferta:
+            hist.append(Spacer(1, 6))
+            hist.append(Paragraph(
+                "<b>Sem confirma\u00e7\u00e3o.</b> A afirma\u00e7\u00e3o n\u00e3o foi "
+                "contrariada, e tamb\u00e9m n\u00e3o foi confirmada:",
+                ESTILOS["nota"]))
+            for k, v in por_oferta:
+                hist.append(Paragraph("%s \u2014 %s" % (_sem_marcacao(k),
+                                                    _sem_marcacao(v)),
+                                      ESTILOS["nota"]))
+        gerais = sorted((k, v) for k, v in nao_auditado.items()
+                        if ":" not in k)
+        if gerais:
+            hist.append(Spacer(1, 6))
+            hist.append(Paragraph(
+                "<b>Fora da confer\u00eancia, por desenho.</b> %s."
+                % "; ".join("%s (%s)" % (_sem_marcacao(k), _sem_marcacao(v))
+                            for k, v in gerais), ESTILOS["nota"]))
+
     if dados.get("ponto_cego"):
         hist.append(Spacer(1, 6))
         hist.append(Paragraph(

@@ -32,6 +32,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import auditor
 import vigia                                                   # noqa: E402
 from coletores import (apps, armazenamento, brisanet, claro, claro_flex, nucel, starlink, tim_fit,  # noqa: E402
                        tim, unifique, vivo)
@@ -921,7 +922,12 @@ def mudancas(hoje, ontem):
     for grupo in (precos, composicao, renomeadas, grades, voltaram,
                   remodeladas, leitura, contratuais):
         grupo.sort(key=_por_efeito, reverse=True)
-    return {"precos": precos, "composicao": composicao,
+    # O AUDITOR E O ULTIMO A FALAR, e fala sobre o levantamento inteiro:
+    # cada afirmacao e rededuzida das linhas cruas, por codigo que nao e
+    # o detector que a produziu, e o que o dado nao sustenta nao sai. A
+    # recusa fica no dicionario, em "recusadas" - auditor com defeito
+    # tem de poder ser auditado de volta. Ver auditor.py.
+    return auditor.aplicar({"precos": precos, "composicao": composicao,
             "renomeadas": renomeadas, "grades": grades,
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura, "contratuais": contratuais,
@@ -932,7 +938,8 @@ def mudancas(hoje, ontem):
             # a recusa do coletor nao passa por _assinar_alcance nem pela
             # ordenacao: nao e evento de mercado, e ressalva sobre o dado
             "duvidosa": duvidosa,
-            "cobertura": _cobertura(h, o, (cego_h or {}).get("quantas", 0))}
+            "cobertura": _cobertura(h, o, (cego_h or {}).get("quantas", 0))},
+        do_dia, (antes or {}).get(ontem) or [])
 
 
 # DIAS EM QUE A NOSSA LEITURA MUDOU, declarados a mao.
@@ -3156,6 +3163,18 @@ def montar_mensagem(hoje, ontem):
         linhas += ["", "%s (%s) \u2014 %s. Detalhe no relat\u00f3rio."
                    % ("; ".join(partes), ", ".join(ops), porque)]
 
+    # O QUE O AUDITOR RECUSOU PUBLICAR. Mesma familia da cobertura e do
+    # ponto cego: as tres dizem o que NAO foi possivel afirmar. A recusa
+    # nunca e calada - "nenhuma mudanca" com tres afirmacoes recusadas
+    # nao e a mesma frase que "nenhuma mudanca".
+    recusadas = r.get("recusadas") or []
+    if recusadas:
+        quais = "; ".join("%s (%s)" % (x[1], x[2]) for x in recusadas[:2])
+        linhas += ["", "%d afirma\u00e7\u00e3o(\u00f5es) n\u00e3o passaram pela "
+                   "confer\u00eancia contra o dado e ficaram fora: %s. "
+                   "Detalhe no relat\u00f3rio."
+                   % (len(recusadas), quais)]
+
     # O QUE O COLETOR RECUSOU LER. Mesma familia da cobertura e da linha
     # de leitura: as tres dizem o que NAO foi possivel afirmar, e por
     # isso ficam juntas no fim e fora da contagem de mudancas - nada
@@ -3303,6 +3322,12 @@ def montar_mensagem(hoje, ontem):
         # a frase longa e a do relatorio, onde ha espaco para explicar
         # o que "chave de serie" quer dizer; a curta ja foi na mensagem
         "ponto_cego": ponto_cego["longo"] if ponto_cego else None,
+        # O QUE A CONFERENCIA RECUSOU, com a razao - a mensagem leva uma
+        # linha e manda ler o relatorio, e sem isto aqui a promessa era
+        # falsa. E o que ela NAO sabe conferir vai junto: "auditado e
+        # aprovado" nunca pode ser suposto.
+        "recusadas": r.get("recusadas") or [],
+        "nao_auditado": r.get("nao_auditado") or {},
         # o de ONTEM e nota do relatorio e nada mais: o efeito dele na
         # comparacao de hoje ja esta na cobertura, do jeito certo
         "ponto_cego_ontem": ((r.get("cego_ontem") or {}).get("longo")
