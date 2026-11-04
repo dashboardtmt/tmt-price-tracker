@@ -418,8 +418,20 @@ JANELA = 110
 # A ADJACENCIA E O QUE VALE: o "ou" tem de estar colado ao nome do
 # app. O trecho da frente ja vem cortado no ponto e no ponto-e-virgula,
 # entao "Google One. Ou ligue para" nao casa.
-ESCOLHA = re.compile(r"^\W{0,3}(?:ou|/)\s", re.I)
-ESCOLHA_ATRAS = re.compile(r"(?:\bou\b|/)\W{0,3}$", re.I)
+#
+# E A BARRA SO VALE COM ESPACO DO LADO, porque barra colada e
+# caminho de arquivo. A primeira versao desta regra custou 40
+# linhas em 04/11/2026: a TIM nomeia o app no nome do arquivo do
+# icone - "/sites/default/files/2026-07/Paramount+ Icon (1).png" -
+# e a barra do caminho fez o Paramount da Ultracombo 6 e o Aya
+# Books da 7 sairem da lista nas 20 pracas, calados.
+#
+# O LIMITE FICA DITO: "Google One/iCloud+" sem espaco entraria
+# como inclusao. Nenhuma vitrine escreveu assim nas medicoes ate
+# aqui, e guarda contra caso que nao existe esconde o que existe
+# - foi esta regra mesma que ensinou isso.
+ESCOLHA = re.compile(r"^(?:\W{0,3}ou\s|\s+/\s)", re.I)
+ESCOLHA_ATRAS = re.compile(r"(?:\bou\b|\s/)\W{0,3}$", re.I)
 
 # DE QUEM E A DEGUSTACAO, quando a propria frase diz. "12 meses gratis
 # DE Gemini" declara o sujeito logo depois da marca; "3 meses por conta

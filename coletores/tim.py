@@ -354,6 +354,15 @@ def ler_combos(op, url):
             "preco_promocional": numero(preco),
             "nivel_bundle": nivel_bundle(meio + " " + junto),
             "composicao": (meio.strip() + (" | inclui: " + junto if junto else ""))[:400],
+            # O TEXTO INTEIRO, PARA A LEITURA, porque a composicao acima
+            # e de EXIBICAO e tem teto. O nivel ja lia "meio + junto"
+            # completo e a lista de apps lia a composicao cortada: dois
+            # campos da mesma oferta lendo textos diferentes, que e o
+            # defeito que 9289f94 fechou em outro lugar. Em 04/11/2026 a
+            # TIM pos um beneficio novo na frente da lista e empurrou o
+            # nome do Paramount para depois do caractere 400 - nivel 3
+            # com lista vazia, em 40 linhas, calado.
+            "texto_apps": (meio.strip() + " " + junto).strip(),
         })
     if not saida:
         return None, "nenhum card de combo reconhecido - a pagina mudou"
@@ -610,13 +619,19 @@ def coletar(cidade, uf, verbose=True):
         for o in combos:
             # o "inclui:" da composicao nomeia o que vem junto, e as
             # vezes tambem o tier ("Netflix Padrao")
-            o["apps"] = apps.apps_do_texto(o.get("composicao"))
-            _fontes = (o.get("composicao"), o.get("nome_oferta"))
+            #
+            # E A FONTE E O TEXTO INTEIRO, nao a composicao cortada: o
+            # mesmo texto que decidiu o nivel decide a lista. Ver
+            # "texto_apps" em ler_combos.
+            fonte = o.pop("texto_apps", None) or o.get("composicao")
+            o["apps"] = apps.apps_do_texto(fonte)
+            _fontes = (fonte, o.get("nome_oferta"))
             o["apps_rotulo"] = apps.rotulo(o["apps"], *_fontes)
-            # a leitura larga sai dita, no mesmo canal
+            # a leitura larga sai dita, no mesmo canal - e sobre o texto
+            # que foi lido, senao a ressalva fala de outro texto
             o["avisos_oferta"] = apps.juntar_avisos(
                 o.get("avisos_oferta"),
-                apps.aviso_de_leitura(o.get("composicao")))
+                apps.aviso_de_leitura(fonte))
             o["apps_planos"] = apps.planos_dos_apps(o["apps"], *_fontes)
             o.update({"operadora": "TIM", "produto": "combo", "praca": praca,
                       "pagina": "combo",
