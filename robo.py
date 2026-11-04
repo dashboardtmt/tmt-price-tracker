@@ -1629,6 +1629,92 @@ def _parado(antes, agora):
     return antes == agora
 
 
+# QUANTAS LINHAS DIVIDEM NOME E DEGRAU EM CADA DIA. A segunda passada de
+# _oferta_remodelada precisa saber se ficou irma na prateleira, e varrer
+# o indice inteiro a cada balde seria uma volta por balde.
+def _por_nome_e_degrau(indice, pareia):
+    conta = collections.Counter()
+    for l in indice.values():
+        conta[(pareia(l), _entrega(l))] += 1
+    return conta
+
+
+def _pelo_degrau(k, atuais, anteriores, conta_h, conta_o):
+    """O par que o NOME nao identifica e o DEGRAU identifica.
+
+    "Vivo Pre" nomeia quatro ofertas na mesma praca, e por isso o
+    pareamento por nome se recusa a chutar quando o nome e de mais de
+    uma. O degrau separa essas quatro - 15, 20, 25 e 30 GB -, e com ele
+    o par volta a ser unico.
+
+    MEDIDO NOS 35 DIAS PUBLICADOS antes de existir. Dos 2.024 baldes de
+    sobra com os dois lados, o pareamento por nome resolve 1.542 e
+    recusa 844 - 482 por nome compartilhado e 362 por mais de uma
+    candidata. O degrau aparece nos dois lados em 625 deles e deixa 505
+    pares; 120 continuam ambiguos mesmo com ele, e continuam fora.
+
+    E O QUE ESSES 505 PARES ERAM, que e a parte que decidiu o desenho:
+
+      466 sao mudanca so de versao - preco e entrega parados - e TODOS
+      caem em quatro dias, que sao os quatro em que a NOSSA leitura
+      mudou (16/10, 21/10, 22/10 e 04/11). A mensagem daqueles dias
+      subcontava a propria ressalva: em 16/10 ela publicou "10 ofertas
+      mudaram de versao" quando foram 24.
+
+      39 tinham preco se movendo, e os 39 eram FALSOS. Em 06/10 a Claro
+      deslizou a escada do Controle: cada preco ganhou 5 GB (59,90 foi
+      de 40 para 45 GB, 69,90 de 45 para 50), e uma semana depois
+      desfez. O par por nome e degrau leria isso como "45 GB de 69,90
+      para 59,90, -14% em 20 cidades" - um corte que nunca houve. O que
+      salvou a mensagem naqueles dois dias foi `suprimir`, do detector
+      de escada; depender de outro detector acertar nao e guarda.
+
+    DAI AS TRES GUARDAS, cada uma de um caso medido:
+
+      PRECO E ENTREGA PARADOS (na funcao que chama, por versao_apenas):
+      o par do degrau afirma VERSAO e nunca preco. Derruba os 39.
+
+      CODIGO DE REGISTRO IGUAL, quando os dois lados o tem: em 16/10 a
+      "Vivo Fibra" de 600 Mbps a R$ 100,00 trocou de versao com o
+      codigo mudando de VIV202603039022 para VIV202603040130 - sao duas
+      ofertas registradas diferentes, uma saindo e outra entrando pelo
+      mesmo preco e pela mesma velocidade. Sao 40 pares assim, e parear
+      ali afirma que uma oferta perdeu os apps quando o que houve foi
+      troca de oferta. Mesma doutrina de _desempatar_por_anatel: dentro
+      do grupo que o nome nao separa, o registro separa.
+
+      SEM IRMA NO BALCAO, quando NAO ha codigo: se outra linha do mesmo
+      nome e degrau esta nos dois dias, o movimento tem mais de uma
+      leitura possivel e o par volta a ser escolha. Com o codigo igual
+      nao ha escolha nenhuma - e o caso das duas "Vivo Familia 2 + TV"
+      de 700 Mega, R$ 290 e R$ 390, em que a de R$ 390 trocou de
+      versao com o MESMO registro nos dois dias (20 pares).
+    """
+    saida = []
+    por_h, por_o = collections.defaultdict(list), collections.defaultdict(list)
+    for l in atuais:
+        por_h[_entrega(l)].append(l)
+    for l in anteriores:
+        por_o[_entrega(l)].append(l)
+    for degrau, lado_h in por_h.items():
+        lado_o = por_o.get(degrau)
+        # DEGRAU NAO LIDO NAO DESEMPATA NADA: "None de ontem" e "None de
+        # hoje" nao sao o mesmo degrau, sao duas ausencias.
+        if degrau is None or not lado_o:
+            continue
+        if len(lado_h) != 1 or len(lado_o) != 1:
+            continue
+        atual, antes = lado_h[0], lado_o[0]
+        ca, cd = antes.get("codigo_anatel"), atual.get("codigo_anatel")
+        if ca and cd:
+            if ca != cd:
+                continue
+        elif (conta_h[(k, degrau)] > 1 or conta_o[(k, degrau)] > 1):
+            continue
+        saida.append((atual, antes))
+    return saida
+
+
 def _oferta_remodelada(h, o, usadas=()):
     """A MESMA oferta de volta na vitrine mudada por dentro.
 
@@ -1703,16 +1789,26 @@ def _oferta_remodelada(h, o, usadas=()):
         if k not in h:
             sobra_o[pareia(l)].append(l)
 
-    achados = {}
+    # OS PARES, EM DUAS PASSADAS. A primeira e o nome: vale quando ele
+    # e de uma oferta so nos dois dias somados, porque com mais de uma
+    # ele nao identifica e o par seria sorteio. A segunda e o degrau,
+    # dentro do que a primeira recusou - ver _pelo_degrau, que carrega
+    # a medicao dos 35 dias e as tres guardas que ela pediu.
+    conta_h = _por_nome_e_degrau(h, pareia)
+    conta_o = _por_nome_e_degrau(o, pareia)
+    candidatos = []
     for k, atuais in sobra_h.items():
         anteriores = sobra_o.get(k)
-        if not anteriores or len(atuais) != 1 or len(anteriores) != 1:
+        if not anteriores:
             continue
-        # o nome tem de ser de uma oferta so nos dois dias somados: com
-        # mais de uma, ele nao identifica e o par seria sorteio
-        if quantas[k] > 2:
+        if len(atuais) == 1 and len(anteriores) == 1 and quantas[k] <= 2:
+            candidatos.append((atuais[0], anteriores[0], k, False))
             continue
-        atual, antes = atuais[0], anteriores[0]
+        candidatos += [(a, b, k, True) for a, b in _pelo_degrau(
+            k, atuais, anteriores, conta_h, conta_o)]
+
+    achados = {}
+    for atual, antes, k, pelo_degrau in candidatos:
         # A CHAVE DE CONTINUIDADE GANHA DO NOME, e esta e a decisao -
         # nao o acidente de _renomeadas rodar primeiro.
         #
@@ -1760,6 +1856,17 @@ def _oferta_remodelada(h, o, usadas=()):
         preco_mudou = None not in (pa, pd) and pa != pd
         entrega_mudou = None not in (ea, ed) and ea != ed
         versao_mudou = _variante(antes) != _variante(atual)
+        # O PAR DO DEGRAU SO AFIRMA VERSAO, e nunca preco. O nome
+        # compartilhado foi desempatado por um campo que o preco
+        # pode ter atravessado: em 06/10/2026 a escada do Claro
+        # Controle deslizou 5 GB por degrau e o par por nome e
+        # degrau afirmaria -14% em 20 cidades sobre um preco que
+        # nao se mexeu - era o mesmo preco com mais franquia. Os
+        # 39 pares de preco que os 35 dias produziram eram esses
+        # dois dias, e os 39 eram falsos.
+        if pelo_degrau and (preco_mudou or entrega_mudou
+                            or pa is None or pd is None):
+            continue
 
         # A ESCADA JA CONTA "mesmo preco, outra entrega", e com o nome
         # da oferta. Repetir aqui seria a mesma noticia duas vezes.

@@ -1294,8 +1294,9 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '        if quantas[k] > 2:',
-        '        if False:',
+        '        if len(atuais) == 1 and len(anteriores) == 1'
+        ' and quantas[k] <= 2:',
+        '        if len(atuais) == 1 and len(anteriores) == 1:',
         "F1. nome compartilhado volta a parear ofertas diferentes"),
 
     Mutacao(
@@ -1664,6 +1665,69 @@ MUTACOES = [
         '        linhas += ["", "%s - %s - nada mudou, mas faltou dado"\n'
         '                   % (g["categoria"], g["operadora"])]',
         "U1. a falha de leitura volta para a mensagem diaria"),
+
+    # A SEGUNDA PASSADA DO PAREAMENTO, desde 04/11/2026: o degrau
+    # desempata o nome que nomeia varias ofertas. Sao sete guardas, e
+    # cada uma tem a sua mutacao - a lista inteira dos 505 pares que a
+    # janela publicada produziu esta em _pelo_degrau.
+    Mutacao(
+        "robo.py",
+        '        candidatos += [(a, b, k, True) for a, b in _pelo_degrau(\n'
+        '            k, atuais, anteriores, conta_h, conta_o)]\n',
+        '        continue\n',
+        "Db1. o nome compartilhado volta a sair da comparacao"),
+
+    Mutacao(
+        "robo.py",
+        '        if pelo_degrau and (preco_mudou or entrega_mudou\n'
+        '                            or pa is None or pd is None):\n'
+        '            continue\n',
+        '',
+        "Db2. o par do degrau volta a poder afirmar preco (a escada da "
+        "Claro)"),
+
+    Mutacao(
+        "robo.py",
+        '        if ca and cd:\n'
+        '            if ca != cd:\n'
+        '                continue\n',
+        '        if ca and cd:\n'
+        '            pass\n',
+        "Db3. codigo de registro diferente volta a parear"),
+
+    Mutacao(
+        "robo.py",
+        '        elif (conta_h[(k, degrau)] > 1 or conta_o[(k, degrau)] > 1):\n'
+        '            continue\n',
+        '',
+        "Db4. a irma no balcao volta a nao impedir o par"),
+
+    Mutacao(
+        "robo.py",
+        '        if ca and cd:\n'
+        '            if ca != cd:\n'
+        '                continue\n'
+        '        elif (conta_h[(k, degrau)] > 1 or conta_o[(k, degrau)] > 1):\n'
+        '            continue\n',
+        '        if conta_h[(k, degrau)] > 1 or conta_o[(k, degrau)] > 1:\n'
+        '            continue\n',
+        "Db5. o registro igual deixa de vencer a irma no balcao"),
+
+    Mutacao(
+        "robo.py",
+        '        if degrau is None or not lado_o:\n'
+        '            continue\n',
+        '        if not lado_o:\n'
+        '            continue\n',
+        "Db6. duas ausencias de degrau voltam a ser o mesmo degrau"),
+
+    Mutacao(
+        "robo.py",
+        '        if len(lado_h) != 1 or len(lado_o) != 1:\n'
+        '            continue\n'
+        '        atual, antes = lado_h[0], lado_o[0]\n',
+        '        atual, antes = lado_h[0], lado_o[0]\n',
+        "Db7. duas candidatas no mesmo degrau voltam a ser sorteadas"),
 
     Mutacao(
         "relatorio.py",
