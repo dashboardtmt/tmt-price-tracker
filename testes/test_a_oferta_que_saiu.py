@@ -152,7 +152,26 @@ class OQuantoTempoAOfertaViveu(unittest.TestCase):
 class OsCincoCortesComOCasoRealAtras(unittest.TestCase):
 
     def _saidas(self, ontem, hoje, extras=()):
-        return dados(ontem, hoje, extras=extras).get("saidas") or []
+        """As saidas do dia - e a garantia de que nenhuma foi RECUSADA.
+
+        O AUDITOR MASCARAVA OS FILTROS. Desde 04/11/2026 toda afirmacao
+        passa pelo auditor antes de entrar na mensagem, e evento que o
+        dado nao sustenta sai da lista. Com isso um filtro quebrado
+        deixava de aparecer aqui: o detector emitia a saida errada, o
+        auditor a recusava, e a lista vinha vazia do mesmo jeito. O
+        provador pegou - a mutacao B4, que desliga o filtro das pracas,
+        passou a nao ser notada por nenhum teste.
+
+        Por isso a recusa tambem e falha neste bloco: aqui se mede o
+        DETECTOR, e evento recusado quer dizer que ele afirmou o que o
+        dado nega. Segundo portao nao serve para esconder o primeiro.
+        """
+        d = dados(ontem, hoje, extras=extras)
+        self.assertEqual(
+            d.get("recusadas") or [], [],
+            "o detector produziu afirmacao que o auditor recusou: aqui o "
+            "que se mede e o detector, e nao o portao de tras")
+        return d.get("saidas") or []
 
     def test_praca_sem_coleta_hoje_nao_rende_saida(self):
         """13/10/2026, Belo Horizonte: a coleta da vespera falhou e o
