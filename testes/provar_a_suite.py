@@ -885,11 +885,22 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    if antes is None or agora is None:\n'
+        '    if antes is None and agora is None:\n'
         '        return "entrega n\\u00e3o lida"',
         '    if False:\n'
         '        return "entrega n\\u00e3o lida"',
         "A3. entrega nao lida volta a ser afirmada como igual"),
+
+    # O RAMO NOVO DA MESMA FRASE, de 04/11/2026: um lado so'
+    # quer dizer que a entrega PASSOU a ser lida, e dizer
+    # "entrega nao lida" ali e verdade pela metade errada.
+    Mutacao(
+        "robo.py",
+        '    if antes is None:\n'
+        '        return "entrega passou a ser lida (%s)" % (',
+        '    if False:\n'
+        '        return "entrega passou a ser lida (%s)" % (',
+        "A3b. a entrega que passou a ser lida volta a sair como nao lida"),
 
     Mutacao(
         "robo.py",

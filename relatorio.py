@@ -339,6 +339,8 @@ def _versao(r):
     # se mexeu. Ate 30/10/2026 esta coluna dizia "outra versao da
     # oferta" nas tres ofertas da TIM do dia - o fato nomeado e nao
     # contado, e com o detalhe gravado nas duas datas.
+    if r.get("apps_texto"):
+        return r["apps_texto"]
     if r.get("versao_mudou"):
         return "outra versão da oferta"
     return "—"

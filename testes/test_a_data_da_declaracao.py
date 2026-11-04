@@ -181,6 +181,37 @@ class OCampoQueALeituraPassouALer(unittest.TestCase):
         self.assertNotIn("sem mexer em preço nem entrega", texto)
         self.assertIn("a leitura mudou hoje", texto)
 
+    def test_a_frase_da_entrega_diz_que_ela_passou_a_ser_lida(self):
+        """"entrega nao lida" era verdade pela metade errada.
+
+        A frase tinha dois estados e o campo tem tres: nao lida nos dois
+        dias, passou a ser lida, deixou de ser lida. Com dois, a tabela
+        do relatorio escrevia "entrega nao lida" ao lado de um evento
+        que o texto chamava de mudanca - e hoje ela FOI lida.
+        """
+        self.montar_dia()
+        m = robo.mudancas(DIA_BRISA, VESPERA)
+        e = m["leitura"][0]
+        self.assertIn("passou a ser lida", e["texto_entrega"])
+        self.assertIn("500", e["texto_entrega"])
+        self.assertNotIn("não lida", e["texto_entrega"])
+
+    def test_e_quando_nao_foi_lida_nos_dois_dias_a_frase_nao_muda(self):
+        """O estado antigo continua: nada se moveu, e e o caso da
+        Brisanet que o defeito V6 desenhou."""
+        banco([oferta(operadora="Brisanet", produto="combo",
+                      nome="500MB + HBO PCA", preco=114.80, gb=None,
+                      mbps=None, praca=p, data=d,
+                      chave="Brisanet|combo|0gb|com_apps"
+                            if d == VESPERA else
+                            "Brisanet|combo|0gb|com_max",
+                      apps=None if d == VESPERA else ["max"])
+               for d in (VESPERA, DIA_BRISA)
+               for p in ("Fortaleza/CE", "Recife/PE", "Natal/RN")])
+        m = robo.mudancas(DIA_BRISA, VESPERA)
+        e = (m["leitura"] + m["remodeladas"])[0]
+        self.assertEqual(e["texto_entrega"], "entrega não lida")
+
     def test_o_preco_nao_lido_nao_entra_nesta_regra(self):
         """Preco nao lido num dos dias deixa aberta a possibilidade de
         reajuste que nao vimos: leitura nova POR CIMA de um buraco
