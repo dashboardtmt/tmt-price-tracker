@@ -270,6 +270,56 @@ MUTACOES = [
         '',
         "Gb4. o tier AI Plus sai e a Claro perde o plano que declara"),
 
+    # A DATA DA DECLARACAO. Com ela no dia errado, os tres
+    # eventos de 22/10/2026 voltam a ser movimento da Vivo.
+    Mutacao(
+        "robo.py",
+        '    "2026-10-22": "a janela de degusta',
+        '    "2026-10-29": "a janela de degusta',
+        "Gb5. a data declarada volta a ser a do commit, e nao a da coleta"),
+
+    Mutacao(
+        "coletores/apps.py",
+        'ESCOLHA_ATRAS = re.compile(r"(?:\\bou\\b|\\s/)\\W{0,3}$", re.I)',
+        'ESCOLHA_ATRAS = re.compile(r"(?:\\bou\\b|/)\\W{0,3}$", re.I)',
+        "Gb6. a barra do caminho de arquivo volta a ser lida como escolha"),
+
+    Mutacao(
+        "coletores/tim.py",
+        '            fonte = o.pop("texto_apps", None) or o.get("composicao")',
+        '            fonte = o.get("composicao")',
+        "Gb7. a lista de apps volta a sair da composicao cortada em 400"),
+
+    Mutacao(
+        "robo.py",
+        '                   if id(r) not in ja and _ganhou_leitura(r)]',
+        '                   if False]',
+        "Gb8. o campo que a leitura ganhou volta a ser movimento de mercado"),
+
+    Mutacao(
+        "robo.py",
+        '        ganhou = [x for x in leitura if _ganhou_leitura(x)]',
+        '        ganhou = []',
+        "Gb9. a ressalva volta a dizer sem mexer em entrega sobre a entrega que passou a ser lida"),
+
+    Mutacao(
+        "robo.py",
+        '    if cobertas != set(pracas) or not quem:',
+        '    if not quem:',
+        "Gb10. cobrir parte das pracas volta a passar por substituicao"),
+
+    Mutacao(
+        "robo.py",
+        '        piscou = bool(onde_esteve) and (',
+        '        piscou = False and (',
+        "Gb11. a serie que pisca volta a sair como primeira ausencia"),
+
+    Mutacao(
+        "robo.py",
+        '        for ressalva in (s.get("substituta_texto"), s.get("piscou_texto")):',
+        '        for ressalva in ():',
+        "Gb12. a mensagem volta a afirmar saida sem dizer que o degrau ficou"),
+
 
     # ======== A UNIFIQUE SEM NAVEGADOR, E A LINHA CALIBRADA (03/11/2026) ========
     Mutacao(
@@ -1350,7 +1400,7 @@ MUTACOES = [
         "coletores/apps.py",
         '    (r"\\bsky", "sky"),',
         '    (r"\\bsky\\b", "sky"),',
-        "M1. o sufixo colado volta a derrubar a Sky"),
+        "Mb1. o sufixo colado volta a derrubar a Sky"),
 
     Mutacao(
         "coletores/apps.py",
@@ -1377,14 +1427,14 @@ MUTACOES = [
         "coletores/apps.py",
         '             "claro_musica", "vivo_musica"}',
         '             }',
-        "M5. a musica da operadora volta a nao ser streaming"),
+        "Mb5. a musica da operadora volta a nao ser streaming"),
 
     Mutacao(
         "robo.py",
         '        linhas.append("  %s" % m["onde"])\n'
         '    if len(renom) > 3:',
         '    if len(renom) > 3:',
-        "N1. a oferta renomeada volta a nao dizer em que praca"),
+        "Nb1. a oferta renomeada volta a nao dizer em que praca"),
 
     Mutacao(
         "coletores/brisanet.py",
@@ -1483,7 +1533,7 @@ MUTACOES = [
         "robo.py",
         '        quem = (l.get("chave"), l.get("nome_oferta"))',
         '        quem = (l.get("chave"), l.get("nome_oferta"), l.get("praca"))',
-        "T1. a ressalva volta a contar linha em vez de oferta"),
+        "Tb1. a ressalva volta a contar linha em vez de oferta"),
 
     # A INVARIANTE NOVA, desde 26/10/2026: a falha de leitura NAO vai
     # para a mensagem diaria. Esta mutacao reintroduz o bloco; a

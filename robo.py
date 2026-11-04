@@ -943,21 +943,83 @@ def mudancas(hoje, ontem):
 # mudou. Custa pouco, e e a diferenca entre a serie ter um degrau
 # documentado e ter um degrau que alguem vai ler como reposicionamento
 # de operadora dois meses depois.
+#
+# A DATA E A DA PRIMEIRA COLETA AFETADA, E NAO A DO COMMIT. A coleta roda
+# de madrugada: commit que entra depois dela so chega ao dado no dia
+# seguinte. Declarar o dia do commit marca um dia que nao mudou e deixa
+# sem causa escrita justamente o dia que mudou - e a declaracao existe
+# para vencer as heuristicas, entao errar a data e pior do que nao
+# declarar: ela afirma com certeza sobre o dia errado.
+#
+# Medido em 04/11/2026, varrendo os 35 dias publicados: o commit ac93d2d
+# entrou as 10:54 de 21/10, DEPOIS da coleta daquele dia, e o efeito
+# dele caiu na coleta de 22/10. A entrada de 2026-10-22 abaixo e esse
+# conserto, e e tambem o caso de teste da regra.
 LEITURA_MUDOU_EM = {
+    # A COLETA DAQUELE DIA RODOU AS 14:06 UTC e os commits entraram as
+    # 13:10 e 13:19 - dentro, por 47 minutos. O coletor da Brisanet
+    # guardava a lista crua da API ("Skeelo", "Reforca": nomes de
+    # exibicao, nao chaves do dicionario) e passou a guardar as chaves,
+    # entao "Reforca" saiu da lista nomeada - a regua nao tem esse nome
+    # - e "Max" entrou nomeado onde antes nao era.
+    #
+    # Sem esta linha, a mensagem de 19/10 afirma que a vitrine da
+    # Brisanet mexeu na composicao de "500MB + HBO PCA" nas 7 pracas,
+    # com o preco parado em R$ 114,80. A Brisanet nao mexeu em nada.
+    "2026-10-19": "a lista de apps da Brisanet passou a guardar as "
+                  "chaves do dicionário em vez dos nomes crus da API, "
+                  "e com isso o que a régua não nomeia saiu da lista e "
+                  "o que ela nomeia entrou com nome",
     "2026-10-21": "a identidade das ofertas com app passou a sair da "
                   "lista de apps, e não do nome — que carregava a safra "
                   "do mês e morria na virada; e o nível de bundle passou "
                   "a sair da lista de apps, e não só do texto do card",
+    # O COMMIT E DE 21/10 E O EFEITO E DE 22/10, e por isso esta data
+    # e uma e a de cima e outra. ac93d2d ("a lista de apps da Vivo")
+    # fez a janela de degustacao parar de engolir o ultimo app citado,
+    # e "Vivo TV Completo com HBO Max e Telecine" passou a render dois
+    # apps onde rendia um. Ele entrou as 10:54 de 21/10, depois da
+    # coleta; a de 22/10 foi a primeira a carregar a leitura nova.
+    #
+    # Sem esta linha, os tres eventos daquele dia ficam atribuidos a
+    # Vivo: a mensagem de 22/10 publicou "a vitrine passou a listar
+    # Max e Telecine" para Vivo Total V 1, 2 e 10 Giga, nas 20 pracas,
+    # com o preco e a entrega parados. Nenhum deles foi da Vivo.
+    "2026-10-22": "a janela de degustação deixou de engolir o último "
+                  "app citado no card, e os três Vivo Total V passaram "
+                  "a listar Max e Telecine onde listavam só Max — o "
+                  "preço e a entrega não se mexeram",
     # tres ofertas trocam de versao da chave neste dia, medido no
     # caminho de producao em Sao Paulo: Vivo Pre 25 GB (R$ 35) de
     # com_vale_saude para com_google_one_vale_saude, e as duas Claro
     # Pos de cima (R$ 239,90 e R$ 339,90) de com_apps para
     # com_google_one. O degrau e da NOSSA leitura: o servico novo da
     # Vivo e de 03/11, e a assinatura SVA do regulamento nem se mexeu.
+    # O QUE ESTA REGRA CUSTOU NO MESMO DIA, medido em 04/11/2026 na
+    # base publicada: a barra do caminho do arquivo foi lida como o "/"
+    # da escolha, e a TIM - que nomeia o app no nome do arquivo do
+    # icone - perdeu o Paramount da Ultracombo 6 e o Aya Books da 7 nas
+    # 20 pracas. 40 linhas, e a mensagem do dia atribuiu as quatro a
+    # esta linha, com a causa certa e o efeito errado. Corrigido na
+    # coleta de 05/11, declarada abaixo.
     "2026-11-04": "a leitura passou a nomear o Google One, que a "
                   "vitrine cita e a régua não tinha; e serviço oferecido "
                   "à ESCOLHA (Google One ou iCloud+, na Claro) deixou "
                   "de entrar na lista como se fosse incluso",
+    # A DATA DO CONSERTO E A DA PROXIMA COLETA, nao a do commit: a de
+    # 04/11 rodou as 12:00 UTC e ja_coletou.py so deixa uma por dia.
+    #
+    # Dois consertos, os dois medidos na pagina de combo da TIM em
+    # 04/11/2026: a barra de caminho deixou de ser escolha (e os dois
+    # Ultracombo recuperam o app que perderam) e a lista de apps passou
+    # a ler o MESMO texto que o nivel de bundle le, em vez da
+    # composicao cortada em 400 caracteres - com isso a Ultracombo 6
+    # nomeia tambem o Deezer e o Aya Ensinah, e a 7 o Aya Ensinah, que
+    # a pagina declara para elas e o corte escondia.
+    "2026-11-05": "a barra de caminho de arquivo deixou de ser lida "
+                  "como escolha, e a lista de apps passou a ler o mesmo "
+                  "texto que o nível de bundle lê, em vez da composição "
+                  "cortada em 400 caracteres",
 }
 
 
@@ -1002,8 +1064,36 @@ def _separar_o_que_e_nosso(remodeladas, hoje=None):
     varias_operadoras = len({r["operadora"] for r in so_versao}) >= 2
     nossas = [r for r in so_versao
               if declarado or varias_operadoras or _minoria_das_pracas(r)]
+    # E O CAMPO QUE PASSOU A SER LIDO, que nenhuma das duas heuristicas
+    # pode julgar. Entra SO com data declarada, que e o unico caso em
+    # que o codigo sabe a resposta em vez de estimar: sem declaracao,
+    # "nao lido ontem, 500 Mbps hoje" pode ser a vitrine comecando a
+    # publicar a velocidade, e chutar seria inventar causa.
+    if declarado:
+        ja = {id(r) for r in nossas}
+        nossas += [r for r in remodeladas
+                   if id(r) not in ja and _ganhou_leitura(r)]
     ids = {id(r) for r in nossas}
     return [r for r in remodeladas if id(r) not in ids], nossas
+
+
+def _ganhou_leitura(r):
+    """A nossa leitura passou a ler - ou deixou de ler - um campo.
+
+    NAO E' MOVIMENTO DE MERCADO, por definicao: ninguem pode afirmar
+    que a entrega foi de "desconhecida" para 500 Mbps no mundo. O que
+    mudou foi quanto nos vemos.
+
+    O PRECO TEM DE ESTAR LIDO NOS DOIS DIAS E IGUAL. Preco nao lido
+    deixa aberta a possibilidade de reajuste que nao vimos, e ai isto
+    nao e' "so a leitura": e' leitura nova POR CIMA de um buraco, e o
+    evento continua no balde do mercado, onde o leitor o confere.
+    """
+    pa, pd = r.get("antes_preco"), r.get("agora_preco")
+    if pa is None or pd is None or pa != pd:
+        return False
+    ea, ed = r.get("antes_entrega"), r.get("agora_entrega")
+    return (ea is None) != (ed is None)
 
 
 def _minoria_das_pracas(e):
@@ -2203,6 +2293,21 @@ def _ofertas_que_sairam(do_dia, antes, ontem):
         precos = sorted(l["preco_promocional"] for l in irmas
                         if l.get("preco_promocional"))
         pracas = sorted(comparaveis)
+        # O DEGRAU CONTINUA NA VITRINE? Mesma operadora, mesmo produto,
+        # mesma entrega e mesmo preco, em TODA praca de onde a oferta
+        # saiu. Se continua, o ponto de preco nao deixou a prateleira:
+        # e substituicao, e dizer so "saiu da vitrine" sugere que o
+        # mercado perdeu aquela oferta.
+        substituta = _quem_ficou_no_degrau(do_dia, irmas, comparaveis)
+        # E A PROPRIA SERIE PISCA? Buraco dentro da janela quer dizer
+        # pagina que rotaciona versao, e cada volta rende uma saida
+        # nova - a Vivo Lite Mensal II foi anunciada saindo em 01/11 e
+        # outra vez em 04/11, com um dia de vitrine no meio.
+        ordem = [d for d in sorted(antes)] + ["hoje"]
+        onde_esteve = sorted(ordem.index(d) for d in vividos[k]
+                             if d in ordem)
+        piscou = bool(onde_esteve) and (
+            onde_esteve[-1] - onde_esteve[0] + 1) > len(onde_esteve)
         saidas.append({
             "operadora": operadora,
             "produto": irmas[0].get("produto"),
@@ -2220,10 +2325,53 @@ def _ofertas_que_sairam(do_dia, antes, ontem):
             "universo": len(comparaveis),
             "onde": _onde(pracas, len(comparaveis)),
             "onde_todas": _onde(pracas, len(comparaveis), limite=None),
+            # as duas ressalvas viajam como texto pronto, pela mesma
+            # razao que o "onde": a mensagem e o PDF leem a mesma frase
+            "substituta": substituta,
+            "substituta_texto": (
+                "o degrau continua na vitrine, agora como " + chr(34)
+                + substituta + chr(34)) if substituta else None,
+            "piscou": piscou,
+            "piscou_texto": ("a s\u00e9rie j\u00e1 faltou e voltou dentro "
+                             "da janela: a aus\u00eancia de hoje n\u00e3o \u00e9 a "
+                             "primeira") if piscou else None,
         })
     saidas.sort(key=lambda s: (-len(s["pracas"]), s["operadora"],
                                s["nome_oferta"] or ""))
     return saidas
+
+
+def _quem_ficou_no_degrau(do_dia, irmas, pracas):
+    """O nome que cobre HOJE o mesmo degrau e preco, em todas as pracas.
+
+    EM TODAS, E NAO EM ALGUMA. Cobrir parte das pracas e rotacao de
+    praca, que e outro evento - a mesma razao do filtro 4.
+
+    E NAO HA GUARDA CONTRA SER SUBSTITUTA DE SI MESMA, de proposito: se
+    o nome de serie de hoje fosse o mesmo, _ofertas_que_sairam ja teria
+    descartado a saida no topo (comparaveis & de_hoje). Escrevi a guarda
+    primeiro e nenhuma mutacao dela era pega - salvaguarda morta esconde
+    o risco de verdade em vez de cobri-lo.
+
+    PRECO NAO LIDO NAO AFIRMA NADA: sem os dois precos, nao da para
+    dizer que o ponto de preco continua na prateleira.
+    """
+    alvos = {(l.get("degrau_mbps"), l.get("franquia_anunciada_gb"),
+              l.get("preco_promocional")) for l in irmas}
+    if not alvos or any(a[2] is None for a in alvos):
+        return None
+    op, produto = irmas[0].get("operadora"), irmas[0].get("produto")
+    cobertas, quem = set(), set()
+    for l in do_dia:
+        if (l.get("operadora") == op and l.get("produto") == produto
+                and l.get("praca") in pracas
+                and (l.get("degrau_mbps"), l.get("franquia_anunciada_gb"),
+                     l.get("preco_promocional")) in alvos):
+            cobertas.add(l.get("praca"))
+            quem.add(l.get("nome_oferta"))
+    if cobertas != set(pracas) or not quem:
+        return None
+    return sorted(quem)[0]
 
 
 def _onde(pracas, universo=None, limite=3, paradas=None):
@@ -2356,8 +2504,20 @@ def _texto_preco(antes, agora, mudou):
 
 def _texto_entrega(antes, agora, unidade, mudou):
     """Como a entrega desta oferta aparece nas duas telas."""
-    if antes is None or agora is None:
+    if antes is None and agora is None:
         return "entrega n\u00e3o lida"
+    # UM LADO SO': a entrega nao ficou parada nem se moveu - ela PASSOU
+    # a ser lida, ou deixou. Dizer "entrega nao lida" aqui era verdade
+    # pela metade, e a metade errada: hoje ela foi lida. Medido em
+    # 19/10/2026, quando o coletor da Brisanet passou a trazer a
+    # velocidade e a tabela do relatorio continuou escrevendo "entrega
+    # nao lida" ao lado de um evento que o texto chamava de mudanca.
+    if antes is None:
+        return "entrega passou a ser lida (%s)" % (
+            ("%s %s" % (agora, unidade or "")).strip())
+    if agora is None:
+        return "entrega deixou de ser lida (era %s)" % (
+            ("%s %s" % (antes, unidade or "")).strip())
     u = unidade or ""
     if mudou:
         return "%s \u2192 %s%s" % (antes, ("%s %s" % (agora, u)).strip(),
@@ -2829,6 +2989,13 @@ def montar_mensagem(hoje, ontem):
                   else "depois de %d dia%s na vitrine"
                   % (dias, "" if dias == 1 else "s"))
         linhas.append("  %s, %s" % (s["onde"], quanto))
+        # AS DUAS RESSALVAS, quando houver. Elas nao tiram a saida da
+        # contagem: tiram da frase a implicacao falsa de que o ponto de
+        # preco deixou a prateleira, ou de que esta e a primeira
+        # ausencia. Ver _ofertas_que_sairam.
+        for ressalva in (s.get("substituta_texto"), s.get("piscou_texto")):
+            if ressalva:
+                linhas.append("  e %s" % ressalva)
     if len(saidas) > 3:
         n = len(saidas) - 3
         linhas += ["", "e mais %s da vitrine, no relatório"
@@ -2934,12 +3101,26 @@ def montar_mensagem(hoje, ontem):
         porque = ("a leitura mudou hoje: %s" % declarado if declarado
                   else "isso costuma ser mudan\u00e7a na nossa leitura, e "
                        "n\u00e3o no mercado")
-        linhas += ["", "%d oferta%s %s de vers\u00e3o sem mexer em "
-                   "pre\u00e7o nem entrega (%s) \u2014 %s. Detalhe no "
-                   "relat\u00f3rio."
-                   % (n, "" if n == 1 else "s",
-                      "mudou" if n == 1 else "mudaram", ", ".join(ops),
-                      porque)]
+        # DUAS FRASES, PORQUE SAO DOIS FATOS. "sem mexer em preco nem
+        # entrega" e' falso sobre a oferta cuja entrega passou a ser
+        # lida - e era justamente essa que a declaracao foi ampliada
+        # para alcancar, em 19/10/2026. Juntar as duas sob a primeira
+        # frase trocaria a atribuicao errada por uma afirmacao errada.
+        ganhou = [x for x in leitura if _ganhou_leitura(x)]
+        versao = [x for x in leitura if x not in ganhou]
+        partes = []
+        if versao:
+            partes.append("%d oferta%s %s de vers\u00e3o sem mexer em "
+                          "pre\u00e7o nem entrega"
+                          % (len(versao), "" if len(versao) == 1 else "s",
+                             "mudou" if len(versao) == 1 else "mudaram"))
+        if ganhou:
+            partes.append("%d oferta%s %s a ter campo lido que antes "
+                          "n\u00e3o era, com o pre\u00e7o parado"
+                          % (len(ganhou), "" if len(ganhou) == 1 else "s",
+                             "passou" if len(ganhou) == 1 else "passaram"))
+        linhas += ["", "%s (%s) \u2014 %s. Detalhe no relat\u00f3rio."
+                   % ("; ".join(partes), ", ".join(ops), porque)]
 
     # O QUE O COLETOR RECUSOU LER. Mesma familia da cobertura e da linha
     # de leitura: as tres dizem o que NAO foi possivel afirmar, e por

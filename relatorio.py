@@ -339,8 +339,6 @@ def _versao(r):
     # se mexeu. Ate 30/10/2026 esta coluna dizia "outra versao da
     # oferta" nas tres ofertas da TIM do dia - o fato nomeado e nao
     # contado, e com o detalhe gravado nas duas datas.
-    if r.get("apps_texto"):
-        return r["apps_texto"]
     if r.get("versao_mudou"):
         return "outra versão da oferta"
     return "—"
@@ -515,11 +513,17 @@ def _bloco_saidas(d):
             _reais(s.get("preco")),
             str(s.get("dias") or "—"),
             _pracas(s),
+            # A COLUNA DO QUE A SAIDA NAO QUER DIZER. Sem ela, a tabela
+            # afirma que o ponto de preco deixou a prateleira - e em 2
+            # das 24 saidas medidas em 04/11/2026 ele continuava lá, com
+            # outro nome.
+            ("; ".join(x for x in (s.get("substituta_texto"),
+                                   s.get("piscou_texto")) if x) or "—"),
         ])
     return _tabela(
         ["Operadora", "Produto", "Oferta", "Último preço", "Dias",
-         "Praças"], linhas,
-        [19 * mm, 17 * mm, 54 * mm, 21 * mm, 12 * mm, 37 * mm],
+         "Praças", "Ressalva"], linhas,
+        [17 * mm, 15 * mm, 40 * mm, 19 * mm, 11 * mm, 28 * mm, 40 * mm],
         vazio="Nenhuma oferta deixou a vitrine.")
 
 
@@ -814,11 +818,14 @@ def gerar(dados, entradas, caminho):
         hist.append(_com_titulo(
             "Alterações atribuíveis à leitura dos dados",
             Paragraph("Ofertas cuja versão foi alterada sem variação de "
-                      "preço ou de entrega, em circunstâncias que indicam "
+                      "preço ou de entrega — ou que passaram a ter um "
+                      "campo lido que antes não era, com o preço "
+                      "inalterado —, em circunstâncias que indicam "
                       "modificação no procedimento de leitura e não no "
                       "mercado: ocorrência simultânea em mais de uma "
-                      "operadora, ou restrita a uma minoria das praças em "
-                      "que a oferta é comercializada. Registram-se aqui "
+                      "operadora, restrição a uma minoria das praças em "
+                      "que a oferta é comercializada, ou data de "
+                      "alteração de leitura declarada. Registram-se aqui "
                       "para que a descontinuidade na série seja "
                       "identificável.", ESTILOS["corpo"]),
             _bloco_remodeladas(
