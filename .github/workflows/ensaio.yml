@@ -1,0 +1,99 @@
+# O ensaio da coleta, a cada push que mexe no leitor.
+#
+# POR QUE EXISTE. Em 04/11/2026 uma regra de leitura subiu as 07:09 e a
+# coleta das 09:00 foi a primeira a exerce-la: a barra do caminho do
+# arquivo do icone foi lida como o "/" de uma escolha, e o Paramount da
+# TIM Ultracombo 6 e o Aya Books da 7 sairam da lista nas 20 pracas. 40
+# registros, calados, e a mensagem do dia atribuiu as quatro ofertas a
+# uma mudanca de leitura declarada - com a causa certa e o efeito
+# errado.
+#
+# NADA DISSO ERA INVISIVEL ANTES DO PUSH, e e' por isso que este arquivo
+# existe. A suite prova que a mudanca faz o que o autor quis; a bancada
+# reproduz a MENSAGEM sobre linhas ja gravadas e nunca rele uma pagina.
+# O primeiro exercicio real do leitor novo era a mensagem publicada.
+#
+# E POR QUE AQUI, E NAO NA MINHA LEMBRANCA. A licao do mesmo dia: duas
+# datas de LEITURA_MUDOU_EM ficaram erradas porque dependiam de alguem
+# lembrar de escreve-las. Portao que depende de memoria nao e portao.
+#
+# O QUE ELE FAZ. Busca as paginas vivas uma vez, le o MESMO corpo com os
+# coletores desta arvore e com os do commit anterior, e compara oferta
+# por oferta. Campo que tinha valor e ficou vazio - ou que mudou de
+# valor - derruba o job. Campo que GANHOU valor passa: melhorar a
+# leitura acrescenta, e barrar o acerto seria impedir todo conserto.
+#
+# SO RODA QUANDO MEXE NO LEITOR. Push em metodologia, teste ou
+# mensagem nao muda o que a coleta ve, e o ensaio custa minutos de rede.
+
+name: Ensaio da coleta
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'coletores/**'
+      - 'ferramentas/ensaio_da_coleta.py'
+  workflow_dispatch:
+    inputs:
+      referencia:
+        description: 'Commit de referencia (padrao: o anterior ao push)'
+        required: false
+        default: ''
+
+jobs:
+  ensaio:
+    runs-on: ubuntu-latest
+    # A coleta das tres pracas do ensaio leva alguns minutos, e a
+    # instalacao do Chromium leva mais. O teto e folgado de proposito:
+    # ensaio que estoura o tempo nao diz nada, e nao dizer nada e
+    # exatamente o estado que ele existe para acabar.
+    timeout-minutes: 30
+    steps:
+      # O HISTORICO INTEIRO, porque o ensaio cria uma worktree no commit
+      # anterior. Com o checkout raso (o padrao) o commit de referencia
+      # nao existe localmente e o ensaio nao tem com que comparar.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Instalar o navegador que a NuCel e o Claro Flex exigem
+        run: |
+          pip install --quiet playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Qual commit e a referencia
+        id: ref
+        # github.event.before e o tip anterior ao push. No primeiro push
+        # de um branch ele vem zerado, e ai o anterior e HEAD~1 - com o
+        # fallback dito, e nao escolhido em silencio.
+        run: |
+          antes="${{ github.event.inputs.referencia }}"
+          if [ -z "$antes" ]; then antes="${{ github.event.before }}"; fi
+          if ! git cat-file -e "$antes^{commit}" 2>/dev/null; then
+            echo "referencia $antes nao existe aqui; usando HEAD~1"
+            antes="$(git rev-parse HEAD~1)"
+          fi
+          echo "antes=$antes" >> "$GITHUB_OUTPUT"
+          git --no-pager log --oneline -1 "$antes"
+
+      - name: Ler a mesma pagina com os dois leitores
+        run: python ferramentas/ensaio_da_coleta.py --referencia ${{ steps.ref.outputs.antes }}
+
+      # AS DUAS LEITURAS FICAM GUARDADAS, inclusive quando o job cai: e
+      # com elas que se confere, oferta por oferta, se a perda era
+      # defeito ou era a vitrine tendo mudado de forma.
+      - name: Guardar as duas leituras
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ensaio
+          path: |
+            .ensaio/trabalho.json
+            .ensaio/referencia.json
+          if-no-files-found: warn
+          retention-days: 14

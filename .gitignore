@@ -50,3 +50,6 @@ relatorio-*.pdf
 
 # config local de sessao (caminhos da maquina de quem roda)
 .claude/
+
+# O ensaio da coleta: paginas vivas e as duas leituras, so local
+.ensaio/
