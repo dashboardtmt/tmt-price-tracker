@@ -94,10 +94,25 @@ class ADataEADaPrimeiraColeta(unittest.TestCase):
         self.assertEqual(len(m["leitura"]), 0)
 
     def test_a_mensagem_do_dia_declarado_diz_a_causa(self):
+        u"""A causa em uma linha na mensagem, e a tecnica em dados.
+
+        ATE 05/11/2026 A MENSAGEM LEVAVA A DECLARACAO INTEIRA, e o
+        leitor cobrou: "O ultimo paragrafo da msg nao faz o menor
+        sentido". O fato que este teste prende nao mudou - o dia
+        declarado DIZ a causa -, mudou o canal de cada forma dela: a
+        frase de leitor aqui, a descricao com nome de campo no
+        relatorio, via dados["leitura_declarada"].
+
+        AS DUAS, E NAO UMA: sem cobrar a de baixo, trocar de canal
+        passaria por apagar a declaracao tecnica, que e o que torna a
+        descontinuidade da serie auditavel meses depois.
+        """
         banco(ANTES + DEPOIS)
-        texto, _ = robo.montar_mensagem(HOJE, ONTEM)
+        texto, dados = robo.montar_mensagem(HOJE, ONTEM)
         self.assertIn("a leitura mudou hoje", texto)
-        self.assertIn("Telecine", texto)
+        self.assertIn("último app citado", texto)
+        self.assertNotIn("Telecine", texto)
+        self.assertIn("Telecine", dados["leitura_declarada"])
         # e nao conta como mudanca de mercado
         self.assertNotIn("3 mudan", texto)
 

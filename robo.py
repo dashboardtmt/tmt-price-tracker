@@ -1035,6 +1035,44 @@ LEITURA_MUDOU_EM = {
 }
 
 
+# A MESMA DATA EM UMA LINHA, PARA QUEM LE NO CELULAR. O dicionario de
+# cima e a declaracao tecnica: ela diz o que mudou no CODIGO, com nome
+# de campo e de corte, e e o que o relatorio precisa para que a
+# descontinuidade da serie seja auditavel meses depois.
+#
+# COBRADO EM 05/11/2026: "O ultimo paragrafo da msg '4 ofertas
+# mudaram...' tbm nao faz o menor sentido". A mensagem daquele dia
+# levou a declaracao inteira - "a barra de caminho de arquivo deixou de
+# ser lida como escolha, e a lista de apps passou a ler o mesmo texto
+# que o nivel de bundle le, em vez da composicao cortada em 400
+# caracteres" - que descreve com precisao um conserto de parser para
+# quem conhece o parser, e nao diz nada para quem quer saber se a TIM
+# mexeu no preco.
+#
+# A DIVISAO E A DO PONTO CEGO, que ja estava certa no projeto: "a frase
+# longa e a do relatorio, onde ha espaco para explicar; a curta ja foi
+# na mensagem". As duas falam do mesmo fato e saem do mesmo lugar,
+# entao nao podem discordar - e a de cima nao sai de circulacao,
+# troca de canal (ver "leitura_declarada" em dados).
+#
+# SEM A CURTA A MENSAGEM NAO FICA CALADA: ela cai na declaracao longa,
+# que e o comportamento de hoje. Quem impede a data nova de sair sem
+# frase de leitor e o teste, nao o robo - declarar a data e um passo
+# consciente, e o teste e o lugar de cobrar o segundo passo.
+LEITURA_EM_UMA_LINHA = {
+    "2026-10-19": "a lista de apps da Brisanet passou a usar os nomes "
+                  "da nossa régua",
+    "2026-10-21": "a oferta passou a ser identificada pela lista de "
+                  "apps, e não pelo nome, que carregava a safra do mês",
+    "2026-10-22": "a leitura passou a enxergar o último app citado no "
+                  "card da Vivo",
+    "2026-11-04": "a régua passou a nomear o Google One, e serviço "
+                  "oferecido à escolha deixou de entrar como incluso",
+    "2026-11-05": "a TIM voltou a ter os apps que a nossa leitura "
+                  "havia perdido, e a lista deixou de vir cortada",
+}
+
+
 def _separar_o_que_e_nosso(remodeladas, hoje=None):
     """Separa o que o mercado fez do que a nossa leitura passou a ver.
 
@@ -1440,6 +1478,37 @@ def _assinar_alcance(h, o, *grupos):
             if k:
                 tomadas[k].update(e.get("pracas") or ())
 
+    # A PEGADA DA ESCADA, que nao e a de uma oferta. O evento de grade
+    # fala do portfolio de uma operadora num produto, e por isso
+    # _serie_do_evento devolve None para ele: nenhuma oferta e a dona do
+    # fato. Mas a escada TEM onde foi comparada - as cidades em que a
+    # operadora tinha preco e entrega legiveis nos dois dias -, e e
+    # dessa pegada que sai o complemento do evento de grade.
+    #
+    # O MESMO FILTRO DE _grades_reorganizadas: linha sem preco ou sem
+    # degrau nao entra na escada, entao a cidade em que a leitura falhou
+    # num dos dois campos nao pode ser nomeada como "olhada".
+    def _na_escada(l):
+        return (l.get("preco_promocional") is not None
+                and _entrega(l) is not None)
+
+    escada_o = collections.defaultdict(set)
+    for l in o.values():
+        if _na_escada(l):
+            escada_o[(l["operadora"], l["produto"])].add(l["praca"])
+    escada_comparavel = collections.defaultdict(set)
+    for l in h.values():
+        k = (l["operadora"], l["produto"])
+        if _na_escada(l) and l["praca"] in escada_o.get(k, ()):
+            escada_comparavel[k].add(l["praca"])
+
+    tomadas_escada = collections.defaultdict(set)
+    for grupo in grupos:
+        for e in grupo:
+            esc = _escada_do_evento(e)
+            if esc:
+                tomadas_escada[esc].update(e.get("pracas") or ())
+
     for grupo in grupos:
         for e in grupo:
             base = e.get("atual") or e
@@ -1452,16 +1521,31 @@ def _assinar_alcance(h, o, *grupos):
             # nao pode sair: eles falam do portfolio, e nao de uma
             # oferta.
             k = _serie_do_evento(e)
-            paradas = ((comparavel.get(k) or set()) - tomadas.get(k, set())
-                       if k else set())
+            esc = None if k else _escada_do_evento(e)
+            if k:
+                olhadas, tomada = (comparavel.get(k) or set(),
+                                   tomadas.get(k, set()))
+            elif esc:
+                olhadas, tomada = (escada_comparavel.get(esc) or set(),
+                                   tomadas_escada.get(esc, set()))
+            else:
+                olhadas, tomada = set(), set()
+            # OS DOIS COMPLEMENTOS, E ELES NAO SE SOBREPOEM: parada e a
+            # cidade olhada que nenhum evento tomou; "outras" e a que
+            # outro evento da MESMA oferta (ou da mesma escada) tomou, e
+            # que portanto se mexeu em outro lugar da mensagem.
+            minhas = set(e.get("pracas") or ())
+            paradas = olhadas - tomada
+            outras = (olhadas & tomada) - minhas
             e["onde"] = _onde(e.get("pracas") or (), e["universo"],
-                              paradas=paradas)
+                              paradas=paradas, outras=outras)
             # A LISTA INTEIRA, para o relatorio: e para ela que o "e
             # mais N, no relatorio" da mensagem manda o leitor. Escrita
             # aqui, junto com a curta, pelo mesmo motivo de sempre - as
             # duas saem do mesmo campo e nao podem discordar.
             e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],
-                                    limite=None, paradas=paradas)
+                                    limite=None, paradas=paradas,
+                                    outras=outras)
 
 
 def _serie_do_evento(e):
@@ -1478,6 +1562,40 @@ def _serie_do_evento(e):
     if not isinstance(base, dict) or not base.get("nome_oferta"):
         return None
     return (base["operadora"], base["produto"], _nome_de_serie(base))
+
+
+def _escada_do_evento(e):
+    """A escada de que este evento fala: (operadora, produto).
+
+    So o evento de grade tem escada, e ele se reconhece pelos dois lados
+    que carrega - "saltos" (o mesmo preco entregando outra coisa) e
+    "precos" (a mesma entrega custando outro valor). Os dois campos
+    juntos, e nao um deles: "precos" sozinho e o nome do balde de
+    reajustes em mudancas(), e confundir os dois daria escada a todo
+    evento de preco.
+    """
+    if "saltos" in e and "precos" in e:
+        return (e.get("operadora"), e.get("produto"))
+    return None
+
+
+def _quantas_ofertas(itens):
+    """Quantas OFERTAS distintas, e nao quantos eventos.
+
+    MEDIDO EM 05/11/2026: a mensagem publicou "4 ofertas mudaram de
+    versao" num dia em que duas ofertas mudaram - a TIM Ultracombo 6 e
+    a 7. Cada uma rendeu dois eventos porque em Sao Paulo o preco e
+    outro (89,99 e 139,99 contra 99,99 e 149,99), e evento se separa por
+    numero, nao por oferta. Contar eventos dobrava a ressalva.
+
+    O criterio e a serie da oferta - operadora, produto e nome sem a
+    safra do mes -, o mesmo que _assinar_alcance usa para dizer onde a
+    oferta foi comparada. Evento sem serie (a escada, o degrau que
+    voltou) cai no nome que ele carrega.
+    """
+    return len({_serie_do_evento(x) or (x.get("operadora"),
+                                        x.get("produto"), x.get("nome"))
+                for x in itens})
 
 
 # Como cada degrau da escada de bundle (decisao 10) se chama em
@@ -2515,7 +2633,7 @@ def _quem_ficou_no_degrau(do_dia, irmas, pracas):
     return sorted(quem)[0]
 
 
-def _onde(pracas, universo=None, limite=3, paradas=None):
+def _onde(pracas, universo=None, limite=3, paradas=None, outras=None):
     """"em todas as 20 praças", "em 19 das 20 cidades, ex-Rio de Janeiro"
     ou "em 3 de 20: SP, RJ, BH".
 
@@ -2566,9 +2684,41 @@ def _onde(pracas, universo=None, limite=3, paradas=None):
     # nao" - uma frase da qual a lista inteira se deduz, e e por isso
     # que ela vale igual nos dois canais.
     fora = sorted({p.split("/")[0] for p in (paradas or ())})
-    if fora and len(fora) <= EXCECOES_QUE_CABEM and len(fora) < len(nomes):
-        return "em %d das %d cidades, ex-%s" % (
-            quantas, quantas + len(paradas), _costurar(fora))
+
+    # E A CIDADE QUE SAIU EM OUTRO EVENTO TAMBEM SE NOMEIA - com outra
+    # palavra, porque e outro fato. Cobrado em 05/11/2026: "quando houve
+    # aumento em 19 de 20 cidades, fale qual nao mudou, pq fica mais
+    # facil de entender".
+    #
+    # NAQUELE DIA A FRASE NAO PODIA SAIR, e nao por falta de regra: a
+    # escada do Claro Controle deslizou nas 20 pracas, e no Rio um dos
+    # degraus nao deslizou - entao o Rio virou um SEGUNDO evento, e o
+    # primeiro saiu com "em 19 de 20: Aracaju, Belo Horizonte, Blumenau
+    # e mais 16, no relatorio". O Rio nao era "parada" (lá a escada se
+    # mexeu) e dizer "ex-Rio" seria falso; sem o terceiro nome a lista
+    # alfabetica era o que sobrava.
+    #
+    # "sai em separado" E O QUE SE PODE AFIRMAR: a cidade foi olhada
+    # nos dois dias, ela se mexeu, e o numero dela esta em outro lugar
+    # - na mensagem ou no relatorio, para onde o corte manda. Nao diz
+    # "nada mudou lá", que e o erro que a decisao 86 mediu, nem aponta
+    # posicao na tela, que o corte dos tres por tipo pode desmentir.
+    noutro = sorted({p.split("/")[0] for p in (outras or ())})
+    excecoes = len(fora) + len(noutro)
+    if excecoes and excecoes <= EXCECOES_QUE_CABEM and excecoes < len(nomes):
+        # O DENOMINADOR SOMA OS TRES ESTADOS COMPARAVEIS: onde mudou,
+        # onde foi olhado e nao mudou, e onde mudou em outro evento. A
+        # cidade sem coleta ontem e a que nao vende a oferta continuam
+        # fora da conta - elas nao foram comparadas.
+        comparadas = (quantas + len(set(paradas or ()))
+                      + len(set(outras or ())))
+        texto = "em %d das %d cidades" % (quantas, comparadas)
+        if fora:
+            texto += ", ex-%s" % _costurar(fora)
+        if noutro:
+            texto += "; %s sa%s em separado" % (
+                _costurar(noutro), "i" if len(noutro) == 1 else "em")
+        return texto
 
     if limite and len(nomes) > limite:
         # O NUMERO QUE FALTA SAI DE "quantas", para a conta fechar com o
@@ -3030,16 +3180,50 @@ def montar_mensagem(hoje, ontem):
     if ponto_cego and (col or erro_col):
         linhas += ["", ponto_cego["curto"]]
 
+    # OS BLOCOS SAEM AGRUPADOS POR PRODUTO E PLAYER, e nao na ordem dos
+    # detectores. Cobrado em 05/11/2026: "a mensagem sobre o controle da
+    # Claro pareceu mto confusa... vc colocou Fibra no meio das
+    # mensagens de controle. Ficou uma ordem ruim."
+    #
+    # NAQUELE DIA A CLARO MEXEU EM TRES PRODUTOS E A MENSAGEM CONTOU EM
+    # CINCO BLOCOS, nesta ordem: Fibra (reajuste), Controle (franquia
+    # contratual), Pos-pago (escada), Controle (escada nas 19) e
+    # Controle (escada no Rio). O leitor lia a mesma noticia - o
+    # Controle da Claro - em tres pedacos separados por um quarto
+    # produto no meio, porque a ordem era a dos DETECTORES: preco,
+    # composicao, remodelada, contratual, saida, escada, degrau que
+    # voltou, renomeada.
+    #
+    # A ORDEM DOS DETECTORES NAO FOI JOGADA FORA, mudou de nivel: o
+    # grupo (produto, player) vale pelo bloco mais forte que ele tem, e
+    # dentro do grupo os blocos seguem nascendo na ordem dos
+    # detectores. Com isso "reajuste primeiro" continua valendo entre
+    # grupos, e a noticia de um player num produto fica inteira num
+    # lugar so.
+    #
+    # COMO: cada bloco escreve na lista DELE - "linhas" passa a
+    # apontar para o corpo do bloco aberto -, e o fim da secao remonta
+    # a mensagem na ordem nova. O corpo de cada bloco nao mudou uma
+    # linha; so deixou de ser escrito direto no texto final.
+    topo, blocos, cauda = linhas, [], []
+
+    def abrir(categoria, operadora, titulo):
+        """Comeca um bloco e devolve o corpo dele, ja com o titulo."""
+        corpo = [titulo]
+        blocos.append((len(blocos), categoria, operadora, corpo))
+        return corpo
+
     for m in mud[:3]:
         a, d = m["antes"], m["atual"]
         de, para = a["preco_promocional"], d["preco_promocional"]
-        linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
+        linhas = abrir(_categoria(d), d["operadora"],
+                       "%s \u00b7 %s" % (_categoria(d), _rotulo(d)))
         linhas.append("  %s \u2192 %s%s   %s" % (
             _reais(de), _reais(para), _variacao(de, para), m["onde"]))
     if len(mud) > 3:
         n = len(mud) - 3
-        linhas += ["", "e mais %d mudan\u00e7a%s de pre\u00e7o no relat\u00f3rio"
-                   % (n, "" if n == 1 else "s")]
+        cauda.append("e mais %d mudan\u00e7a%s de pre\u00e7o no relat\u00f3rio"
+                     % (n, "" if n == 1 else "s"))
 
     for m in comp[:3]:
         d = m["atual"]
@@ -3047,7 +3231,8 @@ def montar_mensagem(hoje, ontem):
         agora_sva = set((d["assinatura_sva"] or "").split("+"))
         saiu = sorted(x for x in antes_sva - agora_sva if x)
         entrou = sorted(x for x in agora_sva - antes_sva if x)
-        linhas += ["", "%s \u00b7 %s" % (_categoria(d), _rotulo(d))]
+        linhas = abrir(_categoria(d), d["operadora"],
+                       "%s \u00b7 %s" % (_categoria(d), _rotulo(d)))
         # O PRECO SAI DE _texto_preco, como no caminho das remodeladas.
         # "mesmo preco" estava escrito na mao aqui, e o evento de
         # composicao nasce exatamente quando o ramo de preco NAO
@@ -3058,8 +3243,8 @@ def montar_mensagem(hoje, ontem):
                                       d.get("preco_promocional"), False),
                          _trocou(saiu, entrou), m["onde"]))
     if len(comp) > 3:
-        linhas += ["", "e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
-                   % (len(comp) - 3)]
+        cauda.append("e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
+                     % (len(comp) - 3))
 
     # PRECO E ENTREGA JUNTOS. Vem logo depois das mudancas de preco por
     # ser o movimento de maior efeito sobre o cliente - paga mais e
@@ -3073,8 +3258,10 @@ def montar_mensagem(hoje, ontem):
     # pracas" numa linha so.
     juntas = _agrupar_remodeladas(remodeladas)
     for g in juntas[:3]:
-        linhas += ["", "%s \u00b7 %s" % (_categoria(g[0]["atual"]),
-                                      _nomes_juntos(g))]
+        linhas = abrir(_categoria(g[0]["atual"]),
+                       g[0]["atual"]["operadora"],
+                       "%s \u00b7 %s" % (_categoria(g[0]["atual"]),
+                                        _nomes_juntos(g)))
         # O NUMERO DE UMA OFERTA NAO VALE PARA O GRUPO. As quatro Claro
         # Flex de 23/10/2026 custam R$ 44,90, R$ 59,90, R$ 69,90 e
         # R$ 119,90; imprimir "mesmo preco (44,90)" sob um cabecalho que
@@ -3091,15 +3278,16 @@ def montar_mensagem(hoje, ontem):
         linhas.append("  %s" % g[0]["onde"])
     if len(juntas) > 3:
         n = sum(len(g) for g in juntas[3:])
-        linhas += ["", "e mais %d oferta%s remodelada%s no relat\u00f3rio"
-                   % (n, "" if n == 1 else "s", "" if n == 1 else "s")]
+        cauda.append("e mais %d oferta%s remodelada%s no relat\u00f3rio"
+                     % (n, "" if n == 1 else "s", "" if n == 1 else "s"))
 
     # A FRANQUIA DO CONTRATO. Fica junto das remodeladas porque e a
     # mesma familia - oferta que muda por dentro sem mudar de nome -, e
     # depois delas porque preco e entrega pesam mais no bolso do mes.
     for c in contratuais[:3]:
-        linhas += ["", "%s · %s" % (_categoria(c["atual"]),
-                                      c.get("nome") or c["operadora"])]
+        linhas = abrir(_categoria(c["atual"]), c["operadora"],
+                       "%s · %s" % (_categoria(c["atual"]),
+                                        c.get("nome") or c["operadora"]))
         linhas.append("  %s" % c["contratual_texto"])
         # A ANUNCIADA SAI SEMPRE, e e o contraste: ela ficou parada por
         # construcao - a chave carrega o degrau -, entao "mesma entrega
@@ -3112,7 +3300,7 @@ def montar_mensagem(hoje, ontem):
         linhas.append("  %s" % c["onde"])
     if len(contratuais) > 3:
         n = len(contratuais) - 3
-        linhas += ["", "e mais %d de franquia contratual no relatório" % n]
+        cauda.append("e mais %d de franquia contratual no relatório" % n)
 
     # A OFERTA QUE SAIU, que ate 03/11/2026 nao tinha canal: em 01/11 a
     # Vivo Lite Anual II e a Mensal II sairam das 20 pracas e a mensagem
@@ -3120,7 +3308,8 @@ def montar_mensagem(hoje, ontem):
     # portfolio que nao deixa linha nenhuma para comparar, e por isso
     # precisou de detector proprio - ver _ofertas_que_sairam.
     for s in saidas[:3]:
-        linhas += ["", "%s · %s" % (_categoria(s), _rotulo(s))]
+        linhas = abrir(_categoria(s), s["operadora"],
+                       "%s · %s" % (_categoria(s), _rotulo(s)))
         preco = _reais(s.get("preco"))
         linhas.append("  saiu da vitrine%s"
                       % (", estava a %s" % preco if preco != "—" else ""))
@@ -3139,9 +3328,9 @@ def montar_mensagem(hoje, ontem):
                 linhas.append("  e %s" % ressalva)
     if len(saidas) > 3:
         n = len(saidas) - 3
-        linhas += ["", "e mais %s da vitrine, no relatório"
-                   % ("1 oferta que saiu" if n == 1
-                      else "%d ofertas que saíram" % n)]
+        cauda.append("e mais %s da vitrine, no relatório"
+                     % ("1 oferta que saiu" if n == 1
+                        else "%d ofertas que saíram" % n))
 
 
     # MESMO PRECO, OUTRA ENTREGA. E o movimento mais facil de nao
@@ -3153,7 +3342,8 @@ def montar_mensagem(hoje, ontem):
         # a unidade sai do campo que a oferta preencheu, e nao do
         # produto: ver _unidade
         unidade = g.get("unidade") or ""
-        linhas += ["", "%s \u00b7 %s" % (_categoria(g), g["operadora"])]
+        linhas = abrir(_categoria(g), g["operadora"],
+                       "%s \u00b7 %s" % (_categoria(g), g["operadora"]))
         for preco, antes_v, agora_v in g["saltos"][:3]:
             linhas.append("  %s: %s \u2192 %s %s%s" % (
                 _reais(preco), antes_v, agora_v, unidade,
@@ -3174,7 +3364,7 @@ def montar_mensagem(hoje, ontem):
         linhas.append("  %s" % g["onde"])
     if len(grades) > 3:
         n = len(grades) - 3
-        linhas += ["", "e mais %d de grade no relat\u00f3rio" % n]
+        cauda.append("e mais %d de grade no relat\u00f3rio" % n)
 
     # DEGRAU QUE VOLTOU COM OUTRO PRECO. E o movimento mais dificil de
     # ver, porque e feito em dois tempos: a operadora retira o degrau num
@@ -3185,7 +3375,8 @@ def montar_mensagem(hoje, ontem):
         unidade = v.get("unidade") or ""
         quando = datetime.fromisoformat(v["quando"]).strftime("%d/%m")
 
-        linhas += ["", "%s \u00b7 %s" % (_categoria(v), v["operadora"])]
+        linhas = abrir(_categoria(v), v["operadora"],
+                       "%s \u00b7 %s" % (_categoria(v), v["operadora"]))
         # O PERCENTUAL SAI DE _pct, como todos os outros. Calculado aqui
         # com "if v["antes"] else 0", um preco anterior de 0,00 fazia a
         # mensagem imprimir "+0% sobre os 0,00" enquanto o PDF imprimia
@@ -3197,8 +3388,8 @@ def montar_mensagem(hoje, ontem):
                          _reais(v["antes"]), quando))
         linhas.append("  %s" % v["onde"])
     if len(voltaram) > 3:
-        linhas += ["", "e mais %d degrau(s) que voltaram, no relat\u00f3rio"
-                   % (len(voltaram) - 3)]
+        cauda.append("e mais %d degrau(s) que voltaram, no relat\u00f3rio"
+                     % (len(voltaram) - 3))
 
     for m in renom[:3]:
         a, d = m["antes"], m["atual"]
@@ -3206,8 +3397,9 @@ def montar_mensagem(hoje, ontem):
         # O PRODUTO ABRE A LINHA, como nos outros cinco blocos. Este
         # abria com a operadora, e quem lia "-7% na Brisanet" nao sabia
         # se foi na fibra, no combo ou no movel - e ela vende os tres.
-        linhas += ["", "%s \u00b7 %s \u00b7 mudou de nome"
-                   % (_categoria(d), d["operadora"])]
+        linhas = abrir(_categoria(d), d["operadora"],
+                       "%s \u00b7 %s \u00b7 mudou de nome"
+                       % (_categoria(d), d["operadora"]))
         linhas.append("  %s \u2192 %s" % (a["nome_oferta"] or "?", d["nome_oferta"] or "?"))
         # TRES ESTADOS, e o else recolhia dois deles: "igual" e "nao
         # lido" saiam os dois como "pelo mesmo preco (-)" - a afirmacao
@@ -3227,15 +3419,35 @@ def montar_mensagem(hoje, ontem):
     if len(renom) > 3:
         linhas.append("  e mais %d renomeada(s)" % (len(renom) - 3))
 
+    # A MENSAGEM SE REMONTA AQUI. O grupo vale pela posicao do seu bloco
+    # mais forte - o primeiro a nascer -, e dentro do grupo a ordem de
+    # nascimento se mantem. Empate nao existe: "primeiro" guarda a
+    # sequencia, que e unica.
+    #
+    # E AS CAUDAS FICAM NO FIM, todas juntas. Elas nao falam de um
+    # produto - "e mais 2 de grade no relatorio" fala do CANAL, do que
+    # nao caberia aqui -, e colada num grupo a frase parecia dizer que
+    # as duas que faltam eram daquele player.
+    linhas = topo
+    primeiro = {}
+    for seq, cat, op, _corpo in blocos:
+        primeiro.setdefault((cat, op), seq)
+    for seq, cat, op, corpo in sorted(
+            blocos, key=lambda b: (primeiro[(b[1], b[2])], b[0])):
+        linhas.append("")
+        linhas += corpo
+    for texto_cauda in cauda:
+        linhas += ["", texto_cauda]
+
     # O QUE MUDOU FOI A NOSSA LEITURA. Fica no FIM, depois dos eventos,
     # porque nao e um evento: e uma ressalva sobre o dado, e lugar de
     # ressalva e depois do que ela qualifica. Ver _separar_o_que_e_nosso.
+    # A CAUSA DECLARADA E LIDA ANTES DO "if": ela viaja em dados para o
+    # relatorio mesmo no dia em que nenhuma oferta caiu na ressalva -
+    # a data declarada e um fato do dia, e nao um campo do evento.
+    declarado = LEITURA_MUDOU_EM.get(hoje)
     if leitura:
         ops = sorted({x["operadora"] for x in leitura})
-        n = len(leitura)
-        # quando a mexida foi declarada, a mensagem diz QUAL foi - e
-        # melhor do que "costuma ser", que e o que sobra sem declaracao
-        declarado = LEITURA_MUDOU_EM.get(hoje)
         # a mensagem nao traz mais a linha de cobertura (29/10/2026),
         # entao a explicacao nao corre risco de sair duas vezes: ela vem
         # inteira aqui quando a mexida foi declarada
@@ -3244,7 +3456,12 @@ def montar_mensagem(hoje, ontem):
         # que leu mudou, e isso esta no dado. Sem a causa declarada a
         # frase pede a declaracao em vez de inventar o motivo.
         leitor = any(_leitor_mudou(x) for x in leitura)
-        porque = ("a leitura mudou hoje: %s" % declarado if declarado
+        # A CURTA E A DESTE CANAL. Ver LEITURA_EM_UMA_LINHA: a longa
+        # continua existindo e vai no relatorio, e sem a curta esta
+        # frase cai nela - nunca fica sem causa.
+        curto = LEITURA_EM_UMA_LINHA.get(hoje)
+        porque = ("a nossa leitura mudou hoje: %s" % (curto or declarado)
+                  if declarado
                   else "o leitor mudou entre as duas coletas, e a causa "
                        "n\u00e3o foi declarada (LEITURA_MUDOU_EM)" if leitor
                   else "isso costuma ser mudan\u00e7a na nossa leitura, e "
@@ -3256,17 +3473,21 @@ def montar_mensagem(hoje, ontem):
         # frase trocaria a atribuicao errada por uma afirmacao errada.
         ganhou = [x for x in leitura if _ganhou_leitura(x)]
         versao = [x for x in leitura if x not in ganhou]
+        # OFERTAS, E NAO EVENTOS: ver _quantas_ofertas. O alcance por
+        # praca de cada uma esta no relatorio, onde a tabela tem uma
+        # linha por evento e a coluna de pracas ao lado.
+        qv, qg = _quantas_ofertas(versao), _quantas_ofertas(ganhou)
         partes = []
         if versao:
             partes.append("%d oferta%s %s de vers\u00e3o sem mexer em "
                           "pre\u00e7o nem entrega"
-                          % (len(versao), "" if len(versao) == 1 else "s",
-                             "mudou" if len(versao) == 1 else "mudaram"))
+                          % (qv, "" if qv == 1 else "s",
+                             "mudou" if qv == 1 else "mudaram"))
         if ganhou:
             partes.append("%d oferta%s %s a ter campo lido que antes "
                           "n\u00e3o era, com o pre\u00e7o parado"
-                          % (len(ganhou), "" if len(ganhou) == 1 else "s",
-                             "passou" if len(ganhou) == 1 else "passaram"))
+                          % (qg, "" if qg == 1 else "s",
+                             "passou" if qg == 1 else "passaram"))
         linhas += ["", "%s (%s) \u2014 %s. Detalhe no relat\u00f3rio."
                    % ("; ".join(partes), ", ".join(ops), porque)]
 
@@ -3416,6 +3637,10 @@ def montar_mensagem(hoje, ontem):
         "mudancas_preco": mud, "mudancas_composicao": comp,
         "renomeadas": renom, "grades": grades, "voltaram": voltaram,
         "remodeladas": remodeladas, "leitura": leitura,
+        # A DECLARACAO TECNICA, que saiu da mensagem em 05/11/2026 e
+        # precisa de leitor: e ela que torna a descontinuidade da serie
+        # auditavel meses depois. Ver LEITURA_EM_UMA_LINHA.
+        "leitura_declarada": declarado,
         "contratuais": contratuais, "saidas": saidas,
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio

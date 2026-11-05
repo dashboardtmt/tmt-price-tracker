@@ -830,6 +830,19 @@ def gerar(dados, entradas, caminho):
                       "alteração de leitura declarada. Registram-se aqui "
                       "para que a descontinuidade na série seja "
                       "identificável.", ESTILOS["corpo"]),
+            # A DECLARACAO DO DIA, NA INTEGRA. A mensagem leva uma
+            # frase de uma linha desde 05/11/2026 - a longa nao fazia
+            # sentido para quem le no celular - e e aqui que ela tem de
+            # estar: e esta descricao, com nome de campo e de corte,
+            # que torna a descontinuidade da serie auditavel meses
+            # depois. Ver robo.LEITURA_EM_UMA_LINHA.
+            #
+            # SAI MESMO SEM NENHUMA OFERTA NA TABELA: a data declarada
+            # e um fato do dia, e um dia em que a leitura mudou e nada
+            # caiu na ressalva tambem precisa ficar registrado.
+            Paragraph("Alteração de leitura declarada para este dia: %s."
+                      % dados["leitura_declarada"], ESTILOS["corpo"])
+            if dados.get("leitura_declarada") else Spacer(1, 0),
             _bloco_remodeladas(
                 dados.get("leitura"),
                 "Nenhuma alteração atribuível à leitura dos dados.")))

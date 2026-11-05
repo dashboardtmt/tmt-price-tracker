@@ -125,14 +125,15 @@ MUTACOES = [
     # em 19 das 20 cidades, ex-Rio de Janeiro".
     Mutacao(
         "robo.py",
-        '    if fora and len(fora) <= EXCECOES_QUE_CABEM and len(fora) < len(nomes):\n',
+        '    if excecoes and excecoes <= EXCECOES_QUE_CABEM'
+        ' and excecoes < len(nomes):\n',
         '    if False:\n',
         "X22. a frase volta a nomear tres de dezenove cidades"),
 
     Mutacao(
         "robo.py",
         '            e["onde"] = _onde(e.get("pracas") or (), e["universo"],\n'
-        '                              paradas=paradas)\n',
+        '                              paradas=paradas, outras=outras)\n',
         '            e["onde"] = _onde(e.get("pracas") or (), e["universo"])\n',
         "X23. a frase da excecao perde os nomes e nunca dispara"),
 
@@ -160,16 +161,21 @@ MUTACOES = [
     # afirmavam o numero de uma praca para as vinte, ou derrubavam o PDF.
     Mutacao(
         "robo.py",
-        '            paradas = ((comparavel.get(k) or set()) - tomadas.get(k, set())\n'
-        '                       if k else set())\n',
+        '            paradas = olhadas - tomada\n'
+        '            outras = (olhadas & tomada) - minhas\n',
         '            paradas = ((onde_existe.get((op, pr)) or set())\n'
-        '                       - set(e.get("pracas") or ()))\n',
+        '                       - set(e.get("pracas") or ()))\n'
+        '            outras = set()\n',
         "Y1. a excecao volta a sair da pegada do produto"),
 
     Mutacao(
         "robo.py",
-        ' - tomadas.get(k, set())\n',
-        '\n',
+        '            k = _serie_do_evento(e)\n'
+        '            if k:\n'
+        '                tomadas[k].update(e.get("pracas") or ())\n',
+        '            k = _serie_do_evento(e)\n'
+        '            if False:\n'
+        '                tomadas[k].update(e.get("pracas") or ())\n',
         "Y2. a praca de outro evento da mesma oferta volta a ser excecao"),
 
     Mutacao(
@@ -187,9 +193,10 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '            quantas, quantas + len(paradas), _costurar(fora))\n',
-        '            quantas, total, _costurar(fora))\n',
-        "Y5. o denominador da excecao volta a ser o do produto"),
+        '        comparadas = (quantas + len(set(paradas or ()))\n'
+        '                      + len(set(outras or ())))\n',
+        '        comparadas = quantas + len(set(paradas or ()))\n',
+        "Y5. o denominador esquece a cidade que saiu em separado"),
 
     Mutacao(
         "robo.py",
@@ -609,7 +616,8 @@ MUTACOES = [
     Mutacao(
         "robo.py",
         '            e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],\n'
-        '                                    limite=None, paradas=paradas)\n',
+        '                                    limite=None, paradas=paradas,\n'
+        '                                    outras=outras)\n',
         '',
         "X11. o relatorio volta a nao ter a lista inteira de pracas"),
 
@@ -1729,6 +1737,48 @@ MUTACOES = [
         '        atual, antes = lado_h[0], lado_o[0]\n',
         "Db7. duas candidatas no mesmo degrau voltam a ser sorteadas"),
 
+    # OS TRES PEDIDOS DE 05/11/2026: a ordem dos blocos, a cidade que
+    # ficou de fora e a ressalva da leitura.
+    Mutacao(
+        "robo.py",
+        "            outras = (olhadas & tomada) - minhas",
+        "            outras = set()",
+        "Dc1. a cidade tomada por outro evento volta a nao ter nome"),
+    Mutacao(
+        "robo.py",
+        "            paradas = olhadas - tomada",
+        "            paradas = olhadas",
+        'Dc2. a cidade que se mexeu volta a sair como "ex-" (parada)'),
+    Mutacao(
+        "robo.py",
+        '        if _na_escada(l) and l["praca"] in escada_o.get(k, ()):',
+        '        if _na_escada(l):',
+        "Dc3. a escada nomeia cidade que nao foi comparada em ontem"),
+    Mutacao(
+        "robo.py",
+        '    if "saltos" in e and "precos" in e:\n'
+        '        return (e.get("operadora"), e.get("produto"))',
+        '    if False:\n'
+        '        return (e.get("operadora"), e.get("produto"))',
+        "Dc4. a escada volta a nao ter pegada comparavel"),
+    Mutacao(
+        "robo.py",
+        "            blocos, key=lambda b: (primeiro[(b[1], b[2])], b[0])):",
+        "            blocos, key=lambda b: b[0]):",
+        "Dc5. os blocos voltam a sair na ordem dos detectores"),
+    Mutacao(
+        "robo.py",
+        '    return len({_serie_do_evento(x) or (x.get("operadora"),',
+        '    return len(itens) + 0 * len({_serie_do_evento(x)'
+        ' or (x.get("operadora"),',
+        "Dc6. a ressalva volta a contar eventos no lugar de ofertas"),
+    Mutacao(
+        "robo.py",
+        '        porque = ("a nossa leitura mudou hoje: %s"'
+        ' % (curto or declarado)',
+        '        porque = ("a nossa leitura mudou hoje: %s"'
+        ' % (declarado or curto)',
+        "Dc7. a mensagem volta a levar a declaracao tecnica inteira"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

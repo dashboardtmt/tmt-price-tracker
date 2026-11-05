@@ -226,7 +226,11 @@ class ACausaPodeSerDeclarada(unittest.TestCase):
         """
         t = montar(versao(variante="simples", bundle=0, data=ONTEM),
                    versao(variante="com_apps", bundle=2, data=HOJE))
-        self.assertIn("nível de bundle", t, "o motivo tem de estar escrito")
+        # O MOTIVO CONTINUA ESCRITO, em uma linha (05/11/2026): a
+        # declaracao tecnica desta data cita o "nivel de bundle", e e
+        # ela que vai no relatorio; aqui vai a frase de leitor.
+        self.assertIn("identificada pela lista de apps", t,
+                      "o motivo tem de estar escrito")
         self.assertIn("mudança de leitura" if "mudança de leitura" in t
                       else "a leitura mudou hoje", t)
 

@@ -75,18 +75,29 @@ MOLDE = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Price Tracker TMT</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23000512'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     /* os mesmos tokens do Dashboard TMT - identidade clean, bege quente */
-    --fonte: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* Inter na frente da pilha de sistema: ela tem numeral tabular de
+       verdade e um cinza otico mais parelho em corpo pequeno, que e
+       quase toda esta tela. Se a fonte nao carregar, a pilha antiga
+       assume e nada se desloca - as duas tem metrica parecida. */
+    --fonte: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --laranja:#FF5000; --laranja-claro:#FFAE66;
     --preto:#000512;            /* o preto oficial Itau (0,5,18) */
     --cinza-medio:#6E6E6E; --cinza:#A0A0A0; --cinza-claro:#CFCFCF;
-    --cor-fundo:#F0EDE4;        /* bege quente */
-    --cor-superficie:#FCFBF7;   /* cartoes, off-white quente */
-    --cor-texto:#2B2621; --cor-texto-suave:#7C7468; --cor-borda:#E7E1D4;
+    --cor-fundo:#EFEBE1;        /* bege quente */
+    --cor-superficie:#FFFFFF;   /* o cartao e branco: o bege e o fundo */
+    --cor-texto:#241F1A; --cor-texto-suave:#7C7468; --cor-borda:#E6E0D2;
+    --cor-borda-forte:#D6CEBC;
+    /* duas camadas: um fio de contato e uma sombra larga e rasa. Uma
+       sombra so, forte, faz cartao de brinquedo; esta levanta o papel. */
+    --sombra:0 1px 2px rgba(36,31,26,.05), 0 10px 26px -16px rgba(36,31,26,.30);
     --positivo:#2E7D32; --negativo:#C62828;
   }
   *{box-sizing:border-box}
@@ -102,9 +113,10 @@ MOLDE = r"""<!DOCTYPE html>
   header .dentro{display:flex;justify-content:space-between;align-items:flex-end;
                  gap:14px;flex-wrap:wrap}
   /* a barra laranja a esquerda do titulo e a assinatura do dashboard */
-  header h1{margin:0;font-size:16.5px;font-weight:800;color:#fff;letter-spacing:-.2px;
-    border-left:4px solid var(--laranja);padding-left:10px;line-height:1.2}
-  header .sub{color:#B9B2A6;font-size:11px;margin-top:2px;padding-left:14px}
+  header h1{margin:0;font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px;
+    border-left:4px solid var(--laranja);padding-left:11px;line-height:1.2}
+  header .sub{color:#A79F92;font-size:10px;margin-top:3px;padding-left:15px;
+    text-transform:uppercase;letter-spacing:.7px;font-weight:600}
   .idioma{display:flex;gap:7px}
   .bandeira{display:flex;align-items:center;gap:5px;font:inherit;font-size:11px;
     font-weight:600;padding:3px 8px;cursor:pointer;border:1px solid #4A443C;
@@ -148,13 +160,18 @@ MOLDE = r"""<!DOCTYPE html>
 
 
   .bloco{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-radius:12px;padding:17px 24px 19px;margin-bottom:16px;
-    box-shadow:0 1px 3px rgba(45,38,30,.05)}
-  /* titulo de secao: laranja, forte, com fio - como no dashboard */
-  .secao{font-size:17px;font-weight:800;color:var(--laranja);margin:2px 0 10px;
-    padding-bottom:5px;border-bottom:2px solid rgba(255,80,0,.22);
-    letter-spacing:-.3px}
-  .bloco h2{margin:0;font-size:15.5px;font-weight:700;letter-spacing:-.15px}
+    border-radius:14px;padding:20px 26px 22px;margin-bottom:18px;
+    box-shadow:var(--sombra)}
+  /* TITULO DE SECAO NO PADRAO DOS DECKS: preto, negrito, a esquerda, e o
+     fio laranja CURTO embaixo. O fio atravessando a tela inteira em
+     laranja claro competia com o proprio titulo e pintava area sem
+     dizer nada - o mesmo laranja rende mais num traco de 34px. */
+  .secao{font-size:18px;font-weight:800;color:var(--preto);margin:6px 0 13px;
+    padding-bottom:9px;letter-spacing:-.35px;position:relative}
+  .secao::after{content:"";position:absolute;left:0;bottom:0;
+    width:34px;height:3px;border-radius:2px;background:var(--laranja)}
+  .bloco h2{margin:0;font-size:16px;font-weight:700;letter-spacing:-.2px;
+    color:var(--preto)}
   td.vazia{color:var(--cinza)}
   td.sobe{color:var(--negativo);font-weight:600}
   td.desce{color:var(--positivo);font-weight:600}
@@ -212,11 +229,13 @@ MOLDE = r"""<!DOCTYPE html>
     box-shadow:0 1px 4px rgba(45,38,30,.05)}
   nav.abas ul{display:flex;list-style:none;gap:4px;margin:0;padding:0;
     overflow-x:auto;-webkit-overflow-scrolling:touch}
-  nav.abas a{display:block;padding:8px 13px;text-decoration:none;
-    color:var(--cor-texto-suave);font-weight:bold;font-size:13px;
-    border-bottom:3px solid transparent;white-space:nowrap}
+  nav.abas a{display:block;padding:9px 14px 8px;text-decoration:none;
+    color:var(--cor-texto-suave);font-weight:600;font-size:13px;
+    letter-spacing:-.1px;border-bottom:2.5px solid transparent;
+    white-space:nowrap;transition:color .12s}
   nav.abas a:hover{color:var(--cor-texto)}
-  nav.abas a.ativa{color:var(--laranja);border-bottom-color:var(--laranja)}
+  nav.abas a.ativa{color:var(--preto);font-weight:700;
+    border-bottom-color:var(--laranja)}
   #pg-ofertas{padding-top:4px} #pg-panorama{padding-top:4px}
   .faixa{margin-bottom:20px}
   .faixa:last-child{margin-bottom:0}
@@ -229,10 +248,14 @@ MOLDE = r"""<!DOCTYPE html>
           gap:14px;flex-wrap:wrap}
   .metricas{display:flex;gap:12px;flex:none;align-items:center}
   .metricas{flex-wrap:wrap}
-  .metricas button{font:inherit;font-size:11.5px;padding:5px 11px;cursor:pointer;
-    border:1px solid var(--cor-borda);border-radius:7px;background:#fff;
-    color:var(--cor-texto-suave)}
-  .metricas button.on{background:var(--preto);border-color:var(--preto);color:#fff}
+  .metricas button{font:inherit;font-size:11.5px;padding:5px 12px;cursor:pointer;
+    font-weight:600;letter-spacing:-.1px;
+    border:1px solid var(--cor-borda);border-radius:999px;background:#fff;
+    color:var(--cor-texto-suave);transition:border-color .12s,color .12s}
+  .metricas button:hover{border-color:var(--cor-borda-forte);
+    color:var(--cor-texto)}
+  .metricas button.on{background:var(--preto);border-color:var(--preto);
+    color:#fff;box-shadow:0 1px 6px -2px rgba(36,31,26,.5)}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
   .grafico-wrap.alto{height:450px}
@@ -243,11 +266,18 @@ MOLDE = r"""<!DOCTYPE html>
   .legenda-ponto i.vazado{background:transparent;border:2px solid var(--cinza)}
   .dupla{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 
-  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
-  th{background:var(--preto);color:#fff;text-align:left;padding:9px 12px;
-     font-weight:600;white-space:nowrap;font-size:11.5px;
-     text-transform:uppercase;letter-spacing:.5px}
-  th:first-child{border-radius:7px 0 0 0} th:last-child{border-radius:0 7px 0 0}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap;
+    font-variant-numeric:tabular-nums}
+  /* O CABECALHO DEIXOU DE SER UMA BARRA PRETA. Em tabela longa ela
+     pesava mais que o dado: quatro quadros numa tela davam quatro
+     tarjas pretas horizontais, e o olho batia nelas antes de qualquer
+     numero. O mesmo preto num fio de 2px embaixo do rotulo separa
+     igual e nao disputa. */
+  th{background:var(--cor-superficie);color:var(--cor-texto-suave);
+     text-align:left;padding:7px 12px 6px;
+     font-weight:700;white-space:nowrap;font-size:10.5px;
+     text-transform:uppercase;letter-spacing:.7px;
+     border-bottom:2px solid var(--preto)}
   table{line-height:1.35}
   td{border-bottom:1px solid var(--cor-borda);padding:5px 12px}
   tbody tr:hover td{background:rgba(255,80,0,.045)}
@@ -323,6 +353,28 @@ MOLDE = r"""<!DOCTYPE html>
     box-shadow:inset 0 0 0 1px var(--cor-borda)}
   .mapa tr:hover td.cel{outline:2px solid rgba(0,5,18,.28);outline-offset:-2px}
   .mapa tr:hover td.praca{color:var(--laranja)}
+  /* ---- o mapa de calor de player por produto ---- */
+  /* a primeira coluna e o player, com a bolinha da marca: a cor ja
+     identifica o bloco em todo o resto da tela */
+  .mapa td.op{text-align:left;font-weight:700;white-space:nowrap;
+    color:var(--cor-texto);padding:0 14px 0 2px;font-size:12.5px;
+    background:var(--cor-superficie);border:none;width:132px;min-width:132px}
+  /* o nome do player fica fixo ao rolar de lado: no celular o mapa tem
+     sete colunas e o rotulo da linha saia da tela antes da terceira */
+  .mapa td.op, .mapa th.praca{position:sticky;left:0;z-index:3;
+    background:var(--cor-superficie)}
+  .mapa td.op .ponto{width:7px;height:7px;border-radius:50%;
+    display:inline-block;margin-right:7px;vertical-align:1px}
+  .mapa td.cel small{display:block;font-size:9.5px;font-weight:600;
+    opacity:.72;margin-top:1px;letter-spacing:.1px}
+  .mapa td.cel.vazia{background:transparent;color:var(--cinza);
+    box-shadow:inset 0 0 0 1px var(--cor-borda);font-weight:600}
+  .mapa th.prod{min-width:96px}
+  /* a dispersao entre pracas e a unica coisa que sobra de geografia
+     nesta celula: um tracinho discreto, nao um segundo numero */
+  .mapa td.cel .espalha{display:block;height:2px;border-radius:1px;
+    margin:3px auto 0;background:currentColor;opacity:.38}
+
   /* a legenda da rampa, que diz o que claro e escuro querem dizer */
   .rampa{display:flex;align-items:center;gap:8px;margin:12px 0 2px;
     font-size:11px;color:var(--cor-texto-suave)}
@@ -508,20 +560,33 @@ MOLDE = r"""<!DOCTYPE html>
     </div>
 
   <div id="pg-pracas" hidden>
-    <div class="secao" data-t="sec_pr">As 20 praças lado a lado</div>
+    <div class="secao" data-t="sec_pr">O mercado em uma tela</div>
 
     <div class="bloco">
-      <h2 data-t="pr_t">Preço de entrada por praça</h2>
-      <p class="descricao" data-t="pr_x"></p>
-      <div class="tabela-wrap" id="t-pracas"></div>
-      <div class="nota" id="n-pracas"></div>
+      <div class="cabeca">
+        <div>
+          <h2 data-t="mc_t">Mapa de calor — player por produto</h2>
+          <p class="descricao" data-t="mc_x"></p>
+        </div>
+        <div class="metricas">
+          <span style="display:flex;gap:5px">
+            <button id="bt-mc-entrada" class="on" onclick="mapaMetrica('entrada')" data-t="mc_m1">Preço de entrada</button>
+            <button id="bt-mc-unit" onclick="mapaMetrica('unit')" data-t="mc_m2">Preço por unidade</button>
+            <button id="bt-mc-ofertas" onclick="mapaMetrica('ofertas')" data-t="mc_m3">Tamanho da prateleira</button>
+          </span>
+        </div>
+      </div>
+      <div class="tabela-wrap" id="t-mapa"></div>
+      <div class="rampa" id="r-mapa"></div>
+      <div class="nota" id="n-mapa"></div>
       <div class="fonte" data-t="fonte_tabela"></div>
     </div>
 
     <div class="bloco">
-      <h2 data-t="pr2_t">Como cada praça se moveu</h2>
-      <p class="descricao" data-t="pr2_x"></p>
-      <div class="tabela-wrap" id="t-pracas-tempo"></div>
+      <h2 data-t="pr_t">O que muda entre praças</h2>
+      <p class="descricao" data-t="pr_x"></p>
+      <div class="tabela-wrap" id="t-pracas"></div>
+      <div class="nota" id="n-pracas"></div>
       <div class="fonte" data-t="fonte_tabela"></div>
     </div>
   </div>
@@ -599,9 +664,27 @@ const T = {
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       d_declarada:"A operadora declara uma faixa, e não um degrau. A frase é a dela; o número não entra em nenhum cálculo porque faixa não se compara com degrau.",
       ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Praças",
-      sec_pr:"As 20 praças lado a lado",
-      pr_t:"O catálogo de cada praça",
-      pr_x:"A diferença entre praças quase nunca é o preço do mesmo plano: é a prateleira. São Paulo tem uma geração do Ultracombo que o resto do país não tem; seis praças do Nordeste têm um Vivo Total que não existe em outro lugar. Célula vazia quer dizer que aquele plano não é vendido ali. O filtro de praça não vale aqui: esta aba compara todas.",
+      sec_pr:"O mercado em uma tela",
+      mc_t:"Mapa de calor — player por produto",
+      mc_x:"Cada célula é a mediana das praças em que aquele player vende aquele produto. A cor compara dentro da COLUNA, e não entre colunas: a unidade muda de um produto para o outro, e R$/GB do pré-pago não se compara com R$/Mbps do combo. Célula vazia quer dizer que o player não vende o produto — nunca zero. O tracinho embaixo do número é a distância entre a praça mais barata e a mais cara do mesmo player: sem tracinho, é o mesmo valor no país inteiro.",
+      mc_m1:"Preço de entrada", mc_m2:"Preço por unidade",
+      mc_m3:"Tamanho da prateleira",
+      mc_m_entrada:"o plano mais barato de cada praça",
+      mc_m_unit:"o melhor R$ por GB ou por Mbps de cada praça",
+      mc_m_ofertas:"quantas ofertas distintas cada praça tem",
+      mc_sem:"Este player não vende este produto — célula vazia, nunca zero.",
+      mc_mediana:"mediana", mc_plano:"plano na praça mediana",
+      mc_igual:"mesmo valor nas {n} praças",
+      mc_nacional:"oferta nacional: uma vitrine só, sem praça",
+      mc_so_em:"vendida só em {p}",
+      mc_varia:"de {a} a {b}, entre as {n} praças",
+      mc_menor:"menor", mc_maior:"maior",
+      mc_coluna:"a cor compara dentro da coluna",
+      mc_nota:"A célula mostra {m}, tomada como mediana das praças.",
+      mc_oferta_1:"oferta", mc_oferta_n:"ofertas",
+      pr_nenhuma:"Nenhuma das {b} operadoras com oferta neste produto tem catálogo diferente entre praças hoje: a prateleira é a mesma no país inteiro.",
+      pr_t:"O que muda entre praças",
+      pr_x:"O catálogo é quase sempre o mesmo no país inteiro, e por isso aqui só aparece quem foge disso: as operadoras cujo catálogo NÃO é igual em todas as praças, com o grupo de cidades de cada versão. São Paulo tem uma geração do Ultracombo que o resto do país não tem; seis praças do Nordeste têm um Vivo Total que não existe em outro lugar. Célula vazia quer dizer que aquele plano não é vendido ali. O filtro de praça não vale aqui: esta aba compara todas.",
       pr2_t:"Como cada praça se moveu",
       pr2_x:"O preço de entrada do mercado em cada praça — a oferta mais barata entre as operadoras presentes — dia a dia. É onde se vê qual praça reagiu e qual ficou parada.",
       pr_mercado:"Mercado", pr_espalha:"Distância",
@@ -709,8 +792,26 @@ const T = {
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       d_declarada:"The carrier states a range, not a tier. The wording is theirs; the number enters no calculation, because a range does not compare with a tier.",
       ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Cities",
-      sec_pr:"The 20 cities side by side",
-      pr_t:"The catalogue of each city",
+      sec_pr:"The market on one screen",
+      mc_t:"Heat map — carrier by product",
+      mc_x:"Each cell is the median across the cities where that carrier sells that product. Colour compares WITHIN the column, not across columns: the unit changes from one product to the next, and R$/GB on prepaid does not compare with R$/Mbps on bundles. An empty cell means the carrier does not sell the product — never zero. The small bar under the figure is the distance between the carrier's cheapest and dearest city: no bar means the same figure nationwide.",
+      mc_m1:"Entry price", mc_m2:"Price per unit",
+      mc_m3:"Shelf size",
+      mc_m_entrada:"the cheapest plan in each city",
+      mc_m_unit:"the best R$ per GB or per Mbps in each city",
+      mc_m_ofertas:"how many distinct offers each city has",
+      mc_sem:"This carrier does not sell this product — blank cell, never zero.",
+      mc_mediana:"median", mc_plano:"plan in the median city",
+      mc_igual:"same figure in all {n} cities",
+      mc_nacional:"nationwide offer: one shop window, no city",
+      mc_so_em:"sold only in {p}",
+      mc_varia:"from {a} to {b}, across {n} cities",
+      mc_menor:"lower", mc_maior:"higher",
+      mc_coluna:"colour compares within the column",
+      mc_nota:"The cell shows {m}, taken as the median across cities.",
+      mc_oferta_1:"offer", mc_oferta_n:"offers",
+      pr_nenhuma:"None of the {b} carriers selling this product has a different catalogue across cities today: the shelf is the same nationwide.",
+      pr_t:"What changes between cities",
       pr2_t:"How each city moved",
       pr_x:"Each carrier's cheapest plan, city by city. An empty cell means the carrier does not sell there — which is not the same as selling dear. The city filter does not apply here: this tab compares them all.",
       pr2_x:"The market entry price in each city — the cheapest offer among the carriers present — day by day.",
@@ -1257,10 +1358,15 @@ function escurecer(hex, f){
 // Gerada em OKLCH com matiz fixo e luminosidade monotona, e validada:
 // monotonia, distancia entre passos (>=0.06 de L), contraste da ponta
 // clara (2,05:1 sobre o cartao) e matiz unico (8 graus de dispersao).
-const RAMPA = ["#f59b80", "#f3764f", "#eb4d0f", "#d82400", "#b90f00"];
+// A PONTA CLARA FOI CLAREADA em 05/11/2026: com o primeiro passo em
+// #f59b80 o mapa inteiro saia vermelho, e mapa em que tudo grita nao
+// hierarquiza nada. Agora ele comeca numa tinta quase branca e so a
+// ponta de cima pesa - o olho encontra o extremo sozinho. Matiz unico,
+// luminosidade monotona (0,94 a 0,55), numero visivel em toda celula.
+const RAMPA = ["#FCE7D8", "#F9C6A4", "#F49A66", "#E96B2E", "#C9400A"];
 
-// Texto branco a partir do terceiro passo, onde o fundo escurece.
-const RAMPA_TINTA = ["#2B2621", "#2B2621", "#fff", "#fff", "#fff"];
+// Texto branco a partir do quarto passo, onde o fundo escurece.
+const RAMPA_TINTA = ["#2B2621", "#2B2621", "#2B2621", "#fff", "#fff"];
 
 // Abaixo disso a coluna e considerada PLANA e fica toda no passo claro.
 // A Brisanet varia R$ 0,09 entre pracas: espalhar isso pela rampa
@@ -2294,6 +2400,207 @@ function quadroOperadora(dia, operadora){
   </div>`;
 }
 
+// ---------------- o mapa de calor: player por produto ----------------
+//
+// A ABA DE PRACAS VIROU ISTO em 05/11/2026, a pedido de quem le: "um
+// mapa de calor que mostre um overview da comparacao dos players por
+// produtos... como o catalogo e parecido nas pracas, podemos ter uma
+// visao mais macro".
+//
+// E O DADO CONCORDA COM O PEDIDO: o rodape da aba antiga dizia, quase
+// todo dia, "as 4 operadoras vendem o mesmo catalogo em todas as
+// pracas". Vinte quadros para dizer que as vinte sao iguais e gastar a
+// tela inteira com a dimensao que menos varia.
+//
+// ENTAO A GEOGRAFIA NAO SUMIU, ENCOLHEU PARA O QUE ELA INFORMA: a
+// celula traz a MEDIANA das pracas, a dica traz o intervalo e o
+// numero de pracas, e o bloco de baixo lista so as operadoras cujo
+// catalogo NAO e o mesmo em todo lugar. Onde nao ha diferenca, uma
+// linha diz isso e pronto.
+let mapaMetricaAtual = "entrada";
+
+function mapaMetrica(m){
+  mapaMetricaAtual = m;
+  for (const k of ["entrada", "unit", "ofertas"])
+    document.getElementById("bt-mc-" + k).className = (k === m) ? "on" : "";
+  mapaDeCalor();
+}
+
+// Do movel para a fixa, do mais barato para o mais caro: e a ordem em
+// que o mercado se le, e nao a alfabetica.
+const ORDEM_PRODUTOS = ["prepago", "controle", "movel", "btl", "fibra",
+                        "combo", "satelite"];
+
+function porOrdemProduto(a, b){
+  const ia = ORDEM_PRODUTOS.indexOf(a), ib = ORDEM_PRODUTOS.indexOf(b);
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+}
+
+function mediana(xs){
+  if (!xs.length) return null;
+  const v = xs.slice().sort((a, b) => a - b), m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+
+// O que cada praca tem daquele player naquele produto. A praca e a
+// unidade de observacao porque e assim que a vitrine e publicada: o
+// preco de Sao Paulo nao vale para o Rio, e tratar as duas como uma
+// lista so faria a mediana de 20 pracas virar a mediana de 400 cards.
+function porPracaDoProduto(dia, operadora, produto){
+  const por = {};
+  for (const o of DADOS) {
+    if (o.operadora !== operadora || o.produto !== produto) continue;
+    if (diaDe(o) !== dia) continue;
+    const p = precoDe(o);
+    if (p == null) continue;
+    const d = por[o.praca] || (por[o.praca] =
+      {entrada: null, unit: null, nomes: new Set(), u: "", nome: ""});
+    d.nomes.add((o.nome_oferta || "").trim().toLowerCase());
+    if (d.entrada == null || p < d.entrada) {
+      d.entrada = p;
+      d.nome = o.nome_oferta || "";
+    }
+    const e = entregaDe(o);
+    if (e.v) {
+      const un = p / e.v;
+      if (d.unit == null || un < d.unit) { d.unit = un; d.u = e.u; }
+    }
+  }
+  return por;
+}
+
+// O valor da celula, pelo criterio escolhido. Devolve null quando o
+// player nao vende o produto - celula vazia, que NAO e zero.
+function celulaDoMapa(dia, operadora, produto){
+  const por = porPracaDoProduto(dia, operadora, produto);
+  const pracas = Object.keys(por);
+  if (!pracas.length) return null;
+  const metrica = mapaMetricaAtual;
+  const campo = (metrica === "ofertas")
+    ? (d => d.nomes.size)
+    : (metrica === "unit" ? (d => d.unit) : (d => d.entrada));
+  const vals = pracas.map(p => campo(por[p])).filter(v => v != null);
+  if (!vals.length) return null;
+  const u = unidadeComum(pracas.map(p => ({u: por[p].u})));
+  // O NOME QUE A DICA MOSTRA E O DA PRACA MEDIANA, e nao o da mais
+  // barata: a celula fala da mediana, e nomear outra oferta ali seria
+  // juntar dois numeros de lugares diferentes na mesma frase.
+  const med = mediana(vals);
+  let nome = "", perto = Infinity;
+  for (const p of pracas) {
+    const v = campo(por[p]);
+    if (v == null) continue;
+    if (Math.abs(v - med) < perto) { perto = Math.abs(v - med); nome = por[p].nome; }
+  }
+  return {v: med, lo: Math.min.apply(null, vals), hi: Math.max.apply(null, vals),
+          pracas: pracas.length, u: u, nome: nome,
+          // a praca unica se NOMEIA: "1 praca" nao diz qual, e numa
+          // tela que compara praca por praca isso e o que se quer saber
+          unica: pracas.length === 1 ? pracas[0].split("/")[0] : "",
+          nacional: pracas.length === 1 && pracas[0] === PRACA_NACIONAL};
+}
+
+// Onde esse numero vale. Tres formas, porque sao tres fatos
+// diferentes: oferta vendida no pais inteiro sem praca, oferta de uma
+// praca so (que se nomeia), e oferta de varias pracas - com ou sem
+// variacao entre elas.
+function alcanceDaCelula(c){
+  if (c.nacional) return t("mc_nacional");
+  if (c.pracas === 1) return t("mc_so_em").replace("{p}", c.unica);
+  if (c.lo === c.hi) return t("mc_igual").replace("{n}", c.pracas);
+  return t("mc_varia").replace("{a}", rotuloValor(c, c.lo))
+    .replace("{b}", rotuloValor(c, c.hi)).replace("{n}", c.pracas);
+}
+
+function textoDaCelula(c){
+  const m = mapaMetricaAtual;
+  if (m === "ofertas") return String(Math.round(c.v));
+  if (m === "unit") return c.v >= 10 ? c.v.toFixed(0) : c.v.toFixed(2);
+  return reais(c.v).replace("R$ ", "");
+}
+
+function mapaDeCalor(){
+  const alvo = document.getElementById("t-mapa");
+  const legenda = document.getElementById("r-mapa");
+  const nota = document.getElementById("n-mapa");
+  const dia = document.getElementById("f-data").value;
+  const ops = OPERADORAS.filter(o => !desligadas.has(o));
+  const prods = PRODUTOS.slice().sort(porOrdemProduto);
+
+  const cels = {};
+  for (const op of ops) {
+    cels[op] = {};
+    for (const pr of prods) cels[op][pr] = celulaDoMapa(dia, op, pr);
+  }
+  const vivas = ops.filter(op => prods.some(pr => cels[op][pr]));
+  if (!vivas.length) {
+    alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
+    legenda.innerHTML = ""; nota.textContent = "";
+    return;
+  }
+
+  // A RAMPA E POR COLUNA, e a legenda diz isso. Pintar o mapa inteiro
+  // numa escala so compararia R$/GB do pre-pago com R$/Mbps do combo -
+  // numeros de unidades diferentes na mesma cor.
+  const faixa = {};
+  for (const pr of prods) {
+    const vs = vivas.map(op => cels[op][pr]).filter(Boolean).map(c => c.v);
+    if (!vs.length) continue;
+    const lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+    faixa[pr] = {lo, hi, plano: !hi || (hi - lo) / hi < VARIACAO_MINIMA};
+  }
+
+  const cab = `<tr><th class="praca"></th>`
+    + prods.filter(pr => faixa[pr]).map(pr =>
+        `<th class="prod" title="${esc(nomeProduto(pr))}">${
+           nomeProduto(pr).replace(/\s*\(.*\)\s*/, "")}</th>`).join("")
+    + `</tr>`;
+
+  const corpo = vivas.map(op => {
+    const celulas = prods.filter(pr => faixa[pr]).map(pr => {
+      const c = cels[op][pr];
+      if (!c) return `<td class="cel vazia" title="${t("mc_sem")}">—</td>`;
+      const f = faixa[pr];
+      const passo = f.plano ? 0
+        : Math.min(RAMPA.length - 1,
+                   Math.floor((c.v - f.lo) / (f.hi - f.lo) * RAMPA.length));
+      // a dispersao entre pracas, em tracinho: 0 a 100% da largura da
+      // celula, pela distancia relativa entre a praca mais barata e a
+      // mais cara do mesmo player
+      const esp = c.hi ? Math.min(1, (c.hi - c.lo) / c.hi) : 0;
+      const dica = [
+        `${op} · ${nomeProduto(pr)}`,
+        `${t("mc_mediana")}: ${rotuloValor(c)}`,
+        alcanceDaCelula(c),
+        c.nome ? t("mc_plano") + ": " + c.nome : ""
+      ].filter(Boolean).join(" \n");
+      return `<td class="cel" title="${esc(dica)}" style="background:${RAMPA[passo]};color:${RAMPA_TINTA[passo]}">`
+        + textoDaCelula(c)
+        + (esp > 0.02 ? `<span class="espalha" style="width:${Math.round(14 + esp * 46)}%"></span>` : "")
+        + `</td>`;
+    }).join("");
+    return `<tr><td class="op"><span class="ponto" style="background:${CORES[op] || "#888"}"></span>${op}</td>${celulas}</tr>`;
+  }).join("");
+
+  alvo.innerHTML = `<table class="mapa"><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
+
+  legenda.innerHTML = `<span>${t("mc_menor")}</span><span class="passos">`
+    + RAMPA.map(c => `<i style="background:${c}"></i>`).join("")
+    + `</span><span>${t("mc_maior")}</span>`
+    + `<span style="margin-left:10px">${t("mc_coluna")}</span>`;
+  nota.textContent = t("mc_nota").replace("{m}", t("mc_m_" + mapaMetricaAtual));
+}
+
+// O rotulo de um valor do mapa, com a unidade que a metrica pede.
+function rotuloValor(c, v){
+  const x = (v == null) ? c.v : v;
+  if (mapaMetricaAtual === "ofertas")
+    return Math.round(x) + " " + t(Math.round(x) === 1 ? "mc_oferta_1" : "mc_oferta_n");
+  if (mapaMetricaAtual === "unit")
+    return "R$ " + (x >= 10 ? x.toFixed(0) : x.toFixed(2)) + "/" + (c.u || "un.");
+  return reais(x);
+}
+
 function tabelaPracas(){
   const alvo = document.getElementById("t-pracas");
   const nota = document.getElementById("n-pracas");
@@ -2314,16 +2621,24 @@ function tabelaPracas(){
     nota.textContent = "";
     return;
   }
-  // quem tem catalogo diferente vem primeiro: e o que a aba existe para mostrar
-  quadros.sort((a, b) => b.grupos.length - a.grupos.length
+  // SO QUEM TEM DIFERENCA ENTRE PRACAS APARECE. Antes vinham os vinte
+  // quadros, e em quase todo dia os vinte diziam "mesmo catalogo nas 20
+  // pracas" - a tela inteira gasta para dizer que nao ha noticia. O
+  // numero de quem NAO difere continua na nota abaixo.
+  const diferentes = quadros.filter(q => q.grupos.length > 1);
+  diferentes.sort((a, b) => b.grupos.length - a.grupos.length
     || porRelevancia(a.op, b.op));
-  alvo.innerHTML = quadros.map(q => q.html).join("");
+  alvo.innerHTML = diferentes.length
+    ? diferentes.map(q => q.html).join("")
+    : `<div class="vazio">${t("pr_nenhuma").replace("{b}", total)}</div>`;
 
   // concordancia: com uma operadora so, "As 1 operadoras vendem" nao se le
+  // E SEM DIFERENCA A NOTA CALA: a frase do meio ja diz o mesmo, com o
+  // numero de controle dentro dela. Duas frases iguais em sequencia
+  // fazem o leitor procurar a diferenca que nao existe.
   nota.textContent = comVarios
     ? t("pr_resumo").replace("{a}", comVarios).replace("{b}", total)
-    : (total === 1 ? t("pr_resumo_uma")
-                   : t("pr_resumo_zero").replace("{b}", total));
+    : "";
 
   document.querySelector('[data-t="pr_t"]').textContent =
     t("pr_t") + " — " + nomeProduto(filtro().produto);
@@ -2551,6 +2866,7 @@ function desenhar(){
   // o rotulo do botao de metrica tem de acompanhar
   rotuloDaMetrica();
   if (!document.getElementById("pg-pracas").hidden) {
+    mapaDeCalor();
     tabelaPracas();
     tabelaPracasTempo();
     ajustarTabelas();
