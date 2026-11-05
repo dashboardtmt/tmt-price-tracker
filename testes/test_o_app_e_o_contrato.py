@@ -340,9 +340,55 @@ class AFranquiaDoContrato(unittest.TestCase):
 
     def test_e_mostra_a_anunciada_parada_ao_lado(self):
         """E O CONTRASTE QUE IMPORTA: 45 GB na vitrine com 20 de contrato
-        e uma oferta diferente dos mesmos 45 GB com 15."""
+        e uma oferta diferente dos mesmos 45 GB com 15.
+
+        ABERTA EM CONTRATO E BONUS desde 05/11/2026: "'a franquia
+        contratual foi de 20 para 15 GB / mesma entrega (45 GB)' eu nao
+        entendi essa parte. Pq e a mesma entrega 45GB?". Os dois numeros
+        estavam na tela sem a conta que os liga.
+        """
         t = montar(*self._so_o_contrato())
-        self.assertIn("mesma entrega (45 GB)", t)
+        self.assertIn("a vitrine anuncia 45 GB: 15 de contrato e 30 de "
+                      "bônus, que expira", t)
+
+    def test_a_conta_da_vitrine_fecha(self):
+        """OS TRES NUMEROS SAO DOIS LIDOS E UMA SUBTRACAO, e e a
+        subtracao que pode mentir: bonus e a anunciada menos o
+        contrato, e nada mais."""
+        t = montar(*self._so_o_contrato(agora=5))
+        self.assertIn("a vitrine anuncia 45 GB: 5 de contrato e 40 de "
+                      "bônus, que expira", t)
+
+    def test_sem_bonus_a_frase_diz_que_nao_ha_bonus(self):
+        """Contrato igual a anunciada e oferta sem parte temporaria - e
+        isso informa, porque a linha de cima acabou de dizer que o
+        contrato subiu."""
+        t = montar(*self._so_o_contrato(antes=30, agora=45))
+        self.assertIn("os 45 GB anunciados estão todos no contrato, sem "
+                      "bônus", t)
+
+    def test_mbps_de_um_lado_e_gb_do_outro_nao_somam(self):
+        """Na fixa a entrega e Mbps e o contrato e GB: "dos 500 Mbps, 15
+        sao de contrato" somaria unidades diferentes. Ali a linha antiga
+        continua."""
+        fixa = dict(operadora="TIM", produto="fibra",
+                    nome="TIM Ultrafibra", preco=99.90, gb=None, mbps=500,
+                    chave="TIM|fibra|500mbps|simples")
+        ontem = [oferta(data=ONTEM, contratual=20, praca=p, **fixa)
+                 for p in TODAS[:3]]
+        hoje = [oferta(data=HOJE, contratual=15, praca=p, **fixa)
+                for p in TODAS[:3]]
+        t = montar(ontem, hoje)
+        self.assertIn("mesma entrega (500 Mbps)", t)
+        self.assertNotIn("de contrato e", t)
+
+    def test_contrato_maior_que_a_anunciada_nao_e_composicao(self):
+        """E leitura quebrada de um dos dois lados - a Vivo ja trouxe
+        regulamento de outra oferta no mesmo codigo Anatel. Afirmar
+        bonus negativo seria inventar."""
+        self.assertIsNone(robo._contrato_na_vitrine(50, 45, "GB"))
+        self.assertIsNone(robo._contrato_na_vitrine(None, 45, "GB"))
+        self.assertIsNone(robo._contrato_na_vitrine(15, None, "GB"))
 
     def test_e_conta_como_mudanca_do_dia(self):
         """Fora da contagem, o dia sairia como "nenhuma mudanca" com uma
@@ -548,8 +594,8 @@ class OsConsertosDaAuditoria(unittest.TestCase):
                 + tim(gb=100, preco=98.99, data=HOJE, contratual=15))
         t = montar(ontem, hoje)
         self.assertIn("2 mudanças hoje", t)
-        self.assertIn("mesma entrega (50 GB)", t)
-        self.assertIn("mesma entrega (100 GB)", t)
+        self.assertIn("a vitrine anuncia 50 GB: 15 de contrato", t)
+        self.assertIn("a vitrine anuncia 100 GB: 15 de contrato", t)
 
     def test_o_preco_de_uma_praca_nao_vale_para_as_vinte(self):
         """Sem os precos no ident, as vinte pracas colapsavam num evento

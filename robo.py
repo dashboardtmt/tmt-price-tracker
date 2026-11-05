@@ -795,6 +795,12 @@ def mudancas(hoje, ontem):
     for g in grades:
         g["precos"] = [x for x in g["precos"]
                        if (g["operadora"], g["produto"], x[0]) not in cobertos]
+        # O MAPA DE PRACAS SEGUE A LISTA. Movimento que sai daqui nao
+        # pode continuar no mapa, ou _assinar_alcance escreve o alcance
+        # de um degrau que nenhum dos dois canais imprime mais.
+        vivos = set(g["precos"])
+        g["pracas_preco"] = {k: v for k, v in (g.get("pracas_preco") or {}
+                                               ).items() if k in vivos}
     grades = [g for g in grades if g["saltos"] or g["precos"]]
 
     renomeadas, usadas = _renomeadas(h, o)
@@ -1502,13 +1508,6 @@ def _assinar_alcance(h, o, *grupos):
         if _na_escada(l) and l["praca"] in escada_o.get(k, ()):
             escada_comparavel[k].add(l["praca"])
 
-    tomadas_escada = collections.defaultdict(set)
-    for grupo in grupos:
-        for e in grupo:
-            esc = _escada_do_evento(e)
-            if esc:
-                tomadas_escada[esc].update(e.get("pracas") or ())
-
     for grupo in grupos:
         for e in grupo:
             base = e.get("atual") or e
@@ -1526,8 +1525,22 @@ def _assinar_alcance(h, o, *grupos):
                 olhadas, tomada = (comparavel.get(k) or set(),
                                    tomadas.get(k, set()))
             elif esc:
-                olhadas, tomada = (escada_comparavel.get(esc) or set(),
-                                   tomadas_escada.get(esc, set()))
+                # A ESCADA E O PROPRIO EVENTO: desde 05/11/2026 ha um
+                # evento de grade por (operadora, produto), entao nao
+                # existe segundo bloco da mesma escada para onde mandar
+                # a cidade - "tomada" e so o que este evento mexeu, e
+                # "outras" nasce vazio por construcao. Quem responde por
+                # "mexeu, mas nao neste movimento" e o alcance por
+                # movimento, mais abaixo.
+                #
+                # E O CONJUNTO NAO PODE SER VAZIO. Com set() aqui,
+                # "paradas" passava a incluir as pracas do proprio
+                # evento: o provador cobrou na hora - a mutacao Dc3
+                # quebra a pegada comparavel da escada e a suite nao
+                # sentiu, porque a frase da excecao tinha deixado de
+                # sair tambem no codigo certo.
+                olhadas = escada_comparavel.get(esc) or set()
+                tomada = set(e.get("pracas") or ())
             else:
                 olhadas, tomada = set(), set()
             # OS DOIS COMPLEMENTOS, E ELES NAO SE SOBREPOEM: parada e a
@@ -1546,6 +1559,30 @@ def _assinar_alcance(h, o, *grupos):
             e["onde_todas"] = _onde(e.get("pracas") or (), e["universo"],
                                     limite=None, paradas=paradas,
                                     outras=outras)
+            # E O ALCANCE DE CADA MOVIMENTO DA ESCADA, que agora e um
+            # evento so por (operadora, produto): dentro dele um degrau
+            # pode ter mexido em 19 cidades e o outro nas 20. A frase do
+            # evento fala da grade inteira; a de cada movimento fala do
+            # movimento, e as duas saem do mesmo _onde.
+            #
+            # "paradas" AQUI E A PEGADA DA ESCADA MENOS AS PRACAS DESTE
+            # MOVIMENTO: cidade com preco e degrau legiveis nos dois
+            # dias em que ESTE degrau nao se mexeu. E "outras" nao
+            # existe mais para a grade - com um evento por escada, nao
+            # ha segundo bloco para onde mandar a cidade.
+            if esc:
+                e["onde_movimento"], e["onde_movimento_todas"] = {}, {}
+                for tipo, mapa in (("s", e.get("pracas_salto") or {}),
+                                   ("p", e.get("pracas_preco") or {})):
+                    for m, suas in mapa.items():
+                        km = (tipo,) + tuple(m)
+                        fora_do_movimento = olhadas - set(suas)
+                        e["onde_movimento"][km] = _onde(
+                            suas, e["universo"],
+                            paradas=fora_do_movimento)
+                        e["onde_movimento_todas"][km] = _onde(
+                            suas, e["universo"], limite=None,
+                            paradas=fora_do_movimento)
 
 
 def _serie_do_evento(e):
@@ -1712,6 +1749,43 @@ def _contratual_curto(antes, agora):
     if antes is None or agora is None or antes == agora:
         return None
     return "contrato: %s → %s GB" % (antes, agora)
+
+
+def _contrato_na_vitrine(contratual, entrega, unidade):
+    """Os GB anunciados abertos em contrato e bonus - ou None.
+
+    PEDIDO DE QUEM LE, em 05/11/2026: "'a franquia contratual foi de 20
+    para 15 GB (-25%) / mesma entrega (45 GB)' eu nao entendi essa
+    parte. Pq e a mesma entrega 45GB? ficou confuso". Os dois numeros
+    estavam na tela sem a conta que os liga - e sem ela a segunda linha
+    parece desdizer a primeira.
+
+    A CONTA E A DOS COLETORES: a Claro le "15GB de Livres + 20GB de
+    Bonus" e a TIM "5GB plano + 20GB bonus promo" (ver
+    coletores/claro.py e coletores/tim.py). O que entra no contrato e o
+    primeiro numero; o resto e bonus, e e ele que expira. Entao 45
+    anunciados com 15 de contrato sao 30 de bonus, e essa e a frase.
+
+    SO EM GB, E SO QUANDO A CONTA FECHA. Na fixa a entrega e Mbps e a
+    contratual e GB: "dos 500 Mbps, 15 sao de contrato" somaria unidades
+    diferentes. E contratual MAIOR que a anunciada e leitura quebrada de
+    um dos dois lados - a Vivo ja trouxe regulamento de outra oferta no
+    mesmo codigo Anatel -, nao composicao de oferta.
+    """
+    if contratual is None or entrega is None:
+        return None
+    if (unidade or "") != "GB" or contratual > entrega:
+        return None
+    bonus = entrega - contratual
+    # SEM BONUS A FRASE AINDA INFORMA, e e por isso que ela nao volta
+    # None: a linha de cima acabou de dizer que o contrato subiu, e
+    # "todos no contrato, sem bonus" e o que aquele aumento significa -
+    # a parte temporaria da oferta deixou de existir.
+    if not bonus:
+        return ("os %s GB anunciados est\u00e3o todos no contrato, sem "
+                "b\u00f4nus" % entrega)
+    return ("a vitrine anuncia %s GB: %s de contrato e %s de b\u00f4nus, "
+            "que expira" % (entrega, contratual, bonus))
 
 
 def _variante(l):
@@ -2040,6 +2114,11 @@ def _oferta_remodelada(h, o, usadas=()):
             "antes_contratual": ka, "agora_contratual": kd,
             "contratual_texto": _texto_contratual(ka, kd),
             "contratual_curto": _contratual_curto(ka, kd),
+            # A CONTA QUE LIGA OS DOIS NUMEROS. Ver
+            # _contrato_na_vitrine: sem ela "contrato de 20 para 15" ao
+            # lado de "mesma entrega (45 GB)" parece contradicao.
+            "contratual_composicao": _contrato_na_vitrine(
+                kd, _entrega(atual), _unidade(atual)),
             "atual": atual, "antes": antes, "pracas": []})
         if atual["praca"] not in d["pracas"]:
             d["pracas"].append(atual["praca"])
@@ -2156,6 +2235,8 @@ def _contratual_mudou(h, o, antes=None, ontem=None):
             "nome": atual.get("nome_oferta"),
             "antes_contratual": ka, "agora_contratual": kd,
             "contratual_texto": texto, "reverteu": reverteu,
+            "contratual_composicao": _contrato_na_vitrine(
+                kd, _entrega(atual), _unidade(atual)),
             "unidade": _unidade(atual),
             "texto_entrega": _texto_entrega(_entrega(ontem_l),
                                             _entrega(atual),
@@ -2270,14 +2351,39 @@ def _grades_reorganizadas(h, o):
             # mudou de conteudo: e ai que o emparelhamento inventa queda
             suprimir.add((operadora, produto))
 
-        ident = (operadora, produto, tuple(mesma_etiqueta), tuple(mesmo_pacote))
-        d = eventos.setdefault(ident, {
+        # UM EVENTO POR (OPERADORA, PRODUTO), E O ALCANCE POR MOVIMENTO.
+        # Cobrado em 05/11/2026: "funde os dois blocos de controle num
+        # so". A identidade antiga levava os movimentos DENTRO dela -
+        # (operadora, produto, saltos, precos) -, entao a cidade em que
+        # a escada deslizou menos virava um evento proprio: naquele dia
+        # o Rio tinha dois dos tres movimentos do Claro Controle e a
+        # mensagem abriu um segundo bloco para repetir as duas linhas
+        # que o primeiro ja tinha dito.
+        #
+        # QUEM GUARDA A GEOGRAFIA AGORA E O MOVIMENTO, e nao o evento.
+        # Sem isso a fusao mentiria pelo outro lado: a uniao das pracas
+        # diria "em todas as 20" sobre um degrau que mexeu em 19. Cada
+        # salto e cada degrau carrega as pracas em que ELE aconteceu, e
+        # _assinar_alcance escreve uma frase para cada um.
+        d = eventos.setdefault((operadora, produto), {
             "operadora": operadora, "produto": produto,
             # a unidade sai da linha, e nao do produto: ver _unidade
             "unidade": _unidade(atuais[0]),
-            "saltos": mesma_etiqueta, "precos": mesmo_pacote, "pracas": []})
+            "saltos": [], "precos": [], "pracas": [],
+            "pracas_salto": {}, "pracas_preco": {}})
+        for movimentos, mapa in ((mesma_etiqueta, d["pracas_salto"]),
+                                 (mesmo_pacote, d["pracas_preco"])):
+            for m in movimentos:
+                em = mapa.setdefault(m, [])
+                if praca not in em:
+                    em.append(praca)
         if praca not in d["pracas"]:
             d["pracas"].append(praca)
+    # a ordem dos movimentos sai do mapa, e nao da ordem das pracas:
+    # salto por preco, degrau por entrega, como antes da fusao
+    for d in eventos.values():
+        d["saltos"] = sorted(d["pracas_salto"])
+        d["precos"] = sorted(d["pracas_preco"])
     return list(eventos.values()), suprimir
 
 
@@ -2998,6 +3104,10 @@ def _o_que_mudou(r, sem_numero=False):
     # de contrato viraram 15, com a anunciada parada em 45.
     if r.get("contratual_texto"):
         linhas.append("e %s" % r["contratual_texto"])
+        # A MESMA CONTA DO BLOCO DE CONTRATUAL: aqui a confusao e igual,
+        # porque a linha de cima ja disse "mesma entrega (45 GB)".
+        if r.get("contratual_composicao"):
+            linhas.append(r["contratual_composicao"])
     return linhas
 
 
@@ -3290,13 +3400,25 @@ def montar_mensagem(hoje, ontem):
                                         c.get("nome") or c["operadora"]))
         linhas.append("  %s" % c["contratual_texto"])
         # A ANUNCIADA SAI SEMPRE, e e o contraste: ela ficou parada por
-        # construcao - a chave carrega o degrau -, entao "mesma entrega
-        # (45 GB)" ao lado de "contrato de 5 para 15" e o que separa
-        # bonus de contrato para quem le.
-        resto = [c["texto_entrega"]]
-        if c.get("texto_preco"):
-            resto.append(c["texto_preco"])
-        linhas.append("  %s" % " e ".join(resto))
+        # construcao - a chave carrega o degrau -, entao o total ao lado
+        # de "contrato de 20 para 15" e o que separa bonus de contrato
+        # para quem le.
+        #
+        # E ELA SAI ABERTA EM CONTRATO E BONUS quando a conta fecha.
+        # Cobrado em 05/11/2026: "mesma entrega (45 GB)" nao dizia o que
+        # os 45 tem a ver com os 15, e as duas linhas juntas pareciam se
+        # desdizer. Ver _contrato_na_vitrine; sem GB nos dois lados a
+        # linha antiga continua, porque somar Mbps com GB seria pior.
+        composicao = c.get("contratual_composicao")
+        if composicao:
+            linhas.append("  %s" % composicao)
+            if c.get("texto_preco"):
+                linhas.append("  %s" % c["texto_preco"])
+        else:
+            resto = [c["texto_entrega"]]
+            if c.get("texto_preco"):
+                resto.append(c["texto_preco"])
+            linhas.append("  %s" % " e ".join(resto))
         linhas.append("  %s" % c["onde"])
     if len(contratuais) > 3:
         n = len(contratuais) - 3
@@ -3344,16 +3466,38 @@ def montar_mensagem(hoje, ontem):
         unidade = g.get("unidade") or ""
         linhas = abrir(_categoria(g), g["operadora"],
                        "%s \u00b7 %s" % (_categoria(g), g["operadora"]))
-        for preco, antes_v, agora_v in g["saltos"][:3]:
-            linhas.append("  %s: %s \u2192 %s %s%s" % (
+        # O ALCANCE SO APARECE NA LINHA QUANDO ELE DIVERGE. Com um
+        # evento por escada, os movimentos de uma grade quase sempre
+        # alcancam as mesmas pracas - e repetir "em todas as 20 pracas"
+        # em cada linha empurraria o numero, que e a noticia, para fora
+        # da tela do telefone. Divergindo, cada linha leva a sua frase e
+        # a do fim passa a falar da grade, para nao valer por todas.
+        onde_mov = g.get("onde_movimento") or {}
+        movimentos = []
+        for m in g["saltos"][:3]:
+            preco, antes_v, agora_v = m
+            movimentos.append(("  %s: %s \u2192 %s %s%s" % (
                 _reais(preco), antes_v, agora_v, unidade,
-                _mudou_a_entrega(antes_v, agora_v)))
+                _mudou_a_entrega(antes_v, agora_v)),
+                onde_mov.get(("s",) + tuple(m))))
         # o outro lado da escada: a mesma entrega passou a custar outro
         # preco. Sem isto, evento que so tem este lado saia em branco.
-        for entrega, antes_p, agora_p in g["precos"][:3]:
-            linhas.append("  %s %s: %s \u2192 %s%s" % (
+        for m in g["precos"][:3]:
+            entrega, antes_p, agora_p = m
+            movimentos.append(("  %s %s: %s \u2192 %s%s" % (
                 entrega, unidade, _reais(antes_p), _reais(agora_p),
-                _variacao(antes_p, agora_p)))
+                _variacao(antes_p, agora_p)),
+                onde_mov.get(("p",) + tuple(m))))
+        divergem = len({a for _, a in movimentos if a}) > 1
+        for texto, alcance in movimentos:
+            linhas.append(texto)
+            # EM LINHA PROPRIA, E NAO NO FIM DA LINHA DO NUMERO. Entre
+            # parenteses a linha passava de 95 caracteres e quebrava no
+            # telefone exatamente onde esta o percentual, que e a
+            # noticia. Indentada abaixo, a frase qualifica o movimento
+            # de cima sem empurrar nada.
+            if divergem and alcance and alcance != g["onde"]:
+                linhas.append("     %s" % alcance)
         # A GRADE CORTAVA SEM DIZER. "e mais N de grade no relatorio"
         # conta EVENTOS, e nem imprime com tres ou menos: uma escada de
         # nove movimentos saia com seis, sem marca de corte.
@@ -3361,7 +3505,8 @@ def montar_mensagem(hoje, ontem):
         if sobra:
             linhas.append("  e mais %d movimento%s nesta grade, no "
                           "relat\u00f3rio" % (sobra, "" if sobra == 1 else "s"))
-        linhas.append("  %s" % g["onde"])
+        linhas.append("  %s" % ("a grade mexeu %s" % g["onde"] if divergem
+                                else g["onde"]))
     if len(grades) > 3:
         n = len(grades) - 3
         cauda.append("e mais %d de grade no relat\u00f3rio" % n)

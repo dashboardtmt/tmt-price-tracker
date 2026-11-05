@@ -1779,6 +1779,49 @@ MUTACOES = [
         '        porque = ("a nossa leitura mudou hoje: %s"'
         ' % (declarado or curto)',
         "Dc7. a mensagem volta a levar a declaracao tecnica inteira"),
+    # A FUSAO DA ESCADA E A CONTA DO CONTRATO, de 05/11/2026: "funde os
+    # dois blocos de controle num so" e "pq e a mesma entrega 45GB?
+    # ficou confuso".
+    Mutacao(
+        "robo.py",
+        '        d = eventos.setdefault((operadora, produto), {',
+        '        d = eventos.setdefault((operadora, produto,'
+        ' tuple(mesma_etiqueta), tuple(mesmo_pacote)), {',
+        "Df1. a escada volta a partir em um evento por conjunto de"
+        " movimentos"),
+    Mutacao(
+        "robo.py",
+        "                        fora_do_movimento = olhadas - set(suas)",
+        "                        fora_do_movimento = set()",
+        "Df2. o movimento perde a cidade que ficou de fora dele"),
+    Mutacao(
+        "robo.py",
+        '        divergem = len({a for _, a in movimentos if a}) > 1',
+        '        divergem = False',
+        "Df3. a uniao das pracas volta a valer por todos os movimentos"),
+    Mutacao(
+        "robo.py",
+        "    bonus = entrega - contratual",
+        "    bonus = contratual",
+        "Df4. o bonus deixa de ser a anunciada menos o contrato"),
+    Mutacao(
+        "robo.py",
+        '    if (unidade or "") != "GB" or contratual > entrega:',
+        "    if False:",
+        "Df5. a conta do contrato soma Mbps com GB"),
+    # A FAIXA DE NUMEROS DO DIA, de 05/11/2026: numero de cabecalho e o
+    # que mais se olha e o que menos se confere.
+    Mutacao(
+        "gerar_tela.py",
+        "      if (mudouDePreco(l.operadora, d, diaAntes, antes, c))"
+        " mudancas++;",
+        "      if (antes && c.p !== antes.p) mudancas++;",
+        "Dg1. a faixa conta a escada que deslizou como reajuste"),
+    Mutacao(
+        "gerar_tela.py",
+        "    if (!entrada || precoDe(o) < precoDe(entrada)) entrada = o;",
+        "    if (!entrada || precoDe(o) > precoDe(entrada)) entrada = o;",
+        "Dg2. a entrada do mercado vira o plano mais caro"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

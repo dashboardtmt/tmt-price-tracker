@@ -112,25 +112,23 @@ class OComplementoSeNomeia(unittest.TestCase):
         self.assertNotIn("ex-", t)
         self.assertNotIn("em separado", t)
 
-    def test_a_escada_dividida_nomeia_a_cidade_da_outra_perna(self):
-        u"""O caso de 05/11/2026, que motivou o pedido.
+    def test_a_escada_dividida_nomeia_a_cidade_no_movimento(self):
+        u"""O caso de 05/11/2026, nas duas versoes do pedido.
 
         A escada do Claro Controle deslizou nas tres pracas; na
-        terceira o degrau de 59,90 nao deslizou. Sao dois eventos de
-        grade, e o evento de grade nao fala de uma oferta - fala do
-        portfolio -, entao ele nao tinha pegada comparavel nenhuma e
-        nao podia nomear ninguem. Ver _escada_do_evento.
+        terceira o degrau de 59,90 nao deslizou. Era isso que fazia a
+        cidade virar um SEGUNDO evento de grade - "funde os dois blocos
+        de controle num so", em 05/11/2026 -, e a frase daquele evento
+        nao podia dizer "ex-" porque lá a escada se mexeu.
+
+        FUNDIDOS, a cidade de fora e a do MOVIMENTO: um degrau que
+        mexeu em duas das tres cidades diz isso na propria linha, e
+        nenhuma cidade "sai em separado" - nao ha para onde ela sair.
         """
-        tres = TODAS[:3]
-        ontem = [degrau(p, gb, ONTEM, c)
-                 for c in tres for p, gb in ((59.90, 40), (69.90, 45))]
-        hoje = [degrau(p, gb, HOJE, c)
-                for c in tres[:2] for p, gb in ((59.90, 45), (69.90, 50))]
-        hoje += [degrau(59.90, 40, HOJE, tres[2]),
-                 degrau(69.90, 50, HOJE, tres[2])]
-        t = montar(ontem, hoje)
-        self.assertIn("em 2 das 3 cidades; %s sai em separado"
-                      % tres[2].split("/")[0], t)
+        t = montar(*escada_com_uma_perna_curta())
+        fora = TODAS[2].split("/")[0]
+        self.assertIn("em 2 das 3 cidades, ex-%s" % fora, t)
+        self.assertNotIn("em separado", t)
 
     def test_a_escada_sem_a_cidade_em_ontem_nao_nomeia(self):
         u"""Mesma guarda da oferta, agora na escada: cidade que nao
@@ -151,6 +149,116 @@ class OComplementoSeNomeia(unittest.TestCase):
         self.assertNotIn("ex-", t)
 
 
+def escada_com_uma_perna_curta():
+    u"""Tres cidades, e na terceira um dos degraus nao deslizou.
+
+    Ontem: 59,90 -> 40 GB e 69,90 -> 45 GB, nas tres.
+    Hoje: nas duas primeiras os dois degraus subiram; na terceira, so o
+    de 69,90. Entao o salto de 59,90 e o degrau de 45 GB alcancam duas
+    cidades, e o salto de 69,90 alcanca as tres - e e dessa diferenca
+    que o bloco fundido tem de dar conta.
+    """
+    tres = TODAS[:3]
+    ontem = [degrau(p, gb, ONTEM, c)
+             for c in tres for p, gb in ((59.90, 40), (69.90, 45))]
+    hoje = [degrau(p, gb, HOJE, c)
+            for c in tres[:2] for p, gb in ((59.90, 45), (69.90, 50))]
+    hoje += [degrau(59.90, 40, HOJE, tres[2]),
+             degrau(69.90, 50, HOJE, tres[2])]
+    return ontem, hoje
+
+
+class AEscadaDaOperadoraSaiNumBlocoSo(unittest.TestCase):
+    u"""Um evento de grade por (operadora, produto) - pedido de
+    05/11/2026: "funde os dois blocos de controle num so".
+
+    A MENSAGEM DAQUELE DIA, antes disto:
+
+        Controle · Claro
+          59,90: 40 -> 45 GB   +12% [...]
+          69,90: 45 -> 50 GB   +11% [...]
+          45 GB: 69,90 -> 59,90  -14%
+          em 19 das 20 cidades; Rio de Janeiro sai em separado
+
+        Controle · Claro
+          69,90: 45 -> 50 GB   +11% [...]   <- as duas linhas de novo
+          45 GB: 69,90 -> 59,90  -14%
+          em 1 de 20: Rio de Janeiro
+
+    O leitor via duas vezes o mesmo movimento porque o evento levava a
+    lista de movimentos dentro da identidade, e no Rio a escada deslizou
+    menos. Fundir e a parte facil; o risco e o outro lado - a uniao das
+    pracas diria "em todas as 20" sobre um degrau que foi em 19.
+    """
+
+    def setUp(self):
+        sem_declaracao(self)
+
+    def _cabecalhos(self, texto):
+        return [l for l in texto.splitlines() if " · " in l
+                and not l.startswith(" ") and not l.startswith("TMT")
+                and not l.startswith("Relat")]
+
+    def test_a_escada_da_operadora_e_um_evento(self):
+        d = dados(*escada_com_uma_perna_curta())
+        self.assertEqual(len(d["grades"]), 1, d["grades"])
+        self.assertEqual(len(self._cabecalhos(montar(*escada_com_uma_perna_curta()))), 1)
+
+    def test_o_movimento_nao_sai_duas_vezes(self):
+        u"""O defeito que o leitor viu: o degrau que mexeu nas tres
+        cidades aparecia no bloco das duas E no bloco da terceira."""
+        t = montar(*escada_com_uma_perna_curta())
+        self.assertEqual(t.count("69,90: 45 \u2192 50 GB"), 1, t)
+
+    def test_cada_movimento_leva_o_seu_alcance(self):
+        u"""E A FUSAO NAO PODE MENTIR PELO OUTRO LADO. Com a uniao das
+        pracas valendo por todos os movimentos, o degrau de 59,90 - que
+        nao mexeu na terceira cidade - sairia sob "em todas as 3
+        pracas"."""
+        t = montar(*escada_com_uma_perna_curta())
+        linhas = t.splitlines()
+        i = [n for n, l in enumerate(linhas) if "59,90: 40" in l][0]
+        self.assertIn("em 2 das 3 cidades", linhas[i + 1])
+        # e o degrau que mexeu nas tres nao leva frase nenhuma: a do
+        # fim do bloco ja vale para ele
+        j = [n for n, l in enumerate(linhas) if "69,90: 45" in l][0]
+        self.assertNotIn("em 2 das 3", linhas[j + 1])
+        self.assertNotIn("em 3 das 3", t)
+
+    def test_e_a_frase_do_fim_passa_a_falar_da_grade(self):
+        u"""Divergindo os movimentos, "em todas as 3 pracas" no fim do
+        bloco pareceria desmentir a linha de cima. Dizendo "a grade
+        mexeu", a frase diz do que ela fala."""
+        t = montar(*escada_com_uma_perna_curta())
+        self.assertIn("a grade mexeu em todas as 3 pra\u00e7as", t)
+
+    def test_e_com_todos_os_movimentos_juntos_nada_disso_aparece(self):
+        u"""O CONTROLE: quando a escada desliza igual nas tres cidades,
+        o bloco e o de sempre - uma frase de alcance, no fim. Sem esta
+        guarda, "a grade mexeu" e a linha por movimento passariam a sair
+        todo dia, em todo bloco de grade."""
+        tres = TODAS[:3]
+        ontem = [degrau(p, gb, ONTEM, c)
+                 for c in tres for p, gb in ((59.90, 40), (69.90, 45))]
+        hoje = [degrau(p, gb, HOJE, c)
+                for c in tres for p, gb in ((59.90, 45), (69.90, 50))]
+        t = montar(ontem, hoje)
+        self.assertIn("em todas as 3 pra\u00e7as", t)
+        self.assertNotIn("a grade mexeu", t)
+        self.assertNotIn("ex-", t)
+
+    def test_o_relatorio_le_o_mesmo_alcance(self):
+        u"""A coluna "Pracas" do PDF fala do evento, e o evento agora e
+        a escada inteira: sem o alcance na celula do movimento, o
+        degrau de 59,90 apareceria sob "em todas as 3 pracas"."""
+        d = dados(*escada_com_uma_perna_curta())
+        g = d["grades"][0]
+        movimento = g["onde_movimento_todas"][("s", 59.90, 40, 45)]
+        self.assertIn("em 2 das 3 cidades", movimento)
+        self.assertEqual(g["onde_movimento_todas"][("s", 69.90, 45, 50)],
+                         g["onde_todas"])
+
+
 class AOrdemAgrupaPorProdutoEPlayer(unittest.TestCase):
 
     def setUp(self):
@@ -161,28 +269,44 @@ class AOrdemAgrupaPorProdutoEPlayer(unittest.TestCase):
         return montar(ontem, hoje)
 
     def _fixture(self):
-        u"""A Claro mexendo em fibra (preco) e em controle (escada).
+        u"""A Claro mexendo em fibra (preco), em controle (contrato e
+        escada) e no pos-pago (escada).
 
-        A ESCADA SAI EM DOIS BLOCOS E O POS-PAGO FICA ENTRE ELES na
-        ordem dos detectores, que e a ordem por efeito: a perna forte do
-        Controle pesa 0,50 (40 para 60 GB), o Pos-pago 0,20 e a perna
-        fraca do Controle 0,044. Sem esses tres pesos nesta ordem o
-        teste nao mede nada - a mutacao Dc5 passou verde na primeira
-        versao, em que as duas pernas do Controle ja nasciam vizinhas e
-        agrupar nao mudava nada.
+        OS DOIS BLOCOS DE CONTROLE VEM DE DETECTORES DIFERENTES, e e
+        por isso que o Pos-pago nasce entre eles: contratual e o quarto
+        detector, escada e o sexto, e dentro da escada o Pos-pago pesa
+        0,200 contra 0,143 do Controle. Sem essa distancia o teste nao
+        mede nada - agrupar blocos que ja nasceram vizinhos nao muda
+        nenhuma linha, que foi o que a mutacao Dc5 mostrou.
+
+        ATE 05/11/2026 OS DOIS BLOCOS ERAM AS DUAS PERNAS DA ESCADA, uma
+        por conjunto de movimentos. Elas viraram um bloco so quando o
+        leitor pediu, e a fixture teve de achar outra forma de produzir
+        dois blocos do mesmo (produto, player) - ver
+        AEscadaDaOperadoraSaiNumBlocoSo.
         """
         tres = TODAS[:3]
         ontem = fibra(129.90, ONTEM, tres)
         hoje = fibra(99.90, HOJE, tres)
+        # o Controle Plus nao mexe na escada - mesmo preco, mesmo
+        # degrau nos dois dias -, e mexe no contrato: -25%
+        ontem += [oferta(operadora="Claro", produto="controle",
+                         nome="Claro Controle Plus", preco=89.90, gb=60,
+                         praca=c, data=ONTEM, contratual=20,
+                         chave="Claro|controle|60gb|plus") for c in tres]
+        hoje += [oferta(operadora="Claro", produto="controle",
+                        nome="Claro Controle Plus", preco=89.90, gb=60,
+                        praca=c, data=HOJE, contratual=15,
+                        chave="Claro|controle|60gb|plus") for c in tres]
+        # e a escada do Controle desliza, com a terceira praca curta:
+        # 0,143 no maior movimento
         ontem += [degrau(p, gb, ONTEM, c)
                   for c in tres for p, gb in ((59.90, 40), (69.90, 45))]
-        # perna forte, em duas pracas: +50% no degrau de 59,90
         hoje += [degrau(p, gb, HOJE, c)
-                 for c in tres[:2] for p, gb in ((59.90, 60), (69.90, 50))]
-        # perna fraca, na terceira: +4,4% no degrau de 69,90
+                 for c in tres[:2] for p, gb in ((59.90, 45), (69.90, 50))]
         hoje += [degrau(59.90, 40, HOJE, tres[2]),
-                 degrau(69.90, 47, HOJE, tres[2])]
-        # o terceiro produto, com peso no meio: +20%
+                 degrau(69.90, 50, HOJE, tres[2])]
+        # o terceiro produto, com peso ACIMA da escada do Controle: +20%
         ontem += [oferta(operadora="Claro", produto="movel",
                          nome="Claro Pós", preco=124.90, gb=50,
                          praca=tres[0], data=ONTEM,
@@ -194,16 +318,20 @@ class AOrdemAgrupaPorProdutoEPlayer(unittest.TestCase):
         return ontem, hoje
 
     def test_a_ordem_dos_detectores_poe_outro_produto_no_meio(self):
-        u"""O CONTROLE DO TESTE DE CIMA. Se os tres pesos deixarem de
-        por o Pos-pago entre as duas pernas do Controle, agrupar nao
+        u"""O CONTROLE DO TESTE DE CIMA. Se o Pos-pago deixar de nascer
+        entre o bloco de contrato e o da escada do Controle, agrupar nao
         muda nada e o teste de cima passa a medir o nada."""
         d = dados(*self._fixture())
         pesos = [robo._por_efeito(g) for g in d["grades"]]
         self.assertEqual(sorted(pesos, reverse=True), pesos,
                          "a lista de grades nao esta ordenada por efeito")
         produtos = [g["produto"] for g in d["grades"]]
-        self.assertEqual(produtos, ["controle", "movel", "controle"],
-                         "o pos-pago tem de nascer ENTRE as duas pernas")
+        self.assertEqual(produtos, ["movel", "controle"],
+                         "o pos-pago tem de pesar MAIS que a escada do "
+                         "controle, ou ele nasce depois dos dois blocos")
+        self.assertEqual([c["produto"] for c in d["contratuais"]],
+                         ["controle"],
+                         "o primeiro bloco de Controle vem do contrato")
 
     def _cabecalhos(self, texto):
         return [l for l in texto.splitlines() if " · " in l

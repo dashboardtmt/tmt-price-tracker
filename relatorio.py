@@ -459,13 +459,31 @@ def _bloco_grades(d):
     linhas = []
     for g in d.get("grades") or []:
         u = _unidade(g)
+        # O ALCANCE DO MOVIMENTO, quando ele nao e o da grade. A coluna
+        # "Pracas" fala do evento, e o evento agora e a escada inteira
+        # da operadora naquele produto: sem isto um degrau que mexeu em
+        # 19 cidades sairia sob "em todas as 20 pracas". Mesma frase da
+        # mensagem, escrita uma vez em _assinar_alcance.
+        onde_mov = g.get("onde_movimento_todas") or {}
+        geral = g.get("onde_todas") or g.get("onde")
+
+        def _com_alcance(texto, chave):
+            alcance = onde_mov.get(chave)
+            if alcance and alcance != geral:
+                return "%s (%s)" % (texto, alcance)
+            return texto
+
         movimento = []
         for preco, antes_v, agora_v in g.get("saltos") or ():
-            movimento.append("%s passou a entregar %s %s (antes %s)"
-                             % (_reais(preco), agora_v, u, antes_v))
+            movimento.append(_com_alcance(
+                "%s passou a entregar %s %s (antes %s)"
+                % (_reais(preco), agora_v, u, antes_v),
+                ("s", preco, antes_v, agora_v)))
         for entrega, antes_p, agora_p in g.get("precos") or ():
-            movimento.append("%s %s passou a custar %s (antes %s)"
-                             % (entrega, u, _reais(agora_p), _reais(antes_p)))
+            movimento.append(_com_alcance(
+                "%s %s passou a custar %s (antes %s)"
+                % (entrega, u, _reais(agora_p), _reais(antes_p)),
+                ("p", entrega, antes_p, agora_p)))
         linhas.append([
             g.get("operadora"),
             g.get("produto"),

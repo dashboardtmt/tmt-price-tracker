@@ -102,26 +102,71 @@ MOLDE = r"""<!DOCTYPE html>
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--cor-fundo);color:var(--cor-texto);
-       font-family:var(--fonte);font-size:14px;line-height:1.5}
+       font-family:var(--fonte);font-size:14px;line-height:1.5;
+       background-image:radial-gradient(1100px 380px at 50% -170px,
+         rgba(255,80,0,.055), rgba(255,80,0,0));
+       background-repeat:no-repeat;background-attachment:fixed}
 
   /* fixo no topo, como no Dashboard TMT: a tela tem tabela longa e rolar
      nao pode custar a referencia de onde se esta */
-  header{background:var(--preto);border-bottom:3px solid var(--laranja);
-         padding:9px 0 8px;position:sticky;top:0;z-index:200;
-         box-shadow:0 2px 10px rgba(45,38,30,.10)}
+  /* O CABECALHO NAO E MAIS UMA BARRA DE TITULO. Cobrado em 05/11/2026,
+     pela segunda vez: "parece muito padrao". E era - tarja preta, nome
+     a esquerda, dois botoes a direita e um subtitulo cinza, que e o
+     cabecalho de qualquer template de admin. Agora ele e uma MASTHEAD:
+     monograma, nome, o que a tela e, e do outro lado os dois numeros
+     que dizem se o dado esta fresco - data da coleta e tamanho da base.
+     Os dois ja estavam escritos, numa linha cinza de 10px colada ao
+     titulo; eles sao a primeira pergunta de quem abre um tracker. */
+  header{background:linear-gradient(180deg,#0A1020 0%,var(--preto) 100%);
+         border-bottom:3px solid var(--laranja);
+         padding:9px 0 10px;position:sticky;top:0;z-index:200;
+         box-shadow:0 2px 14px rgba(0,5,18,.20)}
   .dentro{max-width:1440px;margin:0 auto;padding:0 28px}
-  header .dentro{display:flex;justify-content:space-between;align-items:flex-end;
-                 gap:14px;flex-wrap:wrap}
-  /* a barra laranja a esquerda do titulo e a assinatura do dashboard */
-  header h1{margin:0;font-size:17px;font-weight:800;color:#fff;letter-spacing:-.3px;
-    border-left:4px solid var(--laranja);padding-left:11px;line-height:1.2}
-  header .sub{color:#A79F92;font-size:10px;margin-top:3px;padding-left:15px;
-    text-transform:uppercase;letter-spacing:.7px;font-weight:600}
-  .idioma{display:flex;gap:7px}
+  header .dentro{display:flex;justify-content:space-between;align-items:center;
+                 gap:16px;flex-wrap:wrap}
+  .marca{display:flex;align-items:center;gap:11px;min-width:0}
+  /* O MONOGRAMA NO LUGAR DA BARRINHA. A barra laranja a esquerda do
+     titulo e a assinatura do Dashboard TMT - continua sendo laranja a
+     esquerda do nome, com forma propria e o unico bloco de laranja
+     cheio da tela. */
+  .monograma{display:grid;place-items:center;width:33px;height:33px;
+    border-radius:9px;background:var(--laranja);color:#fff;font-size:11.5px;
+    font-weight:800;letter-spacing:.3px;flex:none;
+    box-shadow:0 3px 12px -3px rgba(255,80,0,.75)}
+  header h1{margin:0;font-size:17px;font-weight:800;color:#fff;
+    letter-spacing:-.35px;line-height:1.15}
+  header .sub{color:#8C8578;font-size:9.5px;margin-top:2px;
+    text-transform:uppercase;letter-spacing:.85px;font-weight:600}
+  /* O RECADO DA CARGA FICA ABAIXO DA LINHA DO QUE A TELA E, e nao no
+     lugar dela: ele diz "carregando" e, se a serie nao vier, diz que
+     nao veio - em cor quente, porque pagina no ar sem dado tem de se
+     declarar. Vazio, nao ocupa altura nenhuma. */
+  .recado{font-size:10px;font-weight:700;color:#FFB184;margin-top:3px;
+    letter-spacing:.3px}
+  .recado:empty{display:none}
+  .meta{display:flex;align-items:center}
+  .meta-item{padding:1px 15px;border-left:1px solid rgba(255,255,255,.11);
+    line-height:1.15}
+  .meta-item:first-child{border-left:none;padding-left:0}
+  .meta-rot{display:block;font-size:8.5px;font-weight:700;color:#8C8578;
+    text-transform:uppercase;letter-spacing:.9px;white-space:nowrap}
+  .meta-val{display:block;font-size:14.5px;font-weight:700;color:#fff;
+    font-variant-numeric:tabular-nums;letter-spacing:-.3px;margin-top:2px}
+  /* os dois idiomas num trilho so: dois botoes soltos com borda cinza
+     pareciam controle de formulario em cima de um cabecalho escuro */
+  .idioma{display:flex;gap:3px;margin-left:14px;padding:3px;
+    background:rgba(255,255,255,.07);border-radius:9px}
   .bandeira{display:flex;align-items:center;gap:5px;font:inherit;font-size:11px;
-    font-weight:600;padding:3px 8px;cursor:pointer;border:1px solid #4A443C;
-    border-radius:7px;background:transparent;color:#B9B2A6}
-  .bandeira.on{background:rgba(255,80,0,.14);border-color:var(--laranja);color:#fff}
+    font-weight:600;padding:3px 8px;cursor:pointer;border:1px solid transparent;
+    border-radius:7px;background:transparent;color:#B9B2A6;
+    transition:background .12s,color .12s}
+  .bandeira:hover{color:#fff}
+  .bandeira.on{background:rgba(255,80,0,.20);
+    border-color:rgba(255,80,0,.55);color:#fff}
+  @media(max-width:640px){
+    .meta-item{padding:1px 11px}
+    .meta-val{font-size:13px}
+  }
   .bandeira .flag{width:19px;height:13px;display:block;overflow:hidden;
     border-radius:2px;line-height:0}
   .bandeira .flag svg{width:19px;height:13px;display:block}
@@ -145,10 +190,22 @@ MOLDE = r"""<!DOCTYPE html>
         z-index:28;background:var(--cor-fundo)}
   .campo label{display:block;font-size:8.5px;line-height:1.25;text-transform:uppercase;
     letter-spacing:.6px;color:var(--cor-texto-suave);margin-bottom:1px;font-weight:700}
-  .campo select{font:inherit;font-size:12px;padding:2px 8px;border-radius:7px;
-    border:1px solid var(--cor-borda);background:#fff;color:var(--cor-texto);
-    width:100%;cursor:pointer}
-  .campo select:focus{outline:2px solid rgba(255,80,0,.35);outline-offset:1px}
+  /* O SELETOR NATIVO E A PECA QUE MAIS DENUNCIA TELA NAO DESENHADA: a
+     seta do sistema, a altura de 20px e a borda cinza-claro sao de
+     formulario. Mesma caixa, com a seta desenhada na paleta e estados
+     de hover e foco em laranja. */
+  .campo select{font:inherit;font-size:12.5px;font-weight:600;
+    padding:4px 25px 4px 10px;border-radius:8px;
+    border:1px solid var(--cor-borda-forte);background-color:#fff;
+    color:var(--cor-texto);width:100%;cursor:pointer;
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237C7468' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+    background-size:9px 6px;
+    transition:border-color .12s,box-shadow .12s}
+  .campo select:hover{border-color:var(--cinza-medio)}
+  .campo select:focus{outline:none;border-color:var(--laranja);
+    box-shadow:0 0 0 3px rgba(255,80,0,.15)}
   .chips{display:flex;gap:5px;flex-wrap:wrap}
   .chip{display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;
     padding:1px 8px;border:1px solid var(--cor-borda);border-radius:20px;
@@ -159,6 +216,46 @@ MOLDE = r"""<!DOCTYPE html>
   .chip .marcador{width:8px;height:8px;border-radius:50%}
 
 
+  /* A FAIXA DE NUMEROS DO DIA, acima de tudo no Overview. Sem ela a
+     tela abria em grafico: o preco de entrada do produto filtrado, que
+     e a primeira pergunta de quem chega, so existia como a bolinha
+     mais baixa de uma nuvem. */
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;
+    margin:3px 0 17px}
+  .kpi{background:var(--cor-superficie);border:1px solid var(--cor-borda);
+    border-radius:12px;padding:12px 15px 13px;box-shadow:var(--sombra);
+    position:relative;overflow:hidden;min-width:0}
+  /* o fio de cor no alto identifica o cartao sem pintar area: o mesmo
+     principio da barra da operadora na matriz */
+  .kpi::before{content:"";position:absolute;left:0;top:0;height:3px;
+    width:100%;background:var(--cor-kpi,var(--laranja))}
+  .kpi-rot{font-size:8.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.9px;color:var(--cor-texto-suave);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .kpi-val{font-size:25px;font-weight:800;letter-spacing:-1.1px;
+    color:var(--preto);line-height:1.08;margin-top:6px;
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .kpi-val .un{font-size:12.5px;font-weight:700;color:var(--cor-texto-suave);
+    letter-spacing:-.1px;margin-left:3px}
+  .kpi-pe{font-size:11px;color:var(--cor-texto-suave);margin-top:6px;
+    display:flex;align-items:center;gap:6px;min-width:0}
+  .kpi-pe span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi-pe i{width:7px;height:7px;border-radius:50%;flex:none}
+  @media(max-width:980px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  /* NO CELULAR OS QUATRO CONTINUAM EM DOIS, e nao um por linha: em
+     coluna unica a faixa empurrava o primeiro grafico para 700px
+     abaixo do filtro. O rotulo passa a quebrar em duas linhas - cortar
+     "PRECO POR UNIDADE (MEDIANA)" com reticencias tira justamente a
+     palavra que diz de que numero se trata. */
+  @media(max-width:460px){
+    .kpis{gap:9px}
+    .kpi{padding:10px 12px 11px}
+    .kpi-rot{white-space:normal}
+    .kpi-pe span{white-space:normal}
+    .kpi-val{font-size:21px;letter-spacing:-.8px}
+  }
+
   .bloco{background:var(--cor-superficie);border:1px solid var(--cor-borda);
     border-radius:14px;padding:20px 26px 22px;margin-bottom:18px;
     box-shadow:var(--sombra)}
@@ -166,7 +263,7 @@ MOLDE = r"""<!DOCTYPE html>
      fio laranja CURTO embaixo. O fio atravessando a tela inteira em
      laranja claro competia com o proprio titulo e pintava area sem
      dizer nada - o mesmo laranja rende mais num traco de 34px. */
-  .secao{font-size:18px;font-weight:800;color:var(--preto);margin:6px 0 13px;
+  .secao{font-size:19px;font-weight:800;color:var(--preto);margin:6px 0 13px;
     padding-bottom:9px;letter-spacing:-.35px;position:relative}
   .secao::after{content:"";position:absolute;left:0;bottom:0;
     width:34px;height:3px;border-radius:2px;background:var(--laranja)}
@@ -229,13 +326,18 @@ MOLDE = r"""<!DOCTYPE html>
     box-shadow:0 1px 4px rgba(45,38,30,.05)}
   nav.abas ul{display:flex;list-style:none;gap:4px;margin:0;padding:0;
     overflow-x:auto;-webkit-overflow-scrolling:touch}
-  nav.abas a{display:block;padding:9px 14px 8px;text-decoration:none;
+  nav.abas a{display:block;padding:10px 15px 9px;text-decoration:none;
     color:var(--cor-texto-suave);font-weight:600;font-size:13px;
-    letter-spacing:-.1px;border-bottom:2.5px solid transparent;
-    white-space:nowrap;transition:color .12s}
+    letter-spacing:-.1px;white-space:nowrap;position:relative;
+    transition:color .12s}
   nav.abas a:hover{color:var(--cor-texto)}
-  nav.abas a.ativa{color:var(--preto);font-weight:700;
-    border-bottom-color:var(--laranja)}
+  nav.abas a.ativa{color:var(--preto);font-weight:700}
+  /* o indicador nao vai de ponta a ponta da aba: um traco curto sob o
+     texto, de ponta arredondada, como o fio do titulo de secao */
+  nav.abas a::after{content:"";position:absolute;left:15px;right:15px;
+    bottom:0;height:3px;border-radius:3px 3px 0 0;background:transparent;
+    transition:background .14s}
+  nav.abas a.ativa::after{background:var(--laranja)}
   #pg-ofertas{padding-top:4px} #pg-panorama{padding-top:4px}
   .faixa{margin-bottom:20px}
   .faixa:last-child{margin-bottom:0}
@@ -288,6 +390,12 @@ MOLDE = r"""<!DOCTYPE html>
      alinhamento continua a direita, que e serie temporal e se compara
      digito com digito. */
   #pg-ofertas td.num{text-align:center}
+  /* O PRECO PESA MAIS QUE O RESTO DA LINHA. Com todas as colunas no
+     mesmo tom e no mesmo peso, uma tabela de seis colunas nao tem por
+     onde comecar a ser lida - e a coluna que todo mundo procura e a do
+     preco. O numero por unidade fica um tom abaixo: ele e derivado. */
+  #pg-ofertas td.preco{font-weight:700;color:var(--preto)}
+  #pg-ofertas td.unit{color:var(--cor-texto-suave)}
   /* a coluna da praca fica fixa ao rolar na horizontal: com 7 colunas
      de operadora mais a data, o nome da cidade sai da tela e o leitor
      perde a linha */
@@ -443,15 +551,29 @@ MOLDE = r"""<!DOCTYPE html>
 
 <header>
   <div class="dentro">
-    <div>
-      <h1 data-t="titulo">Price Tracker TMT</h1>
-      <div class="sub" id="sub"></div>
+    <div class="marca">
+      <span class="monograma">TMT</span>
+      <div>
+        <h1 data-t="titulo">Price Tracker TMT</h1>
+        <div class="sub" data-t="tagline">Preços do varejo de telecom, dia a dia</div>
+        <div class="recado" id="sub"></div>
+      </div>
+    </div>
+    <div class="meta">
+    <div class="meta-item">
+      <span class="meta-rot" data-t="m_coleta">Última coleta</span>
+      <span class="meta-val" id="m-coleta">—</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-rot" data-t="m_base">Capturas</span>
+      <span class="meta-val" id="m-base">—</span>
     </div>
     <div class="idioma">
       <button id="bt-pt" class="bandeira on" onclick="idioma('pt')" title="Português">
         <span class="flag"><svg viewBox='0 0 24 16' aria-hidden='true'><rect width='24' height='16' fill='#009C3B'/><polygon points='12,2 22,8 12,14 2,8' fill='#FFDF00'/><circle cx='12' cy='8' r='3.2' fill='#002776'/><path d='M9 7.5Q12 6.5 15 7.5' stroke='#fff' stroke-width='.4' fill='none'/></svg></span><span>PT</span></button>
       <button id="bt-en" class="bandeira" onclick="idioma('en')" title="English">
         <span class="flag"><svg viewBox='0 0 24 16' aria-hidden='true'><defs><clipPath id='ukc'><rect width='24' height='16'/></clipPath></defs><g clip-path='url(#ukc)'><rect width='24' height='16' fill='#012169'/><path d='M0 0 24 16M24 0 0 16' stroke='#fff' stroke-width='3.2'/><path d='M0 0 24 16M24 0 0 16' stroke='#C8102E' stroke-width='1.6'/><path d='M12 0V16M0 8H24' stroke='#fff' stroke-width='5'/><path d='M12 0V16M0 8H24' stroke='#C8102E' stroke-width='3'/></g></svg></span><span>EN</span></button>
+    </div>
     </div>
   </div>
 </header>
@@ -494,6 +616,7 @@ MOLDE = r"""<!DOCTYPE html>
   </div>
 
   <div id="pg-panorama">
+  <div class="kpis" id="kpis"></div>
   <div class="secao" data-t="sec_pan">Panorama do mercado</div>
   <div class="bloco">
     <div class="cabeca">
@@ -652,6 +775,15 @@ const GERADO = "__GERADO__";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
+      tagline:"Preços do varejo de telecom, dia a dia",
+      m_coleta:"Última coleta", m_base:"Capturas",
+      k_entrada:"Preço de entrada", k_unitario:"Preço por unidade (mediana)",
+      k_unitario_pe:"{n} planos com entrega lida",
+      k_prateleira:"Planos na vitrine",
+      k_prateleira_pe:"de {n} operadoras, nesta praça",
+      k_mudancas:"Mudanças de preço",
+      k_mud_n:"degraus que mexeram em {d} dias",
+      un_generica:"un.",
       f_operadora:"Operadoras",
       leitura_t:"O que mudou",
       l_preco:"mudou o preço de entrada de", l_em:"em",
@@ -780,6 +912,15 @@ const T = {
       mostrando:"Mostrando {a} de {b} ofertas capturadas nesta praça: a mais barata de cada operadora.",
       mbps:"Mbps", gb:"GB"},
   en:{titulo:"TMT Price Tracker", f_praca:"City", f_produto:"Product",
+      tagline:"Brazilian telecom retail prices, daily",
+      m_coleta:"Last collection", m_base:"Captures",
+      k_entrada:"Entry price", k_unitario:"Price per unit (median)",
+      k_unitario_pe:"{n} plans with a read allowance",
+      k_prateleira:"Plans on the shelf",
+      k_prateleira_pe:"from {n} carriers, in this city",
+      k_mudancas:"Price changes",
+      k_mud_n:"steps that moved in {d} days",
+      un_generica:"un.",
       f_operadora:"Carriers",
       leitura_t:"What changed",
       l_preco:"changed its entry price from", l_em:"on",
@@ -1207,6 +1348,7 @@ function precoDe(o){ return num(o.preco_promocional); }
 
 function idioma(l){
   lang = l;
+  cabecalhoDoDado();
   document.getElementById("bt-pt").className = "bandeira" + (l==="pt"?" on":"");
   document.getElementById("bt-en").className = "bandeira" + (l==="en"?" on":"");
   document.documentElement.lang = l==="pt"?"pt-BR":"en";
@@ -1569,8 +1711,32 @@ function eixos(rotuloY){
 if (window.Chart) {
   for (const eixo of ["category", "linear", "logarithmic", "time"]) {
     const d = Chart.defaults.scales[eixo];
-    if (d) { d.ticks = Object.assign({}, d.ticks, {maxRotation: 0, minRotation: 0}); }
+    if (!d) continue;
+    d.ticks = Object.assign({}, d.ticks,
+      {maxRotation: 0, minRotation: 0, color: "#8A8277", padding: 6});
+    // A GRADE RECUA. Em cinza cheio ela disputava com a linha do dado,
+    // e o Chart.js ainda desenhava o fio do eixo por cima - dois tracos
+    // pretos em volta de cada quadro.
+    d.grid = Object.assign({}, d.grid,
+      {color: "rgba(36,31,26,.07)", tickLength: 0, drawTicks: false});
+    d.border = Object.assign({}, d.border, {display: false});
   }
+  // E A FONTE DOS GRAFICOS E A DA PAGINA. Sem isto o Chart.js desenha
+  // em Helvetica 12, que e outra familia e outro peso ao lado do texto
+  // - um dos detalhes que fazem uma tela "parecer padrao".
+  Chart.defaults.font.family = "'Inter', ui-sans-serif, system-ui, " +
+    "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = "#7C7468";
+  const lg = Chart.defaults.plugins.legend.labels;
+  lg.usePointStyle = true; lg.boxWidth = 7; lg.boxHeight = 7;
+  lg.padding = 15; lg.font = {size: 11.5, weight: "600"};
+  const tt = Chart.defaults.plugins.tooltip;
+  tt.backgroundColor = "rgba(0,5,18,.95)"; tt.padding = 10;
+  tt.cornerRadius = 9; tt.boxPadding = 4; tt.usePointStyle = true;
+  tt.titleFont = {size: 11.5, weight: "700"};
+  tt.bodyFont = {size: 11.5};
+  tt.titleMarginBottom = 6;
 }
 
 function trocar(id, config){
@@ -2124,6 +2290,97 @@ function gradeDeslizou(operadora, dia, anterior){
   return pa.some(p => a[p] !== b[p]);
 }
 
+// A REGRA DA CELULA, ESCRITA UMA VEZ SO. A matriz marca a seta quando o
+// preco do degrau mudou, e o losango quando foi OUTRA oferta que
+// assumiu o degrau ou quando a grade inteira deslizou. A faixa de
+// numeros do dia conta exatamente os primeiros - e duas copias da regra
+// discordariam no primeiro dia em que a Claro deslizasse a escada, que
+// e justamente o dia que mais rende noticia.
+function mudouDePreco(operadora, dia, anteriorDia, antes, agora){
+  if (!antes || !agora || antes.p == null || agora.p == null) return false;
+  if (antes.nome !== agora.nome) return false;   // outra oferta no degrau
+  if (antes.p === agora.p) return false;
+  return !gradeDeslizou(operadora, dia, anteriorDia);
+}
+
+// ---------------- a faixa de numeros do dia ----------------
+// SO NUMERO QUE A PROPRIA TELA JA CALCULA. Cada um dos quatro tem o
+// grafico ou a tabela que o mostra por extenso logo abaixo: entrada e o
+// ponto mais baixo do quadrante, o unitario e o grafico de barras, a
+// prateleira e a contagem da matriz e as mudancas sao as setas dela.
+// Numero de cabecalho que nao fecha com o corpo da pagina e pior do que
+// nao ter numero nenhum.
+const DIAS_DA_FAIXA = 7;
+
+function faixaDoDia(){
+  const alvo = document.getElementById("kpis");
+  if (!alvo) return;
+  const dia = document.getElementById("f-data").value;
+  const ofertas = doFiltro(dia).filter(o => precoDe(o) != null);
+  if (!ofertas.length) { alvo.innerHTML = ""; return; }
+
+  const unidade = unidadeComum(ofertas.map(entregaDe));
+  const porUn = [];
+  for (const o of ofertas) {
+    const e = entregaDe(o), p = precoDe(o);
+    if (e.v && p != null && (!unidade || e.u === unidade)) porUn.push(p / e.v);
+  }
+
+  // a entrada do mercado: o menor preco do filtro, e de quem ele e
+  let entrada = null;
+  for (const o of ofertas) {
+    if (!entrada || precoDe(o) < precoDe(entrada)) entrada = o;
+  }
+  const eEntrada = entregaDe(entrada);
+
+  // quantas mudancas de preco nos ultimos dias, pela regra da matriz
+  const dias = DIAS.slice(-(DIAS_DA_FAIXA + 1));
+  let mudancas = 0;
+  const serie = {};
+  for (const d of dias) {
+    for (const [k, v] of Object.entries(porDegrau(d))) {
+      serie[k] = serie[k] || {operadora:v.operadora, por:{}};
+      serie[k].por[d] = {p:precoDe(v.oferta), nome:v.oferta.nome_oferta || ""};
+    }
+  }
+  for (const l of Object.values(serie)) {
+    let antes = null, diaAntes = null;
+    for (const d of dias) {
+      const c = l.por[d];
+      if (!c || c.p == null) { antes = null; diaAntes = null; continue; }
+      if (mudouDePreco(l.operadora, d, diaAntes, antes, c)) mudancas++;
+      antes = c; diaAntes = d;
+    }
+  }
+
+  const players = new Set(ofertas.map(o => o.operadora));
+  const cartao = (rot, val, pe, cor) =>
+    `<div class="kpi"${cor ? ` style="--cor-kpi:${cor}"` : ""}>` +
+    `<div class="kpi-rot">${rot}</div><div class="kpi-val">${val}</div>` +
+    `<div class="kpi-pe">${pe}</div></div>`;
+  const bolinha = op =>
+    `<i style="background:${CORES[op] || "#A0A0A0"}"></i><span>`;
+
+  const un = unidade || t("un_generica");
+  const med = porUn.length ? mediana(porUn) : null;
+
+  alvo.innerHTML = [
+    cartao(t("k_entrada"), reais(precoDe(entrada)),
+           bolinha(entrada.operadora) + entrada.operadora +
+           (eEntrada.v ? " · " + eEntrada.v + " " + eEntrada.u : "") + "</span>",
+           CORES[entrada.operadora]),
+    cartao(t("k_unitario"),
+           med == null ? "—" : "R$ " + med.toLocaleString("pt-BR",
+             {minimumFractionDigits:2, maximumFractionDigits:2}) +
+             `<span class="un">/${un}</span>`,
+           `<span>${t("k_unitario_pe").replace("{n}", porUn.length)}</span>`),
+    cartao(t("k_prateleira"), ofertas.length,
+           `<span>${t("k_prateleira_pe").replace("{n}", players.size)}</span>`),
+    cartao(t("k_mudancas"), mudancas,
+           `<span>${t("k_mud_n").replace("{d}", DIAS_DA_FAIXA)}</span>`),
+  ].join("");
+}
+
 function matriz(){
   const alvo = document.getElementById("matriz");
   const dias = DIAS.slice(-12);
@@ -2172,7 +2429,8 @@ function matriz(){
           cls = " trocou";
           dica = t("m_trocou") + ": " + anterior.nome + " → " + c.nome;
         } else if (anterior.p !== c.p) {
-          if (gradeDeslizou(l.operadora, d, dias[dias.indexOf(d) - 1])) {
+          if (!mudouDePreco(l.operadora, d, dias[dias.indexOf(d) - 1],
+                            anterior, c)) {
             // a grade inteira andou: nao e preco mudando, e outro degrau
             // ocupando a mesma linha
             marca = " ◆";
@@ -2265,7 +2523,7 @@ function tabela(){
       <td>${esc(o.nome_oferta)||"—"}</td>
       <td>${e.v!=null?e.v+" "+e.u:"—"}</td>
       <td>${contr!=null?contr+" "+t("gb"):"—"}</td>
-      <td class="num">${reais(precoDe(o))}</td></tr>`;
+      <td class="num preco">${reais(precoDe(o))}</td></tr>`;
   }).join("");
   alvo.innerHTML = `<table><thead><tr>${c.map(x=>`<th>${x}</th>`).join("")}</tr></thead>
     <tbody>${linhas}</tbody></table>`;
@@ -2379,7 +2637,7 @@ function quadroOperadora(dia, operadora){
     // oferta que so existe em um grupo e o achado da tabela
     const exclusiva = onde.filter(Boolean).length === 1;
     const celulas = onde.map(x => x
-      ? `<td class="num">${reais(x.preco).replace("R$ ", "")}</td>`
+      ? `<td class="num preco">${reais(x.preco).replace("R$ ", "")}</td>`
       : `<td class="num vazia">—</td>`).join("");
     return `<tr${exclusiva ? ' class="so-aqui"' : ""}>`
       + `<td class="cat-nome">${esc((i.nome || "").slice(0, 44))}`
@@ -2687,8 +2945,8 @@ function tabelaPorPlayer(){
     linhas += `<tr>
       <td>${esc(o.nome_oferta) || "—"}</td>
       ${celulaEntrega(o)}
-      <td class="num">${reais(p)}</td>
-      <td class="num">${e.v ? (p / e.v).toLocaleString("pt-BR",
+      <td class="num preco">${reais(p)}</td>
+      <td class="num unit">${e.v ? (p / e.v).toLocaleString("pt-BR",
         {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
       <td>${vantagem(o)}</td></tr>`;
   }
@@ -2735,7 +2993,7 @@ function tabelaComparacao(){
       <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
       <td>${esc(i.o.nome_oferta) || "—"}</td>
       ${celulaEntrega(i.o)}
-      <td class="num">${reais(i.p)}</td>
+      <td class="num preco">${reais(i.p)}</td>
       <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
         {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
       <td>${vantagem(i.o)}</td></tr>`;
@@ -2772,7 +3030,7 @@ function tabelaTopo(){
       <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
       <td>${esc(i.o.nome_oferta) || "—"}</td>
       ${celulaEntrega(i.o)}
-      <td class="num">${reais(i.p)}</td>
+      <td class="num preco">${reais(i.p)}</td>
       <td class="num">${i.unit != null ? i.unit.toLocaleString("pt-BR",
         {minimumFractionDigits:2, maximumFractionDigits:2}) : "—"}</td>
       <td>${vantagem(i.o)}</td></tr>`;
@@ -2849,7 +3107,7 @@ function tabelaFaixas(){
         <td><span class="op-tag"><span class="marcador" style="background:${CORES[i.op]||"#999"}"></span>${i.op}</span></td>
         <td>${esc(i.o.nome_oferta) || "—"}</td>
         ${celulaEntrega(i.o)}
-        <td class="num">${reais(i.p)}</td>
+        <td class="num preco">${reais(i.p)}</td>
         <td class="num">${i.unit.toLocaleString("pt-BR",
           {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
         <td>${vantagem(i.o)}</td></tr>`;
@@ -2881,6 +3139,7 @@ function desenhar(){
     ajustarTabelas();
     return;        // nao desenha grafico escondido: Chart.js mede errado
   }
+  faixaDoDia();
   grafQuadrante();
   grafTempo();
   grafTempoUnitario();
@@ -2888,10 +3147,19 @@ function desenhar(){
   grafUnitario();
   matriz();
   ajustarTabelas();
+  cabecalhoDoDado();
+}
+
+// OS DOIS NUMEROS DO CABECALHO. Eram uma frase cinza de 10px colada ao
+// titulo - "Última coleta: 05/11 · 60043 capturas" -, com o tamanho da
+// base sem separador de milhar. Viraram dois campos rotulados, que e
+// como um numero se le.
+function cabecalhoDoDado(){
   const ultimo = DIAS.length ? dataCurta(DIAS[DIAS.length-1]) : "—";
-  document.getElementById("sub").textContent =
-    (lang==="pt" ? "Última coleta: " : "Last collection: ") + ultimo
-    + " · " + DADOS.length + (lang==="pt" ? " capturas" : " captures");
+  const coleta = document.getElementById("m-coleta");
+  const base = document.getElementById("m-base");
+  if (coleta) coleta.textContent = ultimo;
+  if (base) base.textContent = DADOS.length.toLocaleString("pt-BR");
 }
 
 // A altura do cabecalho muda com a largura da tela, porque o conteudo
@@ -3084,7 +3352,7 @@ if (FONTE) {
   fetch(FONTE, {cache:"no-store"})
     .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
     .then(d=>{ if(!Array.isArray(d)||!d.length) throw new Error("vazio");
-               DADOS = d; iniciar(); })
+               DADOS = d; recado(""); iniciar(); })
     .catch(e=>recado(lang==="pt"
       ? "Não consegui carregar a série ("+e.message+"). A página está no ar, mas sem dado — nada aqui foi estimado."
       : "Could not load the series ("+e.message+"). The page is up but has no data — nothing was estimated."));
