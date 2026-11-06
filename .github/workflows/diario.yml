@@ -257,6 +257,9 @@ jobs:
       needs.decidir.outputs.coletar != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      # quem ficou incompleto, para o repique pedir so eles
+      incompletas: ${{ steps.faltou.outputs.lista }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -270,7 +273,19 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python robo.py --coletar
+        run: python robo.py --coletar --saida-falhas incompletas.txt
+
+      # SEMPRE, inclusive depois da falha: e justamente quando a
+      # coleta sai com erro que o repique precisa saber de quem.
+      # Sem arquivo - excecao antes do resumo, timeout do job - a
+      # lista sai vazia e o repique refaz tudo, como antes.
+      - name: Quem ficou incompleto
+        id: faltou
+        if: always()
+        run: |
+          LISTA="$(cat incompletas.txt 2>/dev/null || true)"
+          echo "incompletas: ${LISTA:-(nao sei)}"
+          echo "lista=${LISTA}" >> "$GITHUB_OUTPUT"
 
   repique:
     needs: coleta
@@ -295,7 +310,19 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: python robo.py --coletar
+          INCOMPLETAS: ${{ needs.coleta.outputs.incompletas }}
+        run: |
+          # SO QUEM FALTOU. Refazer as nove custava 22 minutos de
+          # atraso na mensagem do dia; em 06/11/2026 o unico
+          # incompleto foi o Claro Flex, que leva 8 segundos. Sem
+          # lista, refaz tudo - e o caso em que nao se sabe de quem.
+          if [ -n "$INCOMPLETAS" ]; then
+            echo "repicando so: $INCOMPLETAS"
+            python robo.py --coletar --so "$INCOMPLETAS"
+          else
+            echo "nao sei quem faltou - repicando a coleta inteira"
+            python robo.py --coletar
+          fi
 
   aviso:
     # "decidir" entra no needs para a condicao poder le-lo: always()
@@ -394,7 +421,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python publicar_dados.py --dados dados.json
-      - name: Regerar a tela
+      - name: Regerar e guardar a tela
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
@@ -402,20 +429,37 @@ jobs:
           # passa a mostrar a coleta de cada dia sem deploy novo. A copia
           # local segue com os dados dentro, para abrir sem rede.
           FONTE="${SUPABASE_URL%/}/storage/v1/object/public/tela/dados.json"
-          python gerar_tela.py --dados dados.json --saida tela.html
-          mkdir -p site
-          python gerar_tela.py --dados dados.json --saida site/index.html --remoto "$FONTE"
-          cp metodologia.html site/metodologia.html
-      - name: Guardar no repositorio
-        run: |
           git config user.name "dashboardtmt"
           git config user.email "dashboardtmt@users.noreply.github.com"
-          git add tela.html site
-          if git diff --staged --quiet; then
-            echo "tela sem mudanca - nada a guardar"
-          else
-            git commit -m "Tela atualizada com a coleta de $(date -u +%d/%m/%Y)"
-            git pull --rebase --autostash
-            git push
-          fi
+          gerar() {
+            python gerar_tela.py --dados dados.json --saida tela.html
+            mkdir -p site
+            python gerar_tela.py --dados dados.json --saida site/index.html --remoto "$FONTE"
+            cp metodologia.html site/metodologia.html
+          }
+          gerar
+          # TELA E ARQUIVO GERADO: conflito nela nao se resolve, se
+          # gera de novo. Em 06/11/2026 o robo commitou a tela no
+          # mesmo minuto em que um push mexia no gerador, e o rebase
+          # parou num conflito dentro de site/index.html - resolver
+          # linha a linha ali misturaria dois geradores diferentes.
+          for tentativa in 1 2 3; do
+            git add tela.html site
+            if git diff --staged --quiet; then
+              echo "tela sem mudanca - nada a guardar"
+              exit 0
+            fi
+            git commit -q -m "Tela atualizada com a coleta de $(date -u +%d/%m/%Y)"
+            if git push -q; then
+              echo "tela guardada"
+              exit 0
+            fi
+            echo "push recusado - regerando sobre o main de agora"
+            git reset --hard HEAD~1
+            git fetch -q origin main
+            git reset --hard origin/main
+            gerar
+          done
+          echo "nao consegui guardar a tela em 3 tentativas" >&2
+          exit 1
 

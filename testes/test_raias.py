@@ -176,6 +176,38 @@ class TodoColetorTemRaia(unittest.TestCase):
         self.fail("a Unifique sumiu das raias")
 
 
+class ORepiqueSoPedeQuemFaltou(unittest.TestCase):
+    u"""A selecao do repique, que e o que main() usa com --so.
+
+    Em 06/11/2026 o repique refez as nove operadoras por causa
+    de uma so - 22 minutos, e a mensagem do dia saiu no fim
+    deles. Pedir so quem faltou e o conserto; o perigo do
+    conserto e remontar as raias e separar os de navegador.
+    """
+
+    def test_os_de_navegador_continuam_na_mesma_raia(self):
+        """Dois Chromium ao mesmo tempo e o que RAIAS evita."""
+        raias = robo.raias_de(["Claro Flex", "Unifique", "NuCel"])
+        self.assertEqual(len(raias), 1, raias)
+
+    def test_so_entra_quem_foi_pedido(self):
+        raias = robo.raias_de(["Vivo", "TIM FIT"])
+        self.assertEqual(sorted(n for raia in raias for n in raia),
+                         ["TIM FIT", "Vivo"])
+
+    def test_pedir_uma_lenta_nao_arrasta_a_vizinha(self):
+        """A TIM e o TIM FIT dividem raia: pedir so o FIT nao
+        pode trazer a TIM junto, que leva 7 minutos."""
+        raias = robo.raias_de(["TIM FIT"])
+        self.assertEqual(raias, (("TIM FIT",),))
+
+    def test_lista_vazia_nao_coleta_ninguem(self):
+        """Vazio quer dizer "nao sei quem faltou", e quem decide o
+        que fazer com isso e o workflow - que nesse caso repica a
+        coleta inteira. A funcao nao inventa uma lista."""
+        self.assertEqual(robo.raias_de([]), ())
+
+
 # ----------------------------------------------------------------- o relogio
 
 class AsRaiasAndamJuntas(ComColetoresFalsos):

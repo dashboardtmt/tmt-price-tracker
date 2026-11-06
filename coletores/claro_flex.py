@@ -67,11 +67,16 @@ def nivel_bundle(texto):
 #
 # O "PASSAPORTE 60GB" nao declara composicao e cai no mesmo molde, com a
 # franquia contratual ficando igual a anunciada.
+# OS DOIS-PONTOS SAO OPCIONAIS NOS DOIS ROTULOS. Em 06/11/2026 "Por
+# R$ 34,90" virou "Por: R$ 34,90" e o coletor voltou vazio nas quatro
+# ofertas - um caractere de pontuacao derrubou a leitura do dia
+# inteiro, como o "do" de "30GB do plano" em 23/10. Pontuacao de
+# rotulo nao e dado: o dado e o numero ao lado dela.
 CARD = re.compile(
     r"(\d{1,3})\s*GB"                      # a franquia anunciada
     r"(.{0,260}?)"                         # composicao e beneficios
-    r"De:\s*R\$\s?(\d{1,3},\d{2})"         # preco cheio
-    r"\s*Por\s*R\$\s?(\d{1,3},\d{2})",     # preco com cupom, 1o mes
+    r"De:?\s*R\$\s?(\d{1,3},\d{2})"        # preco cheio
+    r"\s*Por:?\s*R\$\s?(\d{1,3},\d{2})",    # preco com cupom, 1o mes
     re.I | re.S)
 
 

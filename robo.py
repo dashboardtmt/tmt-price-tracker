@@ -102,6 +102,20 @@ RAIAS = (
     ("Claro Flex", "Unifique", "NuCel"),   # os tres de navegador
 )
 
+def raias_de(escolhidas, raias=None):
+    """As raias com so estas operadoras dentro, na mesma formacao.
+
+    FILTRA, NAO REMONTA. Montar uma raia por nome subiria dois
+    Chromium ao mesmo tempo quando o repique pedisse Claro Flex e
+    Unifique - e a API sincrona do Playwright nao foi feita para
+    isso (ver RAIAS). Filtrando, quem estava junto continua junto.
+    """
+    nomes = set(escolhidas)
+    return tuple(filter(None, (
+        tuple(n for n in raia if n in nomes)
+        for raia in (RAIAS if raias is None else raias))))
+
+
 # COLETOR FORA DAS RAIAS NAO COLETA, e nao coletar calado e o pior jeito
 # de falhar que este projeto tem: a serie e append-only, entao o dia que
 # nao entra nao volta. Quem adicionar um coletor em COLETORES e esquecer
@@ -3921,6 +3935,14 @@ def main():
     # diaria - e para quem esta olhando.
     ap.add_argument("--em-serie", action="store_true",
                     help="coleta uma operadora por vez, como antes das raias")
+    # O REPIQUE NAO PRECISA REFAZER A COLETA INTEIRA. Ele existe para
+    # quem ficou incompleto, e refazer tudo custava 22 minutos de
+    # atraso na mensagem do dia - em 06/11/2026 o unico incompleto
+    # era o Claro Flex, que leva 8 segundos.
+    ap.add_argument("--so", default="",
+                    help="coleta so estas operadoras, separadas por virgula")
+    ap.add_argument("--saida-falhas", default="",
+                    help="arquivo onde gravar quem ficou incompleto")
     a = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -3928,8 +3950,18 @@ def main():
     if not (a.coletar or a.avisar):
         ap.error("escolha --coletar ou --avisar")
     if a.coletar:
-        _, falhas = rodar_coleta(a.praca, a.simular,
-                                 (tuple(COLETORES),) if a.em_serie else RAIAS)
+        raias = (tuple(COLETORES),) if a.em_serie else RAIAS
+        if a.so and not a.em_serie:
+            escolhidas = [n.strip() for n in a.so.split(",") if n.strip()]
+            fora = [n for n in escolhidas if n not in COLETORES]
+            if fora:
+                ap.error("operadora desconhecida: %s" % ", ".join(fora))
+            raias = raias_de(escolhidas, raias)
+        _, falhas = rodar_coleta(a.praca, a.simular, raias)
+        # quem ficou incompleto, para o repique pedir so eles
+        if a.saida_falhas:
+            with open(a.saida_falhas, "w", encoding="utf-8") as arq:
+                arq.write(",".join(falhas))
         # Sair diferente de zero quando algo ficou incompleto. Isto existe
         # para o repique poder ser condicional: antes ele rodava a coleta
         # inteira de novo TODO dia, o que dobrava o consumo de minutos do
