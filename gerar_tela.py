@@ -227,6 +227,16 @@ MOLDE = r"""<!DOCTYPE html>
     background-color:var(--cor-superficie);border-right:1px solid var(--cor-borda)}
   #matriz thead th:nth-child(1){position:sticky;left:0;z-index:3}
   #matriz thead th:nth-child(2){position:sticky;left:108px;z-index:3}
+  /* COLUNA INTEIRA OU NENHUMA. Com a serie toda a tabela sempre rola,
+     e a coluna que para debaixo das duas grudadas aparecia como uma
+     tira de um digito ao lado de Entrega - tira que se le como se
+     fosse valor. O encaixe faz a rolagem parar sempre com uma coluna
+     encostada na borda fixa. E "proximity", nao "mandatory", para nao
+     disputar o arrasto com quem rola. O recuo do encaixe e a largura
+     das duas colunas grudadas, e ela muda com o produto ("35 GB" e
+     "1000 Mbps" nao medem igual): vai medida no JS, nao chutada. */
+  #matriz{scroll-snap-type:x proximity}
+  #matriz th.num,#matriz td.num{scroll-snap-align:start}
   #matriz tr.bloco-alt td{background:rgba(45,38,30,.04)}
   #matriz tr.bloco-alt td.op-col,
   #matriz tr.bloco-alt td.degrau{background-color:#F3F0E9}
@@ -2188,7 +2198,14 @@ function mudouDePreco(operadora, dia, anteriorDia, antes, agora){
 
 function matriz(){
   const alvo = document.getElementById("matriz");
-  const dias = DIAS.slice(-12);
+  // TODA A SERIE, E A ROLAGEM ESCOLHE O DIA. Ate 06/11/2026 eram os 12
+  // ultimos dias, e o seletor de Data nao mexia nessa janela: a base
+  // tinha 38 dias e os 26 primeiros nao tinham como ser alcancados por
+  // ninguem - nem rolando, nem filtrando. A tabela abre encostada na
+  // direita, no dia mais recente (atualizarBarraFlut), e as colunas de
+  // operadora e de degrau ficam grudadas: rolar para a esquerda e
+  // voltar no tempo sem perder de quem e a linha.
+  const dias = DIAS;
 
   // junta os degraus vistos em qualquer dia do recorte: degrau que sumiu
   // no meio do caminho tem de continuar na tabela, com a celula vazia
@@ -2277,6 +2294,12 @@ function matriz(){
   }).join("");
 
   alvo.innerHTML = `<table><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
+
+  // o encaixe tem de pular as duas colunas grudadas, senao ele para a
+  // coluna debaixo delas em vez de ao lado
+  const fixa = alvo.querySelector("tbody tr");
+  if (fixa) alvo.style.scrollPaddingLeft =
+    (fixa.cells[0].offsetWidth + fixa.cells[1].offsetWidth) + "px";
 
   // o titulo diz a unidade, como nos quadros do tracker do BBA - e so
   // quando ela e uma so. A coluna de degrau ja acerta linha a linha; o
@@ -2989,7 +3012,16 @@ function iniciarBarrasFlut(){
     // a trava evita o pingue-pongue de um scroll disparando o outro
     let trava = false;
     bar.addEventListener("scroll", () => {
-      if (trava) return; trava = true; wrap.scrollLeft = bar.scrollLeft; trava = false;
+      if (trava) return; trava = true;
+      // QUEM ARRASTA A BARRA MANDA. Com o encaixe ligado, cada passo do
+      // arrasto era corrigido para a coluna mais proxima e devolvido
+      // para a barra - o polegar fugia do cursor. O encaixe sai durante
+      // o arrasto e volta quando ele para, e ai a tabela se ajeita.
+      wrap.style.scrollSnapType = "none";
+      wrap.scrollLeft = bar.scrollLeft;
+      clearTimeout(bar._encaixe);
+      bar._encaixe = setTimeout(() => { wrap.style.scrollSnapType = ""; }, 180);
+      trava = false;
     });
     wrap.addEventListener("scroll", () => {
       if (trava) return; trava = true; bar.scrollLeft = wrap.scrollLeft; trava = false;

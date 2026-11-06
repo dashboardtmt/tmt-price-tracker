@@ -33,6 +33,10 @@ NODE = shutil.which("node")
 DIAS = ["2026-10-19", "2026-10-20", "2026-10-21"]
 PRACA = "Sao Paulo/SP"
 
+# A serie longa da outra guarda: 20 dias, mais que o teto de 12 que a
+# matriz teve ate 06/11/2026.
+LONGA = ["2026-10-%02d" % d for d in range(1, 21)]
+
 
 def escada(dia, degraus):
     """A escada da Claro num dia: (preco, GB) por degrau."""
@@ -105,3 +109,61 @@ class AMatrizNaoMarcaEscadaComoReajuste(unittest.TestCase):
         nenhuma, pela mesma regra que vale na mensagem."""
         matriz = self.painel["matriz"]
         self.assertEqual(matriz.count("◆"), 1, matriz)
+
+
+def capturas_longas():
+    """Vinte dias de uma escada parada: o que se mede aqui e a largura
+    da janela, nao a marca da celula."""
+    linhas = []
+    for d in LONGA:
+        linhas += escada(d, [(59.90, 40), (69.90, 45)])
+    return linhas
+
+
+@unittest.skipIf(NODE is None, "node nao instalado")
+class AMatrizNaoTemTetoDeDias(unittest.TestCase):
+    """A SERIE INTEIRA, UMA COLUNA POR DIA.
+
+    Ate 06/11/2026 a matriz cortava em DIAS.slice(-12) e o seletor de
+    Data nao mexia nessa janela: a base tinha 38 dias e os 26 primeiros
+    nao tinham como ser alcancados - nem rolando, nem filtrando. O corte
+    nao aparece no console nem deixa buraco visivel: a tabela abre cheia,
+    encostada no dia mais recente, e o que falta esta fora da tela.
+
+    E um teto que volta sozinho: quem olhar a largura da tabela vai
+    querer "limitar a um recorte razoavel". Se for para limitar de novo,
+    que seja contra este teste, e nao por engano.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pasta = tempfile.mkdtemp()
+        cls.dados = os.path.join(cls.pasta, "d.json")
+        cls.tela = os.path.join(cls.pasta, "t.html")
+        with open(cls.dados, "w", encoding="utf-8") as f:
+            json.dump(capturas_longas(), f)
+        r = subprocess.run(
+            [sys.executable, os.path.join(RAIZ, "gerar_tela.py"),
+             "--dados", cls.dados, "--saida", cls.tela],
+            capture_output=True, text=True, encoding="utf-8", cwd=RAIZ)
+        if r.returncode:
+            raise unittest.SkipTest("gerar_tela falhou: %s" % r.stderr[-300:])
+        cls.painel = AMatrizNaoMarcaEscadaComoReajuste._ver(
+            cls, [{"praca": PRACA, "produto": "movel",
+                   "dia": LONGA[-1], "aba": "panorama"}])[0]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.pasta, ignore_errors=True)
+
+    def test_uma_coluna_por_dia_da_base(self):
+        """Vinte dias na base, vinte colunas de data na matriz."""
+        matriz = self.painel["matriz"]
+        self.assertEqual(matriz.count('<th class="num">'), len(LONGA),
+                         matriz[:400])
+
+    def test_o_primeiro_dia_da_base_esta_na_tabela(self):
+        """Contar colunas nao basta: um corte que pegasse os 20 ULTIMOS
+        de uma base maior passaria. O que a guarda quer e o comeco da
+        serie, que e justamente o que o teto escondia."""
+        self.assertIn('<th class="num">01/10</th>', self.painel["matriz"])

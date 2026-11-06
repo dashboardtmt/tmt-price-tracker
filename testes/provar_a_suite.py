@@ -1818,6 +1818,13 @@ MUTACOES = [
         "                            anterior, c)) {",
         "          if (false) {",
         "Dg1. a matriz marca seta na escada que deslizou"),
+    # O TETO DE DIAS: a tabela continua cheia e sem erro, so que
+    # sem o comeco da serie - e nada na tela diz que ele existe.
+    Mutacao(
+        "gerar_tela.py",
+        "  const dias = DIAS;",
+        "  const dias = DIAS.slice(-12);",
+        "Dg2. a matriz volta a cortar em 12 dias"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
