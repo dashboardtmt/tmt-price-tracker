@@ -313,7 +313,7 @@ MOLDE = r"""<!DOCTYPE html>
   .legenda-ponto i.vazado{background:transparent;border:2px solid var(--cinza)}
   .dupla{display:grid;grid-template-columns:1fr 1fr;gap:15px}
 
-  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap;
+  table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;
     font-variant-numeric:tabular-nums}
   /* O CABECALHO DEIXOU DE SER UMA BARRA PRETA. Em tabela longa ela
      pesava mais que o dado: quatro quadros numa tela davam quatro
@@ -322,11 +322,11 @@ MOLDE = r"""<!DOCTYPE html>
      igual e nao disputa. */
   th{background:var(--cor-superficie);color:var(--cor-texto-suave);
      text-align:left;padding:7px 12px 6px;
-     font-weight:700;white-space:nowrap;font-size:10.5px;
+     font-weight:700;white-space:nowrap;font-size:10px;
      text-transform:uppercase;letter-spacing:.7px;
      border-bottom:2px solid var(--preto)}
   table{line-height:1.35}
-  td{border-bottom:1px solid var(--cor-borda);padding:5px 12px}
+  td{border-bottom:1px solid var(--cor-borda);padding:4px 11px}
   tbody tr:hover td{background:rgba(255,80,0,.045)}
   tbody tr:last-child td{border-bottom:none}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
@@ -364,9 +364,9 @@ MOLDE = r"""<!DOCTYPE html>
   .cat-item{display:inline-flex;align-items:baseline;gap:6px;
     border:1px solid var(--cor-borda);background:#fff;border-radius:7px;
     padding:3px 9px;font-size:11.5px;color:var(--cor-texto-suave)}
-  .cat-item b{font-size:12.5px;color:var(--cor-texto);
+  .cat-item b{font-size:12px;color:var(--cor-texto);
     font-variant-numeric:tabular-nums}
-  .cat-tab{font-size:12.5px}
+  .cat-tab{font-size:12px}
   .cat-tab th{font-size:10px;padding:7px 10px}
   .cat-tab th .cat-sub{display:block;font-size:9px;font-weight:600;
     opacity:.7;letter-spacing:.3px;margin-top:1px}
@@ -385,18 +385,18 @@ MOLDE = r"""<!DOCTYPE html>
   /* largura AUTOMATICA, nao esticada: com width:100% a celula de um
      numero de seis caracteres virava um bloco de 223px, e o mapa ficava
      com mais vao do que cor */
-  .mapa{border-collapse:separate;border-spacing:2px;font-size:12px;
+  .mapa{border-collapse:separate;border-spacing:2px;font-size:11.5px;
     width:auto;table-layout:fixed}
   .mapa th{background:transparent;color:var(--cor-texto-suave);
     font-size:10px;text-transform:uppercase;letter-spacing:.6px;
     font-weight:700;padding:0 6px 6px;text-align:center;white-space:nowrap}
   .mapa th.praca{text-align:left;padding-left:2px}
   .mapa td.praca{text-align:left;font-weight:600;white-space:nowrap;
-    color:var(--cor-texto);padding:0 10px 0 2px;font-size:12px;
+    color:var(--cor-texto);padding:0 10px 0 2px;font-size:11.5px;
     background:transparent;border:none;width:146px;min-width:146px}
   .mapa td.praca .uf{font-size:9.5px;color:var(--cor-texto-suave);
     margin-left:4px;font-weight:600}
-  .mapa td.cel{padding:6px 4px;border-radius:4px;text-align:center;
+  .mapa td.cel{padding:5px 4px;border-radius:4px;text-align:center;
     font-variant-numeric:tabular-nums;font-weight:600;border:none;
     width:78px;min-width:78px;transition:outline-color .1s}
   .mapa td.cel.fora{background:transparent;color:var(--cinza);
@@ -481,10 +481,15 @@ MOLDE = r"""<!DOCTYPE html>
     .bloco{padding:13px 15px 15px}
     .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
-    /* no celular os quatro seletores viram uma coluna: dois lado a lado em
-       375px deixam o texto da opcao cortado no meio */
-    .controles{grid-template-columns:1fr;gap:10px;padding:12px 14px}
-    .controles .campo-largo{padding-top:9px}
+  }
+  /* A BARRA SO VIRA COLUNA UNICA NO CELULAR DE VERDADE. Ela virava
+     aos 860px, e ai os quatro seletores ocupavam quatro fileiras -
+     o dobro da altura, numa barra que fica grudada no topo. Em duas
+     colunas sao duas fileiras; abaixo de 560px dois lado a lado
+     cortariam o texto da opcao no meio, e so ai vale uma coluna. */
+  @media(max-width:560px){
+    .controles{grid-template-columns:1fr;gap:5px;padding:7px 12px 8px}
+    .controles .campo-largo{padding-top:6px}
   }
 </style>
 </head>
@@ -513,7 +518,7 @@ MOLDE = r"""<!DOCTYPE html>
     <ul>
       <li><a href="#" class="ativa" id="ab-panorama" onclick="aba('panorama');return false" data-t="ab_pan">Overview</a></li>
       <li><a href="#" id="ab-ofertas" onclick="aba('ofertas');return false" data-t="ab_of">Detalhes por player</a></li>
-      <li><a href="#" id="ab-pracas" onclick="aba('pracas');return false" data-t="ab_pr">Praças</a></li>
+      <li><a href="#" id="ab-pracas" onclick="aba('pracas');return false" data-t="ab_pr">Mapa do mercado</a></li>
     </ul>
   </div>
 </nav>
@@ -521,12 +526,12 @@ MOLDE = r"""<!DOCTYPE html>
 <div class="dentro">
   <div class="controles">
     <div class="campo">
-      <label data-t="f_praca">Praça</label>
-      <select id="f-praca" onchange="desenhar()"></select>
-    </div>
-    <div class="campo">
       <label data-t="f_produto">Produto</label>
       <select id="f-produto" onchange="desenhar()"></select>
+    </div>
+    <div class="campo">
+      <label data-t="f_praca">Praça</label>
+      <select id="f-praca" onchange="desenhar()"></select>
     </div>
     <div class="campo">
       <label data-t="f_escopo">Planos</label>
@@ -699,7 +704,7 @@ const T = {
       l_nada:"Nenhuma mudança de preço de entrada contra o dia anterior, nas operadoras desta praça.",
       d_bonus:"{f} GB garantidos no contrato + {b} GB de bônus, que pode expirar",
       d_declarada:"A operadora declara uma faixa, e não um degrau. A frase é a dela; o número não entra em nenhum cálculo porque faixa não se compara com degrau.",
-      ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Praças",
+      ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Mapa do mercado",
       sec_pr:"O mercado em uma tela",
       mc_t:"Mapa de calor — player por produto",
       mc_x:"Mediana das praças em que o player vende o produto.",
@@ -818,7 +823,7 @@ const T = {
       l_nada:"No change in entry price against the previous day, among this city's carriers.",
       d_bonus:"{f} GB guaranteed in the contract + {b} GB of bonus, which can expire",
       d_declarada:"The carrier states a range, not a tier. The wording is theirs; the number enters no calculation, because a range does not compare with a tier.",
-      ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Cities",
+      ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Market map",
       sec_pr:"The market on one screen",
       mc_t:"Heat map — carrier by product",
       mc_x:"Median across the cities where the carrier sells the product.",
