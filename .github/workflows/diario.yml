@@ -24,34 +24,46 @@ name: Rotina diaria
 
 # UMA COLETA POR DIA, MIRANDO AS 7H DA MANHA.
 #
-# A coleta leva ~50 minutos, entao precisa COMECAR perto das 6h para a
+# A coleta leva ~23 minutos, entao precisa COMECAR perto das 6h30 para a
 # mensagem chegar as 7h. So que o agendamento do GitHub nao cumpre
-# horario: medido em sete dias, o evento chegou entre 3,5 e 9,6 horas
-# atrasado. O atraso esta no gatilho, nao na fila - o run comeca no mesmo
-# minuto em que e criado.
+# horario: o evento chega horas atrasado, e o atraso esta no GATILHO,
+# nao na fila - o run comeca no mesmo minuto em que e criado.
 #
 # Nao da para mandar o GitHub disparar as 6h. Da para decidir, a cada
 # gatilho que chega, se e hora de coletar - e e isso que ja_coletou.py
 # faz: recusa antes das 6h, libera entre 6h e 10h, e depois das 10h
 # libera de qualquer jeito.
 #
-# Os horarios abaixo sao postos para que os atrasos tipicos facam os
-# gatilhos CHEGAREM dentro da janela. Os mais cedo quase sempre so pagam
-# a guarda, que custa meio minuto; eles existem para o dia de atraso
-# grande, como a segunda-feira 12/10, quando o atraso foi de 9,6 horas.
+# O QUE DECIDE A HORA DA COLETA NAO E O HORARIO DOS CRONS - E O
+# ESPACAMENTO ENTRE ELES. A coleta comeca na primeira chegada depois das
+# 6h, e com gatilhos espacados de 1h30 a 2h30 essa chegada caia onde
+# calhasse. Medido de 27/10 a 05/11/2026, nos oito gatilhos de cada dia:
+# o atraso medio subiu de 5,5h para 7,6h, e com isso o primeiro gatilho
+# do dia passou a chegar as 5h24 (a guarda recusa, e cedo) e o segundo
+# so as 9h12. A mensagem saiu as 9h35 sem nada estar quebrado.
+#
+# Dai a FAIXA DENSA: de 20 em 20 minutos ao longo de oito horas. Qualquer
+# que seja o atraso do dia entre ~3h30 e ~11h, uma das chegadas cai nos
+# 20 minutos seguintes as 6h - coleta de 23 minutos, mensagem antes das
+# 7h. Os gatilhos que chegam cedo demais so pagam a guarda, que custa
+# meio minuto; o repositorio e publico e minuto de Actions nao e cobrado.
 #
 # Minutos quebrados de proposito: a documentacao do GitHub aponta o
 # inicio de cada hora como o pior momento da fila.
 on:
   schedule:
-    - cron: '34 1 * * *'    # marcado 22:34 BRT (do dia anterior)
-    - cron: '7 4 * * *'     # marcado 01:07 BRT
-    - cron: '41 5 * * *'    # marcado 02:41
-    - cron: '13 7 * * *'    # marcado 04:13
+    # A FAIXA DENSA: 22:03 as 05:43 UTC, de 20 em 20 minutos.
+    - cron: '3,23,43 22-23 * * *'
+    - cron: '3,23,43 0-5 * * *'
+    # A REDE DE SEGURANCA, para o dia de atraso pequeno - em que a faixa
+    # densa inteira chegaria antes das 6h - e para o dia em que o GitHub
+    # derruba gatilhos. Nao mexer sem ler o job "alerta": ele fala no
+    # ULTIMO gatilho do dia, e esse ultimo e o de 13:29 UTC.
+    - cron: '13 7 * * *'    # marcado 04:13 BRT
     - cron: '47 8 * * *'    # marcado 05:47
     - cron: '22 10 * * *'   # marcado 07:22
     - cron: '56 11 * * *'   # marcado 08:56
-    - cron: '29 13 * * *'   # marcado 10:29
+    - cron: '29 13 * * *'   # marcado 10:29 - o ultimo, e o do alerta
   workflow_dispatch:
     inputs:
       so_avisar:
