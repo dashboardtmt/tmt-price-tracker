@@ -132,10 +132,8 @@ for (const c of consultas) {
   r["t-faixas"] = (reg.get("t-faixas") || {}).innerHTML || "";
   r["bt-gb"] = (reg.get("bt-gb") || {}).textContent || "";
   r["mat_t"] = (porT.get("mat_t") || {}).textContent || "";
-  // A FAIXA DE NUMEROS E A MATRIZ SAEM JUNTAS, porque o teste delas e
-  // justamente que as duas digam o mesmo: a faixa conta as mudancas de
-  // preco que a matriz marca com seta.
-  r["kpis"] = (reg.get("kpis") || {}).innerHTML || "";
+  // A MATRIZ AFIRMA POR MARCA: seta e preco mudando, losango e
+  // outra oferta no degrau - duas leituras opostas do mesmo par.
   r["matriz"] = (reg.get("matriz") || {}).innerHTML || "";
   // OS GRAFICOS TAMBEM AFIRMAM. Tres paineis do Panorama liam o ultimo
   // dia da serie e ignoravam o seletor: com Data=01/10 um mostrava 4

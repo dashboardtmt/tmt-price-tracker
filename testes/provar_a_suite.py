@@ -1809,19 +1809,15 @@ MUTACOES = [
         '    if (unidade or "") != "GB" or contratual > entrega:',
         "    if False:",
         "Df5. a conta do contrato soma Mbps com GB"),
-    # A FAIXA DE NUMEROS DO DIA, de 05/11/2026: numero de cabecalho e o
-    # que mais se olha e o que menos se confere.
+    # A MARCA DA MATRIZ: a seta e o losango dizem coisas opostas
+    # sobre o mesmo par de dias, e trocar uma pela outra nao quebra
+    # nada - publica uma queda de 14% que nunca houve.
     Mutacao(
         "gerar_tela.py",
-        "      if (mudouDePreco(l.operadora, d, diaAntes, antes, c))"
-        " mudancas++;",
-        "      if (antes && c.p !== antes.p) mudancas++;",
-        "Dg1. a faixa conta a escada que deslizou como reajuste"),
-    Mutacao(
-        "gerar_tela.py",
-        "    if (!entrada || precoDe(o) < precoDe(entrada)) entrada = o;",
-        "    if (!entrada || precoDe(o) > precoDe(entrada)) entrada = o;",
-        "Dg2. a entrada do mercado vira o plano mais caro"),
+        "          if (!mudouDePreco(l.operadora, d, dias[dias.indexOf(d) - 1],\n"
+        "                            anterior, c)) {",
+        "          if (false) {",
+        "Dg1. a matriz marca seta na escada que deslizou"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
