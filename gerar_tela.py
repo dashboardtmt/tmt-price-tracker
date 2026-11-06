@@ -284,6 +284,11 @@ MOLDE = r"""<!DOCTYPE html>
   .faixa:last-child{margin-bottom:0}
   .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
     text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+  /* duas tabelas em sequencia precisam de ar entre elas: sem isso o
+     rotulo da segunda nasce colado na barra de rolagem da primeira.
+     A barra flutuante entra como irma no meio, entao o seletor nao
+     pode ser o de irmao imediato. */
+  .tabela-wrap ~ .faixa-rot{margin-top:22px}
   .grupo-op{background:var(--cor-fundo);font-weight:600}
   .grupo-op td{padding-top:8px;padding-bottom:5px}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
@@ -455,6 +460,7 @@ MOLDE = r"""<!DOCTYPE html>
   .scroll-flutuante{scrollbar-width:thin;
     scrollbar-color:rgba(255,80,0,.30) transparent}
   .cab-flutuante{position:fixed;z-index:30;overflow:hidden;display:none;
+    background:var(--cor-superficie);
     border-radius:8px 8px 0 0;box-shadow:0 8px 16px rgba(45,38,30,.16)}
   .cab-flutuante::-webkit-scrollbar{display:none}
   .cab-flutuante{scrollbar-width:none}

@@ -214,6 +214,11 @@
   .faixa:last-child{margin-bottom:0}
   .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
     text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+  /* duas tabelas em sequencia precisam de ar entre elas: sem isso o
+     rotulo da segunda nasce colado na barra de rolagem da primeira.
+     A barra flutuante entra como irma no meio, entao o seletor nao
+     pode ser o de irmao imediato. */
+  .tabela-wrap ~ .faixa-rot{margin-top:22px}
   .grupo-op{background:var(--cor-fundo);font-weight:600}
   .grupo-op td{padding-top:8px;padding-bottom:5px}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
@@ -385,6 +390,7 @@
   .scroll-flutuante{scrollbar-width:thin;
     scrollbar-color:rgba(255,80,0,.30) transparent}
   .cab-flutuante{position:fixed;z-index:30;overflow:hidden;display:none;
+    background:var(--cor-superficie);
     border-radius:8px 8px 0 0;box-shadow:0 8px 16px rgba(45,38,30,.16)}
   .cab-flutuante::-webkit-scrollbar{display:none}
   .cab-flutuante{scrollbar-width:none}
@@ -610,7 +616,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "06/11/2026 09:10";
+const GERADO = "06/11/2026 09:22";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
