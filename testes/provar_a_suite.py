@@ -773,6 +773,30 @@ MUTACOES = [
         "Es3. o job que dorme volta a ser morto antes de coletar"),
 
     Mutacao(
+        "api/disparar.js",
+        '{ ref: "main", inputs: { agendado: "true" } }',
+        '{ ref: "main" }',
+        "Ga1. a rodada agendada volta a pular a guarda"),
+
+    Mutacao(
+        "vercel.json",
+        '"schedule": "0 8 * * *"',
+        '"schedule": "0 9 * * *"',
+        "Ga2. a folga do agendador do Vercel volta a cair depois das 6h"),
+
+    Mutacao(
+        ".github/workflows/diario.yml",
+        '"${{ inputs.agendado }}" != "true"',
+        '"nao" != "true"',
+        "Ga3. o ramo do disparo manual volta a engolir o agendado"),
+
+    Mutacao(
+        ".github/workflows/diario.yml",
+        "steps.ver.outputs.codigo != '401'",
+        "steps.ver.outputs.codigo == '401'",
+        "Ga4. o gatilho desarmado volta a ser silencio"),
+
+    Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',

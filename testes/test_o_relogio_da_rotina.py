@@ -27,8 +27,16 @@ TRES COISAS SE PERDEM SOZINHAS, e cada uma tem classe aqui:
   3. O job "alerta", unico aviso do dia nao coletado, dispara comparando
      github.event.schedule com uma STRING de cron: renomear o cron faz o
      alerta calar para sempre sem quebrar nada visivel.
+  4. O caminho que realmente poe a mensagem na hora - o cron do Vercel
+     chamando api/disparar.js - nao esta neste repositorio inteiro: duas
+     variaveis de ambiente dele moram no Vercel. Em 09/11/2026 medi que
+     ele estava morto havia semanas, respondendo 503 a cada chamada do
+     agendador, e nada aqui notava. O que da para prender aqui e o
+     CONTRATO: a hora do cron, a marca que a rota manda, e o job que
+     pergunta a rota todo dia.
 """
 import io
+import json
 import os
 import re
 import shutil
@@ -43,6 +51,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROTINA = os.path.join(RAIZ, ".github", "workflows", "diario.yml")
+VERCEL = os.path.join(RAIZ, "vercel.json")
+ROTA = os.path.join(RAIZ, "api", "disparar.js")
 
 import ja_coletou                                             # noqa: E402
 
@@ -130,7 +140,9 @@ class OAlertaPrecisaDoUltimoGatilho(unittest.TestCase):
     def _condicao(self):
         with open(ROTINA, encoding="utf-8") as f:
             texto = f.read()
-        bloco = texto[texto.index("  alerta:"):texto.index("  coleta:")]
+        # ate "gatilho:", nao ate "coleta:": o job novo entrou no
+        # meio, e a fatia antiga passaria a conter o cron dele tambem
+        bloco = texto[texto.index("  alerta:"):texto.index("  gatilho:")]
         achado = re.search(r"github\.event\.schedule == '([^']+)'", bloco)
         self.assertIsNotNone(achado, "o alerta deixou de olhar o cron")
         return achado.group(1)
@@ -362,6 +374,154 @@ class OShellDaGuardaObedece(unittest.TestCase):
         2h da manha no dia em que a guarda imprimisse outra coisa."""
         saida, _, _ = self._rodar(["talvez"])
         self.assertEqual(saida, "rodar=false")
+
+class OGatilhoDeterministicoEOCaminhoBom(unittest.TestCase):
+    u"""O QUE DE FATO DECIDE A HORA DA MENSAGEM, e o que da para prender.
+
+    Os crons do GitHub sao rede de seguranca: chegam oito por dia e
+    atrasam horas. Quem acerta a hora e o cron do Vercel chamando
+    api/disparar.js, porque workflow_dispatch sai no instante da
+    chamada.
+
+    ESSE CAMINHO FICOU SEMANAS MORTO E NINGUEM OUVIU. Medido em
+    09/11/2026: a rota respondia "503 CRON_SECRET ausente" a cada
+    chamada do agendador. Funcao que responde direitinho que nao esta
+    configurada nao pinta quadrado vermelho nenhum.
+
+    Metade do estado mora no Vercel e nao da para prender daqui. A outra
+    metade e contrato entre tres arquivos, e some sem quebrar nada:
+
+      - a HORA do cron em vercel.json, que tem de cair inteira - folga
+        do agendador incluida - antes da abertura da janela;
+      - a MARCA que a rota manda (agendado=true), sem a qual a rodada
+        agendada pula a guarda e coleta na folga em vez de as 6h;
+      - o JOB que pergunta a rota todo dia, sem o qual o 503 volta a ser
+        silencio.
+    """
+
+    def _vercel(self):
+        with io.open(VERCEL, encoding="utf-8") as f:
+            return json.load(f)
+
+    def _cron_do_disparo(self):
+        crons = [c for c in self._vercel().get("crons", [])
+                 if c.get("path") == "/api/disparar"]
+        self.assertEqual(len(crons), 1,
+                         "vercel.json tem de ter um cron para /api/disparar")
+        return crons[0]["schedule"]
+
+    def _rota(self):
+        with io.open(ROTA, encoding="utf-8") as f:
+            return f.read()
+
+    def _rotina(self):
+        with io.open(ROTINA, encoding="utf-8") as f:
+            return f.read()
+
+    def _bloco_do_gatilho(self):
+        t = self._rotina()
+        return t[t.index("  gatilho:"):t.index("  coleta:")]
+
+    # ------------------------------------------------------------- a hora
+
+    def test_o_cron_do_vercel_cai_inteiro_antes_da_abertura(self):
+        u"""AS DUAS FOLGAS SE SOMAM, e esta e a que esquece.
+
+        No plano gratuito o agendador do Vercel dispara em algum ponto
+        da hora marcada - a folga e de ate 59 minutos. Marcar a hora do
+        ALVO (6h) jogaria a folga para depois dele: a coleta comecaria
+        entre 6h e 7h e a mensagem flutuaria entre 6h30 e 7h30, que e
+        exatamente a inconsistencia que se esta tentando tirar. Marcando
+        uma hora antes, a folga inteira cai dentro da faixa de espera, a
+        guarda dorme o que falta e a coleta comeca as 6h em ponto nas
+        duas pontas da folga.
+        """
+        minuto, hora = self._cron_do_disparo().split()[:2]
+        # o cron do Vercel e UTC; BRT e UTC-3
+        inicio = ((int(hora) - 3) % 24) * 60 + int(minuto)
+        abertura = ja_coletou.ABERTURA.hour * 60 + ja_coletou.ABERTURA.minute
+        self.assertLessEqual(
+            inicio + 59, abertura,
+            "a folga do agendador do Vercel passa da abertura: comecando "
+            "em %02d:%02d BRT, a chamada pode cair as %02d:%02d"
+            % (inicio // 60, inicio % 60,
+               (inicio + 59) // 60, (inicio + 59) % 60))
+        self.assertLessEqual(
+            abertura - inicio, ja_coletou.ESPERA_MAXIMA,
+            "o cron do Vercel marca cedo demais: a guarda recusaria em "
+            "vez de dormir")
+
+    def test_o_cron_do_vercel_e_uma_vez_por_dia(self):
+        u"""O plano gratuito do Vercel so aceita cron de uma vez por dia.
+        Cron com lista ou intervalo e recusado na publicacao, e a
+        publicacao e manual - o erro apareceria dias depois."""
+        self.assertRegex(self._cron_do_disparo(),
+                         r"^\d{1,2} \d{1,2} \* \* \*$")
+
+    # ------------------------------------------------------------- a marca
+
+    def test_a_rota_marca_a_rodada_como_agendada(self):
+        u"""SEM A MARCA, A RODADA AGENDADA PULA A GUARDA. Disparo na mao
+        e disparo do agendador chegam identicos no GitHub, e o ramo do
+        disparo manual roda na hora de proposito. Sem agendado=true, a
+        chamada das 5h cairia nesse ramo e coletaria as 5h - ou as 5h59,
+        conforme a folga."""
+        self.assertIn('inputs: { agendado: "true" }', self._rota())
+
+    def test_o_workflow_conhece_o_input_agendado(self):
+        u"""Input que o workflow nao declara e recusado no dispatch: a
+        chamada volta 422 e nao roda nada."""
+        t = self._rotina()
+        inputs = t[t.index("  workflow_dispatch:"):t.index("concurrency:")]
+        self.assertIn("agendado:", inputs)
+
+    def test_a_rodada_agendada_passa_pela_guarda(self):
+        u"""O ramo do disparo manual tem de EXCLUIR o agendado. Tirar a
+        clausula deixa tudo verde e devolve a mensagem para a folga do
+        Vercel."""
+        t = self._rotina()
+        ramo = t[t.index('= "workflow_dispatch"'):
+                 t.index("disparo manual: roda de qualquer jeito")]
+        self.assertIn("inputs.agendado", ramo)
+        self.assertIn('!= "true"', ramo)
+
+    def test_a_rota_fecha_quando_nao_esta_configurada(self):
+        u"""O defeito de 27/10/2026: a conferencia do segredo era "se o
+        segredo existir, confira", entao segredo ausente deixava a rota
+        ABERTA para qualquer um disparar a coleta. Repositorio publico
+        desde entao."""
+        self.assertIn("if (!esperado)", self._rota())
+
+    # ------------------------------------------------------- quem pergunta
+
+    def test_o_gatilho_pergunta_uma_vez_por_dia(self):
+        u"""Perguntar em todos os gatilhos renderia oito mensagens
+        iguais no dia em que a rota caisse. O ultimo cron do dia e o
+        mesmo que o alerta usa, pelo mesmo motivo."""
+        bloco = self._bloco_do_gatilho()
+        achado = re.search(r"github\.event\.schedule == '([^']+)'", bloco)
+        self.assertIsNotNone(achado, "o gatilho deixou de olhar o cron")
+        self.assertIn(achado.group(1), crons())
+
+    def test_o_gatilho_fala_quando_a_rota_nao_esta_armada(self):
+        u"""A CONDICAO E "DIFERENTE DE 401", E NAO UMA LISTA DE CODIGOS
+        RUINS. 401 e a resposta de quem esta armada: o segredo esta
+        gravado e a rota recusou um curl sem segredo. Qualquer outra
+        resposta - 503 sem as variaveis, 404 com a publicacao velha, 000
+        sem resposta, ou um codigo que ninguem previu - cai do lado de
+        quem fala. Lista de codigos ruins calaria no codigo novo."""
+        bloco = self._bloco_do_gatilho()
+        self.assertIn("steps.ver.outputs.codigo != '401'", bloco)
+
+    def test_a_conferencia_nao_pode_disparar_coleta(self):
+        u"""O curl da conferencia vai SEM segredo, de proposito: o que
+        se mede e a recusa. Mandar o segredo ali dispararia uma coleta
+        por dia pelo caminho de quem so queria conferir."""
+        bloco = self._bloco_do_gatilho()
+        probe = bloco[:bloco.index("Contar que o gatilho esta desarmado")]
+        self.assertNotIn("Authorization", probe)
+        self.assertNotIn("CRON_SECRET", probe)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,25 @@ name: Rotina diaria
 # tres horas antes dela - gatilho que chega na hora no fim da faixa
 # coleta quase sem dormir.
 #
+# MAS NADA DISSO E O CAMINHO BOM, E SO A REDE DE SEGURANCA. O caminho
+# bom e o cron do Vercel chamando api/disparar.js as 5h, que pede
+# workflow_dispatch - e dispatch sai no instante da chamada, sem fila.
+# Esse caminho esta construido e publicado desde outubro, e estava
+# MORTO: medido em 09/11/2026, a rota respondia "503 CRON_SECRET
+# ausente" havia semanas, porque as duas variaveis de ambiente nunca
+# foram gravadas no Vercel. O agendador chamava todo dia, levava 503, e
+# nao havia quadrado vermelho em lugar nenhum - uma funcao que responde
+# direitinho que nao esta configurada nao parece defeito. Dai o job
+# "gatilho" la embaixo: ele pergunta a rota uma vez por dia e manda
+# mensagem enquanto ela nao estiver armada.
+#
+# AS DUAS FOLGAS SE SOMAM, E POR ISSO O CRON DO VERCEL MARCA 5H E NAO
+# 6H. No plano gratuito o agendador do Vercel dispara em algum ponto da
+# hora marcada; marcando 5h, a folga inteira - [05:00, 06:00) - cai
+# ANTES da abertura, a guarda dorme o resto e a coleta comeca as 6h em
+# ponto nos dois casos. Marcando 6h, a folga jogaria a coleta para algum
+# ponto entre 6h e 7h e a mensagem flutuaria entre 6h30 e 7h30.
+#
 # Minutos quebrados de proposito: a documentacao do GitHub aponta o
 # inicio de cada hora como o pior momento da fila.
 on:
@@ -75,6 +94,15 @@ on:
           Reenviar a mensagem do dia sobre o dado que JA esta no banco,
           sem coletar nada. Use quando a mensagem saiu com defeito e o
           conserto ja esta no main.
+        type: boolean
+        default: false
+      agendado:
+        description: >
+          Marcado por quem chama a rota api/disparar, e so por ela. A
+          rodada agendada PASSA PELA GUARDA em vez de rodar na hora:
+          e assim que a folga de ate uma hora do agendador do Vercel
+          deixa de mexer na hora da mensagem. Disparo na mao nao marca
+          isto, e roda na hora.
         type: boolean
         default: false
 
@@ -157,8 +185,17 @@ jobs:
             exit 0
           fi
           echo "coletar=true" >> "$GITHUB_OUTPUT"
-          # disparo na mao sempre roda: quem dispara sabe o que quer
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          # DISPARO NA MAO RODA NA HORA; O DO AGENDADOR OBEDECE A HORA.
+          # Os dois chegam como workflow_dispatch e nao podem ser
+          # tratados igual. Quem dispara na mao sabe o que quer, e sao
+          # 14h. O cron do Vercel marca 5h e, rodando na hora, a
+          # mensagem sairia entre 5h30 e 6h30, porque o agendador do
+          # Vercel tem folga de ate uma hora no plano gratuito -
+          # passando pela guarda ele dorme o que falta e coleta as 6h em
+          # ponto. Quem marca a diferenca e o input "agendado", que so a
+          # rota api/disparar.js manda.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+             && [ "${{ inputs.agendado }}" != "true" ]; then
             echo "rodar=true" >> "$GITHUB_OUTPUT"
             echo "disparo manual: roda de qualquer jeito"
             exit 0
@@ -288,6 +325,68 @@ jobs:
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "text=${TEXTO}" > /dev/null
           echo "alerta de dia perdido enviado"
+
+  # O GATILHO DETERMINISTICO TEM DE PROVAR QUE ESTA ARMADO.
+  #
+  # Quem faz a mensagem sair na hora nao e o agendamento do GitHub, e o
+  # cron do Vercel chamando api/disparar.js. Esse caminho esta publicado
+  # desde outubro e estava morto: medido em 09/11/2026, a rota respondia
+  # "503 CRON_SECRET ausente" havia semanas. O agendador chamava, levava
+  # 503 e ninguem ouvia - nao ha quadrado vermelho para funcao que
+  # responde direitinho que nao esta configurada, e o preco era a hora
+  # da mensagem continuar no sorteio do GitHub.
+  #
+  # Entao o silencio dela vira mensagem. Uma vez por dia, no ultimo
+  # gatilho. Nao coleta nada, nao depende da coleta e nao atrasa nada.
+  #
+  # O QUE CADA RESPOSTA QUER DIZER, e por que 401 e a boa:
+  #   401 - ARMADA. O segredo esta gravado, e a rota recusou este curl,
+  #         que vem sem segredo nenhum. E o estado que se quer, e e por
+  #         isso que o aviso se mede por "diferente de 401" em vez de
+  #         por uma lista de codigos ruins: codigo novo que ninguem
+  #         previu cai do lado de quem fala, nao do lado do silencio.
+  #   503 - DESARMADA. Falta CRON_SECRET ou GITHUB_TOKEN no Vercel.
+  #   404 - A PUBLICACAO ESTA VELHA. O deploy do Vercel e manual: rota
+  #         nova em vercel.json so passa a existir depois de publicar.
+  #   000 - nao respondeu.
+  #
+  # Curl cru e sem segredo de proposito: o que se mede e a RECUSA, e
+  # assim a conferencia nao pode disparar coleta nenhuma por acidente.
+  gatilho:
+    if: github.event.schedule == '29 13 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: A rota de disparo esta armada?
+        id: ver
+        run: |
+          CODIGO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+            https://tmt-price-tracker.vercel.app/api/disparar) || CODIGO=000
+          echo "a rota respondeu ${CODIGO}"
+          echo "codigo=${CODIGO}" >> "$GITHUB_OUTPUT"
+
+      - name: Contar que o gatilho esta desarmado
+        if: steps.ver.outputs.codigo != '401'
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          CODIGO="${{ steps.ver.outputs.codigo }}"
+          case "$CODIGO" in
+            503) PORQUE="faltam as variaveis CRON_SECRET e GITHUB_TOKEN no Vercel" ;;
+            404) PORQUE="a rota nao existe na versao publicada, e o deploy do Vercel e manual" ;;
+            000) PORQUE="a rota nao respondeu" ;;
+            *)   PORQUE="a rota respondeu ${CODIGO}, e so 401 significa armada" ;;
+          esac
+          TEXTO="TMT Price Tracker - aviso de rotina
+          O DISPARO DAS 5H ESTA DESARMADO.
+          Motivo: ${PORQUE}.
+          Efeito: a hora da coleta volta a depender do agendamento do GitHub, que chega com horas de atraso. A mensagem sai perto das 6h30 nos dias em que uma das oito chegadas cai antes das 6h, e no meio da manha nos outros.
+          Os numeros e o historico nao mudam - o que muda e a hora em que a mensagem chega."
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=${TEXTO}" > /dev/null
+          echo "aviso de gatilho desarmado enviado"
 
   coleta:
     needs: decidir

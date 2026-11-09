@@ -18,6 +18,16 @@
 // QUEM PODE CHAMAR. So o proprio agendador do Vercel, que assina a
 // chamada com CRON_SECRET. Sem isso, qualquer um com a URL dispararia a
 // coleta a vontade.
+//
+// ESTA ROTA PASSOU SEMANAS MORTA SEM NINGUEM OUVIR. Medido em
+// 09/11/2026: o agendador do Vercel chamava todo dia e levava "503
+// CRON_SECRET ausente" - as duas variaveis de ambiente nunca foram
+// gravadas. Funcao que responde direitinho que nao esta configurada nao
+// pinta quadrado vermelho em painel nenhum, e enquanto isso a hora da
+// mensagem continuava no sorteio do GitHub. Por isso o job "gatilho" em
+// diario.yml pergunta a esta rota uma vez por dia e manda mensagem
+// enquanto ela nao responder 401 - que e a resposta de quem esta
+// armada.
 
 const REPO = "dashboardtmt/tmt-price-tracker";
 const WORKFLOW = "diario.yml";
@@ -68,7 +78,17 @@ export default async function handler(req, res) {
         "X-GitHub-Api-Version": "2022-11-28",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ref: "main" }),
+      // AGENDADO=TRUE E O QUE FAZ A GUARDA OBEDECER A HORA.
+      //
+      // Chamada na mao e chamada do agendador chegam no GitHub do
+      // mesmo jeito - workflow_dispatch - e nao podem ser tratadas
+      // igual. Quem dispara na mao sabe o que quer, e sao 14h: roda na
+      // hora. O agendador marca 5h, e rodar na hora faria a mensagem
+      // sair entre 5h30 e 6h30, porque o cron do Vercel tambem tem
+      // folga de ate uma hora. Marcada como agendada, a rodada passa
+      // pela guarda, dorme o que falta e coleta as 6h em ponto -
+      // qualquer que seja a folga do Vercel.
+      body: JSON.stringify({ ref: "main", inputs: { agendado: "true" } }),
     });
 
     // 204 e o sucesso do dispatch: ele nao devolve corpo nenhum

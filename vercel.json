@@ -21,7 +21,7 @@
   "crons": [
     {
       "path": "/api/disparar",
-      "schedule": "0 9 * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }
