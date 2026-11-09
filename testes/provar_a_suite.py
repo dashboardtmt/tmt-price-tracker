@@ -797,6 +797,36 @@ MUTACOES = [
         "Ga4. o gatilho desarmado volta a ser silencio"),
 
     Mutacao(
+        "vigia.py",
+        "DIAS_PARA_FALAR = 3",
+        "DIAS_PARA_FALAR = 2",
+        "Si1. o vigia volta a falar antes de o problema ficar"),
+
+    Mutacao(
+        "vigia.py",
+        '    "não é lida há",            # um campo morreu e ninguem viu',
+        '    "nao e lida ha",            # um campo morreu e ninguem viu',
+        "Si2. a marca perde o acento e o achado perde a vaga da mensagem"),
+
+    Mutacao(
+        "vigia.py",
+        'k = (o.get("operadora"), o.get("produto"), o.get("nome_oferta"))',
+        'k = (o.get("operadora"), o.get("produto"), o.get("produto"))',
+        "Si3. o grao volta a ser o produto e a familia se esconde atras das irmas"),
+
+    Mutacao(
+        "vigia.py",
+        "        if magro(b, i - DIAS_PARA_FALAR):\n            continue",
+        "        if False:\n            continue",
+        "Si4. a prateleira encolhida volta a falar todo dia enquanto dura"),
+
+    Mutacao(
+        "vigia.py",
+        "    for texto in _campo_que_morreu(hoje, anteriores):\n        grave(texto)",
+        "    for texto in _campo_que_morreu(hoje, anteriores):\n        atencao(texto)",
+        "Si5. o campo morto cai para o relatorio e some da mensagem"),
+
+    Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',

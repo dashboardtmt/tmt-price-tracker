@@ -91,6 +91,231 @@ def _mediana(valores):
     return v[meio] if len(v) % 2 else (v[meio - 1] + v[meio]) / 2.0
 
 
+# ------------------------------------------------------------------
+# OS DOIS VIGIAS DE SILENCIO, de 09/11/2026.
+#
+# O RESTO DESTE ARQUIVO PERGUNTA "o que eu coletei hoje faz sentido?".
+# Estes dois perguntam outra coisa: "o que parou de aparecer, e ja faz
+# dias?". Sao o mesmo defeito com duas caras, e as duas custaram caro:
+#
+#   - a fibra da TIM ficou 35 dias com 1 oferta de 10, e a mensagem
+#     seguiu comparando precos daquela unica oferta como se fosse a
+#     prateleira inteira;
+#   - a franquia garantida das Vivo Familia ficou 31 dias nula, e a
+#     anunciada caiu 10GB no dia seguinte - o que, lido de fora,
+#     pareceria a Vivo cortando franquia.
+#
+# POR QUE NENHUM DOS DOIS APARECEU SOZINHO. Coleta que traz 1 oferta e
+# uma coleta de sucesso: nao falha, nao erra, nao pinta vermelho. Campo
+# nulo e um valor valido. Nos dois casos o dado continua chegando, so
+# que menor - e o sistema inteiro foi desenhado para reclamar do que
+# chega errado, nao do que deixa de chegar.
+#
+# TRES DIAS, E FALA UMA VEZ. Medido nos 41 dias publicados: falar no
+# primeiro dia renderia 35 avisos, e 7 das 17 mortes de campo duravam um
+# dia so - susto, nao defeito. Esperando o terceiro dia seguido sobram
+# OITO avisos em 41 dias, um a cada cinco, e os cinco casos longos que
+# ninguem tinha visto estao todos neles. O preco e saber dois dias
+# depois; o troco e nunca falar por oscilacao.
+#
+# O NORMAL E MEDIDO, como no resto do arquivo: a prateleira "encolheu"
+# em relacao a mediana dos dias anteriores DAQUELE balde, e nao de um
+# numero cravado - a NuCel tem 3 ofertas e a Claro tem 364.
+DIAS_PARA_FALAR = 3
+
+# Metade da mediana. Medido: com 50% saem 18 avisos brutos em 41 dias e
+# com um terco saem 14, mas o terco perde a TIM que foi de 4 ofertas
+# para 1 - que e exatamente o caso que deu origem a isto.
+CORTE_DA_PRATELEIRA = 0.5
+
+# Balde com menos de 3 ofertas nao tem queda que signifique alguma
+# coisa: sair de 2 para 1 e metade, e nao e noticia.
+PRATELEIRA_MINIMA = 3
+
+# Campo que ja vinha falhando metade do tempo nao "morreu": sempre foi
+# assim, e isso e outro assunto.
+PISO_DE_PREENCHIMENTO = 0.5
+
+# So os campos que o select do vigia traz. Nao adiantar vigiar
+# fidelidade ou velocidade declarada aqui: elas nao chegam neste
+# levantamento, e pedir por elas engordaria a consulta que foi estreitada
+# de proposito.
+CAMPOS_VIGIADOS = {
+    "franquia_contratual_gb": "a franquia garantida",
+    "franquia_anunciada_gb": "a franquia anunciada",
+    "degrau_mbps": "a velocidade do degrau",
+    "preco_promocional": "o preço promocional",
+}
+
+NOME_DO_PRODUTO = {
+    "movel": "o móvel", "controle": "o controle", "prepago": "o pré-pago",
+    "fibra": "a fibra", "combo": "o combo", "btl": "a linha de entrada",
+    "satelite": "o satélite",
+}
+
+
+def _plural(n, singular, plural):
+    return "%d %s" % (n, singular if n == 1 else plural)
+
+
+# Quando as capturas de hoje chegam sem data - acontece em teste e
+# aconteceria num select que esquecesse a coluna -, hoje ainda e o dia
+# mais novo que existe. Esta marca ordena depois de qualquer data ISO,
+# e assim o vigia segue comparando com os dias anteriores em vez de
+# emudecer sem dizer por que.
+HOJE_SEM_DATA = "zzzz-hoje"
+
+
+def _dias(hoje, anteriores):
+    """(dia de hoje, dias em ordem, {dia: capturas}) com hoje incluido."""
+    datadas = [o.get("data_captura") for o in hoje if o.get("data_captura")]
+    dia = max(datadas) if datadas else HOJE_SEM_DATA
+    tudo = dict(anteriores or {})
+    tudo[dia] = hoje
+    return dia, sorted(d for d in tudo if d), tudo
+
+
+def _prefixo(nomes):
+    """O comeco que todos os nomes tem em comum, cortado na palavra.
+
+    "Vivo Familia 2", "Vivo Familia 3" e "Vivo Familia 4" viram "Vivo
+    Familia". Serve para a frase dizer QUAL familia de ofertas parou de
+    ser lida em vez de "5 ofertas", que nao diz onde ir olhar.
+    """
+    p = nomes[0]
+    for n in nomes[1:]:
+        while p and not n.startswith(p):
+            p = p[:-1]
+    p = p.rstrip()
+    if " " not in p or len(p) < 8:
+        return ""
+    return p
+
+
+def _quem(ofertas, produto):
+    nomes = sorted(n for n in ofertas if n)
+    if not nomes:
+        return "%s" % NOME_DO_PRODUTO.get(produto, produto)
+    if len(nomes) == 1:
+        return nomes[0][:40]
+    pref = _prefixo(nomes)
+    if pref:
+        return "%s (%d ofertas)" % (pref[:34], len(nomes))
+    # SEM COMECO EM COMUM, NOMEIA UMA E CONTA O RESTO. "5 ofertas de
+    # movel" nao diz onde ir olhar, que e a unica coisa que esta frase
+    # precisa entregar. Acontece quando ofertas de familias diferentes
+    # perdem o mesmo campo no mesmo dia - foi o caso das Vivo Familia
+    # junto com uma Vivo Total Familia, em 09/10.
+    return "%s e mais %d" % (nomes[0][:34], len(nomes) - 1)
+
+
+def _prateleira_que_encolheu(hoje, anteriores):
+    """Baldes que encolheram e seguem encolhidos ha DIAS_PARA_FALAR."""
+    dia, dias, tudo = _dias(hoje, anteriores)
+    if len(dias) < DIAS_PARA_FALAR + 1:
+        return []
+
+    conta = collections.defaultdict(dict)
+    for d in dias:
+        for o in tudo[d]:
+            b = (o.get("operadora"), o.get("produto"), o.get("praca"))
+            conta[b][d] = conta[b].get(d, 0) + 1
+
+    def base_de(b, i):
+        porDia = conta[b]
+        antes = [porDia[x] for x in dias[:i] if x in porDia]
+        if len(antes) < 3:
+            return None
+        m = _mediana(antes)
+        return m if m and m >= PRATELEIRA_MINIMA else None
+
+    def magro(b, i):
+        d = dias[i]
+        if d not in conta[b]:
+            return False
+        base = base_de(b, i)
+        return base is not None and conta[b][d] <= base * CORTE_DA_PRATELEIRA
+
+    i = len(dias) - 1
+    juntos = collections.defaultdict(list)
+    for b in conta:
+        if not all(magro(b, i - k) for k in range(DIAS_PARA_FALAR)):
+            continue
+        # O DIA ANTERIOR AO EPISODIO TEM DE ESTAR SADIO, senao a frase
+        # sairia de novo no quarto dia, no quinto, e todo dia enquanto
+        # durasse - que e o oposto de "fala uma vez".
+        if magro(b, i - DIAS_PARA_FALAR):
+            continue
+        juntos[(b[0], b[1])].append(b[2])
+
+    textos = []
+    for (op, prod), pracas in sorted(juntos.items(), key=lambda x: str(x[0])):
+        agora = _mediana([conta[(op, prod, p)][dia] for p in pracas])
+        base = _mediana([base_de((op, prod, p), i) for p in pracas])
+        textos.append("%s: %s encolheu para %s em %s, e segue assim há "
+                      "%d dias (vinha de %d)"
+                      % (op, NOME_DO_PRODUTO.get(prod, prod),
+                         _plural(agora, "oferta", "ofertas"),
+                         _plural(len(pracas), "praça", "praças"),
+                         DIAS_PARA_FALAR, base))
+    return textos
+
+
+def _campo_que_morreu(hoje, anteriores):
+    """Campos que zeraram e seguem zerados ha DIAS_PARA_FALAR.
+
+    O GRAO E A OFERTA, e nao a operadora. No grao da operadora a morte
+    da garantida das Vivo Familia nao aparece: as outras ofertas do
+    mesmo produto seguem preenchidas e a taxa nunca chega a zero. Medido
+    - no grao errado este vigia acharia 6 casos e perderia justamente o
+    que o fez existir.
+    """
+    dia, dias, tudo = _dias(hoje, anteriores)
+    if len(dias) < DIAS_PARA_FALAR + 1:
+        return []
+
+    cheio = collections.defaultdict(dict)
+    for d in dias:
+        for o in tudo[d]:
+            k = (o.get("operadora"), o.get("produto"), o.get("nome_oferta"))
+            for campo in CAMPOS_VIGIADOS:
+                tem, total = cheio[(k, campo)].get(d, (0, 0))
+                cheio[(k, campo)][d] = (tem + (o.get(campo) is not None), total + 1)
+
+    def morto(kc, i):
+        d = dias[i]
+        par = cheio[kc].get(d)
+        return bool(par) and par[1] > 0 and par[0] == 0
+
+    def vinha_cheio(kc, i):
+        porDia = cheio[kc]
+        antes = [porDia[x][0] / float(porDia[x][1])
+                 for x in dias[:i] if x in porDia and porDia[x][1]]
+        if len(antes) < 3:
+            return False
+        m = _mediana(antes)
+        return m is not None and m >= PISO_DE_PREENCHIMENTO
+
+    i = len(dias) - 1
+    juntos = collections.defaultdict(list)
+    for kc in cheio:
+        if not all(morto(kc, i - k) for k in range(DIAS_PARA_FALAR)):
+            continue
+        if morto(kc, i - DIAS_PARA_FALAR):
+            continue
+        if not vinha_cheio(kc, i - DIAS_PARA_FALAR + 1):
+            continue
+        (k, campo) = kc
+        juntos[(k[0], k[1], campo)].append(k[2])
+
+    textos = []
+    for (op, prod, campo), ofertas in sorted(juntos.items(), key=lambda x: str(x[0])):
+        textos.append("%s: %s não é lida há %d dias em %s"
+                      % (op, CAMPOS_VIGIADOS[campo], DIAS_PARA_FALAR,
+                         _quem(ofertas, prod)))
+    return textos
+
+
 def achados(hoje, anteriores):
     """Devolve [(gravidade, texto)] com o que esta estranho no dia.
 
@@ -236,6 +461,14 @@ def achados(hoje, anteriores):
     if vazios:
         atencao("%d oferta(s) sem nome" % vazios)
 
+    # ------------------------------------------------ silencio
+    # Os dois unicos achados deste arquivo que NAO olham so o dia: eles
+    # precisam de ontem e anteontem para saber que o problema ficou.
+    for texto in _prateleira_que_encolheu(hoje, anteriores):
+        grave(texto)
+    for texto in _campo_que_morreu(hoje, anteriores):
+        grave(texto)
+
     return saida
 
 
@@ -254,6 +487,14 @@ PRIORIDADE = (
     "nao aparece hoje",         # um nono do mercado desapareceu
     "fora da faixa",            # numero que nao e preco de plano
     "nao deu para conferir",    # a propria conferencia nao aconteceu
+    # OS DOIS DE 09/11/2026. Vem antes de "salto" e "sem velocidade"
+    # porque os dois de baixo sao numero errado numa oferta, e estes
+    # dois sao numero que sumiu de uma familia inteira - e ja faz tres
+    # dias. As marcas abaixo sao TRECHOS DOS TEXTOS: mudar a frase sem
+    # mudar a marca faz o achado perder a vaga da mensagem e nunca mais
+    # aparecer, calado. OsDoisVigiasDisputamAVaga prende as duas juntas.
+    "não é lida há",            # um campo morreu e ninguem viu
+    "encolheu para",            # a prateleira sumiu e ninguem viu
     "salto",                    # numero que talvez nao seja daquela oferta
     "sem velocidade",           # leitura quebrada, mas o preco esta la
 )
