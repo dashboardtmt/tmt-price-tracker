@@ -157,9 +157,11 @@ class AContagemDoBancoNaoDerrubaAMensagem(unittest.TestCase):
 
 
 class JanelaDaColeta(unittest.TestCase):
-    """A coleta leva ~50 minutos e a mensagem sai logo depois. Para
-    chegar as 7h, a coleta comeca as 6h - e gatilho que chega antes disso
-    nao pode coletar, senao a mensagem chega de madrugada."""
+    """A coleta leva ~30 minutos e a mensagem sai logo depois (medido em
+    09/11/2026: coleta de 30 min, mensagem 31 min depois do gatilho).
+    Comecando as 6h, a mensagem chega perto das 6h30 - e gatilho que
+    chega antes das 6h nao pode coletar, senao a mensagem chega de
+    madrugada."""
 
     def responder(self, hora_brt, ja_coletou_hoje):
         class Falso(datetime):
@@ -174,10 +176,16 @@ class JanelaDaColeta(unittest.TestCase):
             ja_coletou.main()
         return saida.getvalue().strip()
 
-    def test_cedo_demais_nao_coleta(self):
-        for h in (0, 3, 5):
-            self.assertEqual(self.responder(h, False), "nao",
-                             "as %dh ainda e madrugada" % h)
+    def test_de_madrugada_nao_coleta(self):
+        """NAO COLETAR DEIXOU DE SER O MESMO QUE RECUSAR. Desde
+        09/11/2026 o gatilho da madrugada que esta ao alcance da espera
+        segura a vez e dorme ate as 6h, e so o que esta longe demais
+        para o job aguentar (ESPERA_MAXIMA) passa a vez. O que nenhum
+        dos dois faz e coletar de madrugada, que e o que faria a
+        mensagem chegar as 3h30."""
+        self.assertEqual(self.responder(0, False), "nao")
+        self.assertEqual(self.responder(3, False), "espere 180")
+        self.assertEqual(self.responder(5, False), "espere 60")
 
     def test_dentro_da_janela_coleta(self):
         for h in (6, 7, 9):

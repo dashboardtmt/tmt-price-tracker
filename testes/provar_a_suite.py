@@ -751,6 +751,27 @@ MUTACOES = [
         '    if False:',
         "a coleta volta a poder rodar de madrugada"),
 
+    # A ESPERA, desde 09/11/2026. Sao tres pecas em dois arquivos, e as
+    # tres falham CALADAS: a mensagem continua chegando todo dia, so
+    # que no meio da manha - foi assim por duas semanas.
+    Mutacao(
+        "ja_coletou.py",
+        '        return "espere %d" % falta, (',
+        '        return "nao", (',
+        "Es1. o gatilho que chega cedo volta a ser recusado"),
+
+    Mutacao(
+        ".github/workflows/diario.yml",
+        '            "espere "*)',
+        '            "nunca_casa "*)',
+        "Es2. o job volta a ignorar a ordem de esperar"),
+
+    Mutacao(
+        ".github/workflows/diario.yml",
+        '    timeout-minutes: 340',
+        '    timeout-minutes: 5',
+        "Es3. o job que dorme volta a ser morto antes de coletar"),
+
     Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',

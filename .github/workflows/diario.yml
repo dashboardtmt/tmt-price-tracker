@@ -22,46 +22,50 @@ name: Rotina diaria
 # da sessao do CLI, e exigir que alguem gere um na mao seria pendurar a
 # atualizacao diaria num passo manual - que e justamente o que nao pode.
 
-# UMA COLETA POR DIA, MIRANDO AS 7H DA MANHA.
+# UMA COLETA POR DIA, AS 6H DA MANHA EM PONTO.
 #
-# A coleta leva ~23 minutos, entao precisa COMECAR perto das 6h30 para a
-# mensagem chegar as 7h. So que o agendamento do GitHub nao cumpre
-# horario: o evento chega horas atrasado, e o atraso esta no GATILHO,
-# nao na fila - o run comeca no mesmo minuto em que e criado.
+# A coleta leva ~30 minutos e o aviso sai logo depois: comecando as 6h, a
+# mensagem chega perto das 6h30.
 #
-# Nao da para mandar o GitHub disparar as 6h. Da para decidir, a cada
-# gatilho que chega, se e hora de coletar - e e isso que ja_coletou.py
-# faz: recusa antes das 6h, libera entre 6h e 10h, e depois das 10h
-# libera de qualquer jeito.
+# O AGENDAMENTO DO GITHUB NAO CUMPRE HORARIO, e nao da para consertar
+# isso declarando mais gatilhos. Medido de 02 a 09/11/2026, em todas as
+# rodadas agendadas de oito dias: chegam OITO POR DIA, nao importa
+# quantos crons existam. Oito com oito crons, e oito depois que a faixa
+# densa subiu para 29 - as 21 chegadas a mais simplesmente nao vieram.
+# Cron novo nao compra chegada nova: muda o HORARIO das oito.
 #
-# O QUE DECIDE A HORA DA COLETA NAO E O HORARIO DOS CRONS - E O
-# ESPACAMENTO ENTRE ELES. A coleta comeca na primeira chegada depois das
-# 6h, e com gatilhos espacados de 1h30 a 2h30 essa chegada caia onde
-# calhasse. Medido de 27/10 a 05/11/2026, nos oito gatilhos de cada dia:
-# o atraso medio subiu de 5,5h para 7,6h, e com isso o primeiro gatilho
-# do dia passou a chegar as 5h24 (a guarda recusa, e cedo) e o segundo
-# so as 9h12. A mensagem saiu as 9h35 sem nada estar quebrado.
+# A FAIXA DENSA NAO ERA A SOLUCAO, ERA METADE DELA. Ela trouxe duas das
+# oito chegadas para a madrugada - 04:59, 05:06 e 05:10 UTC nos tres
+# dias medidos, a ~4h das 6h BRT - mas a guarda RECUSAVA essas, porque
+# era cedo. E ai a coleta ficava para a chegada seguinte, seis horas
+# depois: a mensagem de 08/11 saiu as 9h12 e a de 09/11 as 11h33.
 #
-# Dai a FAIXA DENSA: de 20 em 20 minutos ao longo de oito horas. Qualquer
-# que seja o atraso do dia entre ~3h30 e ~11h, uma das chegadas cai nos
-# 20 minutos seguintes as 6h - coleta de 23 minutos, mensagem antes das
-# 7h. Os gatilhos que chegam cedo demais so pagam a guarda, que custa
-# meio minuto; o repositorio e publico e minuto de Actions nao e cobrado.
+# ENTAO QUEM CHEGA CEDO ESPERA. ja_coletou.py ganhou uma terceira
+# resposta - "espere N" - e o job dorme os N minutos aqui dentro, com
+# "sleep", e coleta as 6h em ponto. A hora da mensagem deixa de depender
+# do humor da fila do GitHub e passa a depender so de UMA chegada cair
+# nas ESPERA_MAXIMA horas antes da janela.
+#
+# A faixa densa continua, e por isso: ela e o que poe uma chegada nessa
+# faixa. E agora ela termina NA abertura (08:43 UTC = 05:43 BRT) e nao
+# tres horas antes dela - gatilho que chega na hora no fim da faixa
+# coleta quase sem dormir.
 #
 # Minutos quebrados de proposito: a documentacao do GitHub aponta o
 # inicio de cada hora como o pior momento da fila.
 on:
   schedule:
-    # A FAIXA DENSA: 22:03 as 05:43 UTC, de 20 em 20 minutos.
+    # A FAIXA DENSA: 22:03 as 08:43 UTC, de 20 em 20 minutos. Ela
+    # termina NA abertura da janela (08:43 UTC = 05:43 BRT), nao tres
+    # horas antes: o gatilho que chega na hora nos ultimos degraus dela
+    # dorme minutos, nao horas. Os dois crons avulsos de 04:13 e 05:47
+    # BRT que ficavam aqui viraram degrau da faixa.
     - cron: '3,23,43 22-23 * * *'
-    - cron: '3,23,43 0-5 * * *'
-    # A REDE DE SEGURANCA, para o dia de atraso pequeno - em que a faixa
-    # densa inteira chegaria antes das 6h - e para o dia em que o GitHub
-    # derruba gatilhos. Nao mexer sem ler o job "alerta": ele fala no
-    # ULTIMO gatilho do dia, e esse ultimo e o de 13:29 UTC.
-    - cron: '13 7 * * *'    # marcado 04:13 BRT
-    - cron: '47 8 * * *'    # marcado 05:47
-    - cron: '22 10 * * *'   # marcado 07:22
+    - cron: '3,23,43 0-8 * * *'
+    # A REDE DE SEGURANCA DA MANHA, para o dia em que nenhuma das oito
+    # chegadas cair na faixa. Nao mexer sem ler o job "alerta": ele fala
+    # no ULTIMO gatilho do dia, e esse ultimo e o de 13:29 UTC.
+    - cron: '22 10 * * *'   # marcado 07:22 BRT
     - cron: '56 11 * * *'   # marcado 08:56
     - cron: '29 13 * * *'   # marcado 10:29 - o ultimo, e o do alerta
   workflow_dispatch:
@@ -85,7 +89,12 @@ jobs:
   # chegar as 3h da manha.
   decidir:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 340 MINUTOS PORQUE ESTE JOB DORME. ESPERA_MAXIMA em ja_coletou.py
+    # vale 320, e timeout menor que ela mata o job DORMINDO: a rodada se
+    # perde sem coletar e sem avisar. O teste
+    # OJobTemDeCaberAEspera.test_o_timeout_cabe_a_espera_maxima prende os
+    # dois numeros juntos, que moram em arquivos diferentes.
+    timeout-minutes: 340
     outputs:
       rodar: ${{ steps.ver.outputs.rodar }}
       travado: ${{ steps.ver.outputs.travado }}
@@ -154,14 +163,32 @@ jobs:
             echo "disparo manual: roda de qualquer jeito"
             exit 0
           fi
-          # a guarda decide: ja coletou hoje? e cedo demais? passou da
-          # hora limite? a saida dela e "sim" ou "nao", e nada mais
-          if [ "$(python ja_coletou.py)" = "sim" ]; then
-            echo "rodar=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "rodar=false" >> "$GITHUB_OUTPUT"
-            echo "nao e hora - encerrando"
-          fi
+          # A GUARDA DECIDE, E A TERCEIRA RESPOSTA E ESPERAR. "espere N"
+          # quer dizer: faltam N minutos para as 6h, e dormir aqui custa
+          # menos do que passar a vez - porque a chegada seguinte vem
+          # seis horas depois. Tratar "espere" como "diferente de sim"
+          # era o que fazia a mensagem sair as 9h12 e as 11h33.
+          RESPOSTA="$(python ja_coletou.py)"
+          case "$RESPOSTA" in
+            "espere "*)
+              MINUTOS="${RESPOSTA#espere }"
+              echo "faltam ${MINUTOS} min para a janela abrir - segurando a vez"
+              # um minuto de folga: acordar 20 segundos antes das 6h faz
+              # a guarda responder "espere 1" e o dia nao coletar
+              sleep "$(( MINUTOS * 60 + 60 ))"
+              # PERGUNTAR DE NOVO. Entre dormir e acordar o dia pode ter
+              # sido coletado - por disparo na mao, por exemplo.
+              RESPOSTA="$(python ja_coletou.py)"
+              echo "acordei, e a guarda agora diz: ${RESPOSTA}"
+              ;;
+          esac
+          case "$RESPOSTA" in
+            sim)
+              echo "rodar=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "rodar=false" >> "$GITHUB_OUTPUT"
+              echo "nao e hora - encerrando" ;;
+          esac
 
   # O DIA PERDIDO TEM DE FALAR. Roda so no ULTIMO gatilho do dia, e e
   # isso que garante uma mensagem em vez de oito: a condicao e o proprio

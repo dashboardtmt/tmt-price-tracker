@@ -12,20 +12,31 @@ varios agendamentos espalhados pela madrugada e pela manha; cada um
 pergunta aqui, e a resposta governa:
 
     ja coletou hoje?            -> nao (uma coleta por dia, e acabou)
-    ainda e cedo demais?        -> nao (o dado da madrugada nao serve:
-                                   a mensagem chegaria de madrugada)
+    ainda e cedo demais?        -> espere N (dorme os N minutos que
+                                   faltam e coleta as 6h; ou "nao", se
+                                   faltar mais do que o job aguenta
+                                   dormir)
     passou da hora limite?      -> sim, de qualquer jeito
     senao                       -> sim
 
-Assim a coleta cai na PRIMEIRA oportunidade a partir da hora desejada, e
-a mensagem chega logo depois. Os gatilhos que chegam cedo demais
-encerram em segundos; os que chegam tarde pegam o trabalho.
+Assim a coleta acontece AS 6H, e nao na hora em que o gatilho calhou de
+chegar. Quem chega depois da rodada fechada encerra em segundos.
 
-POR QUE UMA JANELA, E NAO UM HORARIO. Horario exato exigiria um gatilho
-externo e confiavel, que hoje nao existe - o api/disparar.js esta pronto
-para isso e so espera um token. Com o que ha, a janela e o mais proximo
-de um compromisso que da para prometer: nao antes das 6h, e no pior caso
-ate as 10h.
+NAO E UMA JANELA, E UMA HORA - E QUEM CHEGA CEDO ESPERA. Recusar o
+gatilho da madrugada era jogar fora a unica chegada do dia que cai perto
+da hora certa. Medido de 02 a 09/11/2026, nas chegadas de oito dias: o
+GitHub entrega OITO GATILHOS POR DIA, nao importa quantos crons existam
+- oito com oito crons, e oito depois que a faixa densa subiu para 29.
+Declarar mais gatilho nao compra mais chegada, compra outro HORARIO de
+chegada. E entre a chegada que a guarda recusava as 2h da manha e a
+seguinte corriam seis horas: a mensagem de 08/11 saiu as 9h12 e a de
+09/11 as 11h33.
+
+Dai a terceira resposta. O gatilho que chega cedo DORME os minutos que
+faltam, aqui dentro do job, e coleta as 6h em ponto - e nao precisa de
+gatilho externo nenhum para isso. Minuto de Actions nao e cobrado (o
+repositorio e publico) e o job do Actions e morto em 6 horas, que e de
+onde sai ESPERA_MAXIMA.
 
 QUANDO NAO DA PARA SABER, A RESPOSTA E "sim". Banco fora do ar, segredo
 ausente, rede caida: nesses casos vale coletar. Pular o dia por nao
@@ -48,6 +59,14 @@ ABERTURA = hora(6, 0)
 # Depois disto, coleta de qualquer jeito. Um dia sem dado e pior do que
 # um dado que chegou tarde, e as 10h ja nao ha o que esperar.
 LIMITE = hora(10, 0)
+
+# QUANTO VALE A PENA DORMIR ESPERANDO A JANELA ABRIR. O job do Actions e
+# morto em 6 horas, e morrer dormindo e pior do que passar a vez: a
+# rodada se perde e o alerta do dia perdido so fala as 10h29. Com 320
+# minutos, quem chega a partir de 00h40 BRT segura a vez - e as tres
+# chegadas da madrugada que medi (04:59, 05:06 e 05:10 UTC em 08, 07 e
+# 09/11) caem com 3h50 a 4h de folga.
+ESPERA_MAXIMA = 320
 
 def _esperadas():
     """Quantos coletores a rodada tem.
@@ -97,6 +116,52 @@ def _ja_coletou(hoje):
     return len(registradas) >= esperadas, len(registradas)
 
 
+def _falta_para_abrir(agora):
+    """Minutos daqui ate a abertura de hoje, arredondando PARA CIMA.
+
+    Para cima porque quem dorme 30 segundos de menos acorda antes das 6h
+    e ouve "espere 1" de novo - e o job que acorda cedo nao coleta.
+    """
+    abertura = agora.replace(hour=ABERTURA.hour, minute=ABERTURA.minute,
+                             second=0, microsecond=0)
+    return int(((abertura - agora).total_seconds() + 59) // 60)
+
+
+def decidir(agora, feito):
+    """A resposta da guarda: ("sim" | "nao" | "espere N", o porque).
+
+    PURA DE PROPOSITO. A decisao e so hora e estado, e e a parte que
+    precisa ser medida em todos os horarios do dia - sem banco, sem rede
+    e sem esperar o relogio chegar la.
+
+    A ORDEM DOS RAMOS E A REGRA. "Ja coletou" vem antes de tudo, senao a
+    rodada da madrugada dormiria quatro horas para descobrir que o dia
+    estava fechado. E o LIMITE vem antes da ABERTURA: as 23h de um dia
+    que nao coletou, o que falta para as 6h e a madrugada inteira, e
+    dormir ali trocaria "dia sem dado" por "dia coletado amanha".
+    """
+    if feito:
+        return "nao", "o dia ja foi coletado"
+
+    if agora.time() >= LIMITE:
+        return "sim", ("passou das %s: coleta de qualquer jeito"
+                       % LIMITE.strftime("%H:%M"))
+
+    if agora.time() < ABERTURA:
+        falta = _falta_para_abrir(agora)
+        if falta > ESPERA_MAXIMA:
+            return "nao", (
+                "sao %s e faltam %d min para as %s - mais do que o job "
+                "aguenta dormir (%d); a vez fica para quem chegar mais perto"
+                % (agora.strftime("%H:%M"), falta,
+                   ABERTURA.strftime("%H:%M"), ESPERA_MAXIMA))
+        return "espere %d" % falta, (
+            "sao %s: durmo os %d min que faltam e coleto as %s"
+            % (agora.strftime("%H:%M"), falta, ABERTURA.strftime("%H:%M")))
+
+    return "sim", "dentro da janela e sem coleta hoje: vai coletar"
+
+
 def main():
     agora = datetime.now(BRT)
     hoje = agora.date().isoformat()
@@ -120,26 +185,9 @@ def main():
         return 0
 
     feito, _quantas = _ja_coletou(hoje)
-
-    if feito:
-        print("nao")
-        sys.stderr.write("o dia ja foi coletado\n")
-        return 0
-
-    if agora.time() >= LIMITE:
-        print("sim")
-        sys.stderr.write("passou das %s: coleta de qualquer jeito\n"
-                         % LIMITE.strftime("%H:%M"))
-        return 0
-
-    if agora.time() < ABERTURA:
-        print("nao")
-        sys.stderr.write("sao %s, cedo demais - a janela abre as %s\n"
-                         % (agora.strftime("%H:%M"), ABERTURA.strftime("%H:%M")))
-        return 0
-
-    print("sim")
-    sys.stderr.write("dentro da janela e sem coleta hoje: vai coletar\n")
+    resposta, porque = decidir(agora, feito)
+    print(resposta)
+    sys.stderr.write(porque + "\n")
     return 0
 
 
