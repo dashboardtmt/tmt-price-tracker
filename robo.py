@@ -717,6 +717,7 @@ def mudancas(hoje, ontem):
       voltaram      degrau que saiu dias atras e voltou com outro preco
       remodeladas   preco E entrega mudando no mesmo dia
       contratuais   a franquia do contrato mexendo com a anunciada parada
+      velocidades   mesmo preco, outra velocidade no mesmo ponto de preco
       saidas        oferta que deixou a vitrine, com nome e praca
       erro          a consulta caiu: nao houve comparacao
       cego          ofertas que nao deu para comparar, e por que
@@ -747,7 +748,7 @@ def mudancas(hoje, ontem):
     duvidosa = _leitura_duvidosa(h)
     vazio = {"precos": [], "composicao": [], "renomeadas": [], "grades": [],
              "voltaram": [], "remodeladas": [], "leitura": [],
-             "contratuais": [], "saidas": [],
+             "contratuais": [], "saidas": [], "velocidades": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
              "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
@@ -933,9 +934,14 @@ def mudancas(hoje, ontem):
     contratuais = (_contratual_mudou(h, o, antes if not erro_vigia else None,
                                      ontem)
                    if o else [])
+    # NAO SAI DO INDICE, E SIM DAS LINHAS CRUAS. O indice e chaveado pelo
+    # degrau, e o degrau e justamente o que muda aqui: no indice a oferta
+    # de ontem e a de hoje nunca se encontram.
+    velocidades = (_mesmo_preco_outra_velocidade(do_dia, (antes or {}).get(ontem))
+                   if not erro_vigia else [])
 
     _assinar_alcance(h, o, precos, composicao, renomeadas, grades, voltaram,
-                     remodeladas, leitura, duvidosa, contratuais)
+                     remodeladas, leitura, duvidosa, contratuais, velocidades)
 
     # A ORDEM E PARTE DA NOTICIA, e e decidida aqui para a mensagem e o
     # PDF nao poderem discordar. Ver _por_efeito.
@@ -951,7 +957,7 @@ def mudancas(hoje, ontem):
             "renomeadas": renomeadas, "grades": grades,
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura, "contratuais": contratuais,
-            "saidas": saidas,
+            "saidas": saidas, "velocidades": velocidades,
             # a janela crua, para o vigia nao repetir a consulta
             "_vigia": (do_dia, antes, erro_vigia),
             "erro": None, "cego": cego, "cego_ontem": cego_o,
@@ -2165,6 +2171,113 @@ def _contratual_de_anteontem(antes, ontem):
     return valores
 
 
+# A VELOCIDADE ESCONDIDA NO NOME. A TIM escreve o degrau dentro do nome
+# da oferta - "Ultracombo 7 500MEGA + 65GB" virou "600MEGA" em 27/10 -,
+# entao parear por nome cru perde justamente a TIM. So a unidade de
+# VELOCIDADE sai: "65GB" e franquia e tem de ficar, senao duas ofertas
+# de franquias diferentes viram a mesma.
+VELOCIDADE_NO_NOME = re.compile(r"\b\d+\s*(?:MEGA|MBPS|MB|GIGA|GBPS)\b", re.I)
+
+
+def _sem_a_velocidade(nome):
+    """O nome da oferta sem o numero da velocidade."""
+    return re.sub(r"\s+", " ",
+                  VELOCIDADE_NO_NOME.sub("", nome or "")).strip(" +-")
+
+
+def _mesmo_preco_outra_velocidade(linhas_hoje, linhas_ontem):
+    """O que aquele preco comprava ontem, e o que compra hoje.
+
+    O DETECTOR QUE FALTAVA, e a prova de que faltava: em outubro a Vivo
+    moveu o plano de R$ 100 de 700 para 600 Mega (03/10), voltou para
+    700 (08/10) e desceu de novo (15/10), nas 20 pracas. Preco parado
+    nos tres dias - e preco parado e o que todos os outros detectores
+    usam como sinal de que nada aconteceu. As tres passaram caladas.
+
+    POR QUE NENHUM DOS OUTROS PEGA. A chave de continuidade e
+    operadora|produto|degrau|variante: quando o degrau muda, a chave
+    muda, e a oferta aparece como uma que saiu e outra que entrou. A
+    remodelada exige que preco E entrega mexam no mesmo dia; aqui o
+    preco e justamente o que nao mexe. A grade olha a escada inteira.
+
+    A ANCORA E (operadora, produto, praca, nome sem a velocidade,
+    preco). O ponto de preco puro - sem o nome - foi medido e descartado
+    no mesmo dia: ele inventou uma troca na TIM ao parear duas ofertas
+    diferentes que dividiam R$ 149,99 em dias seguidos.
+
+    SO PAREIA QUANDO NAO HA DUVIDA. Dois degraus no mesmo preco e no
+    mesmo nome sao duas ofertas, e dizer qual virou qual seria chute.
+
+    SO SAI QUANDO O NOME TAMBEM MUDOU, e essa clausula e o detector
+    inteiro. Com ela de fora o levantamento ficou dizendo a mesma coisa
+    duas vezes, e isso apareceu na primeira mensagem de bancada:
+
+        Fibra - Vivo Fibra
+          100,00 - 700 -> 600 Mega   em todas as 3 pracas
+          mesmo preco, menos velocidade
+        Fibra - Vivo
+          100,00: 700 -> 600 Mbps   -14% de internet pelo mesmo preco
+
+    A segunda e a ESCADA, que ja existia. Ela acompanha a oferta pelo
+    indice e so a perde quando o nome muda - e e exatamente ai que a
+    chave tambem muda e a oferta vira "uma saiu, outra entrou".
+
+    MEDIDO NOS 41 DIAS, nos nove pares de dias com troca: 4 das 14 ja
+    sairiam pela escada (as quatro da Vivo, que mantem o nome "Vivo
+    Fibra" e "Vivo Total Pro") e 10 nao sairiam por canal nenhum - as 8
+    da Claro girando o R$ 99,90 entre 600 e 750 Mega no "Especial", e a
+    da TIM. Em todas as 10 o nome mudou junto; em todas as 4 ele ficou.
+    A clausula nao e aproximacao: e a mesma linha que separa o que a
+    escada ve do que ela nao ve.
+
+    A TIM so aparece em Sao Paulo, e esta certo: em 26/10 o Ultracombo 7
+    so existia la, e nas outras 19 pracas ele nasceu em 27/10 - oferta
+    que nasce nao e troca.
+    """
+    def mapa(linhas):
+        m = collections.defaultdict(set)
+        for l in (linhas or ()):
+            preco, deg = l.get("preco_promocional"), l.get("degrau_mbps")
+            if preco is None or deg is None:
+                continue
+            m[(l.get("operadora"), l.get("produto"), l.get("praca"),
+               _sem_a_velocidade(l.get("nome_oferta")), preco)].add(
+                   (deg, l.get("nome_oferta")))
+        return m
+
+    de_hoje, de_ontem = mapa(linhas_hoje), mapa(linhas_ontem)
+    juntos = {}
+    for k, agora in de_hoje.items():
+        antes = de_ontem.get(k)
+        if not antes or len(agora) != 1 or len(antes) != 1:
+            continue
+        (de, nome_antes), (para, nome) = list(antes)[0], list(agora)[0]
+        if de == para:
+            continue
+        # O NOME TEM DE TER MUDADO. Ver a docstring: com o nome igual a
+        # escada ja conta o mesmo movimento, e as duas versoes saem
+        # coladas na mesma mensagem.
+        if nome_antes == nome:
+            continue
+        # O EVENTO E POR PRODUTO, e nao por operadora: a Claro mexe no
+        # Multi e na Fibra juntos, e juntar os dois num evento so faria
+        # o auditor conferir um e aprovar o outro de carona. A mensagem
+        # junta os irmaos na hora de escrever, que e onde isso e
+        # cosmetica.
+        e = juntos.setdefault((k[0], k[1], k[4], de, para), {
+            "operadora": k[0], "produto": k[1], "nome_oferta": nome,
+            "preco": k[4], "de": de, "para": para, "pracas": set()})
+        e["pracas"].add(k[2])
+    saida = []
+    for e in juntos.values():
+        e["pracas"] = sorted(e["pracas"])
+        saida.append(e)
+    # desceu antes de subiu, e o que pega mais praca antes
+    saida.sort(key=lambda e: (e["para"] > e["de"], -len(e["pracas"]),
+                              e["operadora"]))
+    return saida
+
+
 def _contratual_mudou(h, o, antes=None, ontem=None):
     """A franquia do CONTRATO mexeu numa oferta que seguiu a mesma.
 
@@ -3184,6 +3297,7 @@ def montar_mensagem(hoje, ontem):
     leitura = r.get("leitura") or []
     contratuais = r.get("contratuais") or []
     saidas = r.get("saidas") or []
+    velocidades = r.get("velocidades") or []
 
     # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
     # tambem pode. Este retorno era descartado num `_`, e `col` vazio
@@ -3242,7 +3356,7 @@ def montar_mensagem(hoje, ontem):
     # 2. o que mudou
     total_mud = (len(mud) + len(comp) + len(renom) + len(grades)
                  + len(voltaram) + len(remodeladas) + len(contratuais)
-                 + len(saidas))
+                 + len(saidas) + len(velocidades))
     # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
     # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
     # soa como noticia verificada num dia em que nao se verificou nada.
@@ -3437,6 +3551,45 @@ def montar_mensagem(hoje, ontem):
     if len(contratuais) > 3:
         n = len(contratuais) - 3
         cauda.append("e mais %d de franquia contratual no relatório" % n)
+
+    # MESMO PRECO, OUTRA VELOCIDADE. O bloco que faltava: em outubro a
+    # Vivo moveu o plano de R$ 100 de 700 para 600 Mega, voltou para 700
+    # e desceu de novo - tres vezes, nas 20 pracas, com o preco parado -
+    # e a mensagem nao disse uma palavra, porque todos os outros
+    # detectores usam preco parado como sinal de que nada aconteceu.
+    #
+    # OS IRMAOS SE JUNTAM AQUI, E SO AQUI. A Claro mexe no Multi e na
+    # Fibra no mesmo dia, no mesmo preco e no mesmo par de degraus:
+    # juntar vira uma linha em vez de duas iguais. Os EVENTOS seguem
+    # separados por produto, senao o auditor conferiria um e aprovaria o
+    # outro de carona.
+    irmas, ordem = {}, []
+    for v in velocidades:
+        k = (v["operadora"], v["preco"], v["de"], v["para"])
+        if k not in irmas:
+            irmas[k] = []
+            ordem.append(k)
+        irmas[k].append(v)
+    for k in ordem[:3]:
+        grupo = irmas[k]
+        v = grupo[0]
+        # O "onde" VEM ASSINADO, e nao montado aqui. A frase do alcance
+        # ja existe e e a mesma do PDF - "em todas as N praças", "em 19
+        # das 20, ex-Sao Paulo" -, e remonta-la aqui era abrir a porta
+        # para a mensagem e o relatorio discordarem, que ja aconteceu.
+        onde = v.get("onde") or ""
+        quem = (_rotulo(v) if len(grupo) == 1
+                else " e ".join(sorted(set(_categoria(x) for x in grupo))))
+        linhas = abrir(_categoria(v), v["operadora"],
+                       "%s \u00b7 %s" % (_categoria(v), quem))
+        linhas.append("  %s \u00b7 %d \u2192 %d Mega   %s"
+                      % (_reais(v["preco"]), v["de"], v["para"], onde))
+        linhas.append("  mesmo preço, %s velocidade"
+                      % ("menos" if v["para"] < v["de"] else "mais"))
+    if len(ordem) > 3:
+        n = len(ordem) - 3
+        cauda.append("e mais %d troca%s de velocidade pelo mesmo preço "
+                     "no relatório" % (n, "" if n == 1 else "s"))
 
     # A OFERTA QUE SAIU, que ate 03/11/2026 nao tinha canal: em 01/11 a
     # Vivo Lite Anual II e a Mensal II sairam das 20 pracas e a mensagem
@@ -3801,6 +3954,7 @@ def montar_mensagem(hoje, ontem):
         # auditavel meses depois. Ver LEITURA_EM_UMA_LINHA.
         "leitura_declarada": declarado,
         "contratuais": contratuais, "saidas": saidas,
+        "velocidades": velocidades,
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio
         "duvidosa": duvidosa,

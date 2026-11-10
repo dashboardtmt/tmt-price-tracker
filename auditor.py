@@ -27,9 +27,11 @@ propria. "Nao auditado" sai escrito; "auditado e aprovado" nunca e
 suposto.
 """
 import collections
+import re
 
 # O que este auditor sabe rededuzir da janela crua.
-AUDITADOS = ("precos", "contratuais", "remodeladas", "saidas")
+AUDITADOS = ("precos", "contratuais", "remodeladas", "saidas",
+             "velocidades")
 
 # E o que ele NAO sabe - escrito aqui para nao parecer aprovado.
 FORA = {"composicao": "a assinatura SVA nao esta na janela crua",
@@ -144,6 +146,54 @@ def _pracas_da_saida(e, idx_h, idx_o, coletadas):
     return boas, incertas
 
 
+# A MESMA NORMALIZACAO DO DETECTOR, ESCRITA DE NOVO DE PROPOSITO.
+# robo.py importa auditor.py, entao importar de volta seria circular - e
+# o auditor existe justamente para nao depender do codigo que produziu a
+# afirmacao. O preco disso e as duas poderem divergir em silencio, e por
+# isso AsDuasNormalizacoesConcordam compara as duas com os nomes reais
+# das operadoras.
+_VELOCIDADE_NO_NOME = re.compile(r"\b\d+\s*(?:MEGA|MBPS|MB|GIGA|GBPS)\b", re.I)
+
+
+def _sem_a_velocidade(nome):
+    return re.sub(r"\s+", " ",
+                  _VELOCIDADE_NO_NOME.sub("", nome or "")).strip(" +-")
+
+
+def _pracas_da_velocidade(e, do_dia, linhas_de_ontem):
+    """Naquele preco e naquela praca, ontem havia "de" e hoje ha "para"?
+
+    RE-DEDUZ, NAO RE-RODA. O detector varre tudo e agrupa; aqui a
+    pergunta e feita uma praca por vez, a partir das linhas cruas, e so
+    sobre o que o evento afirma.
+    """
+    alvo = _sem_a_velocidade(e.get("nome_oferta"))
+
+    def degraus(linhas, praca):
+        vistos = set()
+        for l in (linhas or ()):
+            if (l.get("operadora") != e.get("operadora")
+                    or l.get("produto") != e.get("produto")
+                    or l.get("praca") != praca
+                    or l.get("preco_promocional") != e.get("preco")):
+                continue
+            if _sem_a_velocidade(l.get("nome_oferta")) != alvo:
+                continue
+            if l.get("degrau_mbps") is not None:
+                vistos.add(l.get("degrau_mbps"))
+        return vistos
+
+    boas, incertas = set(), set()
+    for praca in (e.get("pracas") or ()):
+        ontem, hoje = degraus(linhas_de_ontem, praca), degraus(do_dia, praca)
+        if not ontem or not hoje:
+            # praca que a janela crua nao cobre nao sustenta nem nega
+            incertas.add(praca)
+        elif ontem == set([e.get("de")]) and hoje == set([e.get("para")]):
+            boas.add(praca)
+    return boas, incertas
+
+
 def auditar(dados, do_dia, linhas_de_ontem):
     """Devolve (recusas, nao_auditados).
 
@@ -167,6 +217,11 @@ def auditar(dados, do_dia, linhas_de_ontem):
             if tipo == "saidas":
                 boas, incertas = _pracas_da_saida(
                     e, idx_h[False], idx_o[False], coletadas)
+            elif tipo == "velocidades":
+                # o indice nao serve aqui: ele e chaveado pelo degrau, e
+                # o degrau e o que mudou
+                boas, incertas = _pracas_da_velocidade(
+                    e, do_dia, linhas_de_ontem)
             else:
                 k = com_chave[tipo]
                 boas, incertas = _pracas_que_sustentam(

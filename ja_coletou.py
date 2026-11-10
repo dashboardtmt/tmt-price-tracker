@@ -62,11 +62,20 @@ LIMITE = hora(10, 0)
 
 # QUANTO VALE A PENA DORMIR ESPERANDO A JANELA ABRIR. O job do Actions e
 # morto em 6 horas, e morrer dormindo e pior do que passar a vez: a
-# rodada se perde e o alerta do dia perdido so fala as 10h29. Com 320
-# minutos, quem chega a partir de 00h40 BRT segura a vez - e as tres
-# chegadas da madrugada que medi (04:59, 05:06 e 05:10 UTC em 08, 07 e
-# 09/11) caem com 3h50 a 4h de folga.
-ESPERA_MAXIMA = 320
+# rodada se perde e o alerta do dia perdido so fala as 10h29.
+#
+# ERA 320, E A PRIMEIRA RODADA DE VERDADE MOSTROU QUE ERA POUCO. Com 320
+# o limite cai as 00h40, e eu justifiquei esse numero medindo 21 dias em
+# que a primeira chegada do dia ficou entre 01h59 e 06h03 - folga de
+# mais de uma hora. Em 10/11/2026, no primeiro dia em que a espera
+# valeu, a chegada veio as 00h58: dentro do limite por DEZOITO MINUTOS,
+# e fora da faixa inteira que eu tinha medido. A faixa de 21 dias
+# descrevia o passado, nao o alcance do gatilho.
+#
+# Com 345 o limite vai para 00h15. O teto segue sendo o job: 345 de sono
+# mais um minuto de folga mais o checkout e os testes cabem nos 355 de
+# timeout-minutes, e os 360 do Actions continuam acima disso.
+ESPERA_MAXIMA = 345
 
 def _esperadas():
     """Quantos coletores a rodada tem.

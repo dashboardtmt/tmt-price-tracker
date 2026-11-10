@@ -37,7 +37,7 @@ from _apoio import (HOJE, ONTEM, banco, dados, em_todas, montar, oferta,
 #
 # Um grupo novo entra aqui e o teste passa a exigir a praca dele.
 GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
-          "voltaram", "renomeadas", "contratuais", "saidas")
+          "voltaram", "renomeadas", "contratuais", "saidas", "velocidades")
 
 # GRUPOS QUE SAO RESSALVA, E NAO EVENTO DE MERCADO. A regra de "toda
 # mudanca diz em que praca" e sobre MUDANCA: na ressalva nada se moveu na

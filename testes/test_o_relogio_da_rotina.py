@@ -175,6 +175,18 @@ class AGuardaEsperaEmVezDeRecusar(unittest.TestCase):
         # um dia qualquer, porque so a hora importa
         return datetime(2026, 11, 10, h, m, tzinfo=ja_coletou.BRT)
 
+    def _limite(self):
+        u"""O minuto em que a espera deixa de caber: a abertura menos
+        ESPERA_MAXIMA.
+
+        CALCULADO, E NAO CRAVADO. Com "00:39" escrito a mao, mexer em
+        ESPERA_MAXIMA quebra este teste pelo motivo errado - ou, pior,
+        deixa de medir o ramo e passa verde medindo outra coisa. Foi o
+        que aconteceu ao subir de 320 para 345 em 10/11/2026.
+        """
+        abertura = ja_coletou.ABERTURA.hour * 60 + ja_coletou.ABERTURA.minute
+        return abertura - ja_coletou.ESPERA_MAXIMA
+
     def test_cedo_dentro_do_alcance_manda_esperar(self):
         resposta, _ = ja_coletou.decidir(self._as(2, 10), False)
         self.assertEqual(resposta, "espere 230")
@@ -182,7 +194,11 @@ class AGuardaEsperaEmVezDeRecusar(unittest.TestCase):
     def test_o_que_se_espera_e_exatamente_o_que_falta(self):
         u"""Dormir demais passa da hora; dormir de menos acorda o job
         antes da janela, e ai a guarda responde "espere" outra vez."""
-        for h, m, falta in ((5, 0, 60), (5, 59, 1), (0, 40, 320)):
+        casos = [(5, 0, 60), (5, 59, 1)]
+        # e a borda: no ultimo minuto que ainda cabe, espera o maximo
+        borda = self._limite()
+        casos.append((borda // 60, borda % 60, ja_coletou.ESPERA_MAXIMA))
+        for h, m, falta in casos:
             resposta, _ = ja_coletou.decidir(self._as(h, m), False)
             self.assertEqual(resposta, "espere %d" % falta,
                              "as %02d:%02d" % (h, m))
@@ -191,7 +207,10 @@ class AGuardaEsperaEmVezDeRecusar(unittest.TestCase):
         u"""O job do Actions e morto em 6 horas: dormir alem disso e
         perder a rodada DORMINDO, que e pior do que passar a vez para a
         chegada seguinte."""
-        self.assertEqual(ja_coletou.decidir(self._as(0, 39), False)[0], "nao")
+        um_antes = self._limite() - 1
+        self.assertEqual(
+            ja_coletou.decidir(self._as(um_antes // 60, um_antes % 60),
+                               False)[0], "nao")
 
     def test_dentro_da_janela_coleta(self):
         self.assertEqual(ja_coletou.decidir(self._as(6, 5), False)[0], "sim")
@@ -210,9 +229,11 @@ class AGuardaEsperaEmVezDeRecusar(unittest.TestCase):
         self.assertEqual(ja_coletou.decidir(self._as(23, 10), False)[0], "sim")
 
     def test_a_espera_cabe_no_teto_do_actions(self):
-        u"""Seis horas e o teto de um job. 330 min deixa margem para o
-        checkout, os testes e a folga do sleep."""
-        self.assertLessEqual(ja_coletou.ESPERA_MAXIMA, 330)
+        u"""Seis horas e o teto de um job. 350 min deixa margem para o
+        checkout, os testes e o minuto de folga do sleep - e o
+        timeout-minutes do job, que o teste abaixo prende junto, tem de
+        caber nos 360 do Actions."""
+        self.assertLessEqual(ja_coletou.ESPERA_MAXIMA, 350)
 
 
 class AGuardaRespondeNoCaminhoDeProducao(unittest.TestCase):

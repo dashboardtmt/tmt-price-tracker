@@ -117,12 +117,13 @@ jobs:
   # chegar as 3h da manha.
   decidir:
     runs-on: ubuntu-latest
-    # 340 MINUTOS PORQUE ESTE JOB DORME. ESPERA_MAXIMA em ja_coletou.py
-    # vale 320, e timeout menor que ela mata o job DORMINDO: a rodada se
+    # 355 MINUTOS PORQUE ESTE JOB DORME. ESPERA_MAXIMA em ja_coletou.py
+    # vale 345, e timeout menor que ela mata o job DORMINDO: a rodada se
     # perde sem coletar e sem avisar. O teste
     # OJobTemDeCaberAEspera.test_o_timeout_cabe_a_espera_maxima prende os
-    # dois numeros juntos, que moram em arquivos diferentes.
-    timeout-minutes: 340
+    # dois numeros juntos, que moram em arquivos diferentes. Os 360 do
+    # Actions sao o teto duro, e e por isso que a espera nao passa de 350.
+    timeout-minutes: 355
     outputs:
       rodar: ${{ steps.ver.outputs.rodar }}
       travado: ${{ steps.ver.outputs.travado }}

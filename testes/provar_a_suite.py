@@ -768,7 +768,7 @@ MUTACOES = [
 
     Mutacao(
         ".github/workflows/diario.yml",
-        '    timeout-minutes: 340',
+        '    timeout-minutes: 355',
         '    timeout-minutes: 5',
         "Es3. o job que dorme volta a ser morto antes de coletar"),
 
@@ -825,6 +825,36 @@ MUTACOES = [
         "    for texto in _campo_que_morreu(hoje, anteriores):\n        grave(texto)",
         "    for texto in _campo_que_morreu(hoje, anteriores):\n        atencao(texto)",
         "Si5. o campo morto cai para o relatorio e some da mensagem"),
+
+    Mutacao(
+        "robo.py",
+        "        if nome_antes == nome:\n            continue",
+        "        if False:\n            continue",
+        "Ve1. a troca de velocidade volta a sair em dobro com a escada"),
+
+    Mutacao(
+        "robo.py",
+        'VELOCIDADE_NO_NOME.sub("", nome or "")).strip(" +-")',
+        '(nome or "")).strip(" +-")',
+        "Ve2. a velocidade no nome volta a esconder a troca"),
+
+    Mutacao(
+        "robo.py",
+        "if not antes or len(agora) != 1 or len(antes) != 1:",
+        "if not antes:",
+        "Ve3. dois degraus no mesmo preco voltam a ser pareados no chute"),
+
+    Mutacao(
+        "auditor.py",
+        '             "velocidades")',
+        '             )',
+        "Ve4. a velocidade sai da lista e passa sem ninguem conferir"),
+
+    Mutacao(
+        "auditor.py",
+        r'_VELOCIDADE_NO_NOME = re.compile(r"\b\d+\s*(?:MEGA|MBPS|MB|GIGA|GBPS)\b", re.I)',
+        r'_VELOCIDADE_NO_NOME = re.compile(r"\b\d+\s*(?:MEGA|MBPS|MB|GIGA|GBPS|GB)\b", re.I)',
+        "Ve5. a normalizacao do auditor diverge da do detector"),
 
     Mutacao(
         "robo.py",
