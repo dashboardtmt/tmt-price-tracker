@@ -496,6 +496,66 @@ def _bloco_grades(d):
         vazio="Nenhuma reorganização de grade identificada.")
 
 
+# O QUE O LEITOR VE NO LUGAR DO NOME INTERNO. auditor.FORA e escrito
+# para quem mexe no codigo; este paragrafo vai no PDF que circula fora
+# da equipe, e ate 11/11/2026 saia com o nome da variavel e sem acento:
+# "composicao (a assinatura SVA nao esta na janela crua); grades (a
+# escada olha a serie inteira, nao dois dias)". Categoria nova no
+# auditor sem entrada aqui cai no texto cru - e ParaCadaCategoriaUmaFrase
+# acusa antes disso.
+FORA_NO_RELATORIO = {
+    "composicao": ("Alterações de composição",
+                   "o conjunto de serviços vem do regulamento, que a "
+                   "conferência não relê"),
+    "grades": ("Reorganização de grade",
+               "a grade é lida sobre o portfólio inteiro da operadora, e "
+               "não oferta a oferta"),
+    "voltaram": ("Degraus retomados",
+                 "a comparação usa o histórico de 45 dias, e não só a "
+                 "véspera"),
+    "renomeadas": ("Alterações de denominação",
+                   "o par é feito justamente pelo que mudou, o nome"),
+    "leitura": ("Alterações atribuíveis à leitura",
+                "não são eventos de mercado, e sim ressalvas sobre o dado"),
+}
+
+
+def _fora_no_relatorio(chave, motivo):
+    titulo, frase = FORA_NO_RELATORIO.get(chave, (chave, motivo))
+    return "%s (%s)" % (_sem_marcacao(titulo), _sem_marcacao(frase))
+
+
+def _bloco_velocidades(d):
+    """Mesmo preco, outra velocidade - o bloco que a mensagem prometia.
+
+    A MENSAGEM MANDAVA PARA CA E AQUI NAO HAVIA NADA. Desde 10/11/2026 a
+    mensagem escreve "e mais N trocas de velocidade pelo mesmo preco no
+    relatorio" quando passa de tres, e o evento chegava ao PDF dentro de
+    dados - mas nenhum bloco o desenhava. Achado na varredura de
+    11/11/2026, junto com o mesmo defeito na composicao: promessa da
+    mensagem que o relatorio nao cumpre.
+    """
+    linhas = []
+    for v in d.get("velocidades") or []:
+        linhas.append([
+            v.get("operadora"),
+            v.get("produto"),
+            _curto(v.get("nome_oferta"), 34),
+            _reais(v.get("preco")),
+            "%s Mega" % v.get("de"),
+            "%s Mega" % v.get("para"),
+            _pc(v.get("de"), v.get("para")),
+            _pracas(v),
+        ])
+    return _tabela(
+        ["Operadora", "Produto", "Oferta", "Preço", "Antes", "Atual",
+         "Var.", "Praças"],
+        linhas,
+        [18 * mm, 16 * mm, 38 * mm, 18 * mm, 18 * mm, 18 * mm, 12 * mm,
+         40 * mm],
+        vazio="Nenhuma troca de velocidade pelo mesmo preço identificada.")
+
+
 def _bloco_voltaram(d):
     """Entrega que reapareceu com outro preco, dias depois de sair."""
     linhas = []
@@ -893,7 +953,13 @@ def gerar(dados, entradas, caminho):
                       "alterações identificadas na parcela contratual, "
                       "inclusive quando a oferta também alterou preço, "
                       "entrega ou versão na mesma data — nesses casos a "
-                      "oferta consta igualmente na seção correspondente.",
+                      "oferta consta igualmente na seção correspondente. "
+                      "Não se registra a alteração aparente produzida pelo "
+                      "deslocamento da grade: quando o preço da véspera "
+                      "continua na vitrine sob a mesma denominação, com "
+                      "outra franquia, a mesma franquia anunciada "
+                      "corresponde a planos diferentes nas duas datas, e o "
+                      "movimento consta em Reorganização de grade.",
                       ESTILOS["corpo"]),
             _bloco_contratuais(dados)))
 
@@ -905,6 +971,18 @@ def gerar(dados, entradas, caminho):
                       "mesma franquia ou velocidade passando a "
                       "corresponder a outro preço.", ESTILOS["corpo"]),
             _bloco_grades(dados)))
+
+        hist.append(_com_titulo(
+            "Mesmo preço, outra velocidade",
+            Paragraph("Ofertas que mantiveram o preço e passaram a "
+                      "entregar outra velocidade. O par é feito pela "
+                      "operadora, pelo produto, pela praça, pelo preço e "
+                      "pela denominação sem a velocidade, e só quando resta "
+                      "uma única oferta correspondente em cada data. "
+                      "Registram-se aqui as trocas em que a denominação "
+                      "também mudou; mantida a denominação, o movimento "
+                      "consta em Reorganização de grade.", ESTILOS["corpo"]),
+            _bloco_velocidades(dados)))
 
         hist.append(_com_titulo(
             "Degraus retomados com preço diferente",
@@ -924,8 +1002,10 @@ def gerar(dados, entradas, caminho):
                       "o carimbo de safra da denominação e abrange todos "
                       "os produtos da operadora: reclassificação interna "
                       "entre fibra e combo, bem como recarimbo mensal do "
-                      "catálogo, não constituem saída. Praças sem coleta "
-                      "na véspera ou na data não são computadas.",
+                      "catálogo, não constituem saída. Tampouco constitui "
+                      "saída a oferta identificada como renomeada, que "
+                      "consta em Alterações de denominação. Praças sem "
+                      "coleta na véspera ou na data não são computadas.",
                       ESTILOS["corpo"]),
             _bloco_saidas(dados)))
 
@@ -1094,8 +1174,8 @@ def gerar(dados, entradas, caminho):
             hist.append(Spacer(1, 6))
             hist.append(Paragraph(
                 "<b>Fora da confer\u00eancia, por desenho.</b> %s."
-                % "; ".join("%s (%s)" % (_sem_marcacao(k), _sem_marcacao(v))
-                            for k, v in gerais), ESTILOS["nota"]))
+                % "; ".join(_fora_no_relatorio(k, v) for k, v in gerais),
+                ESTILOS["nota"]))
 
     if dados.get("ponto_cego"):
         hist.append(Spacer(1, 6))

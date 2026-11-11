@@ -199,7 +199,13 @@ class ARecusaNaoApaga(unittest.TestCase):
         self.assertIn("Confer", texto)
         self.assertIn("Vivo P", texto)
         self.assertIn("Belo Horizonte", texto)
-        self.assertIn("composicao", texto)
+        # A CATEGORIA FORA DA CONFERENCIA SAI COM O NOME DA SECAO, e nao
+        # com o da variavel. Ate 11/11/2026 o PDF - que circula fora da
+        # equipe - dizia "composicao (a assinatura SVA nao esta na janela
+        # crua)"; agora o leitor ve o titulo que ele encontra no proprio
+        # relatorio.
+        self.assertIn(u"composição (o conjunto de serviços", texto)
+        self.assertNotIn("composicao (", texto)
 
     def test_todo_tipo_de_evento_esta_auditado_ou_declarado_fora(self):
         """A mesma regra de COLETORES x RAIAS: tipo novo de evento nao

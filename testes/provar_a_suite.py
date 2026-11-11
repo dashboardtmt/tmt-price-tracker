@@ -975,6 +975,24 @@ MUTACOES = [
         "Ti1. o bloco de irmaos volta a perder a operadora no titulo"),
 
     Mutacao(
+        "relatorio.py",
+        "    for v in d.get(\"velocidades\") or []:",
+        "    for v in []:",
+        "Pd1. a troca de velocidade volta a existir so na mensagem"),
+
+    Mutacao(
+        "relatorio.py",
+        "    titulo, frase = FORA_NO_RELATORIO.get(chave, (chave, motivo))",
+        "    titulo, frase = (chave, motivo)",
+        "Pd2. o paragrafo da conferencia volta a mostrar o nome interno"),
+
+    Mutacao(
+        "relatorio.py",
+        "    \"leitura\": (\"Altera\u00e7\u00f5es atribu\u00edveis \u00e0 leitura\",",
+        "    \"leitur\": (\"Altera\u00e7\u00f5es atribu\u00edveis \u00e0 leitura\",",
+        "Pd3. categoria do auditor sem traducao passa calada"),
+
+    Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',
