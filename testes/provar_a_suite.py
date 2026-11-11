@@ -903,6 +903,44 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
+        '              "preco_cheio,"\n',
+        "",
+        "Vi1. a frase afirma sobre o preco de tabela sem consulta-lo"),
+
+    Mutacao(
+        "robo.py",
+        'CAMPOS_DA_VITRINE = ("preco_promocional", "preco_cheio", "nome_oferta",',
+        'CAMPOS_DA_VITRINE = ("preco_promocional", "nome_oferta",',
+        "Vi2. o preco de tabela sai da vitrine e a frase mente em 17/10"),
+
+    Mutacao(
+        "robo.py",
+        '    if antes.get("preco_promocional") is None \\\n'
+        '       or atual.get("preco_promocional") is None:\n'
+        "        return False\n",
+        "",
+        "Vi3. preco nao lido nos dois dias vira vitrine igual"),
+
+    Mutacao(
+        "robo.py",
+        '    return sorted(antes.get("apps") or []) == sorted(atual.get("apps") or [])',
+        '    return (antes.get("apps") or []) == (atual.get("apps") or [])',
+        "Vi4. a ordem da lista de apps vira mudanca de vitrine"),
+
+    Mutacao(
+        "robo.py",
+        '    return sorted(antes.get("apps") or []) == sorted(atual.get("apps") or [])',
+        "    return True",
+        "Vi5. app que entra na vitrine deixa de calar a frase"),
+
+    Mutacao(
+        "robo.py",
+        '        if _a_vitrine_nao_mexeu(m["antes"], d):',
+        "        if False:",
+        "Vi6. a mensagem volta a so contar e manda procurar o que nao existe"),
+
+    Mutacao(
+        "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',
         "o corte de franquia com preco parado volta a passar batido"),

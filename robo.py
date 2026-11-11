@@ -424,6 +424,13 @@ def _indexar(dia):
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
               "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
               "nivel_bundle,codigo_anatel,"
+              # O PRECO DE TABELA, que esta na vitrine riscado ao lado do
+              # promocional. Entrou aqui porque a mensagem passou a
+              # AFIRMAR sobre ele: "a vitrine esta igual" sobre um campo
+              # que a consulta nao traz e' afirmacao sobre None. Medido
+              # em 17/10/2026: quatro ofertas Vivo Total mudaram SO o
+              # preco de tabela no mesmo dia em que o regulamento mexeu.
+              "preco_cheio,"
               # A FRANQUIA DO CONTRATO. A anunciada e contrato mais bonus
               # temporario e e ela que entra na chave; a contratual e o
               # que sobra quando o bonus expira, e mexia sem ninguem
@@ -2977,6 +2984,46 @@ def _mudou_a_entrega(antes, agora):
     return "   %+.0f%% de internet pelo mesmo pre\u00e7o" % pc
 
 
+# O QUE O CLIENTE VE NA TELA DA OPERADORA, e so isso: os campos que a
+# consulta de _indexar traz e que aparecem no card da oferta. Codigo
+# Anatel, chave e versao de leitura sao nossos, nao dele.
+CAMPOS_DA_VITRINE = ("preco_promocional", "preco_cheio", "nome_oferta",
+                     "destaque", "franquia_anunciada_gb", "degrau_mbps",
+                     "nivel_bundle")
+
+
+def _a_vitrine_nao_mexeu(antes, atual):
+    """A prateleira confirma o que o regulamento diz? MEDIDO: quase nunca.
+
+    O evento de composicao nasce de assinatura_sva, que vem do
+    regulamento que a operadora deposita na Anatel - nao da vitrine. Nos
+    43 dias publicados houve 10 eventos de composicao, e em NENHUM deles
+    a lista de apps da vitrine mexeu junto. Em 6 a vitrine estava parada
+    inteira; nos outros 4 - as Vivo Total de 17/10/2026 - mexeu so o
+    preco de tabela.
+
+    O LEITOR NAO TINHA COMO SABER DISSO. "ganhou 1 servico incluso" se le
+    como oferta melhor, e o que se mediu foi a operadora passando a
+    DECLARAR mais um codigo. Em 11/11/2026 o usuario foi procurar no
+    site qual servico era, e a resposta certa e que a tela da Vivo nao
+    tinha mudado uma virgula - o Vivo Pre de R$ 35 seguia com os mesmos
+    25 GB e o mesmo "Vale Saude Sempre + Google One". No sentido
+    contrario a defasagem tambem existe: o Google One entrou naquela
+    vitrine em 04/11 sem mexer em codigo SVA nenhum.
+
+    AFIRMAR IGUALDADE EXIGE OS DOIS LADOS, como em _mesmo_preco: dia sem
+    preco lido nao sustenta "a vitrine esta igual", e o que sai e a
+    contagem sozinha, como antes.
+    """
+    if antes.get("preco_promocional") is None \
+       or atual.get("preco_promocional") is None:
+        return False
+    for campo in CAMPOS_DA_VITRINE:
+        if antes.get(campo) != atual.get(campo):
+            return False
+    return sorted(antes.get("apps") or []) == sorted(atual.get("apps") or [])
+
+
 def _trocou(saiu, entrou):
     """Em portugues, o que aconteceu com os servicos inclusos.
 
@@ -3480,6 +3527,13 @@ def montar_mensagem(hoje, ontem):
                       % (_texto_preco(m["antes"].get("preco_promocional"),
                                       d.get("preco_promocional"), False),
                          _trocou(saiu, entrou), m["onde"]))
+        # QUANDO A PRATELEIRA NAO CONFIRMA, dizer isso - ver
+        # _a_vitrine_nao_mexeu. Sem esta linha, "ganhou 1 servico
+        # incluso" manda o leitor procurar no site uma mudanca que nao
+        # esta la.
+        if _a_vitrine_nao_mexeu(m["antes"], d):
+            linhas.append("  a vitrine est\u00e1 igual - mudou o que a %s "
+                          "declara na Anatel" % d["operadora"])
     if len(comp) > 3:
         cauda.append("e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
                      % (len(comp) - 3))
