@@ -941,6 +941,41 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
+        "        if (None not in (pa, pd) and pa != pd\n"
+        "                and pa in precos_de_hoje[",
+        "        if (False and None not in (pa, pd) and pa != pd\n"
+        "                and pa in precos_de_hoje[",
+        "Co1. a escada que desliza volta a virar corte de contrato"),
+
+    Mutacao(
+        "robo.py",
+        "                and pa in precos_de_hoje[",
+        "                and pd in precos_de_hoje[",
+        "Co2. a guarda corta todo plano que mudou de preco, e nao so o deslize"),
+
+    Mutacao(
+        "robo.py",
+        "        if comparaveis & renomeada_em.get(k, set()):\n            continue\n",
+        "",
+        "Sa1. a oferta renomeada volta a sair tambem como saida"),
+
+    Mutacao(
+        "robo.py",
+        "    casadas_por_nome = list(renomeadas)\n",
+        "    casadas_por_nome = []\n",
+        "Sa2. as saidas deixam de receber os renomes"),
+
+    Mutacao(
+        "robo.py",
+        "            titulo = \"%s \\u00b7 %s\" % (\n"
+        "                \" e \".join(sorted(set(_categoria(x) for x in grupo))),\n"
+        "                v[\"operadora\"])",
+        "            titulo = \"%s \\u00b7 %s\" % (_categoria(v),\n"
+        "                \" e \".join(sorted(set(_categoria(x) for x in grupo))))",
+        "Ti1. o bloco de irmaos volta a perder a operadora no titulo"),
+
+    Mutacao(
+        "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',
         "o corte de franquia com preco parado volta a passar batido"),

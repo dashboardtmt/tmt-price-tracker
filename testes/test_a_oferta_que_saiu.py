@@ -72,6 +72,42 @@ def historia(nome="Vivo Lite Anual II", onde=None, **kw):
     return linhas
 
 
+class ORenomeNaoESaida(unittest.TestCase):
+    u"""A MESMA OFERTA NAO PODE TER SAIDO E SIDO RENOMEADA.
+
+    Em 24/10/2026 a fibra de 500 MB da Brisanet trocou "[OUT] OFT NC PF
+    PROMO 12M 500MB ESSENCIAL" (R$ 84,90) por "[NOV] OFT NE PF 12M 500MB
+    BLACK" (R$ 79,90) nas 7 pracas. O detector de renome casou as duas
+    pela chave e pela praca e publicou "-6%"; o de saida comparou os
+    nomes por semelhanca de texto, nao achou parecido, e publicou "saiu
+    da vitrine". As duas frases sairam na mesma mensagem.
+
+    Quem decide renome e o detector de renome - e a saida respeita o que
+    ele casou (filtro 6 de _ofertas_que_sairam).
+    """
+
+    def _brisanet(self, nome, preco, data, onde):
+        return [oferta(operadora="Brisanet", produto="fibra", nome=nome,
+                       preco=preco, gb=None, mbps=500, praca=p, data=data,
+                       chave="Brisanet|fibra|500mbps|com_apps")
+                for p in onde]
+
+    def test_a_renomeada_nao_sai_como_saida(self):
+        onde = pracas(3)
+        velho = "[OUT] OFT NC PF PROMO 12M 500MB ESSENCIAL"
+        novo = "[NOV] OFT NE PF 12M 500MB BLACK"
+        historico = []
+        for dia in ANTES:
+            historico += self._brisanet(velho, 84.90, dia, onde)
+        t = montar(self._brisanet(velho, 84.90, ONTEM, onde),
+                   self._brisanet(novo, 79.90, HOJE, onde),
+                   extras=historico)
+        # o renome tem de ter saido, senao a ausencia da saida nao mede
+        self.assertIn("mudou de nome", t)
+        self.assertIn("-6%", t)
+        self.assertNotIn("saiu da vitrine", t)
+
+
 class ASaidaSaiNaMensagem(unittest.TestCase):
 
     def test_diz_qual_oferta_e_em_que_praca(self):

@@ -162,6 +162,33 @@ class ATrocaDeVelocidadePeloMesmoPreco(unittest.TestCase):
         self.assertEqual(d.get("velocidades") or [], [])
 
 
+class OTituloDosIrmaos(unittest.TestCase):
+    u"""Multi e Fibra da mesma operadora, mesmo preco, mesmo par de
+    degraus: uma linha so - e o titulo tem de dizer de quem e.
+
+    Em 27/10, 29/10 e 05/11/2026 a mensagem saiu com "Fibra - Combo e
+    Fibra": o produto duas vezes e a operadora nenhuma. A suite inteira
+    passou com isso, porque nenhum teste olhava o titulo do bloco
+    juntado.
+    """
+
+    def setUp(self):
+        sem_declaracao(self)
+
+    def test_o_titulo_nomeia_a_operadora(self):
+        ontem = (fibra("Claro Fibra 600 Mega Especial", 99.90, 600, ONTEM,
+                       operadora="Claro", produto="fibra")
+                 + fibra("Claro Multi 600 Mega Especial", 99.90, 600, ONTEM,
+                         operadora="Claro", produto="combo"))
+        hoje = (fibra("Claro Fibra 750 Mega Especial", 99.90, 750, HOJE,
+                      operadora="Claro", produto="fibra")
+                + fibra("Claro Multi 750 Mega Especial", 99.90, 750, HOJE,
+                        operadora="Claro", produto="combo"))
+        t = montar(ontem, hoje)
+        self.assertIn(u"Combo e Fibra · Claro", t)
+        self.assertNotIn(u"Fibra · Combo e Fibra", t)
+
+
 class AsDuasNormalizacoesConcordam(unittest.TestCase):
     u"""O DETECTOR E O AUDITOR TIRAM A VELOCIDADE DO NOME CADA UM NA SUA.
 

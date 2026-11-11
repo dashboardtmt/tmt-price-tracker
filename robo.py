@@ -827,6 +827,11 @@ def mudancas(hoje, ontem):
     grades = [g for g in grades if g["saltos"] or g["precos"]]
 
     renomeadas, usadas = _renomeadas(h, o)
+    # TODAS, ANTES DO SUPRIMIR: as saidas perguntam "esta oferta foi
+    # casada como renome?", e nao "o renome vai sair na mensagem?". Um
+    # renome que a escada cala continua sendo renome - ver o filtro 6
+    # de _ofertas_que_sairam.
+    casadas_por_nome = list(renomeadas)
     renomeadas = [r for r in renomeadas
                   if (r["atual"]["operadora"], r["atual"]["produto"]) not in suprimir]
     # a leitura alternativa que _oferta_remodelada descartar e colada
@@ -936,7 +941,7 @@ def mudancas(hoje, ontem):
     # A SAIDA NAO SAI DO INDICE de proposito: _indexar descarta o par
     # indistinguivel, e oferta descartada apareceria como saida todo dia.
     do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
-    saidas = (_ofertas_que_sairam(do_dia, antes, ontem)
+    saidas = (_ofertas_que_sairam(do_dia, antes, ontem, casadas_por_nome)
               if not erro_vigia else [])
 
     contratuais = (_contratual_mudou(h, o, antes if not erro_vigia else None,
@@ -2302,9 +2307,11 @@ def _contratual_mudou(h, o, antes=None, ontem=None):
     pode sair por evento, com o nome da oferta, em vez de virar uma
     contagem agregada no fim.
 
-      24/10  Claro Flex 40 GB  40 -> 30 de contrato
-      28/10  Vivo Controle     20 -> 15, no mesmo dia em que a anunciada
-             do degrau de 50 GB caiu de 75,00 para 59,00
+    UM DOS DOIS CASOS DAQUELA MEDICAO ERA FALSO, e a pista estava escrita
+    aqui: "28/10 Vivo Controle 20 -> 15, no mesmo dia em que a anunciada
+    do degrau de 50 GB caiu de 75,00 para 59,00". O preco do "mesmo
+    plano" cair 21% era o sinal de que nao era o mesmo plano. Ver a
+    guarda da escada, no laco.
 
     NAO COLIDE COM A REMODELADA, que e o outro caminho em que a
     contratual aparece: la o par existe porque a CHAVE mudou e o nome
@@ -2318,6 +2325,13 @@ def _contratual_mudou(h, o, antes=None, ontem=None):
     contrato - e nenhum outro bloco o diz.
     """
     anteontem = _contratual_de_anteontem(antes, ontem) if ontem else {}
+    # os precos que cada nome tem HOJE, praca por praca - e o que separa
+    # a escada que deslizou do plano que mudou de verdade (ver abaixo)
+    precos_de_hoje = collections.defaultdict(set)
+    for l in h.values():
+        precos_de_hoje[(l.get("operadora"), l.get("produto"), l.get("praca"),
+                        (l.get("nome_oferta") or "").lower())].add(
+            l.get("preco_promocional"))
     achados = {}
     for k, ontem_l in o.items():
         atual = h.get(k)
@@ -2331,6 +2345,37 @@ def _contratual_mudou(h, o, antes=None, ontem=None):
         kd = atual.get("franquia_contratual_gb")
         pa = ontem_l.get("preco_promocional")
         pd = atual.get("preco_promocional")
+        # O MESMO PLANO TEM O MESMO PRECO. A identidade carrega a chave,
+        # e a chave carrega o degrau ANUNCIADO: quando a operadora
+        # desliza a escada - cada preco parado ganhando 5 GB -, "Vivo
+        # Controle de 50 GB" e um plano ontem e outro hoje. Em 28/10/2026
+        # o de R$ 75 (contrato 20) casou com o de R$ 59 (contrato 15), e
+        # a mensagem publicou "a franquia contratual foi de 20 para 15 GB
+        # (-25%)" nas 20 pracas; em 05/11 a Claro, igual, com o de R$
+        # 69,90 e o de R$ 59,90. NENHUM PLANO MEXEU NO CONTRATO: cada um
+        # ganhou 5 GB de bonus pelo mesmo preco - o contrario de um
+        # corte.
+        #
+        # A ASSINATURA DO DESLIZE E O PRECO DE ONTEM AINDA NA VITRINE, no
+        # mesmo nome e na mesma praca: o plano de R$ 75 nao foi a lugar
+        # nenhum, so ganhou degrau. E nao basta "o preco do par mexeu" -
+        # um plano SOZINHO que muda preco e contrato no mesmo dia e fato,
+        # e calar esse caso trocaria um erro por outro.
+        #
+        # MEDIDO NOS 42 DIAS: 6 eventos contratuais, 2 com o preco do par
+        # mexendo - estes dois, os dois falsos, e nos dois o preco de
+        # ontem seguia na vitrine. A guarda corta os 2 e deixa os 4.
+        #
+        # E A MESMA ARMADILHA que a decisao 92 mediu no pareamento de
+        # versao: parear por um campo enquanto o vizinho desliza inventa
+        # movimento.
+        if (None not in (pa, pd) and pa != pd
+                and pa in precos_de_hoje[(atual.get("operadora"),
+                                          atual.get("produto"),
+                                          atual.get("praca"),
+                                          (atual.get("nome_oferta")
+                                           or "").lower())]):
+            continue
         # PICO DE UM DIA NAO E DUAS NOTICIAS. Em 30/10/2026 a contratual
         # do TIM Controle Smart foi de 5 para 15 GB em 10 das 20
         # cidades, e em 31/10 de 15 para 5 nas mesmas 10: a mensagem
@@ -2724,14 +2769,14 @@ def _serie_sem_safra(nome):
     return re.sub(r"[^a-z0-9]+", " ", SAFRA.sub(" ", (nome or "").lower())).strip()
 
 
-def _ofertas_que_sairam(do_dia, antes, ontem):
+def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
     """A oferta que deixou a vitrine: qual, de onde, e por quanto.
 
     Pedido de quem le, em 03/11/2026, depois de 01/11 ter passado em
     silencio: a Vivo Lite Anual II e a Mensal II sairam das 20 pracas e
     a mensagem disse "nenhuma mudanca". Ausencia nao tinha detector.
 
-    CINCO FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
+    SEIS FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
     desenhou a regra: a definicao ingenua - chave que estava ontem e nao
     esta hoje - rende 2.560 linhas em 34 dias, e quase nenhuma e saida.
 
@@ -2748,6 +2793,15 @@ def _ofertas_que_sairam(do_dia, antes, ontem):
          pagina do Vivo Lite fez dentro de uma rodada so.
       5. NADA PARECIDO PODE TER ENTRADO no mesmo dia, na mesma
          operadora: ai e renomeacao, e tem detector proprio.
+      6. O DETECTOR DE RENOME NAO PODE TER CASADO A OFERTA. O filtro 5
+         compara nomes por semelhanca de texto, e o de renome casa pela
+         chave e pela praca, com uma candidata de cada lado - sao duas
+         definicoes de "renomeou", e em 24/10/2026 elas discordaram. A
+         fibra de 500 MB da Brisanet trocou "[OUT] OFT NC PF PROMO 12M
+         500MB ESSENCIAL" por "[NOV] OFT NE PF 12M 500MB BLACK", R$ 5
+         mais barata: o renome casou ("-6%") e a semelhanca nao, e a
+         mesma mensagem disse que a oferta foi renomeada E que saiu da
+         vitrine. Quem decide renome e o detector de renome.
 
     Com isso: 22 saidas em 34 dias, em 6 dias - e as que sobram sao
     oferta de verdade saindo, como a promo "Relampago" da Claro que
@@ -2776,12 +2830,24 @@ def _ofertas_que_sairam(do_dia, antes, ontem):
         if k not in de_ontem:
             novas[k[0]].add(k[1])
 
+    # onde cada serie de ontem foi casada pelo detector de renome - o
+    # filtro 6. Basta UMA praca: a saida afirma que a oferta deixou todas
+    # as comparaveis, e onde ela foi renomeada ela nao deixou.
+    renomeada_em = collections.defaultdict(set)
+    for r in renomeadas or ():
+        a = r.get("antes") or {}
+        renomeada_em[(a.get("operadora"),
+                      _serie_sem_safra(a.get("nome_oferta")))].update(
+            r.get("pracas") or ())
+
     saidas = []
     for k, pracas_ontem in de_ontem.items():
         operadora, serie = k
         comparaveis = set(x for x in pracas_ontem
                           if (operadora, x) in coletadas)
         if not comparaveis or comparaveis & de_hoje.get(k, set()):
+            continue
+        if comparaveis & renomeada_em.get(k, set()):
             continue
         if len(vividos[k]) < VIVEU_PARA_SAIR:
             continue
@@ -3642,10 +3708,18 @@ def montar_mensagem(hoje, ontem):
         # das 20, ex-Sao Paulo" -, e remonta-la aqui era abrir a porta
         # para a mensagem e o relatorio discordarem, que ja aconteceu.
         onde = v.get("onde") or ""
-        quem = (_rotulo(v) if len(grupo) == 1
-                else " e ".join(sorted(set(_categoria(x) for x in grupo))))
-        linhas = abrir(_categoria(v), v["operadora"],
-                       "%s \u00b7 %s" % (_categoria(v), quem))
+        # IRMAOS DE PRODUTOS DIFERENTES: o titulo nomeia os produtos E a
+        # operadora. A primeira versao punha a lista de produtos no lugar
+        # do nome e saia "Fibra · Combo e Fibra" - o produto duas vezes e
+        # a operadora nenhuma, em 27/10, 29/10 e 05/11/2026. O leitor
+        # tinha de adivinhar que era a Claro.
+        if len(grupo) == 1:
+            titulo = "%s \u00b7 %s" % (_categoria(v), _rotulo(v))
+        else:
+            titulo = "%s \u00b7 %s" % (
+                " e ".join(sorted(set(_categoria(x) for x in grupo))),
+                v["operadora"])
+        linhas = abrir(_categoria(v), v["operadora"], titulo)
         linhas.append("  %s \u00b7 %d \u2192 %d Mega   %s"
                       % (_reais(v["preco"]), v["de"], v["para"], onde))
         linhas.append("  mesmo preço, %s velocidade"
