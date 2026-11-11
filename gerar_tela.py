@@ -1206,6 +1206,15 @@ function reais(v){
   return v==null ? "—" : "R$ " + Number(v).toLocaleString("pt-BR",
     {minimumFractionDigits:2, maximumFractionDigits:2});
 }
+// O PRECO POR UNIDADE NA VIRGULA DA PAGINA. toFixed(2) escreve "1.76",
+// e o resto da tela - reais(), as tabelas - escreve "1,76": o mapa de
+// calor saia com ponto decimal no meio de uma pagina em virgula, achado
+// na varredura de 11/11/2026. Acima de 10 o centavo e ruido e sai inteiro.
+function porUnidade(x){
+  return x >= 10 ? Math.round(x).toLocaleString("pt-BR")
+    : Number(x).toLocaleString("pt-BR",
+        {minimumFractionDigits:2, maximumFractionDigits:2});
+}
 function dataCurta(d){ return d ? d.slice(8,10)+"/"+d.slice(5,7) : "—"; }
 
 // Entrega: fibra e combo medem em Mbps, movel em GB. Misturar as duas
@@ -2590,7 +2599,7 @@ function alcanceDaCelula(c){
 
 function textoDaCelula(c){
   const m = mapaMetricaAtual;
-  if (m === "unit") return c.v >= 10 ? c.v.toFixed(0) : c.v.toFixed(2);
+  if (m === "unit") return porUnidade(c.v);
   return reais(c.v).replace("R$ ", "");
 }
 
@@ -2678,7 +2687,7 @@ function desenharMapa(metrica, idAlvo){
 function rotuloValor(c, v){
   const x = (v == null) ? c.v : v;
   if (mapaMetricaAtual === "unit")
-    return "R$ " + (x >= 10 ? x.toFixed(0) : x.toFixed(2)) + "/" + (c.u || "un.");
+    return "R$ " + porUnidade(x) + "/" + (c.u || "un.");
   return reais(x);
 }
 
