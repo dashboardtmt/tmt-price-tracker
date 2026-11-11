@@ -424,12 +424,13 @@ def _indexar(dia):
     campos = ("chave,praca,operadora,produto,nome_oferta,destaque,"
               "preco_promocional,franquia_anunciada_gb,degrau_mbps,"
               "nivel_bundle,codigo_anatel,"
-              # O PRECO DE TABELA, que esta na vitrine riscado ao lado do
-              # promocional. Entrou aqui porque a mensagem passou a
-              # AFIRMAR sobre ele: "a vitrine esta igual" sobre um campo
-              # que a consulta nao traz e' afirmacao sobre None. Medido
-              # em 17/10/2026: quatro ofertas Vivo Total mudaram SO o
-              # preco de tabela no mesmo dia em que o regulamento mexeu.
+              # O PRECO DE TABELA. Entrou aqui porque a mensagem passou a
+              # afirmar "a vitrine esta igual", e a frase tem de olhar
+              # cada campo que PODE ter vindo da vitrine - sobre um campo
+              # fora da consulta ela afirmaria sobre None. Na Vivo ele e
+              # de origem MISTA: vem do regulamento quando o regulamento
+              # o traz, e do card quando nao (vivo.aplicar_regulamento).
+              # Ver CAMPOS_DA_VITRINE.
               "preco_cheio,"
               # A FRANQUIA DO CONTRATO. A anunciada e contrato mais bonus
               # temporario e e ela que entra na chave; a contratual e o
@@ -2984,9 +2985,16 @@ def _mudou_a_entrega(antes, agora):
     return "   %+.0f%% de internet pelo mesmo pre\u00e7o" % pc
 
 
-# O QUE O CLIENTE VE NA TELA DA OPERADORA, e so isso: os campos que a
-# consulta de _indexar traz e que aparecem no card da oferta. Codigo
-# Anatel, chave e versao de leitura sao nossos, nao dele.
+# O QUE PODE TER VINDO DA TELA DA OPERADORA: os campos que a consulta de
+# _indexar traz e que o card da oferta mostra. Codigo Anatel, chave e
+# versao de leitura sao nossos, nao dele.
+#
+# O PRECO DE TABELA ESTA AQUI PELO LADO SEGURO, e nao por ser da
+# vitrine. Na Vivo ele sai do regulamento quando o regulamento o traz, e
+# do card riscado quando nao - e o dado gravado nao separa as duas
+# origens. Mexendo, ele so CALA a frase; nunca a faz sair. Tirar daqui
+# faria a mensagem afirmar "a vitrine esta igual" no dia em que o preco
+# riscado do card mudou.
 CAMPOS_DA_VITRINE = ("preco_promocional", "preco_cheio", "nome_oferta",
                      "destaque", "franquia_anunciada_gb", "degrau_mbps",
                      "nivel_bundle")
@@ -3000,7 +3008,9 @@ def _a_vitrine_nao_mexeu(antes, atual):
     43 dias publicados houve 10 eventos de composicao, e em NENHUM deles
     a lista de apps da vitrine mexeu junto. Em 6 a vitrine estava parada
     inteira; nos outros 4 - as Vivo Total de 17/10/2026 - mexeu so o
-    preco de tabela.
+    preco de tabela, que na Vivo pode ter vindo do PROPRIO regulamento.
+    Entao e possivel que nos 10 a tela nao tenha mudado nada; o que da
+    para afirmar sao os 6.
 
     O LEITOR NAO TINHA COMO SABER DISSO. "ganhou 1 servico incluso" se le
     como oferta melhor, e o que se mediu foi a operadora passando a

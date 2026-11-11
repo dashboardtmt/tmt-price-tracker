@@ -19,7 +19,10 @@ site qual era, e nao havia nada para achar.
 MEDIDO NOS 43 DIAS PUBLICADOS: 10 eventos de composicao, e em NENHUM a
 lista de apps da vitrine mexeu junto. Em 6 a vitrine estava parada
 inteira; nos outros 4 - as Vivo Total de 17/10 - mexeu so o preco de
-tabela. A prateleira nunca confirmou o regulamento nessa categoria, e
+tabela, que na Vivo pode ter vindo do proprio regulamento: ele e de
+origem mista, e fica na lista da vitrine pelo lado seguro, porque
+mexendo so cala a frase. A prateleira nunca confirmou o regulamento
+nessa categoria, e
 por isso nao da para nomear o servico pela vitrine: o que da e dizer
 que ela nao mudou.
 
@@ -91,8 +94,11 @@ class AFraseSaiSoComAVitrineParada(unittest.TestCase):
 
     def test_o_preco_de_tabela_que_mexe_cala_a_frase(self):
         u"""O caso das Vivo Total de 17/10/2026: o regulamento trocou um
-        codigo e, no mesmo dia, so o preco riscado ao lado do
-        promocional mudou."""
+        codigo e, no mesmo dia, so o preco de tabela mudou.
+
+        O preco de tabela pode ter vindo do card ou do regulamento - o
+        dado gravado nao separa. Sem saber, a frase nao afirma que a
+        tela esta igual."""
         t = montar(pre(ONTEM, ANTES_SVA),
                    pre(HOJE, AGORA_SVA, preco_cheio=40.0))
         # o evento tem de ter saido, senao a ausencia da frase nao mede
