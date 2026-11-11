@@ -3160,7 +3160,20 @@ if (FONTE) {
   // no-store: a tela tem de mostrar a coleta de hoje, nao a de ontem que
   // ficou no cache do navegador
   fetch(FONTE, {cache:"no-store"})
-    .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status);
+               // A SERIE VEM COMPRIMIDA. Sem compressao ela passou dos
+               // 50 MB do Storage em 11/11/2026 e deixou de ser
+               // publicada; comprimida sao 1,4 MB, que e tambem o que
+               // esta pagina baixa - antes o celular puxava 48 MB a
+               // cada abertura.
+               //
+               // SEM SILENCIO SE O NAVEGADOR NAO SOUBER: o erro sobe
+               // para o recado da pagina, que diz que nao ha dado em
+               // vez de desenhar uma tela vazia.
+               if (!/\.gz$/.test(FONTE)) return r.json();
+               if (!self.DecompressionStream) throw new Error("navegador sem gzip");
+               return new Response(
+                 r.body.pipeThrough(new DecompressionStream("gzip"))).json(); })
     .then(d=>{ if(!Array.isArray(d)||!d.length) throw new Error("vazio");
                DADOS = d; recado(""); iniciar(); })
     .catch(e=>recado(lang==="pt"

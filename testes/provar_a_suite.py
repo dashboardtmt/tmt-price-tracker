@@ -857,6 +857,51 @@ MUTACOES = [
         "Ve5. a normalizacao do auditor diverge da do detector"),
 
     Mutacao(
+        "publicar_dados.py",
+        "    return gzip.compress(bruto, 6, mtime=0)",
+        "    return gzip.compress(bruto, 6, mtime=int(time.time()))",
+        "Gz1. a compressao volta a carregar a hora e perde o determinismo"),
+
+    Mutacao(
+        "publicar_dados.py",
+        'ARQUIVO = "dados.json.gz"',
+        'ARQUIVO = "dados.json"',
+        "Gz2. o dado volta a subir no nome que nao cabe"),
+
+    Mutacao(
+        "publicar_dados.py",
+        "    if len(dados_bytes) <= LIMITE_DO_STORAGE:\n        return True, None",
+        "    if True:\n        return True, None",
+        "Gz3. o teto do Storage deixa de ser conferido antes de subir"),
+
+    Mutacao(
+        "publicar_dados.py",
+        "            ok, erro = subir(url, chave, ANTIGO, corpo_da_placa())",
+        "            ok, erro = (True, None)",
+        "Gz4. o nome antigo fica servindo o retrato velho para sempre"),
+
+    Mutacao(
+        "gerar_tela.py",
+        '               if (!self.DecompressionStream) throw new Error("navegador sem gzip");\n',
+        "",
+        "Gz5. navegador sem gzip volta a ficar com a tela calada"),
+
+    Mutacao(
+        "gerar_tela.py",
+        '               if (!/\\.gz$/.test(FONTE)) return r.json();\n'
+        '               if (!self.DecompressionStream) throw new Error("navegador sem gzip");\n'
+        "               return new Response(\n"
+        '                 r.body.pipeThrough(new DecompressionStream("gzip"))).json(); })',
+        "               return r.json(); })",
+        "Gz6. a pagina volta a ler o .gz como se fosse JSON"),
+
+    Mutacao(
+        ".github/workflows/diario.yml",
+        "public/tela/dados.json.gz",
+        "public/tela/dados.json",
+        "Gz7. a rotina aponta a pagina para a placa"),
+
+    Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',

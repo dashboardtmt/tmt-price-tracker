@@ -567,7 +567,7 @@ jobs:
           # A pagina do Vercel busca o dado no Storage: publicada uma vez,
           # passa a mostrar a coleta de cada dia sem deploy novo. A copia
           # local segue com os dados dentro, para abrir sem rede.
-          FONTE="${SUPABASE_URL%/}/storage/v1/object/public/tela/dados.json"
+          FONTE="${SUPABASE_URL%/}/storage/v1/object/public/tela/dados.json.gz"
           git config user.name "dashboardtmt"
           git config user.email "dashboardtmt@users.noreply.github.com"
           gerar() {
@@ -601,4 +601,41 @@ jobs:
           done
           echo "nao consegui guardar a tela em 3 tentativas" >&2
           exit 1
+
+  # O PAINEL QUE NAO ATUALIZOU TEM DE FALAR POR SI, pelo mesmo motivo que
+  # a mensagem que nao saiu - e por um que e so dele: quando a tela falha,
+  # TUDO O QUE CHEGA AO USUARIO ESTA CERTO. A mensagem e o PDF saem no job
+  # anterior, com o dado do dia, e o site continua no ar. O que mudou foi
+  # so a data do que ele mostra, e nada na pagina diz isso.
+  #
+  # Medido em 11/11/2026: o upload do dado passou dos 50 MB do Storage e
+  # voltou HTTP 413. A mensagem das 6h21 estava correta, o relatorio
+  # anexado tambem, e a tela ficou no retrato do dia 10 por horas. O unico
+  # sinal era o quadrado vermelho no painel do Actions - e quem notou foi
+  # o usuario procurando no site um detalhe que a mensagem citava.
+  #
+  # NAO REPETE: roda na mesma rodada da tela, uma falha um alerta.
+  tela_falhou:
+    needs: tela
+    if: always() && needs.tela.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Contar que o painel ficou no dia anterior
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # SO O QUE O JOB SABE. Ele roda depois do aviso e nao tem como
+          # saber se a mensagem saiu; o que ele sabe e que a publicacao
+          # do dado falhou, e que o site serve a ultima que deu certo.
+          TEXTO="TMT Price Tracker - $(date -u -d '-3 hours' +%d/%m)
+          O PAINEL NAO FOI ATUALIZADO HOJE.
+          O passo que publica o dado da tela falhou. O site segue no ar, mas com a ultima publicacao que deu certo - a data no topo dele e a daquele dia, nao a de hoje. A mensagem e o relatorio deste dia saem antes deste passo e nao dependem dele.
+          Detalhes: ${RUN}"
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "text=${TEXTO}" > /dev/null
+          echo "alerta de painel parado enviado"
 

@@ -33,6 +33,7 @@ a mao erra de novo toda vez:
 import argparse
 import collections
 import datetime
+import gzip
 import io
 import json
 import os
@@ -50,7 +51,7 @@ from coletores import (brisanet, claro, claro_flex, nucel,    # noqa: E402
                        starlink, tim, tim_fit, unifique, vivo)
 
 URL = ("https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/"
-       "public/tela/dados.json")
+       "public/tela/dados.json.gz")
 MODULOS = {"brisanet": brisanet, "claro": claro, "claro_flex": claro_flex,
            "nucel": nucel, "starlink": starlink, "tim": tim,
            "tim_fit": tim_fit, "unifique": unifique, "vivo": vivo}
@@ -85,7 +86,9 @@ if args.arquivo:
     TUDO = json.load(io.open(args.arquivo, encoding="utf-8"))
 else:
     with urllib.request.urlopen(URL, timeout=120) as r:
-        TUDO = json.loads(r.read().decode("utf-8"))
+        # publicado em gzip desde 11/11/2026: sem compressao o arquivo
+        # passou dos 50 MB do Storage
+        TUDO = json.loads(gzip.decompress(r.read()).decode("utf-8"))
 
 POR_DIA = collections.defaultdict(list)
 for _l in TUDO:
