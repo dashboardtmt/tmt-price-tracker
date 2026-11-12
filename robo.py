@@ -2757,6 +2757,36 @@ SAFRA = re.compile(
 # pracas e outro nas 18 restantes, na mesma rodada.
 VIVEU_PARA_SAIR = 3
 
+# A QUEDA DE COLETA QUE PEDE RESSALVA na saida. Medido nos 42 dias
+# publicados em 11/11/2026: das 24 saidas, 11 sairam num dia em que a
+# coleta daquela operadora tinha caido 25% ou mais de um dia para o
+# outro - todas da Brisanet, 7 em 24/10 (90 -> 64 linhas) e 4 em 30/10
+# (66 -> 38). As de 24/10 tem cara de mercado: o volume novo ficou uma
+# semana. As de 30/10 tem cara de coleta: os combos voltaram inteiros em
+# 04/11. Daqui nao da para separar as duas, e a frase "saiu da vitrine"
+# afirmava a primeira. Fora desses dois dias a maior queda com saida foi
+# de 18%.
+#
+# A SAIDA NAO SOME: sai com a ressalva, e o leitor decide. Escolha de
+# quem le, em 12/11/2026, contra segurar um dia - que atrasaria as
+# saidas de verdade, como as de 24/10.
+QUEDA_DE_COLETA = 0.25
+
+
+def _coleta_caiu(operadora, ontem, hoje):
+    """A frase da ressalva, ou None quando a coleta nao caiu.
+
+    CONTA LINHAS, E NAO OFERTAS DISTINTAS, como o vigia: e o que a coleta
+    trouxe, praca por praca. E POR OPERADORA, E NAO POR PRODUTO, pela
+    mesma razao do filtro 2 das saidas - a reclassificacao entre fibra e
+    combo move linhas de um balde para o outro sem mexer no total.
+    """
+    a, h = ontem.get(operadora, 0), hoje.get(operadora, 0)
+    if not a or (a - h) / float(a) < QUEDA_DE_COLETA:
+        return None
+    return ("a coleta da %s trouxe %d ofertas hoje, contra %d ontem: pode "
+            "ser a coleta, e n\u00e3o o mercado" % (operadora, h, a))
+
 # Quao parecido um nome novo precisa ser do nome que sumiu para a saida
 # virar renomeacao. Medido: com 0,75 os doze casos de recarimbo da
 # Brisanet em 21/10 e as quatro renumeracoes do Ultracombo em 27/10 sao
@@ -2825,6 +2855,10 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
             vividos[(l.get("operadora"),
                      _serie_sem_safra(l.get("nome_oferta")))].add(dia)
     coletadas = set((l.get("operadora"), l.get("praca")) for l in do_dia)
+    # o volume de cada operadora nos dois dias - ver QUEDA_DE_COLETA
+    volume_hoje = collections.Counter(l.get("operadora") for l in do_dia)
+    volume_ontem = collections.Counter(l.get("operadora")
+                                       for l in antes[ontem])
     novas = collections.defaultdict(set)
     for k in de_hoje:
         if k not in de_ontem:
@@ -2898,6 +2932,8 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
                 "o degrau continua na vitrine, agora como " + chr(34)
                 + substituta + chr(34)) if substituta else None,
             "piscou": piscou,
+            "coleta_texto": _coleta_caiu(operadora, volume_ontem,
+                                         volume_hoje),
             "piscou_texto": ("a s\u00e9rie j\u00e1 faltou e voltou dentro "
                              "da janela: a aus\u00eancia de hoje n\u00e3o \u00e9 a "
                              "primeira") if piscou else None,
@@ -3734,6 +3770,7 @@ def montar_mensagem(hoje, ontem):
     # disse "nenhuma mudanca". Ausencia de oferta e a unica mudanca de
     # portfolio que nao deixa linha nenhuma para comparar, e por isso
     # precisou de detector proprio - ver _ofertas_que_sairam.
+    coleta_dita = set()
     for s in saidas[:3]:
         linhas = abrir(_categoria(s), s["operadora"],
                        "%s · %s" % (_categoria(s), _rotulo(s)))
@@ -3753,6 +3790,13 @@ def montar_mensagem(hoje, ontem):
         for ressalva in (s.get("substituta_texto"), s.get("piscou_texto")):
             if ressalva:
                 linhas.append("  e %s" % ressalva)
+        # A COLETA QUE CAIU, UMA VEZ POR OPERADORA. E um fato do dia da
+        # operadora, e nao desta oferta: repetido embaixo de cada bloco,
+        # quatro saidas da Brisanet virariam quatro vezes a mesma frase.
+        # O PDF, que e tabela, leva em toda linha.
+        if s.get("coleta_texto") and s["operadora"] not in coleta_dita:
+            coleta_dita.add(s["operadora"])
+            linhas.append("  e %s" % s["coleta_texto"])
     if len(saidas) > 3:
         n = len(saidas) - 3
         cauda.append("e mais %s da vitrine, no relatório"

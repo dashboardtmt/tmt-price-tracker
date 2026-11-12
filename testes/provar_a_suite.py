@@ -994,6 +994,24 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
+        "    if not a or (a - h) / float(a) < QUEDA_DE_COLETA:\n        return None\n",
+        "    return None\n",
+        "Cc1. a saida volta a sair como mercado no dia da coleta que caiu"),
+
+    Mutacao(
+        "robo.py",
+        "    if not a or (a - h) / float(a) < QUEDA_DE_COLETA:\n        return None\n",
+        "",
+        "Cc2. toda saida passa a levar a ressalva, com a coleta estavel"),
+
+    Mutacao(
+        "robo.py",
+        "        if s.get(\"coleta_texto\") and s[\"operadora\"] not in coleta_dita:",
+        "        if s.get(\"coleta_texto\"):",
+        "Cc3. a ressalva se repete embaixo de cada saida da operadora"),
+
+    Mutacao(
+        "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',
         "o corte de franquia com preco parado volta a passar batido"),

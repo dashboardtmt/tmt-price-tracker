@@ -598,7 +598,8 @@ def _bloco_saidas(d):
             # das 24 saidas medidas em 04/11/2026 ele continuava lá, com
             # outro nome.
             ("; ".join(x for x in (s.get("substituta_texto"),
-                                   s.get("piscou_texto")) if x) or "—"),
+                                   s.get("piscou_texto"),
+                                   s.get("coleta_texto")) if x) or "—"),
         ])
     return _tabela(
         ["Operadora", "Produto", "Oferta", "Último preço", "Dias",
@@ -1005,7 +1006,11 @@ def gerar(dados, entradas, caminho):
                       "catálogo, não constituem saída. Tampouco constitui "
                       "saída a oferta identificada como renomeada, que "
                       "consta em Alterações de denominação. Praças sem "
-                      "coleta na véspera ou na data não são computadas.",
+                      "coleta na véspera ou na data não são computadas. "
+                      "Quando a coleta da operadora cai 25% ou mais em "
+                      "relação à véspera, a saída consta com essa "
+                      "ressalva: a ausência pode ser da coleta, e não do "
+                      "mercado.",
                       ESTILOS["corpo"]),
             _bloco_saidas(dados)))
 

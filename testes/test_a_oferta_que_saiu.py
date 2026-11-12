@@ -72,6 +72,66 @@ def historia(nome="Vivo Lite Anual II", onde=None, **kw):
     return linhas
 
 
+class ASaidaNoDiaDaColetaQueCaiu(unittest.TestCase):
+    u"""A SAIDA SAI, COM A RESSALVA, quando a coleta da operadora cai.
+
+    Nos 42 dias publicados ate 11/11/2026, 11 das 24 saidas sairam num
+    dia em que a coleta daquela operadora tinha caido 25% ou mais - todas
+    da Brisanet, em 24/10 e 30/10. Em 30/10 os combos voltaram inteiros
+    quatro dias depois. "Saiu da vitrine" afirmava mercado num dia em que
+    daqui nao dava para separar mercado de coleta.
+
+    A escolha de quem le foi manter a saida e dizer a queda (12/11/2026).
+    """
+
+    def _dia(self, extras_ontem, extras_hoje, saindo=("Vivo Lite Anual II",)):
+        onde = pracas(3)
+        ontem, hist = [], []
+        for i, nome in enumerate(saindo):
+            ontem += vivo(nome=nome, data=ONTEM, onde=onde, gb=30 + i)
+            hist += historia(nome=nome, onde=onde, gb=30 + i)
+        for i in range(extras_ontem):
+            ontem += vivo(nome="Vivo Lite Extra %d" % i, data=ONTEM,
+                          onde=onde, gb=60 + i)
+        hoje = SOBROU(onde)
+        for i in range(extras_hoje):
+            hoje += vivo(nome="Vivo Lite Extra %d" % i, data=HOJE,
+                         onde=onde, gb=60 + i)
+        return ontem, hoje, hist
+
+    def test_a_queda_vem_dita_junto_da_saida(self):
+        # ontem 4 ofertas x 3 pracas, hoje 1 x 3: a coleta caiu 75%
+        ontem, hoje, hist = self._dia(extras_ontem=3, extras_hoje=0)
+        t = montar(ontem, hoje, extras=hist)
+        self.assertIn("saiu da vitrine", t)
+        self.assertIn(u"a coleta da Vivo trouxe 3 ofertas hoje, contra 12 "
+                      u"ontem: pode ser a coleta, e não o mercado", t)
+
+    def test_uma_vez_por_operadora(self):
+        u"""Duas saidas da mesma operadora, uma frase so."""
+        ontem, hoje, hist = self._dia(
+            extras_ontem=3, extras_hoje=0,
+            saindo=("Vivo Lite Anual II", "Vivo Lite Mensal II"))
+        t = montar(ontem, hoje, extras=hist)
+        self.assertEqual(t.count("saiu da vitrine"), 2)
+        self.assertEqual(t.count("a coleta da Vivo trouxe"), 1)
+
+    def test_coleta_estavel_nao_leva_ressalva(self):
+        # ontem 6 x 3, hoje 6 x 3 (a que saiu deu lugar a SOBROU): estavel
+        ontem, hoje, hist = self._dia(extras_ontem=5, extras_hoje=5)
+        t = montar(ontem, hoje, extras=hist)
+        self.assertIn("saiu da vitrine", t)
+        self.assertNotIn("pode ser a coleta", t)
+
+    def test_o_pdf_le_a_mesma_frase(self):
+        u"""A tabela do relatorio le o mesmo campo, em toda linha."""
+        ontem, hoje, hist = self._dia(extras_ontem=3, extras_hoje=0)
+        d = dados(ontem, hoje, extras=hist)
+        textos = [s.get("coleta_texto") for s in d.get("saidas") or []]
+        self.assertTrue(textos)
+        self.assertTrue(all("pode ser a coleta" in (x or "") for x in textos))
+
+
 class ORenomeNaoESaida(unittest.TestCase):
     u"""A MESMA OFERTA NAO PODE TER SAIDO E SIDO RENOMEADA.
 
