@@ -1362,10 +1362,18 @@ function nivel(o){
   const n = o.nivel_bundle;
   return n == null ? 9 : Number(n);
 }
+// O PRECO PRIMEIRO, desde 16/11/2026. Ate ali vencia o MENOR NIVEL DE
+// BUNDLE, e so entao o preco (decisao 10) - e a tabela contradizia o
+// grafico de entrada da mesma pagina: TIM 45 GB a R$ 60,99 numa coluna,
+// R$ 58,99 no grafico ao lado. A regra so mudava o resultado quando o
+// plano com servico era MAIS BARATO, e ai ele e o preco de entrada do
+// degrau: em 13/11 o Vivo Controle YouTube Premium caiu 24%, para R$ 65,
+// e a tabela seguiu mostrando os R$ 75 do plano sem o app. O nivel de
+// bundle fica so como desempate de preco igual.
 function menor(a, b){
-  const na = nivel(a), nb = nivel(b);
-  if (na !== nb) return na < nb;
-  return precoDe(a) < precoDe(b);
+  const pa = precoDe(a), pb = precoDe(b);
+  if (pa !== pb) return pa < pb;
+  return nivel(a) < nivel(b);
 }
 
 function porDegrau(dia){
@@ -1375,10 +1383,9 @@ function porDegrau(dia){
     if (p == null || e.v == null) continue;
     const k = o.operadora + "|" + e.v;
     const atual = por[k];
-    // Decisao 10: dentro do degrau vale o MENOR NIVEL DE BUNDLE, e so
-    // entao o menor preco. Pelo preco puro, "Fibra + TV por assinatura"
-    // e "Vivo Fibra" disputavam o mesmo degrau de 600 Mbps - comparar
-    // fibra pura com fibra mais TV e o que a metodologia proibe.
+    // O MAIS BARATO DO DEGRAU, como o grafico de entrada - ver menor().
+    // A preocupacao da decisao 10, fibra pura contra fibra mais TV, nao
+    // volta: a TV encarece, e entao o plano puro vence pelo preco mesmo.
     if (!atual || menor(o, atual.oferta)) {
       por[k] = {operadora:o.operadora, degrau:e.v, unidade:e.u, oferta:o};
     }
@@ -2224,7 +2231,8 @@ function matriz(){
       if (desligadas.has(v.operadora)) continue;
       linhas[k] = linhas[k] || {operadora:v.operadora, degrau:v.degrau,
                                 unidade:v.unidade, por:{}};
-      linhas[k].por[d] = {p:precoDe(v.oferta), nome:v.oferta.nome_oferta||""};
+      linhas[k].por[d] = {p:precoDe(v.oferta), nome:v.oferta.nome_oferta||"",
+                          apps:v.oferta.apps_rotulo||""};
     }
   }
   const ordenadas = Object.values(linhas).sort((a, b)=>
@@ -2248,7 +2256,11 @@ function matriz(){
       const mostra = v => metricaAtual === "unidade"
         ? (l.degrau ? (v / l.degrau) : null)
         : v;
-      let marca = "", cls = "", dica = c.nome;
+      // O APP NA DICA. Com o mais barato vencendo o degrau, o plano da
+      // celula pode trazer servico que o nome nao diz - o "TIM Controle
+      // Smart" de R$ 58,99 traz Aya Books e EXA Seguranca.
+      let marca = "", cls = "",
+          dica = c.nome + (c.apps ? " \u2014 " + c.apps : "");
       if (anterior) {
         if (anterior.nome !== c.nome) {
           // Outra oferta assumiu o degrau. NAO e mudanca de preco: foi o

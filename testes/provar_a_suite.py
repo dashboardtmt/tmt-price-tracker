@@ -1063,6 +1063,22 @@ MUTACOES = [
         "En8. o lancamento existe so na mensagem"),
 
     Mutacao(
+        "gerar_tela.py",
+        "  const pa = precoDe(a), pb = precoDe(b);\n"
+        "  if (pa !== pb) return pa < pb;\n"
+        "  return nivel(a) < nivel(b);",
+        "  const na = nivel(a), nb = nivel(b);\n"
+        "  if (na !== nb) return na < nb;\n"
+        "  return precoDe(a) < precoDe(b);",
+        "Bd1. o degrau volta a esconder o plano mais barato quando traz app"),
+
+    Mutacao(
+        "gerar_tela.py",
+        "          dica = c.nome + (c.apps ? \" \\u2014 \" + c.apps : \"\");",
+        "          dica = c.nome;",
+        "Bd2. a dica deixa de dizer qual app vem no degrau"),
+
+    Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',

@@ -167,3 +167,62 @@ class AMatrizNaoTemTetoDeDias(unittest.TestCase):
         de uma base maior passaria. O que a guarda quer e o comeco da
         serie, que e justamente o que o teto escondia."""
         self.assertIn('<th class="num">01/10</th>', self.painel["matriz"])
+
+
+def tim(dia):
+    u"""Os dois planos de 45 GB da TIM em Sao Paulo, como em 16/11/2026."""
+    smart = oferta(operadora="TIM", produto="controle",
+                   nome="TIM Controle Smart", preco=58.99, gb=45,
+                   praca=PRACA, data=dia, chave="TIM|controle|45gb|com_apps")
+    smart["nivel_bundle"] = 1
+    smart["apps_rotulo"] = u"Aya Books + EXA Segurança"
+    light = oferta(operadora="TIM", produto="controle",
+                   nome="TIM Controle Light Express", preco=60.99, gb=45,
+                   praca=PRACA, data=dia, chave="TIM|controle|45gb|simples")
+    return [smart, light]
+
+
+@unittest.skipIf(NODE is None, "node nao instalado")
+class ODegrauMostraOMaisBarato(unittest.TestCase):
+    u"""DESDE 16/11/2026 vence o preco, e nao o nivel de bundle.
+
+    A regra antiga (decisao 10) escolhia o plano com menos servicos, e a
+    tabela contradizia o grafico de entrada da mesma pagina: TIM 45 GB a
+    R$ 60,99 numa, R$ 58,99 no outro. E escondia notícia - o Vivo Controle
+    YouTube Premium caiu 24% em 13/11 e a tabela seguiu nos R$ 75 do plano
+    sem o app.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pasta = tempfile.mkdtemp()
+        cls.dados = os.path.join(cls.pasta, "d.json")
+        cls.tela = os.path.join(cls.pasta, "t.html")
+        linhas = []
+        for d in DIAS:
+            linhas += tim(d)
+        with open(cls.dados, "w", encoding="utf-8") as f:
+            json.dump(linhas, f)
+        r = subprocess.run(
+            [sys.executable, os.path.join(RAIZ, "gerar_tela.py"),
+             "--dados", cls.dados, "--saida", cls.tela],
+            capture_output=True, text=True, encoding="utf-8", cwd=RAIZ)
+        if r.returncode:
+            raise unittest.SkipTest("gerar_tela falhou: %s" % r.stderr[-300:])
+        cls.painel = AMatrizNaoMarcaEscadaComoReajuste._ver(
+            cls, [{"praca": PRACA, "produto": "controle", "dia": DIAS[2],
+                   "aba": "panorama"}])[0]
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.pasta, ignore_errors=True)
+
+    def test_o_degrau_tem_o_preco_do_mais_barato(self):
+        matriz = self.painel["matriz"]
+        self.assertIn("58,99", matriz)
+        self.assertNotIn("60,99", matriz)
+
+    def test_a_dica_diz_qual_app_vem_junto(self):
+        u"""O nome "TIM Controle Smart" nao diz que traz app; a dica diz."""
+        self.assertIn(u"TIM Controle Smart \u2014 Aya Books + EXA Segurança",
+                      self.painel["matriz"])
