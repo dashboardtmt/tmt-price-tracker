@@ -37,7 +37,8 @@ from _apoio import (HOJE, ONTEM, banco, dados, em_todas, montar, oferta,
 #
 # Um grupo novo entra aqui e o teste passa a exigir a praca dele.
 GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
-          "voltaram", "renomeadas", "contratuais", "saidas", "velocidades")
+          "voltaram", "renomeadas", "contratuais", "saidas", "velocidades",
+          "entradas")
 
 # GRUPOS QUE SAO RESSALVA, E NAO EVENTO DE MERCADO. A regra de "toda
 # mudanca diz em que praca" e sobre MUDANCA: na ressalva nada se moveu na
@@ -54,7 +55,9 @@ GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
 # diz o que o auditor nao sabe conferir. Nenhuma das duas afirma
 # movimento de vitrine - elas dizem o contrario -, e a praca de cada
 # caso fica no relatorio, junto do motivo.
-RESSALVAS = ("duvidosa", "recusadas", "nao_auditado")
+# "passou_a_ler" (16/11/2026) e a coleta passando a ler mais ofertas
+# num produto: nao e evento de mercado, e diz isso em uma frase no PDF.
+RESSALVAS = ("duvidosa", "recusadas", "nao_auditado", "passou_a_ler")
 
 # A mensagem corta cada grupo em tres e manda o resto para o PDF.
 MOSTRADOS = 3

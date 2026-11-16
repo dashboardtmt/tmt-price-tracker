@@ -727,6 +727,9 @@ def mudancas(hoje, ontem):
       contratuais   a franquia do contrato mexendo com a anunciada parada
       velocidades   mesmo preco, outra velocidade no mesmo ponto de preco
       saidas        oferta que deixou a vitrine, com nome e praca
+      entradas      oferta que entrou na vitrine, com nome, preco e praca
+      passou_a_ler  produto em que a COLETA passou a ler mais ofertas
+                    do que havia: cobertura nossa, e nao lancamento
       erro          a consulta caiu: nao houve comparacao
       cego          ofertas que nao deu para comparar, e por que
       duvidosa      ofertas em que o coletor recusou um campo, por motivo
@@ -757,6 +760,7 @@ def mudancas(hoje, ontem):
     vazio = {"precos": [], "composicao": [], "renomeadas": [], "grades": [],
              "voltaram": [], "remodeladas": [], "leitura": [],
              "contratuais": [], "saidas": [], "velocidades": [],
+             "entradas": [], "passou_a_ler": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
              "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
@@ -943,6 +947,11 @@ def mudancas(hoje, ontem):
     do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
     saidas = (_ofertas_que_sairam(do_dia, antes, ontem, casadas_por_nome)
               if not erro_vigia else [])
+    # O ESPELHO DA SAIDA, com os mesmos renomes: o que o detector de
+    # renome casou nao entrou nem saiu - mudou de nome.
+    entradas, passou_a_ler = (
+        _ofertas_que_entraram(do_dia, antes, ontem, casadas_por_nome)
+        if not erro_vigia else ([], []))
 
     contratuais = (_contratual_mudou(h, o, antes if not erro_vigia else None,
                                      ontem)
@@ -971,6 +980,7 @@ def mudancas(hoje, ontem):
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura, "contratuais": contratuais,
             "saidas": saidas, "velocidades": velocidades,
+            "entradas": entradas, "passou_a_ler": passou_a_ler,
             # a janela crua, para o vigia nao repetir a consulta
             "_vigia": (do_dia, antes, erro_vigia),
             "erro": None, "cego": cego, "cego_ontem": cego_o,
@@ -2943,6 +2953,121 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
     return saidas
 
 
+def _ofertas_que_entraram(do_dia, antes, ontem, renomeadas=()):
+    """A oferta que entrou na vitrine: qual, onde, por quanto.
+
+    O ESPELHO DA SAIDA, pedido de quem le em 16/11/2026. Ate ali o tracker
+    via o que mudava e o que saia, e lancamento passava calado: em 24/10 a
+    Brisanet pos uma fibra de 800 MB a R$ 89,90 - mais rapida e mais
+    barata que a de 700 - e nem a mensagem nem o PDF disseram nada.
+
+    MEDIDO ANTES DE ESCREVER, nos 48 dias publicados. A definicao ingenua
+    - serie que nao estava ontem - rende 86 "lancamentos", e quase nenhum
+    e lancamento. Cinco filtros, e cada um tirou um caso real:
+
+      1. A PRACA TEM DE TER SIDO COLETADA ONTEM pela mesma operadora: a
+         oferta "entra" numa praca que ontem ninguem olhou. A Claro Flex
+         voltou em 07/11 depois de um dia de coleta falhada.
+      2. A SERIE E POR OPERADORA, E NAO POR PRODUTO, como na saida:
+         reclassificacao entre fibra e combo nao e lancamento.
+      3. NAO PODE TER APARECIDO NA JANELA, os sete dias anteriores. Volta
+         nao e lancamento: os combos da Brisanet que sumiram de 31/10 a
+         03/11 voltaram em 04/11, e o Vivo Lite pisca.
+      4. RENOME NAO E LANCAMENTO - nem o que o detector de renome casou,
+         nem nome parecido que saiu ontem. "Vivo Fibra" virou "Vivo Fibra
+         Com Wi-Fi 6" em 14/11, e nao entrou nada.
+      5. COBERTURA NAO E LANCAMENTO, e este e so deste lado. Se os nomes
+         novos de (operadora, produto) no dia sao MAIS que os que havia
+         ontem nesse produto, e a coleta passando a ler, e nao o mercado
+         lancando. Em 04/11 a fibra da TIM foi de 1 nome para 12 e o pos
+         de 2 para 10: a coleta deixou de ler a pagina-hub e passou a ler
+         a vitrine. O mesmo filtro reconhece os produtos que a coleta
+         passou a cobrir em 01/10 e 08/10, quando havia zero.
+
+    Com isso, de 16/10 a 16/11: 10 lancamentos em 6 dias - Claro Geforce,
+    Vivo Total V 2 e 10 Giga, os BLACK da Brisanet, Vivo Lite + YouTube.
+
+    DEVOLVE (entradas, passou_a_ler). A cobertura nao some: vai ao PDF,
+    porque e uma descontinuidade da serie, e o leitor que olhar o site
+    no dia ve as ofertas aparecerem.
+    """
+    if not do_dia or not antes or not antes.get(ontem):
+        return [], []
+
+    def serie(l):
+        return (l.get("operadora"), _serie_sem_safra(l.get("nome_oferta")))
+
+    vistas = {serie(l) for linhas in antes.values() for l in linhas}
+    coletadas_ontem = {(l.get("operadora"), l.get("praca"))
+                       for l in antes[ontem]}
+    vende = collections.defaultdict(set)
+    for dia, linhas in ((ontem, antes[ontem]), ("hoje", do_dia)):
+        for l in linhas:
+            vende[(l.get("operadora"), l.get("produto"), dia)].add(l.get("praca"))
+    series_ontem = collections.defaultdict(set)
+    for l in antes[ontem]:
+        series_ontem[(l.get("operadora"), l.get("produto"))].add(serie(l)[1])
+    de_hoje = {serie(l) for l in do_dia}
+    saiu_ontem = collections.defaultdict(set)
+    for l in antes[ontem]:
+        if serie(l) not in de_hoje:
+            saiu_ontem[l.get("operadora")].add(serie(l)[1])
+    renomeada = set()
+    for r in renomeadas or ():
+        a = r.get("atual") or {}
+        renomeada.add((a.get("operadora"),
+                       _serie_sem_safra(a.get("nome_oferta"))))
+
+    novas = collections.defaultdict(list)
+    for l in do_dia:
+        k = serie(l)
+        if k in vistas or k in renomeada:
+            continue
+        if (l.get("operadora"), l.get("praca")) not in coletadas_ontem:
+            continue
+        novas[k].append(l)
+
+    por_produto = collections.defaultdict(list)
+    for k, linhas in novas.items():
+        if difflib.get_close_matches(k[1], sorted(saiu_ontem.get(k[0], ())),
+                                     n=1, cutoff=PARECIDO_E_RENOME):
+            continue
+        por_produto[(k[0], linhas[0].get("produto"))].append(k)
+
+    entradas, passou_a_ler = [], []
+    for (operadora, produto), ks in sorted(por_produto.items()):
+        havia = len(series_ontem.get((operadora, produto), ()))
+        if len(ks) > havia:
+            passou_a_ler.append({"operadora": operadora, "produto": produto,
+                                 "novas": len(ks), "havia": havia})
+            continue
+        # O UNIVERSO E O DO PRODUTO, e nao o da operadora: a Claro Geforce
+        # saiu "em 20 de 21" porque a 21a praca era a da Claro Flex, onde
+        # a Claro nao vende Controle. Conta onde a operadora vende ESTE
+        # produto nos dois dias.
+        comparaveis = (vende[(operadora, produto, ontem)]
+                       & vende[(operadora, produto, "hoje")])
+        for k in ks:
+            linhas = novas[k]
+            precos = sorted(l["preco_promocional"] for l in linhas
+                            if l.get("preco_promocional") is not None)
+            pracas = sorted({l.get("praca") for l in linhas})
+            base = linhas[0]
+            entradas.append({
+                "operadora": operadora, "produto": produto,
+                "nome_oferta": base.get("nome_oferta"),
+                # a mais barata entre as pracas, como o "estava a" da saida
+                "preco": precos[0] if precos else None,
+                "entrega": _entrega(base), "unidade": _unidade(base),
+                "pracas": pracas, "universo": len(comparaveis),
+                "onde": _onde(pracas, len(comparaveis)),
+                "onde_todas": _onde(pracas, len(comparaveis), limite=None),
+            })
+    entradas.sort(key=lambda e: (-len(e["pracas"]), e["operadora"],
+                                 e["nome_oferta"] or ""))
+    return entradas, passou_a_ler
+
+
 def _quem_ficou_no_degrau(do_dia, irmas, pracas):
     """O nome que cobre HOJE o mesmo degrau e preco, em todas as pracas.
 
@@ -3457,6 +3582,7 @@ def montar_mensagem(hoje, ontem):
     contratuais = r.get("contratuais") or []
     saidas = r.get("saidas") or []
     velocidades = r.get("velocidades") or []
+    entradas = r.get("entradas") or []
 
     # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
     # tambem pode. Este retorno era descartado num `_`, e `col` vazio
@@ -3515,7 +3641,7 @@ def montar_mensagem(hoje, ontem):
     # 2. o que mudou
     total_mud = (len(mud) + len(comp) + len(renom) + len(grades)
                  + len(voltaram) + len(remodeladas) + len(contratuais)
-                 + len(saidas) + len(velocidades))
+                 + len(saidas) + len(velocidades) + len(entradas))
     # Sem registro de coleta nao ha o que comparar, e dizer "nenhuma
     # mudanca" logo abaixo de "o robo nao rodou" contradiz a manchete -
     # soa como noticia verificada num dia em que nao se verificou nada.
@@ -3802,6 +3928,25 @@ def montar_mensagem(hoje, ontem):
         cauda.append("e mais %s da vitrine, no relatório"
                      % ("1 oferta que saiu" if n == 1
                         else "%d ofertas que saíram" % n))
+
+    # A OFERTA QUE ENTROU, o espelho da que saiu - ver
+    # _ofertas_que_entraram. A entrega vai junto do preco porque e ela que
+    # situa o lancamento na grade: "800 MB a 89,90" diz mais que o nome.
+    for e in entradas[:3]:
+        linhas = abrir(_categoria(e), e["operadora"],
+                       "%s \u00b7 %s" % (_categoria(e), _rotulo(e)))
+        preco = _reais(e.get("preco"))
+        entrega = ("%s %s" % (e["entrega"], e.get("unidade") or "")).strip() \
+            if e.get("entrega") else ""
+        linhas.append("  entrou na vitrine%s%s"
+                      % (" a %s" % preco if preco != "\u2014" else "",
+                         ", com %s" % entrega if entrega else ""))
+        linhas.append("  %s" % e["onde"])
+    if len(entradas) > 3:
+        n = len(entradas) - 3
+        cauda.append("e mais %s na vitrine, no relat\u00f3rio"
+                     % ("1 oferta que entrou" if n == 1
+                        else "%d ofertas que entraram" % n))
 
 
     # MESMO PRECO, OUTRA ENTREGA. E o movimento mais facil de nao
@@ -4137,6 +4282,7 @@ def montar_mensagem(hoje, ontem):
         "leitura_declarada": declarado,
         "contratuais": contratuais, "saidas": saidas,
         "velocidades": velocidades,
+        "entradas": entradas, "passou_a_ler": r.get("passou_a_ler") or [],
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio
         "duvidosa": duvidosa,

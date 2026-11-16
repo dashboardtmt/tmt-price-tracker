@@ -60,8 +60,15 @@ def SOBROU(onde):
     Dia sem captura nenhuma e outro estado, e a mensagem dele e outra
     ("nenhuma oferta foi capturada hoje"). O que se mede aqui e a oferta
     que SAIU de um dia que teve coleta.
+
+    ESTA NOS DOIS DIAS desde 16/11/2026. Ate ali ela existia so hoje, e
+    isso nao era noticia; com o detector de entrada, oferta que aparece
+    hoje e lancamento - e o fundo do teste virava uma segunda mudanca do
+    dia. O banco de mentira filtra pela data da linha, entao a copia de
+    ontem chega a ontem mesmo vindo pelo argumento de hoje.
     """
-    return vivo(nome="Vivo Lite Outro", data=HOJE, onde=onde, gb=77)
+    return (vivo(nome="Vivo Lite Outro", data=ONTEM, onde=onde, gb=77)
+            + vivo(nome="Vivo Lite Outro", data=HOJE, onde=onde, gb=77))
 
 
 def historia(nome="Vivo Lite Anual II", onde=None, **kw):
@@ -100,11 +107,12 @@ class ASaidaNoDiaDaColetaQueCaiu(unittest.TestCase):
         return ontem, hoje, hist
 
     def test_a_queda_vem_dita_junto_da_saida(self):
-        # ontem 4 ofertas x 3 pracas, hoje 1 x 3: a coleta caiu 75%
+        # ontem 5 ofertas x 3 pracas (a que sai, tres extras e o fundo),
+        # hoje 1 x 3: a coleta caiu 80%
         ontem, hoje, hist = self._dia(extras_ontem=3, extras_hoje=0)
         t = montar(ontem, hoje, extras=hist)
         self.assertIn("saiu da vitrine", t)
-        self.assertIn(u"a coleta da Vivo trouxe 3 ofertas hoje, contra 12 "
+        self.assertIn(u"a coleta da Vivo trouxe 3 ofertas hoje, contra 15 "
                       u"ontem: pode ser a coleta, e não o mercado", t)
 
     def test_uma_vez_por_operadora(self):

@@ -30,7 +30,7 @@ import collections
 import re
 
 # O que este auditor sabe rededuzir da janela crua.
-AUDITADOS = ("precos", "contratuais", "remodeladas", "saidas",
+AUDITADOS = ("precos", "contratuais", "remodeladas", "saidas", "entradas",
              "velocidades")
 
 # E o que ele NAO sabe - escrito aqui para nao parecer aprovado.
@@ -146,6 +146,26 @@ def _pracas_da_saida(e, idx_h, idx_o, coletadas):
     return boas, incertas
 
 
+def _pracas_da_entrada(e, idx_h, idx_o, coletadas_ontem):
+    """A oferta esta hoje e NAO estava ontem, numa praca que foi lida ontem.
+
+    O espelho de _pracas_da_saida. A janela de sete dias do detector -
+    volta nao e lancamento - fica fora daqui: o auditor so tem os dois
+    dias, e confere a parte que os dois dias sustentam.
+    """
+    ident = (e.get("operadora"), e.get("produto"), None,
+             " ".join((e.get("nome_oferta") or "").lower().split()))
+    boas, incertas = set(), set()
+    for praca in set(e.get("pracas") or ()):
+        if (e.get("operadora"), praca) not in coletadas_ontem:
+            # praca que ninguem leu ontem nao sustenta nem nega a entrada
+            incertas.add(praca)
+            continue
+        if idx_h.get(ident, {}).get(praca) and not idx_o.get(ident, {}).get(praca):
+            boas.add(praca)
+    return boas, incertas
+
+
 # A MESMA NORMALIZACAO DO DETECTOR, ESCRITA DE NOVO DE PROPOSITO.
 # robo.py importa auditor.py, entao importar de volta seria circular - e
 # o auditor existe justamente para nao depender do codigo que produziu a
@@ -209,6 +229,8 @@ def auditar(dados, do_dia, linhas_de_ontem):
     idx_o = {True: _indice(linhas_de_ontem),
              False: _indice(linhas_de_ontem, False)}
     coletadas = set((l.get("operadora"), l.get("praca")) for l in do_dia)
+    coletadas_ontem = set((l.get("operadora"), l.get("praca"))
+                          for l in linhas_de_ontem)
 
     recusas, nao_conferidas = [], []
     for tipo in AUDITADOS:
@@ -217,6 +239,9 @@ def auditar(dados, do_dia, linhas_de_ontem):
             if tipo == "saidas":
                 boas, incertas = _pracas_da_saida(
                     e, idx_h[False], idx_o[False], coletadas)
+            elif tipo == "entradas":
+                boas, incertas = _pracas_da_entrada(
+                    e, idx_h[False], idx_o[False], coletadas_ontem)
             elif tipo == "velocidades":
                 # o indice nao serve aqui: ele e chaveado pelo degrau, e
                 # o degrau e o que mudou

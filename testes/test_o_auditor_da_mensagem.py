@@ -21,6 +21,7 @@ aparecia duas vezes na janela crua - caso em que o comparador desempata
 pelo codigo de registro, que o auditor nao tem.
 """
 import os
+import re
 import sys
 import unittest
 
@@ -211,10 +212,24 @@ class ARecusaNaoApaga(unittest.TestCase):
         """A mesma regra de COLETORES x RAIAS: tipo novo de evento nao
         pode nascer sem alguem decidir se o auditor fala por ele."""
         import robo
-        tipos = {k for k in robo.mudancas.__doc__.split()
-                 if k in ("precos", "composicao", "renomeadas", "grades",
-                          "voltaram", "remodeladas", "contratuais",
-                          "saidas", "leitura")}
+        # OS TIPOS SAEM DO CONTRATO, e nao de uma lista escrita aqui. A
+        # versao anterior cruzava o docstring com nove nomes fixos - e
+        # "velocidades" (10/11/2026) e "entradas" (16/11) nunca estiveram
+        # neles: tipo novo passava sem ninguem decidir se o auditor fala
+        # por ele, que e o que esta trava promete impedir. A mutacao En7
+        # mostrou. Cada linha de "As chaves:" e "<chave>  <o que e>".
+        #
+        # O RECUO NAO E FIXO, e nao por estilo: do Python 3.13 em diante o
+        # compilador tira o recuo comum das docstrings. Aqui (3.14) a
+        # lista chega com 2 espacos; no runner (3.12), com 6. A primeira
+        # versao desta linha pedia 6 e nao casava nada nesta maquina.
+        contrato = robo.mudancas.__doc__.split("As chaves:")[1]
+        chaves = set(re.findall(r"^\s+([a-z_]+)\s{2,}\S", contrato, re.M))
+        # o que NAO e evento de mercado: erro, ponto cego e as ressalvas
+        nao_evento = {"erro", "cego", "duvidosa", "cobertura", "passou_a_ler"}
+        tipos = chaves - nao_evento
+        self.assertIn("entradas", tipos, "o contrato deixou de ser lido")
+        self.assertIn("velocidades", tipos)
         cobertos = set(auditor.AUDITADOS) | set(auditor.FORA)
         self.assertEqual(tipos - cobertos, set())
 

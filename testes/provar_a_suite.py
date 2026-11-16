@@ -1012,6 +1012,58 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
+        "        if k in vistas or k in renomeada:\n            continue\n"
+        "        if (l.get(\"operadora\"), l.get(\"praca\")) not in coletadas_ontem:",
+        "        if k in renomeada:\n            continue\n"
+        "        if (l.get(\"operadora\"), l.get(\"praca\")) not in coletadas_ontem:",
+        "En1. a oferta que volta dentro da janela vira lancamento"),
+
+    Mutacao(
+        "robo.py",
+        "        if (l.get(\"operadora\"), l.get(\"praca\")) not in coletadas_ontem:\n"
+        "            continue\n        novas[k].append(l)",
+        "        novas[k].append(l)",
+        "En2. praca que ninguem leu ontem passa a ter lancamento"),
+
+    Mutacao(
+        "robo.py",
+        "        if k in vistas or k in renomeada:",
+        "        if k in vistas:",
+        "En3. o renome volta a sair tambem como lancamento"),
+
+    Mutacao(
+        "robo.py",
+        "        if len(ks) > havia:",
+        "        if False:",
+        "En4. a coleta que passou a ler vira enxurrada de lancamentos"),
+
+    Mutacao(
+        "robo.py",
+        "        comparaveis = (vende[(operadora, produto, ontem)]\n"
+        "                       & vende[(operadora, produto, \"hoje\")])",
+        "        comparaveis = {p for (o, p) in coletadas_ontem if o == operadora}",
+        "En5. o universo volta a ser o da operadora, e nao o do produto"),
+
+    Mutacao(
+        "robo.py",
+        "                 + len(saidas) + len(velocidades) + len(entradas))",
+        "                 + len(saidas) + len(velocidades))",
+        "En6. o lancamento nao conta como mudanca do dia"),
+
+    Mutacao(
+        "auditor.py",
+        "\"saidas\", \"entradas\",",
+        "\"saidas\",",
+        "En7. a entrada passa sem ninguem conferir"),
+
+    Mutacao(
+        "relatorio.py",
+        "    for e in d.get(\"entradas\") or []:",
+        "    for e in []:",
+        "En8. o lancamento existe so na mensagem"),
+
+    Mutacao(
+        "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',
         "o corte de franquia com preco parado volta a passar batido"),

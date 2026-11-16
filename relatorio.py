@@ -608,6 +608,40 @@ def _bloco_saidas(d):
         vazio="Nenhuma oferta deixou a vitrine.")
 
 
+def _bloco_entradas(d):
+    """Oferta que entrou na vitrine, com a lista inteira de pracas."""
+    linhas = []
+    for e in d.get("entradas") or []:
+        entrega = (("%s %s" % (e.get("entrega"), e.get("unidade") or ""))
+                   .strip() if e.get("entrega") else "—")
+        linhas.append([
+            e.get("operadora"),
+            e.get("produto"),
+            e.get("nome_oferta"),
+            _reais(e.get("preco")),
+            entrega,
+            _pracas(e),
+        ])
+    return _tabela(
+        ["Operadora", "Produto", "Oferta", "Preço", "Entrega", "Praças"],
+        linhas, [18 * mm, 16 * mm, 56 * mm, 20 * mm, 22 * mm, 46 * mm],
+        vazio="Nenhuma oferta entrou na vitrine.")
+
+
+def _passou_a_ler(d):
+    """A cobertura nova, em uma frase - ou nada."""
+    itens = d.get("passou_a_ler") or []
+    if not itens:
+        return Spacer(1, 0)
+    partes = ["%s em %s (%d ofertas novas, onde havia %d)"
+              % (x["operadora"], x["produto"], x["novas"], x["havia"])
+              for x in itens]
+    return Paragraph(
+        "Não constam como lançamento, por serem a coleta passando a ler "
+        "mais ofertas do que havia, e não o mercado lançando: %s."
+        % "; ".join(partes), ESTILOS["corpo"])
+
+
 def _bloco_renomeadas(d):
     """Oferta que trocou de nome, e o preco que ela levou na troca.
 
@@ -1013,6 +1047,21 @@ def gerar(dados, entradas, caminho):
                       "mercado.",
                       ESTILOS["corpo"]),
             _bloco_saidas(dados)))
+
+        hist.append(_com_titulo(
+            "Ofertas que entraram na vitrine",
+            Paragraph("Ofertas presentes na data e ausentes em todos os "
+                      "sete dias anteriores, em praças coletadas na "
+                      "véspera. Não constituem entrada o retorno de "
+                      "oferta ausente há menos de oito dias, a oferta "
+                      "renomeada, que consta em Alterações de "
+                      "denominação, nem a reclassificação interna entre "
+                      "produtos. Quando os nomes novos de uma operadora "
+                      "num produto superam os que havia na véspera, "
+                      "trata-se de ampliação da coleta, e não de "
+                      "lançamento.", ESTILOS["corpo"]),
+            _passou_a_ler(dados),
+            _bloco_entradas(dados)))
 
         hist.append(_com_titulo(
             "Alterações de denominação",
