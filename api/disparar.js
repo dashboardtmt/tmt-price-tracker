@@ -57,7 +57,11 @@ export default async function handler(req, res) {
     return res.status(401).json({ erro: "nao autorizado" });
   }
 
-  const token = process.env.GITHUB_TOKEN;
+  // AS PONTAS DO SEGREDO. Em 17/11/2026 o alerta do Telegram morreu com
+  // exit 3 porque o segredo gravado tinha espaco no fim: o Python faz
+  // strip(), o curl nao. Aqui o mesmo defeito vira cabecalho invalido e
+  // o fetch recusa antes de sair - entao o token e aparado na entrada.
+  const token = (process.env.GITHUB_TOKEN || "").trim();
   if (!token) {
     // Sem token a funcao nao faz nada e diz o porque. Nao e erro de
     // execucao: e o estado de quem ainda nao configurou.
@@ -95,12 +99,28 @@ export default async function handler(req, res) {
     if (r.status === 204) {
       return res.status(200).json({ ok: true, quando: new Date().toISOString() });
     }
+    // A FALHA VAI PARA O LOG, e nao so para a resposta. Por oito dias,
+    // de 09 a 17/11/2026, o agendador do Vercel chamou esta rota todo
+    // dia e recebeu 502 - e ninguem leu a resposta, porque quem chama e
+    // o proprio Vercel. O log de execucao e o unico lugar em que o
+    // motivo fica, e foi ao procurar nele que se viu que nao havia
+    // motivo nenhum gravado.
     const detalhe = await r.text();
+    console.error(`disparar: GitHub respondeu ${r.status}: ` +
+                  semToken(detalhe, token).slice(0, 300));
     return res.status(502).json({
       erro: `GitHub respondeu ${r.status}`,
-      detalhe: detalhe.slice(0, 300),
+      detalhe: semToken(detalhe, token).slice(0, 300),
     });
   } catch (e) {
-    return res.status(502).json({ erro: String(e).slice(0, 300) });
+    const msg = semToken(String(e), token).slice(0, 300);
+    console.error(`disparar: o pedido nao saiu: ${msg}`);
+    return res.status(502).json({ erro: msg });
   }
+}
+
+// O TOKEN NUNCA VAI PARA O LOG. Erro de cabecalho invalido do fetch
+// repete o valor do cabecalho na mensagem - e o cabecalho e o token.
+function semToken(texto, token) {
+  return token ? String(texto).split(token).join("[token]") : String(texto);
 }
