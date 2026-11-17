@@ -1089,6 +1089,13 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
+        "    remodeladas = _oferta_remodelada(h, o, usadas)\n",
+        "    remodeladas = [r for r in _oferta_remodelada(h, o, usadas)\n"
+        "                   if (r[\"operadora\"], r[\"produto\"]) not in suprimir]\n",
+        "Ev1. a escada volta a calar a oferta de outro nome (o Geforce de 13/11)"),
+
+    Mutacao(
+        "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',
         "o corte de franquia com preco parado volta a passar batido"),

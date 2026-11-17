@@ -850,8 +850,21 @@ def mudancas(hoje, ontem):
     # HOJE, nao de ontem: com duas ofertas novas - uma de mesma chave e
     # outra de mesmo nome - a mesma base de R$ 100 virava dois reajustes
     # com numeros diferentes, "+60%" e "+30%", e total_mud contava dois.
-    remodeladas = [r for r in _oferta_remodelada(h, o, usadas)
-                   if (r["operadora"], r["produto"]) not in suprimir]
+    # A ESCADA NAO CALA A REMODELADA, desde 17/11/2026. A supressao
+    # existia porque, com os degraus andando, parear por nome casaria o
+    # "Claro Controle" de um degrau com o de outro e inventaria reajuste -
+    # e esse caso ja esta guardado DENTRO de _oferta_remodelada desde a
+    # decisao 92: o par desempatado pelo degrau afirma versao, nunca
+    # preco. Por fora, pelo par (operadora, produto), a supressao so
+    # calava a oferta de OUTRO nome que mudou por conta propria: em
+    # 13/11/2026 o Claro Controle Geforce foi de R$ 99,90 com 35 GB para
+    # R$ 69,90 com 55 GB em 17 pracas - corte de 30% com 57% mais
+    # franquia - e a mensagem falou da escada do Controle sem uma palavra
+    # sobre ele. MEDIDO NOS 48 DIAS: a supressao calou uma remodelada so,
+    # e era essa, verdadeira. Uma guarda pelo nome que deslizou foi
+    # escrita e medida antes desta: a mutacao dela nao era pega, porque o
+    # caso que ela cobriria ja nao acontece - guarda morta.
+    remodeladas = _oferta_remodelada(h, o, usadas)
 
     precos, composicao = list(precos.values()), list(composicao.values())
     # O ALCANCE PRIMEIRO: a separacao abaixo usa em quantas pracas cada
@@ -2464,7 +2477,9 @@ def _unidade(l):
 def _grades_reorganizadas(h, o):
     """A escada de cada operadora, comparada pelos dois lados.
 
-    Devolve (lista de eventos, conjunto de operadoras a suprimir).
+    Devolve (lista de eventos, conjunto de operadoras a suprimir). O
+    conjunto cala preco e renome; a remodelada nao passa por ele - ver
+    o comentario dela em mudancas().
 
     POR QUE DOIS LADOS. "R$ 30 dava 25 GB e passou a dar 20" e "25 GB
     custava R$ 30 e passa a custar R$ 35" sao o mesmo fato visto de
