@@ -48,7 +48,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import robo                                                   # noqa: E402
-from _apoio import (HOJE, ONTEM, montar, oferta,              # noqa: E402
+from _apoio import (HOJE, ONTEM, dados, montar, oferta,              # noqa: E402
                     sem_declaracao)
 from coletores import armazenamento                           # noqa: E402
 
@@ -163,6 +163,46 @@ class AConsultaTrazOQueAFraseAfirma(unittest.TestCase):
                 self.assertIn(campo, pedidos_campos,
                               "a frase afirma sobre %s e a consulta nao o "
                               "traz" % campo)
+
+
+class AFraseTambemNoRelatorio(unittest.TestCase):
+    u"""A MESMA FRASE NO PDF, lida do mesmo campo da mensagem.
+
+    Pedido de quem le, em 17/11/2026: ate ali a tabela de composicao do
+    relatorio dizia "Vivo Pre, R$ 35,00, em todas as 20 pracas" e mais
+    nada - o PDF seguia mandando procurar no site a mudanca que a
+    mensagem ja explicava que nao estava la.
+    """
+
+    def setUp(self):
+        sem_declaracao(self)
+        try:
+            import pypdf                                      # noqa: F401
+            import relatorio                                  # noqa: F401
+        except ImportError:
+            self.skipTest("reportlab ou pypdf ausente")
+
+    def _pdf(self, ontem, hoje):
+        import tempfile
+        import pypdf
+        import relatorio
+        caminho = os.path.join(tempfile.mkdtemp(), "r.pdf")
+        relatorio.gerar(dados(ontem, hoje), {}, caminho)
+        return " ".join(" ".join((p.extract_text() or "").split())
+                        for p in pypdf.PdfReader(caminho).pages)
+
+    def test_o_caso_de_11_11_no_pdf(self):
+        texto = self._pdf(pre(ONTEM, ANTES_SVA), pre(HOJE, AGORA_SVA))
+        self.assertIn(u"A vitrine está igual - mudou o que a Vivo declara "
+                      u"na Anatel", texto)
+
+    def test_vitrine_que_mexeu_nao_leva_a_frase_no_pdf(self):
+        texto = self._pdf(pre(ONTEM, ANTES_SVA),
+                          pre(HOJE, AGORA_SVA,
+                              apps=["vale_saude", "google_one", "spotify"]))
+        # o evento tem de estar na tabela, senao a ausencia nao mede nada
+        self.assertIn(u"Vivo Pré", texto)
+        self.assertNotIn(u"vitrine está igual", texto)
 
 
 if __name__ == "__main__":

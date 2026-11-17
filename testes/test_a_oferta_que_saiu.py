@@ -323,12 +323,19 @@ class OsCincoCortesComOCasoRealAtras(unittest.TestCase):
         Este e o caso que o corte da safra NAO pega: "Ultracombo 3" e
         "Ultracombo 7" nao tem carimbo de mes, e so a semelhanca entre
         os nomes separa renumeracao de saida.
+
+        O DEGRAU DE HOJE E OUTRO DE PROPOSITO. Com a mesma chave nos dois
+        dias o detector de renome casa o par, e o filtro 6 das saidas
+        (16/11/2026) decide antes deste - o teste passava com o filtro 5
+        arrancado, e a mutacao B5 deixou de ser pega. Com outra chave o
+        renome nao casa, e so a semelhanca de nome reconhece a
+        renumeracao: e o filtro 5 que o teste mede.
         """
         onde = pracas(3)
         ontem = vivo(nome="TIM Ultracombo 3 600MEGA + 70GB", data=ONTEM,
                      onde=onde)
         hoje = vivo(nome="TIM Ultracombo 7 600MEGA + 70GB", data=HOJE,
-                    onde=onde)
+                    onde=onde, gb=31)
         extras = historia(nome="TIM Ultracombo 3 600MEGA + 70GB", onde=onde)
         self.assertEqual(self._saidas(ontem, hoje, extras=extras), [])
 

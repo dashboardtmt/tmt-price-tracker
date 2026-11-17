@@ -551,9 +551,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '                 + len(voltaram) + len(remodeladas) + len(contratuais)\n'
-        '                 + len(saidas))\n',
-        '                 + len(voltaram) + len(remodeladas) + len(contratuais))\n',
+        '                 + len(saidas) + len(velocidades) + len(entradas))\n',
+        '                 + len(velocidades) + len(entradas))\n',
         "B7. o dia de saida volta a abrir com \"nenhuma mudanca\""),
 
     Mutacao(
@@ -638,10 +637,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '                 + len(voltaram) + len(remodeladas) + len(contratuais)\n'
-        '                 + len(saidas))\n',
-        '                 + len(voltaram) + len(remodeladas)\n'
-        '                 + len(saidas))\n',
+        '                 + len(voltaram) + len(remodeladas) + len(contratuais)\n',
+        '                 + len(voltaram) + len(remodeladas)\n',
         "X14. o dia com mudanca de contrato volta a contar como parado"),
 
     Mutacao(
@@ -1077,6 +1074,12 @@ MUTACOES = [
         "          dica = c.nome + (c.apps ? \" \\u2014 \" + c.apps : \"\");",
         "          dica = c.nome;",
         "Bd2. a dica deixa de dizer qual app vem no degrau"),
+
+    Mutacao(
+        "relatorio.py",
+        "        vitrine = m.get(\"vitrine_texto\")",
+        "        vitrine = None",
+        "Vp1. a frase da vitrine parada volta a existir so na mensagem"),
 
     Mutacao(
         "robo.py",

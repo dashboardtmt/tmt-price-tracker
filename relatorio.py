@@ -234,15 +234,19 @@ def _bloco_composicao(d):
                  if a.get("preco_promocional") is not None
                  and at.get("preco_promocional") is not None
                  else "não lido")
+        # A MESMA FRASE DA MENSAGEM, lida do mesmo campo - ver
+        # vitrine_texto em robo.montar_mensagem.
+        vitrine = m.get("vitrine_texto")
         linhas.append([
             at.get("operadora"),
             _curto(at.get("nome_oferta"), 40),
             preco,
             _pracas(m),
+            (vitrine[0].upper() + vitrine[1:]) if vitrine else "—",
         ])
     return _tabela(
-        ["Operadora", "Oferta", "Preço", "Praças"], linhas,
-        [24 * mm, 64 * mm, 26 * mm, 64 * mm],
+        ["Operadora", "Oferta", "Preço", "Praças", "Vitrine"], linhas,
+        [22 * mm, 44 * mm, 22 * mm, 46 * mm, 44 * mm],
         vazio="Nenhuma alteração de composição identificada.")
 
 

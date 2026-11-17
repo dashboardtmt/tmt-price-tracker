@@ -3748,6 +3748,16 @@ def montar_mensagem(hoje, ontem):
         cauda.append("e mais %d mudan\u00e7a%s de pre\u00e7o no relat\u00f3rio"
                      % (n, "" if n == 1 else "s"))
 
+    # A FRASE DA VITRINE PARADA, ESCRITA UMA VEZ, em todo evento - e nao
+    # so nos tres que a mensagem mostra: o PDF lista todos e le o mesmo
+    # campo. Pedido de quem le, em 17/11/2026: ate ali a frase existia so
+    # na mensagem, e a tabela do relatorio dizia "Vivo Pre, R$ 35,00, em
+    # todas as 20 pracas" sem dizer que a tela da Vivo nao tinha mudado.
+    for m in comp:
+        m["vitrine_texto"] = (
+            "a vitrine est\u00e1 igual - mudou o que a %s declara na "
+            "Anatel" % m["atual"]["operadora"]
+            if _a_vitrine_nao_mexeu(m["antes"], m["atual"]) else None)
     for m in comp[:3]:
         d = m["atual"]
         antes_sva = set((m["antes"]["assinatura_sva"] or "").split("+"))
@@ -3769,9 +3779,8 @@ def montar_mensagem(hoje, ontem):
         # _a_vitrine_nao_mexeu. Sem esta linha, "ganhou 1 servico
         # incluso" manda o leitor procurar no site uma mudanca que nao
         # esta la.
-        if _a_vitrine_nao_mexeu(m["antes"], d):
-            linhas.append("  a vitrine est\u00e1 igual - mudou o que a %s "
-                          "declara na Anatel" % d["operadora"])
+        if m.get("vitrine_texto"):
+            linhas.append("  %s" % m["vitrine_texto"])
     if len(comp) > 3:
         cauda.append("e mais %d de composi\u00e7\u00e3o no relat\u00f3rio"
                      % (len(comp) - 3))
