@@ -25,6 +25,8 @@ Uso:
 """
 
 import argparse
+import base64
+import gzip
 import io
 import json
 
@@ -694,6 +696,9 @@ let DADOS = __DADOS__;
 // Vazia no modo embutido. No modo remoto a pagina busca o JSON do Supabase
 // Storage, e ai a coleta do dia aparece sem republicar nada.
 const FONTE = "__FONTE__";
+// A SERIE EMBUTIDA, EM GZIP E BASE64 - so na copia local (tela.html). Ver
+// serie_embutida() no gerador.
+const DADOS_GZ = "__DADOS_GZ__";
 const CORES = __CORES__;
 // so referencia: o preco avulso aparece na dica e nunca entra em conta
 const PRECOS_APPS = __APPS__;
@@ -3200,6 +3205,23 @@ if (FONTE) {
     .catch(e=>recado(lang==="pt"
       ? "Não consegui carregar a série ("+e.message+"). A página está no ar, mas sem dado — nada aqui foi estimado."
       : "Could not load the series ("+e.message+"). The page is up but has no data — nothing was estimated."));
+} else if (DADOS_GZ) {
+  // A COPIA LOCAL TAMBEM VEM COMPRIMIDA, e abre sem rede como antes: o
+  // dado mora no proprio arquivo, so que em gzip. Ver serie_embutida()
+  // no gerador - com o JSON cru o tela.html chegou a 61 MB e ia bater
+  // no limite de 100 MB por arquivo do GitHub.
+  recado(lang==="pt" ? "Abrindo a série..." : "Opening the series...");
+  Promise.resolve().then(()=>{
+    if (!self.DecompressionStream) throw new Error("navegador sem gzip");
+    const bin = Uint8Array.from(atob(DADOS_GZ), c => c.charCodeAt(0));
+    return new Response(new Blob([bin]).stream()
+      .pipeThrough(new DecompressionStream("gzip"))).json();
+  })
+    .then(d=>{ if(!Array.isArray(d)||!d.length) throw new Error("vazio");
+               DADOS = d; recado(""); iniciar(); })
+    .catch(e=>recado(lang==="pt"
+      ? "Não consegui abrir a série embutida ("+e.message+"). Nada aqui foi estimado."
+      : "Could not open the embedded series ("+e.message+"). Nothing was estimated."));
 } else {
   iniciar();
 }
@@ -3238,6 +3260,27 @@ def para_script(obj):
             .replace(" ", "\\u2029"))
 
 
+def serie_embutida(dados):
+    """A serie da copia local em gzip e base64, pronta para o molde.
+
+    POR QUE EXISTE. O tela.html leva a serie dentro, para abrir sem rede,
+    e o robo o guarda no repositorio todo dia. Em 17/11/2026 ele tinha
+    61 MB e crescia 1,1 MB por dia: o GitHub avisa acima de 50 MB e
+    RECUSA o push acima de 100 - em cerca de cinco semanas o passo que
+    guarda a tela comecaria a falhar. E o mesmo crescimento que fez o
+    dado do Storage passar dos 50 MB em 11/11 (publicar_dados.compactar).
+
+    BASE64 NAO TEM "<", entao o "</script>" vindo do site da operadora,
+    que derrubava a tela inteira e e a razao de para_script() existir,
+    deixa de ser possivel por construcao dentro deste campo.
+
+    mtime=0 pelo mesmo motivo de publicar_dados: o mesmo dado da os
+    mesmos bytes, e o commit diario so muda quando a serie muda.
+    """
+    bruto = json.dumps(dados, ensure_ascii=False).encode("utf-8")
+    return base64.b64encode(gzip.compress(bruto, 6, mtime=0)).decode("ascii")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dados", required=True)
@@ -3251,10 +3294,11 @@ def main():
     dados = json.load(io.open(a.dados, encoding="utf-8"))
     agora = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
 
-    # no modo remoto o HTML vai sem os dados: fica leve e nao envelhece
-    embutidos = [] if a.remoto else dados
+    # no modo remoto o HTML vai sem os dados: fica leve e nao envelhece.
+    # No embutido a serie vai comprimida em DADOS_GZ, e DADOS nasce vazia.
     html = (MOLDE
-            .replace("__DADOS__", para_script(embutidos))
+            .replace("__DADOS__", "[]")
+            .replace("__DADOS_GZ__", "" if a.remoto else serie_embutida(dados))
             .replace("__FONTE__", a.remoto)
             .replace("__CORES__", para_script(CORES))
             # a tabela de apps vai junto: a tela escreve a dica a

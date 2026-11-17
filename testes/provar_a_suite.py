@@ -1082,6 +1082,12 @@ MUTACOES = [
         "Vp1. a frase da vitrine parada volta a existir so na mensagem"),
 
     Mutacao(
+        "gerar_tela.py",
+        '            .replace("__DADOS__", "[]")',
+        '            .replace("__DADOS__", "[]" if a.remoto else para_script(dados))',
+        "Te1. a copia local volta a levar a serie crua, a caminho dos 100 MB"),
+
+    Mutacao(
         "robo.py",
         '        mesma_etiqueta = sorted(',
         '        mesma_etiqueta = [] or sorted(' if False else '        mesma_etiqueta = []\n        _ignorado = sorted(',

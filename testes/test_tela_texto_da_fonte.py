@@ -133,17 +133,40 @@ class ATelaGeradaSobrevive(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.pasta, ignore_errors=True)
 
+    def _embutido(self):
+        u"""A serie que a copia local carrega, descomprimida como a pagina
+        faz: base64, depois gzip, depois JSON."""
+        import base64
+        import gzip
+        import re
+        m = re.search(r'const DADOS_GZ = "([A-Za-z0-9+/=]*)";', self.html)
+        self.assertTrue(m and m.group(1), "a serie embutida sumiu")
+        return gzip.decompress(base64.b64decode(m.group(1))).decode("utf-8")
+
     def test_o_dado_embutido_nao_fecha_a_tag(self):
         """A prova direta: a sequencia hostil nao aparece crua no
-        arquivo, e aparece escapada."""
+        arquivo.
+
+        DESDE 17/11/2026 A SERIE VAI EM BASE64, que nao tem "<": o
+        "</script>" deixa de ser possivel por construcao dentro do campo,
+        e o escape de para_script() so protege o que ainda vai cru (as
+        cores, a tabela de apps)."""
         self.assertNotIn("x=1</script>", self.html)
-        self.assertIn("x=1<\\/script>", self.html)
 
     def test_o_nome_hostil_esta_la_dentro(self):
-        """Controle: sem isto os dois testes acima passariam porque o
-        nome sumiu, e nao porque foi tratado."""
-        self.assertIn("Oi", self.html)
-        self.assertIn(FRASE, self.html)
+        """Controle: sem isto o teste acima passaria porque o nome sumiu,
+        e nao porque foi tratado. Ele tem de voltar INTEIRO ao abrir."""
+        serie = self._embutido()
+        self.assertIn("Oi", serie)
+        self.assertIn(FRASE, serie)
+        self.assertIn("x=1</script>", serie)
+
+    def test_a_serie_vai_comprimida(self):
+        """O tela.html tinha 61 MB em 17/11/2026, a caminho do limite de
+        100 MB por arquivo do GitHub. O JSON cru nao pode mais estar no
+        arquivo."""
+        self.assertNotIn('"nome_oferta"', self.html)
+        self.assertIn('"nome_oferta"', self._embutido())
 
 
 @unittest.skipIf(NODE is None, "node nao instalado")
