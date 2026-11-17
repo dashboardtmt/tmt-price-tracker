@@ -322,7 +322,11 @@ jobs:
           Motivo: ${MOTIVO}.
           Pode ter entrado dado parcial; o historico anterior segue intacto de qualquer jeito.
           Detalhes: ${RUN}"
-          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+          # o segredo tem espaco no fim: o Python faz .strip(), o curl nao,
+          # e a URL sai malformada (exit 3) - foi assim em 17/11/2026
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+          CHAT="$(printf '%s' "$CHAT" | tr -d '[:space:]')"
+          curl -s --fail -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "text=${TEXTO}" > /dev/null
           echo "alerta de dia perdido enviado"
@@ -384,7 +388,11 @@ jobs:
           Motivo: ${PORQUE}.
           Efeito: a hora da coleta volta a depender do agendamento do GitHub, que chega com horas de atraso. A mensagem sai perto das 6h30 nos dias em que uma das oito chegadas cai antes das 6h, e no meio da manha nos outros.
           Os numeros e o historico nao mudam - o que muda e a hora em que a mensagem chega."
-          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+          # o segredo tem espaco no fim: o Python faz .strip(), o curl nao,
+          # e a URL sai malformada (exit 3) - foi assim em 17/11/2026
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+          CHAT="$(printf '%s' "$CHAT" | tr -d '[:space:]')"
+          curl -s --fail -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "text=${TEXTO}" > /dev/null
           echo "aviso de gatilho desarmado enviado"
@@ -533,7 +541,11 @@ jobs:
           A MENSAGEM DE HOJE NAO FOI GERADA.
           O passo que monta e envia o aviso falhou. Nao da para dizer daqui se a coleta do dia fechou nem se o painel foi atualizado - as duas coisas estao na rodada.
           Detalhes: ${RUN}"
-          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+          # o segredo tem espaco no fim: o Python faz .strip(), o curl nao,
+          # e a URL sai malformada (exit 3) - foi assim em 17/11/2026
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+          CHAT="$(printf '%s' "$CHAT" | tr -d '[:space:]')"
+          curl -s --fail -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "text=${TEXTO}" > /dev/null
           echo "alerta de aviso falhado enviado"
@@ -634,7 +646,11 @@ jobs:
           O PAINEL NAO FOI ATUALIZADO HOJE.
           O passo que publica o dado da tela falhou. O site segue no ar, mas com a ultima publicacao que deu certo - a data no topo dele e a daquele dia, nao a de hoje. A mensagem e o relatorio deste dia saem antes deste passo e nao dependem dele.
           Detalhes: ${RUN}"
-          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+          # o segredo tem espaco no fim: o Python faz .strip(), o curl nao,
+          # e a URL sai malformada (exit 3) - foi assim em 17/11/2026
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+          CHAT="$(printf '%s' "$CHAT" | tr -d '[:space:]')"
+          curl -s --fail -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "text=${TEXTO}" > /dev/null
           echo "alerta de painel parado enviado"

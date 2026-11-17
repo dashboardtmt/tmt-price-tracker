@@ -51,13 +51,45 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           # leitor, que e o defeito que este projeto mais encontra.
           "velocidade_declarada:bruto->>velocidade_declarada")
 
+PAGINA = 1000   # o PostgREST corta a resposta nesse tamanho
+
+
 def exportar(dias):
+    """As capturas da janela, na ordem (data, operadora, id).
+
+    PAGINA PELA CHAVE, NAO POR OFFSET. Com offset, cada pagina pede ao
+    banco a janela inteira ordenada - jsonb aberto em todas as linhas - e
+    joga fora o que vem antes do offset: 82 paginas, 82 vezes a tabela. O
+    custo cresce com o quadrado da serie. Em 17/11/2026, com ~84 mil
+    capturas, uma pagina passou do statement_timeout (HTTP 500, 57014) e
+    o painel ficou no dia 16; a mesma consulta levava de 41 a 81 s nos
+    dias anteriores, e a janela de 90 dias ainda estava pela metade.
+
+    Pela chave, cada pagina comeca onde a anterior parou (id > ultimo),
+    pelo indice da chave primaria, e o banco so abre as mil linhas que
+    devolve. A ordem que a tela recebe e refeita aqui, com o id como
+    desempate - a mesma ordem total que o banco devolvia.
+    """
     desde = (date.today() - timedelta(days=dias)).isoformat()
-    # a paginacao mora em armazenamento: o aviso diario precisava da mesma
-    # coisa e tinha ficado sem, trazendo so as primeiras mil capturas
-    return armazenamento.consultar_tudo(
-        "capturas?data_captura=gte.%s&select=%s"
-        "&order=data_captura.asc,operadora.asc" % (desde, CAMPOS))
+    tudo, ultimo = [], 0
+    while True:
+        linhas, erro = armazenamento.consultar(
+            "capturas?data_captura=gte.%s&id=gt.%d&select=id,%s"
+            "&order=id.asc&limit=%d" % (desde, ultimo, CAMPOS, PAGINA))
+        if erro:
+            return None, erro
+        # so a pagina VAZIA encerra: se o servidor cortar abaixo de
+        # PAGINA, "veio menos que o pedido" pararia no meio, calado
+        if not linhas:
+            break
+        if linhas[-1]["id"] <= ultimo:
+            return None, "a chave nao avancou depois do id %d" % ultimo
+        tudo.extend(linhas)
+        ultimo = linhas[-1]["id"]
+    tudo.sort(key=lambda l: (l["data_captura"], l["operadora"], l["id"]))
+    for l in tudo:
+        del l["id"]
+    return tudo, None
 
 
 def main():
