@@ -2224,16 +2224,55 @@ def _restaurar(caminho, original):
     raise SystemExit(2)
 
 
-def main():
+def parte(lista, k, n):
+    """As mutacoes da parte k (de 1 a n): uma em cada n, pelo indice.
+
+    POR QUE EXISTE. Em 27/10/2026 eram 136 mutacoes e o job inteiro
+    levava 12 minutos; em 17/11 eram 292, cada uma rodando uma suite que
+    tambem dobrou, e desde 10/11 o job estourava o teto de 35 minutos em
+    quase toda rodada e era CANCELADO - sem relatar nada. Tres mutacoes
+    tinham deixado de ser pegas (B5, B7 e X14) e o provador nao tinha
+    como dizer. Em partes, cada job roda uma fatia em paralelo.
+
+    PELO INDICE, E NAO EM BLOCOS: mutacoes vizinhas tocam o mesmo trecho
+    e custam parecido; intercaladas, as partes saem do mesmo tamanho e
+    do mesmo peso. AsPartesCobremTudo prende que a uniao das partes e a
+    lista inteira, sem repetir nenhuma - divisao que perdesse mutacao
+    seria o mesmo silencio com outra cara.
+    """
+    if not (1 <= k <= n):
+        raise ValueError("parte %d de %d nao existe" % (k, n))
+    return [m for i, m in enumerate(lista) if i % n == k - 1]
+
+
+def _parte_pedida(argv):
+    """"--parte 3/8" -> (3, 8); sem o argumento, a lista inteira."""
+    for i, a in enumerate(argv):
+        if a == "--parte" and i + 1 < len(argv):
+            k, n = argv[i + 1].split("/")
+            return int(k), int(n)
+        if a.startswith("--parte="):
+            k, n = a.split("=", 1)[1].split("/")
+            return int(k), int(n)
+    return 1, 1
+
+
+def main(argv=None):
     if not suite_verde():
         print("A SUITE JA ESTA VERMELHA. Conserte antes de medir.")
         return 1
+
+    k, n = _parte_pedida(sys.argv[1:] if argv is None else argv)
+    alvo = parte(MUTACOES, k, n)
+    if n > 1:
+        print("parte %d de %d: %d de %d mutacoes"
+              % (k, n, len(alvo), len(MUTACOES)))
 
     print("%-60s %s" % ("DEFEITO REINTRODUZIDO", "A SUITE PEGA?"))
     print("-" * 78)
     inuteis, controle_errado = [], False
 
-    for m in MUTACOES:
+    for m in alvo:
         caminho = os.path.join(BASE, m.arquivo)
         original = io.open(caminho, encoding="utf-8").read()
         if m.de not in original:

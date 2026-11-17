@@ -65,13 +65,23 @@ jobs:
 
   provador:
     runs-on: ubuntu-latest
-    # MEDIDO, e nao chutado: 12min11s para as 136 mutacoes nesta
-    # maquina, em 27/10/2026. Cada mutacao roda a suite inteira, entao
-    # o tempo cresce nos DOIS eixos - mais testes e mais mutacoes. O
-    # runner do GitHub e mais lento que a maquina onde isso foi medido,
-    # e 35 minutos deixa folga para a suite crescer bastante antes de
-    # alguem precisar mexer aqui de novo.
+    # EM OITO PARTES PARALELAS, desde 17/11/2026. Era um job so, com 35
+    # minutos medidos em 27/10 para 136 mutacoes - e a lista dobrou, a
+    # suite tambem, e o tempo cresce nos DOIS eixos porque cada mutacao
+    # roda a suite inteira. Com 292 mutacoes o job era CANCELADO no teto
+    # em quase toda rodada desde 10/11, sem relatar nada, e tres mutacoes
+    # ja tinham deixado de ser pegas sem ninguem saber.
+    #
+    # Cada parte roda uma em cada oito, pelo indice (ver parte() no
+    # provador), e o repositorio e publico: as oito juntas nao custam
+    # minuto nenhum. fail-fast desligado, porque parte que acusa defeito
+    # nao pode cancelar as outras - o relatorio inteiro e o que importa.
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3, 4, 5, 6, 7, 8]
+    name: provador (${{ matrix.parte }}/8)
     steps:
       - uses: actions/checkout@v7
 
@@ -90,4 +100,4 @@ jobs:
         # reintroduz cada defeito real e exige que a suite fique
         # vermelha. Teste que nunca falha nao protege nada, e isso tem
         # de ser demonstrado e nao suposto.
-        run: python testes/provar_a_suite.py
+        run: python testes/provar_a_suite.py --parte ${{ matrix.parte }}/8
