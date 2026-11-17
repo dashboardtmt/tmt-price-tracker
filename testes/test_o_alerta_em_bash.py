@@ -34,7 +34,9 @@ class AlertaEmBash(unittest.TestCase):
                 nome = "%s:%d" % (os.path.basename(arq), i + 1)
                 self.assertIn(LIMPA, antes, nome + " monta a URL com o token cru")
                 self.assertIn("--fail", l, nome + " sem --fail")
-        self.assertGreaterEqual(achados, 4)
+        # eram 4 ate 17/11/2026 (alerta, gatilho, aviso_falhou,
+        # tela_falhou); o gatilho saiu com o despertador do Vercel
+        self.assertGreaterEqual(achados, 3)
 
 
 if __name__ == "__main__":
