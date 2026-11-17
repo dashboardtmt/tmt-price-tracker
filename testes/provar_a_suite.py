@@ -932,7 +932,7 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '        if _a_vitrine_nao_mexeu(m["antes"], d):',
+        '        if m.get("vitrine_texto"):',
         "        if False:",
         "Vi6. a mensagem volta a so contar e manda procurar o que nao existe"),
 
