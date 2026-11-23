@@ -300,6 +300,19 @@ class ASerieNoNavegador(unittest.TestCase):
         self.assertIn("self.DecompressionStream", self.molde)
         self.assertIn("navegador sem gzip", self.molde)
 
+    def test_cada_descompressao_tem_a_sua_guarda(self):
+        u"""UMA GUARDA POR CAMINHO, e nao uma no arquivo. Desde 17/11/2026
+        a pagina descomprime em dois lugares - a serie baixada e a copia
+        embutida no tela.html - e o teste de cima so pedia que a frase
+        existisse em algum: apagar a guarda de um dos dois passava verde
+        (Gz5 sobreviveu no provador de 17/11). Agora cada
+        DecompressionStream conta a sua."""
+        usos = self.molde.count('new DecompressionStream("gzip")')
+        guardas = self.molde.count(
+            'if (!self.DecompressionStream) throw new Error("navegador sem gzip");')
+        self.assertEqual(usos, 2, "a pagina descomprime em dois caminhos")
+        self.assertEqual(guardas, usos)
+
     def test_o_json_sem_gz_continua_funcionando(self):
         u"""A copia local, gerada sem --remoto, nao passa por aqui; mas a
         tela aberta contra um arquivo .json qualquer tem de seguir

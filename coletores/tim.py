@@ -328,6 +328,52 @@ def ler_combos(op, url):
     t = re.sub(r"<[^>]+>", " ", t).replace("&nbsp;", " ")
     t = re.sub(r"\s+", " ", t)
 
+    saida = _combos_do_texto(t, extras)
+    if not saida:
+        # O CARD VIROU COMPONENTE em 17/11/2026: <tim-card-pricing-offer>
+        # com o nome em atributo (label="TIM Ultracombo 7", value="600MEGA
+        # + 65GB") e o preco VAZIO (price=""), preenchido pelo JavaScript.
+        # Tirando as tags nao sobra texto nenhum, e as 40 linhas de combo
+        # sumiram das 20 pracas - e a mensagem do dia disse que os dois
+        # Ultracombos "sairam da vitrine", com a pagina mostrando os dois
+        # a 89,99 e 139,99, como na vespera.
+        #
+        # O que o JavaScript pinta no card vem de field_description no
+        # drupalSettings - "600MEGA de internet residencial + 65GB ...
+        # Por R$89,99/mes" -, entao o texto se remonta dali e passa pela
+        # MESMA regex. NAO de field_preco_adicional_original: esse e o
+        # resto de campanha que diz 129,99 nos dois cards, e e o motivo
+        # de este leitor ter nascido lendo o texto.
+        saida = _combos_do_texto(texto_dos_cards_no_json(h), extras)
+    if not saida:
+        return None, "nenhum card de combo reconhecido - a pagina mudou"
+    return saida, None
+
+
+def texto_dos_cards_no_json(h):
+    """O texto de cada card de Ultracombo, remontado do drupalSettings:
+    "TIM Ultracombo 7 600MEGA + 65GB <descricao>". O numero do combo vem
+    do titulo do no ("TIM Ultracombo 7 - 600MEGA + 65GB [B2C][SP]")."""
+    m = re.search(r'<script[^>]*drupal-settings-json[^>]*>(.*?)</script>', h, re.S)
+    if not m:
+        return ""
+    try:
+        ofs = json.loads(m.group(1)).get("ofertas", [])
+    except Exception:
+        return ""
+    cards = []
+    for o in ofs:
+        n = re.search(r"TIM Ultracombo\s+(\d+)", texto(o.get("title")) or "", re.I)
+        titulo = texto(o.get("field_titulo"))
+        desc = texto(o.get("field_description"))
+        if not (n and titulo and desc):
+            continue
+        desc = re.sub(r"<[^>]+>", " ", desc).replace("&nbsp;", " ")
+        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), titulo, desc))
+    return re.sub(r"\s+", " ", " ".join(cards))
+
+
+def _combos_do_texto(t, extras):
     saida, vistos = [], set()
     for m in CARD_COMBO.finditer(t):
         n_combo, vel, unid, gigas, meio, preco = m.groups()
@@ -364,9 +410,7 @@ def ler_combos(op, url):
             # com lista vazia, em 40 linhas, calado.
             "texto_apps": (meio.strip() + " " + junto).strip(),
         })
-    if not saida:
-        return None, "nenhum card de combo reconhecido - a pagina mudou"
-    return saida, None
+    return saida
 
 
 def _degrau_no_nome(nome):

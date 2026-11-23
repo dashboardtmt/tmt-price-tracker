@@ -861,6 +861,13 @@ MUTACOES = [
 
     Mutacao(
         "gerar_tela.py",
+        '    if (!self.DecompressionStream) throw new Error("navegador sem gzip");\n'
+        '    const bin = ',
+        '    const bin = ',
+        "Gz8. a copia embutida perde a guarda do navegador sem gzip"),
+
+    Mutacao(
+        "gerar_tela.py",
         '               if (!/\\.gz$/.test(FONTE)) return r.json();\n'
         '               if (!self.DecompressionStream) throw new Error("navegador sem gzip");\n'
         "               return new Response(\n"
@@ -1099,8 +1106,8 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    remodeladas = [r for r in _oferta_remodelada(h, o, usadas)\n',
-        '    remodeladas = [r for r in []\n',
+        '    remodeladas = _oferta_remodelada(h, o, usadas)\n',
+        '    remodeladas = []\n',
         "2. preco e degrau mudando juntos voltam a ser invisiveis"),
 
     Mutacao(
@@ -2144,6 +2151,23 @@ MUTACOES = [
         "  const dias = DIAS;",
         "  const dias = DIAS.slice(-12);",
         "Dg2. a matriz volta a cortar em 12 dias"),
+    # O CARD DO ULTRACOMBO VIROU COMPONENTE em 17/11/2026, e a leitura
+    # do texto renderizado voltou vazia nas 20 pracas.
+    Mutacao(
+        "coletores/tim.py",
+        "        saida = _combos_do_texto(texto_dos_cards_no_json(h), extras)\n",
+        "        pass\n",
+        "Uc1. o Ultracombo em componente volta a nao ser lido"),
+    Mutacao(
+        "coletores/tim.py",
+        '        desc = texto(o.get("field_description"))\n',
+        '        desc = texto(o.get("field_preco_adicional_original"))\n',
+        "Uc2. o Ultracombo le o preco que sobrou de campanha"),
+    Mutacao(
+        "coletores/tim.py",
+        '        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), titulo, desc))\n',
+        '        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), desc, titulo))\n',
+        "Uc3. o card remontado perde a ordem que a regex le"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
