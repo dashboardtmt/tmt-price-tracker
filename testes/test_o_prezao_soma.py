@@ -14,7 +14,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coletores import claro                                   # noqa: E402
+from coletores import apps, claro                             # noqa: E402
 
 TABELA = (u"<div>Conheça as recargas da renovação parcial</div><p>Prezão R$ 1 "
           u"por dia</p><div>Valor do saldo</div><span>R$ 30,00</span>"
@@ -44,6 +44,30 @@ class OPrezaoSoma(unittest.TestCase):
     def test_os_outros_degraus_ficam_na_composicao(self):
         ofertas, _ = claro.ler_prezao(None, "http://x")
         self.assertIn("R$ 15,00 = 5GB", ofertas[0]["composicao"])
+
+
+class OSkeeloDasVantagensDoPre(unittest.TestCase):
+    u"""A pagina oferece o Skeelo "para clientes Claro Pre", fora do card
+    da recarga. Texto copiado da pagina em 24/11/2026."""
+
+    VANTAGEM = (u"<h4>Skeelo</h4><p>Plataforma digital de incentivo à leitura "
+                u"que disponibiliza um best-seller por mês para clientes "
+                u"Claro Pré.</p>")
+
+    def _ler(self, html):
+        guarda = claro.buscar
+        claro.buscar = lambda op, url, *a, **k: (200, html)
+        self.addCleanup(setattr, claro, "buscar", guarda)
+        return claro.ler_prezao(None, "http://x")[0][0]
+
+    def test_com_a_vantagem_o_prezao_traz_o_skeelo(self):
+        o = self._ler(self.VANTAGEM + TABELA)
+        self.assertTrue(o["composicao"].startswith("Inclui Skeelo"))
+        self.assertEqual(apps.apps_do_texto(o["composicao"]), ["skeelo"])
+
+    def test_sem_a_vantagem_nao_traz(self):
+        o = self._ler(TABELA)
+        self.assertEqual(apps.apps_do_texto(o["composicao"]), [])
 
 
 if __name__ == "__main__":

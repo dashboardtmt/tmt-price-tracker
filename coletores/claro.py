@@ -487,6 +487,13 @@ def ler_prezao(op, url):
 
     escada = "; ".join("R$ %s = %sGB%s/%s dias" % (p, g, extra.strip(), d)
                        for p, (g, extra, d) in zip(precos, degraus))
+    # O SKEELO DAS VANTAGENS DO PRE, desde 25/11/2026. A pagina o oferece
+    # "para clientes Claro Pre" - um best-seller por mes -, fora do card da
+    # recarga, como a TIM poe o WhatsApp nas vantagens do pos. Vai NA
+    # FRENTE da composicao, que tem teto de 400 caracteres.
+    junto = ""
+    if re.search(r"skeelo.{0,200}?clientes claro pr[eé]", t, re.I):
+        junto = "Inclui Skeelo (um best-seller por mes para clientes Claro Pre). "
     for preco, (gigas, extra, dias) in zip(precos, degraus):
         if int(dias) != 30:
             continue
@@ -508,8 +515,8 @@ def ler_prezao(op, url):
             # "WhatsApp ilimitado com videochamadas", na tabela do Prezao
             "whatsapp": apps.whatsapp_incluso(t),
             "preco_promocional": numero(preco),
-            "composicao": ("Prezao R$1 por dia, renovacao a cada %s dias. "
-                           "Escada completa: %s" % (dias, escada))[:400],
+            "composicao": (junto + "Prezao R$1 por dia, renovacao a cada %s "
+                           "dias. Escada completa: %s" % (dias, escada))[:400],
         }], None
     return None, "a escada nao tem degrau de 30 dias"
 

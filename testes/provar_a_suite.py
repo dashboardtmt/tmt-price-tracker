@@ -2305,6 +2305,11 @@ MUTACOES = [
         "        total = livre + (int(app.group(1)) if app else 0)\n",
         "        total = livre\n",
         "Pz7. o Prezao volta a ler 17 GB onde o card diz 20"),
+    Mutacao(
+        "coletores/claro.py",
+        '        junto = "Inclui Skeelo (um best-seller por mes para clientes Claro Pre). "\n',
+        '        junto = ""\n',
+        "Pz8. o Prezao perde o Skeelo das vantagens do pre"),
     # O WHATSAPP INCLUSO (24/11/2026): sempre que a oferta disser.
     Mutacao(
         "coletores/apps.py",
