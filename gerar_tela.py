@@ -84,27 +84,26 @@ MOLDE = r"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
-    /* TOKENS NEUTROS, desde 24/11/2026. O bege quente, a sombra larga,
-       o botao em pilula e o titulo com traco laranja grosso liam como
-       tela generica - "padrao", nas palavras de quem le. Fundo cinza
-       frio, cartao branco com fio fino, e o laranja so onde e marca ou
-       estado. As cores das operadoras nao mudam (ver CORES). */
+    /* AS CORES SAO AS DE SEMPRE, E A FORMA E A DE 24/11/2026. Naquele dia
+       fundo, bordas, linhas de tabela e cinzas dos graficos foram para um
+       cinza frio junto com a forma - e quem le achou que piorou, nos dois
+       pedidos: "a cor antiga estava melhor". Voltou o tom quente; ficaram
+       o fio fino, o canto de 8px, a fonte, o trilho segmentado e o
+       cabecalho chapado. Ver a memoria do projeto: mudanca de visual mexe
+       em forma, nao em cor. */
     /* IBM Plex Sans: numeral tabular de verdade e o desenho de relatorio
        de mercado. Se nao carregar, a pilha de sistema assume. */
     --fonte: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --laranja:#FF5000; --laranja-claro:#FFAE66;
     --preto:#000512;            /* o preto oficial Itau (0,5,18) */
-    --cinza-medio:#6E6E6E; --cinza:#9AA1AC; --cinza-claro:#CFD4DB;
-    /* O FUNDO CONTINUA O BEGE de antes: em 24/11/2026 ele foi trocado
-       por um cinza frio junto com o resto, e a resposta foi que a cor
-       antiga era melhor. O que mudou e o que esta em cima dele. */
+    --cinza-medio:#6E6E6E; --cinza:#A0A0A0; --cinza-claro:#CFCFCF;
     --cor-fundo:#EFEBE1;        /* bege quente */
-    --cor-superficie:#FFFFFF;
-    --cor-texto:#14171C; --cor-texto-suave:#5E6673; --cor-borda:#E3E6EB;
-    --cor-borda-forte:#CBD0D8;
-    --cor-linha:#EEF0F3;        /* o fio entre linhas de tabela */
-    --cor-realce:#F7F8FA;       /* linha em foco, grupo, bloco alternado */
-    --sombra:0 1px 2px rgba(16,24,40,.04);
+    --cor-superficie:#FFFFFF;   /* o cartao e branco: o bege e o fundo */
+    --cor-texto:#241F1A; --cor-texto-suave:#7C7468; --cor-borda:#E6E0D2;
+    --cor-borda-forte:#D6CEBC;
+    --cor-linha:#E6E0D2;        /* o fio entre linhas de tabela */
+    --cor-realce:#F5F2EC;       /* linha em foco */
+    --sombra:0 1px 2px rgba(36,31,26,.05);
     --raio:8px;
     --positivo:#2E7D32; --negativo:#C62828;
   }
@@ -169,7 +168,7 @@ MOLDE = r"""<!DOCTYPE html>
     margin:12px 0 10px;display:grid;gap:6px 14px;
     grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
     position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
-    box-shadow:0 1px 2px rgba(16,24,40,.05)}
+    box-shadow:0 1px 2px rgba(36,31,26,.05)}
   /* o rotulo ao LADO dos chips, nao em cima: empilhado, ele sozinho
      custava uma fileira inteira de altura na barra */
   .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
@@ -188,7 +187,7 @@ MOLDE = r"""<!DOCTYPE html>
     border:1px solid var(--cor-borda-forte);background-color:#fff;
     color:var(--cor-texto);width:100%;cursor:pointer;
     appearance:none;-webkit-appearance:none;-moz-appearance:none;
-    background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235E6673' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237C7468' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat;background-position:right 9px center;
     background-size:9px 6px;
     transition:border-color .12s,box-shadow .12s}
@@ -246,12 +245,12 @@ MOLDE = r"""<!DOCTYPE html>
      "1000 Mbps" nao medem igual): vai medida no JS, nao chutada. */
   #matriz{scroll-snap-type:x proximity}
   #matriz th.num,#matriz td.num{scroll-snap-align:start}
-  #matriz tr.bloco-alt td{background:var(--cor-realce)}
+  #matriz tr.bloco-alt td{background:rgba(45,38,30,.04)}
   #matriz tr.bloco-alt td.op-col,
-  #matriz tr.bloco-alt td.degrau{background-color:var(--cor-realce)}
-  #matriz tbody tr:hover td{background:#F1F3F6}
+  #matriz tr.bloco-alt td.degrau{background-color:#F3F0E9}
+  #matriz tbody tr:hover td{background:#FFF6F2}
   #matriz tbody tr:hover td.op-col,
-  #matriz tbody tr:hover td.degrau{background-color:#F1F3F6}
+  #matriz tbody tr:hover td.degrau{background-color:#FFF0E8}
   #matriz td.trocou{color:var(--cor-texto);font-weight:600}
   .legenda-matriz{font-size:11px;color:var(--cor-texto-suave);margin-top:9px;
                   display:flex;gap:16px;flex-wrap:wrap}
@@ -306,7 +305,7 @@ MOLDE = r"""<!DOCTYPE html>
      A barra flutuante entra como irma no meio, entao o seletor nao
      pode ser o de irmao imediato. */
   .tabela-wrap ~ .faixa-rot{margin-top:22px}
-  .grupo-op{background:var(--cor-realce);font-weight:600}
+  .grupo-op{background:var(--cor-fundo);font-weight:600}
   .grupo-op td{padding-top:8px;padding-bottom:5px}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
           gap:14px;flex-wrap:wrap}
@@ -322,12 +321,12 @@ MOLDE = r"""<!DOCTYPE html>
   /* AS OPCOES DE UM MESMO GRAFICO NUM TRILHO SO, desde 24/11/2026: a
      pilula preta solta ao lado de pilulas brancas parecia dois botoes
      sem relacao. No trilho, a escolhida e a chapa branca. */
-  .segmento{display:inline-flex;gap:2px;padding:2px;background:#EEF0F3;
+  .segmento{display:inline-flex;gap:2px;padding:2px;background:#F3EFE6;
     border:1px solid var(--cor-borda);border-radius:7px}
   .metricas .segmento button{border:none;border-radius:5px;
     background:transparent;padding:4px 12px}
   .metricas .segmento button.on{background:#fff;color:var(--cor-texto);
-    box-shadow:0 1px 2px rgba(16,24,40,.12),0 0 0 1px rgba(16,24,40,.05)}
+    box-shadow:0 1px 2px rgba(36,31,26,.14),0 0 0 1px rgba(36,31,26,.06)}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
   .grafico-wrap.alto{height:450px}
@@ -361,7 +360,7 @@ MOLDE = r"""<!DOCTYPE html>
      border-bottom:1px solid var(--cor-borda-forte)}
   table{line-height:1.35}
   td{border-bottom:1px solid var(--cor-linha);padding:5px 11px}
-  tbody tr:hover td{background:var(--cor-realce)}
+  tbody tr:hover td{background:rgba(255,80,0,.045)}
   tbody tr:last-child td{border-bottom:none}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   /* Nas listas de oferta o numero fica CENTRADO na coluna: alinhado a
@@ -436,7 +435,7 @@ MOLDE = r"""<!DOCTYPE html>
     width:78px;min-width:78px;transition:outline-color .1s}
   .mapa td.cel.fora{background:transparent;color:var(--cinza);
     box-shadow:inset 0 0 0 1px var(--cor-borda)}
-  .mapa tr:hover td.cel{outline:1px solid rgba(16,24,40,.35);outline-offset:-1px}
+  .mapa tr:hover td.cel{outline:1px solid rgba(0,5,18,.30);outline-offset:-1px}
   .mapa tr:hover td.praca{color:var(--laranja)}
   /* ---- o mapa de calor de player por produto ---- */
   /* a primeira coluna e o player, com a bolinha da marca: a cor ja
@@ -488,15 +487,15 @@ MOLDE = r"""<!DOCTYPE html>
   .scroll-flutuante > div{height:1px}
   .scroll-flutuante::-webkit-scrollbar{height:8px}
   .scroll-flutuante::-webkit-scrollbar-track{background:transparent}
-  .scroll-flutuante::-webkit-scrollbar-thumb{background:rgba(16,24,40,.20);
+  .scroll-flutuante::-webkit-scrollbar-thumb{background:rgba(255,80,0,.30);
     border-radius:8px;transition:background .15s}
-  .scroll-flutuante:hover::-webkit-scrollbar-thumb{background:rgba(16,24,40,.38)}
+  .scroll-flutuante:hover::-webkit-scrollbar-thumb{background:rgba(255,80,0,.55)}
   .scroll-flutuante::-webkit-scrollbar-button{display:none;width:0;height:0}
   .scroll-flutuante{scrollbar-width:thin;
-    scrollbar-color:rgba(16,24,40,.20) transparent}
+    scrollbar-color:rgba(255,80,0,.30) transparent}
   .cab-flutuante{position:fixed;z-index:30;overflow:hidden;display:none;
     background:var(--cor-superficie);
-    border-radius:6px 6px 0 0;box-shadow:0 6px 12px rgba(16,24,40,.10)}
+    border-radius:6px 6px 0 0;box-shadow:0 6px 12px rgba(45,38,30,.14)}
   .cab-flutuante::-webkit-scrollbar{display:none}
   .cab-flutuante{scrollbar-width:none}
   .cab-flutuante table{margin:0}
@@ -1425,7 +1424,7 @@ function porDegrau(dia){
 // operadora e devolve a legibilidade.
 function escurecer(hex, f){
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
-  if (!m) return "#3B424D";
+  if (!m) return "#4A443C";
   const v = parseInt(m[1], 16);
   const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
     .map(x => Math.max(0, Math.round(x * f)));
@@ -1444,7 +1443,7 @@ function escurecer(hex, f){
 const RAMPA = ["#FCE7D8", "#F9C6A4", "#F49A66", "#E96B2E", "#C9400A"];
 
 // Texto branco a partir do quarto passo, onde o fundo escurece.
-const RAMPA_TINTA = ["#1F242C", "#1F242C", "#1F242C", "#fff", "#fff"];
+const RAMPA_TINTA = ["#2B2621", "#2B2621", "#2B2621", "#fff", "#fff"];
 
 // Abaixo disso a coluna e considerada PLANA e fica toda no passo claro.
 // A Brisanet varia R$ 0,09 entre pracas: espalhar isso pela rampa
@@ -1453,7 +1452,7 @@ const VARIACAO_MINIMA = 0.02;
 
 const EIXO = {
   grade: "rgba(0,0,0,0.055)",     // so o suficiente para guiar o olho
-  borda: "#C4CAD3",
+  borda: "#000512",
 };
 
 // Um eixo com marcas em numero redondo E espacadas por igual.
@@ -1561,7 +1560,7 @@ function legenda(extra){
   return Object.assign({
     display:true, position:"bottom", align:"center",
     labels:{usePointStyle:true, pointStyle:"circle", boxWidth:7, boxHeight:7,
-            padding:14, color:"#1F242C", font:{size:11.5, weight:"600"}},
+            padding:14, color:"#2B2621", font:{size:11.5, weight:"600"}},
     onHover:(e, item, leg) => {
       e.native.target.style.cursor = "pointer";
       realcar(leg.chart, item.datasetIndex);
@@ -1627,14 +1626,14 @@ function eixos(rotuloY){
   return {
     x: { grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
          ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10,
-                color:"#5E6673", font:{size:11}} },
+                color:"#7C7468", font:{size:11}} },
     // Comeca no zero. Tres planos entre R$ 58,99 e R$ 59,90 abriam um eixo
     // de um real, e a diferenca de centavos ocupava a tela inteira como se
     // fossem precos distantes. Sao quase iguais, e o grafico tem de dizer isso.
     y: { beginAtZero:true,
          grid:{display:true, color:EIXO.grade, drawTicks:false},
          border:{display:true, color:EIXO.borda, width:1},
-         ticks:{padding:8, color:"#5E6673", font:{size:11},
+         ticks:{padding:8, color:"#7C7468", font:{size:11},
                 callback:v=>rotuloY?rotuloY(v):v} },
   };
 }
@@ -1649,12 +1648,12 @@ if (window.Chart) {
     const d = Chart.defaults.scales[eixo];
     if (!d) continue;
     d.ticks = Object.assign({}, d.ticks,
-      {maxRotation: 0, minRotation: 0, color: "#6B7280", padding: 6});
+      {maxRotation: 0, minRotation: 0, color: "#8A8277", padding: 6});
     // A GRADE RECUA. Em cinza cheio ela disputava com a linha do dado,
     // e o Chart.js ainda desenhava o fio do eixo por cima - dois tracos
     // pretos em volta de cada quadro.
     d.grid = Object.assign({}, d.grid,
-      {color: "rgba(16,24,40,.06)", tickLength: 0, drawTicks: false});
+      {color: "rgba(36,31,26,.07)", tickLength: 0, drawTicks: false});
     d.border = Object.assign({}, d.border, {display: false});
   }
   // E A FONTE DOS GRAFICOS E A DA PAGINA. Sem isto o Chart.js desenha
@@ -1663,7 +1662,7 @@ if (window.Chart) {
   Chart.defaults.font.family = "'IBM Plex Sans', ui-sans-serif, system-ui, " +
     "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
   Chart.defaults.font.size = 11;
-  Chart.defaults.color = "#5E6673";
+  Chart.defaults.color = "#7C7468";
   const lg = Chart.defaults.plugins.legend.labels;
   lg.usePointStyle = true; lg.boxWidth = 7; lg.boxHeight = 7;
   lg.padding = 15; lg.font = {size: 11.5, weight: "500"};
@@ -1861,7 +1860,7 @@ const UNIDADE_EIXO = {
     c.save();
     c.font = "600 10px 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, "
            + "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-    c.fillStyle = "#5E6673";
+    c.fillStyle = "#7C7468";
     if (opcoes.y) {
       c.textAlign = "left";
       c.textBaseline = "bottom";
@@ -1995,7 +1994,7 @@ function grafQuadrante(){
   const series = [];
   for (const [op, pts] of Object.entries(pontos(dia, true))) {
     series.push({label:op, data:pts, backgroundColor:CORES[op] || "#999",
-      borderColor:"#FFFFFF", borderWidth:2,
+      borderColor:"#FCFBF7", borderWidth:2,
       pointRadius:6.5, pointHoverRadius:9, ordem:1});
   }
 
@@ -2046,7 +2045,7 @@ function grafQuadrante(){
         // uma entrada por operadora: os datasets da data de comparacao
         // repetiriam os mesmos nomes
         legend:legenda({labels:{usePointStyle:true, pointStyle:"circle",
-          boxWidth:7, boxHeight:7, padding:14, color:"#1F242C",
+          boxWidth:7, boxHeight:7, padding:14, color:"#2B2621",
           font:{size:11.5, weight:"600"}}}),
         unidadeEixo:{y:"R$/" + t("mes") + (log ? " (log)" : ""), x:u},
         tooltip:{callbacks:{label:c=>{
@@ -2069,9 +2068,9 @@ function grafQuadrante(){
           anchor:"center", clamp:true, clip:false,
           // o nome na cor da propria operadora: liga o texto a bolinha
           // sem depender de o leitor seguir a linha ate ela
-          color: ctx => escurecer(CORES[ctx.dataset.label] || "#3B424D", 0.62),
+          color: ctx => escurecer(CORES[ctx.dataset.label] || "#4A443C", 0.62),
           font:{size:9.5, weight:"700"},
-          textStrokeColor:"#FFFFFF", textStrokeWidth:3,   // halo: separa o texto do que passa atras
+          textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
           formatter:textoRotulo,
         },
       },
@@ -2144,7 +2143,7 @@ function grafDispersao(){
           +" · "+c.parsed.x+" "+c.raw.u}}},
       scales:{
         x:{...eixos().x, title:{display:true, text:unidade,
-           color:"#5E6673", font:{size:11}}},
+           color:"#7C7468", font:{size:11}}},
         y:eixos(v=>reais(v).replace("R$ ","")).y}},
   });
 }
@@ -2186,12 +2185,12 @@ function grafUnitario(){
       scales:{
         x:{grid:{display:true, color:EIXO.grade, drawTicks:false},
            border:{display:true, color:EIXO.borda, width:1},
-           title:{display:true, text:"R$/"+u, color:"#5E6673", font:{size:11}},
-           ticks:{color:"#5E6673", font:{size:11},
+           title:{display:true, text:"R$/"+u, color:"#7C7468", font:{size:11}},
+           ticks:{color:"#7C7468", font:{size:11},
                   callback:v=>Number(v).toLocaleString("pt-BR",
                     {minimumFractionDigits:casas, maximumFractionDigits:casas})}},
         y:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#1F242C", font:{size:12, weight:"600"}}}}},
+           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}}}},
   });
 }
 
