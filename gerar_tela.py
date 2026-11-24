@@ -829,7 +829,7 @@ const T = {
                 satelite:"Satélite", btl:"Below-the-line"},
       q_t:"Posicionamento das ofertas: preço × franquia", q_t_vel:"Posicionamento das ofertas: preço × velocidade", q_t_ent:"Posicionamento das ofertas: preço × entrega",
       r_entrada:"Só a entrada", r_todos:"Todas as ofertas",
-      xl_titulo:"Baixar os dados em Excel",
+      xl_titulo:"Baixar os dados em Excel", wpp:"WhatsApp ilimitado",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada ponto é uma oferta do dia.",
       g1_t:"Evolução do preço de entrada (R$/mês)",
@@ -937,7 +937,7 @@ const T = {
                 satelite:"Satellite", btl:"Below-the-line"},
       q_t:"Offer positioning: price × data allowance", q_t_vel:"Offer positioning: price × speed", q_t_ent:"Offer positioning: price × delivery",
       r_entrada:"Entry offers only", r_todos:"All offers",
-      xl_titulo:"Download data to Excel",
+      xl_titulo:"Download data to Excel", wpp:"Unlimited WhatsApp",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day.",
       g1_t:"Entry price evolution (R$/month)",
@@ -1020,12 +1020,17 @@ function aba(qual){
 // O preco avulso entra na DICA, como referencia do que o assinante
 // recebe. Ele nunca e descontado do preco do plano.
 function vantagem(o){
+  // O WHATSAPP INCLUSO VAI JUNTO, sempre que a oferta disser (pedido de
+  // quem le, 24/11/2026). Num plano sem assinatura ele SUBSTITUI o "so
+  // internet e ligacoes", que diria menos do que a oferta tem.
+  const zap = (o.whatsapp || (o.bruto && o.bruto.whatsapp)) ? t("wpp") : "";
+  const junto = s => zap ? (s ? s + " \u00b7 " + zap : zap) : s;
   const n = o.nivel_bundle;
   const t_ = T[lang];
   const rotulo = o.apps_rotulo || (o.bruto && o.bruto.apps_rotulo) || "";
   if (rotulo) {
     const dica = detalheApps(o);
-    return dica ? `<span title="${dica}">${rotulo}</span>` : rotulo;
+    return junto(dica ? `<span title="${dica}">${rotulo}</span>` : rotulo);
   }
   // A LISTA CRUA DE APPS E A SEGUNDA FONTE. apps_rotulo sai do
   // dicionario, que so conhece as chaves em minuscula: "Skeelo",
@@ -1037,10 +1042,11 @@ function vantagem(o){
     const nomes = brutos.map(a => (PRECOS_APPS[a] && PRECOS_APPS[a].nome) || a);
     const dica = detalheApps(o);
     const txt = nomes.join(" + ");
-    return dica ? `<span title="${dica}">${txt}</span>` : txt;
+    return junto(dica ? `<span title="${dica}">${txt}</span>` : txt);
   }
-  if (n == null) return "—";
-  return (t_.bundles[n] || "—");
+  if (zap && !n) return zap;
+  if (n == null) return zap || "—";
+  return junto(t_.bundles[n] || "—");
 }
 
 // "Disney+ Padrão custa R$ 49,90 por mês avulso" - referencia, nunca

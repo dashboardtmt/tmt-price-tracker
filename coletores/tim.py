@@ -693,6 +693,11 @@ def ler_cards_dinamicos(op, url, uf):
     blocos = h.split("<tim-card-dynamic")[1:]
     if not blocos:
         return None, "nenhum <tim-card-dynamic> na pagina - o formato mudou"
+    # "Confira as vantagens de ter um plano pos-pago da TIM - apps sem
+    # gastar internet do plano: WhatsApp, Instagram, Facebook e X": vale
+    # para o pos-pago, e o coletar estende a todo plano pos da TIM
+    whatsapp = apps.whatsapp_incluso(
+        re.sub(r"<[^>]+>", " ", _desescapar(h)))
 
     saida, vistos = [], set()
     for bruto in blocos:
@@ -724,6 +729,7 @@ def ler_cards_dinamicos(op, url, uf):
             "apps_rotulo": apps.rotulo(lista, desc) or None,
             "apps_planos": apps.planos_dos_apps(lista, desc),
             "composicao": desc,
+            "whatsapp": whatsapp,
         })
     # mesma razao de ler_ofertas: lista vazia sem erro faz a rodada
     # afirmar que a operadora nao tem o produto, quando o que houve foi
@@ -853,6 +859,13 @@ def coletar(cidade, uf, verbose=True):
                       "codigo_anatel": None, "campanha": None})
             saida["ofertas"].append(o)
             novas += 1
+        # O WHATSAPP DO POS VALE PARA TODO PLANO POS DA TIM: a frase esta
+        # nas "vantagens de ter um plano pos-pago da TIM", e os planos do
+        # pos vem tambem da hub e da pagina do Familia, que nao a repetem.
+        if any(o.get("whatsapp") for o in pos):
+            for o in saida["ofertas"]:
+                if o.get("produto") == "movel":
+                    o["whatsapp"] = True
         if verbose:
             print("  %-9s %d ofertas, %d novas" % ("pos-pago", len(pos), novas))
     time.sleep(PAUSA)

@@ -199,6 +199,11 @@ def ler_cards(op, url, produto):
             "destaque": destaque.group(1) if destaque else None,
             "preco_promocional": numero(valor),
             "composicao": txt[:400],
+            # PELO BLOCO INTEIRO DO CARD, que vai so ate o card seguinte - e
+            # nao pela composicao (400 caracteres) nem pelo txt (12 mil de
+            # HTML): no Claro Pos Geforce o "WhatsApp e ligacoes
+            # ilimitadas" vem depois dos dois cortes (medido em 24/11/2026).
+            "whatsapp": apps.whatsapp_incluso(re.sub(r"<[^>]+>", " ", bloco)),
         })
     if sem_preco_real and cards:
         cards[0]["avisos_oferta"] = apps.juntar_avisos(
@@ -500,6 +505,8 @@ def ler_prezao(op, url):
             "destaque": "%s GB" % total,
             "franquia_anunciada_gb": total,
             "franquia_contratual_gb": livre if app else None,
+            # "WhatsApp ilimitado com videochamadas", na tabela do Prezao
+            "whatsapp": apps.whatsapp_incluso(t),
             "preco_promocional": numero(preco),
             "composicao": ("Prezao R$1 por dia, renovacao a cada %s dias. "
                            "Escada completa: %s" % (dias, escada))[:400],

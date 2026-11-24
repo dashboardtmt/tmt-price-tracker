@@ -13,6 +13,8 @@ import re
 import urllib.error
 import urllib.request
 
+from . import apps
+
 API = "/rest/v1/"
 
 
@@ -222,7 +224,13 @@ def gravar_capturas(ofertas):
             # A DIGITAL DO LEITOR VIAJA JUNTO, e com uma copia: mexer no
             # dicionario de quem chamou faria o coletor devolver um
             # campo que ele nao leu.
-            "bruto": dict(o, versao_leitura=versao),
+            "bruto": dict(o, versao_leitura=versao,
+                          # o coletor que sabe pela pagina ja disse; os
+                          # outros dizem pelo texto da propria oferta
+                          whatsapp=(o["whatsapp"] if o.get("whatsapp") is not None
+                                    else apps.whatsapp_incluso(
+                                        o.get("composicao"), o.get("bruto_texto"),
+                                        o.get("texto_apps"), o.get("nome_oferta")))),
         })
 
     # Deduplica dentro do proprio lote. O Postgres rejeita o lote INTEIRO

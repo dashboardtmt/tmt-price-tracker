@@ -374,8 +374,8 @@ MUTACOES = [
 
     Mutacao(
         "coletores/armazenamento.py",
-        '            "bruto": dict(o, versao_leitura=versao),',
-        '            "bruto": o,',
+        '            "bruto": dict(o, versao_leitura=versao,',
+        '            "bruto": dict(o,',
         "Vb3. a captura volta a ser gravada sem a digital do leitor"),
 
     Mutacao(
@@ -2305,6 +2305,37 @@ MUTACOES = [
         "        total = livre + (int(app.group(1)) if app else 0)\n",
         "        total = livre\n",
         "Pz7. o Prezao volta a ler 17 GB onde o card diz 20"),
+    # O WHATSAPP INCLUSO (24/11/2026): sempre que a oferta disser.
+    Mutacao(
+        "coletores/apps.py",
+        "    return any(WHATSAPP_INCLUSO.search(str(t or \"\")) for t in textos)\n",
+        "    return False\n",
+        "Wa1. o WhatsApp incluso deixa de ser reconhecido"),
+    Mutacao(
+        "coletores/apps.py",
+        '    r"|sem\\s+(?:gastar|descontar|consumir)[^.;|<]{0,60}?whats\\s?app",\n',
+        '    r"|sem\\s+(?:gastar|descontar|consumir)[^.;|<]{0,60}?whats\\s?app|contrat",\n',
+        "Wa2. canal de venda passa a contar como WhatsApp incluso"),
+    Mutacao(
+        "coletores/tim.py",
+        "        if any(o.get(\"whatsapp\") for o in pos):\n",
+        "        if False:\n",
+        "Wa3. o WhatsApp do pos da TIM deixa de valer para todo o pos"),
+    Mutacao(
+        "coletores/claro.py",
+        '            "whatsapp": apps.whatsapp_incluso(t),\n',
+        '            "whatsapp": False,\n',
+        "Wa4. o Prezao perde o WhatsApp"),
+    Mutacao(
+        "gerar_tela.py",
+        "  const zap = (o.whatsapp || (o.bruto && o.bruto.whatsapp)) ? t(\"wpp\") : \"\";\n",
+        "  const zap = \"\";\n",
+        "Wa5. a tela deixa de mostrar o WhatsApp"),
+    Mutacao(
+        "coletores/claro.py",
+        '            "whatsapp": apps.whatsapp_incluso(re.sub(r"<[^>]+>", " ", bloco)),\n',
+        '            "whatsapp": apps.whatsapp_incluso(txt),\n',
+        "Wa6. o WhatsApp da Claro volta a ser lido do card cortado"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

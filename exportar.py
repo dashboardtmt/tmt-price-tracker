@@ -49,7 +49,10 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           # sem velocidade NENHUMA. O coletor guardava a frase em bruto
           # desde 26/10/2026 e ninguem a exportava: campo gravado sem
           # leitor, que e o defeito que este projeto mais encontra.
-          "velocidade_declarada:bruto->>velocidade_declarada")
+          "velocidade_declarada:bruto->>velocidade_declarada,"
+          # o WhatsApp incluso (24/11/2026): campo proprio, fora da lista
+          # de apps. Ver coletores/apps.whatsapp_incluso.
+          "whatsapp:bruto->whatsapp")
 
 PAGINA = 1000   # o PostgREST corta a resposta nesse tamanho
 

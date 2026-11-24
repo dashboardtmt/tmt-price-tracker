@@ -18,6 +18,8 @@ Uso:  python coletores/nucel.py
 import argparse
 import json
 import re
+
+from . import apps
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -96,9 +98,13 @@ def coletar(cidade="Brasil", uf="BR", verbose=True, pagina=None):
         pagina.wait_for_timeout(4000)
         texto = pagina.inner_text("body")
 
+        # "WhatsApp e App do Nu a vontade - todos os beneficios, nao
+        # importa o plano escolhido": vale para os tres
+        whatsapp = apps.whatsapp_incluso(texto)
         for o in extrair(texto):
             o.update({
                 "operadora": "NuCel",
+                "whatsapp": whatsapp,
                 # CONTROLE, nao "movel". A NuCel vende plano hibrido - franquia
                 # mensal, sem fatura aberta - que e o que o mercado chama de
                 # controle, e e nessa categoria que XP e J.P. Morgan a comparam:

@@ -851,3 +851,30 @@ def rotulo(apps, *fontes):
         else:
             nomes.append(e["nome"])
     return " + ".join(nomes)
+
+
+# O WHATSAPP INCLUSO, a pedido de quem le em 24/11/2026: "sempre mostrar
+# quando tiver whatsapp na oferta". Vai num campo proprio (whatsapp) e
+# NAO entra na lista de apps: nao mexe no nivel de bundle nem na chave da
+# serie - quase todo plano movel tem isso, e a lista de apps e de
+# assinaturas.
+#
+# SO CONTA COMO BENEFICIO. Medido nas paginas em 24/11: a maioria das
+# mencoes a WhatsApp e canal de venda ("Contrate por WhatsApp",
+# "Contratar no WhatsApp", "2a via pelo WhatsApp"), e nenhuma delas diz
+# que o WhatsApp vem no plano. As tres formas que dizem:
+#   "WhatsApp ilimitado" / "WhatsApp e ligacoes ilimitadas"  (Claro)
+#   "WhatsApp e App do Nu a vontade"                          (NuCel)
+#   "apps sem gastar internet do plano: WhatsApp, ..."        (TIM pos)
+# "Redes sociais inclusas" (TIM Controle) nao cita o WhatsApp, e nao
+# entra: a regra e a oferta dizer WhatsApp.
+WHATSAPP_INCLUSO = re.compile(
+    r"whats\s?app(?:\s*e\s+liga[cç][õo]es)?\s+ilimitad"
+    r"|whats\s?app[^.;|<]{0,40}?(?:[àa]\s+vontade|sem\s+(?:gastar|descontar|consumir))"
+    r"|sem\s+(?:gastar|descontar|consumir)[^.;|<]{0,60}?whats\s?app",
+    re.I)
+
+
+def whatsapp_incluso(*textos):
+    """True quando algum dos textos diz que o WhatsApp vem no plano."""
+    return any(WHATSAPP_INCLUSO.search(str(t or "")) for t in textos)
