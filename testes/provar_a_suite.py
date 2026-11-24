@@ -2237,6 +2237,41 @@ MUTACOES = [
         "    t = sem_faixa(t)\n",
         "",
         "Fx2. o buscar deixa de tirar a faixa"),
+    # A RECUSA DA FONTE (24/11/2026): a Vivo respondeu 403 em algumas
+    # pracas e o produto da praca se perdia no dia.
+    Mutacao(
+        "robo.py",
+        "    recusadas = [r for r in resultados if r[1] and _recusas(r[1])]\n",
+        "    recusadas = []\n",
+        "Sv1. a praca recusada deixa de ganhar segunda volta"),
+    Mutacao(
+        "robo.py",
+        "            if d2 and depois < antes and len(d2[\"ofertas\"]) >= len(r[1][\"ofertas\"]):\n",
+        "            if d2:\n",
+        "Sv2. a segunda volta substitui mesmo quando piora"),
+    Mutacao(
+        "robo.py",
+        'RECUSA = re.compile(r"HTTP (?:Error )?(?:403|429|5\\d\\d)\\b")\n',
+        'RECUSA = re.compile(r"HTTP (?:Error )?(?:403|404|429|5\\d\\d)\\b")\n',
+        "Sv3. o 404 (ausencia real) vira recusa"),
+    Mutacao(
+        "coletores/vivo.py",
+        "    if (oferta is not None\n"
+        "            or _tentativas_regulamento[codigo] >= TENTATIVAS_REGULAMENTO):\n",
+        "    if (True\n"
+        "            or _tentativas_regulamento[codigo] >= TENTATIVAS_REGULAMENTO):\n",
+        "Rg1. a falha do regulamento volta a envenenar o cache da rodada"),
+    Mutacao(
+        "coletores/vivo.py",
+        "    del _sem_regulamento_na_praca[:]\n",
+        "",
+        "Rg2. o aviso do regulamento volta a acumular a rodada"),
+    Mutacao(
+        "coletores/vivo.py",
+        "        if _cache_regulamento[codigo] is None and not codigo_malformado(codigo):\n"
+        "            _sem_regulamento_na_praca.append(codigo)\n",
+        "",
+        "Rg3. a praca sem regulamento do cache deixa de dizer"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

@@ -351,6 +351,19 @@ CODIGO_VALIDO = re.compile(r"^VIV\d{12,}$")
 # sem isto seriam 500 downloads de 500 KB para baixar 25 documentos.
 _cache_regulamento = {}
 _falhas_regulamento = []
+# A FALHA NAO VAI DIRETO PARA O CACHE, desde 24/11/2026. Guardar o None
+# da primeira falha fazia uma recusa passageira em Sao Paulo valer para as
+# 20 pracas: nenhuma perguntava de novo, e as ofertas daquele codigo saiam
+# sem fidelidade, multa e preco de tabela o dia inteiro. Os codigos que
+# falharam no servidor do robo em 17 e 23/11 abriam normalmente daqui. O
+# codigo que falha e tentado de novo nas pracas seguintes - que vem um
+# minuto depois, espacadas -, ate TENTATIVAS_REGULAMENTO vezes na rodada.
+TENTATIVAS_REGULAMENTO = 3
+_tentativas_regulamento = {}
+# os codigos desta praca que ficaram sem regulamento, para o aviso contar
+# a praca e nao a rodada: a lista de falhas e da rodada inteira, e o aviso
+# antigo repetia em toda praca o total acumulado desde a primeira
+_sem_regulamento_na_praca = []
 # codigo que a vitrine publicou fora do padrao: nao e falha nossa nem
 # instabilidade da Vivo, e erro de digitacao deles, e vai dito assim
 _codigos_quebrados = []
@@ -371,6 +384,8 @@ def regulamento(op, codigo):
     O arquivo vem como ZIP com um JSON dentro, e o encoding varia.
     """
     if codigo in _cache_regulamento:
+        if _cache_regulamento[codigo] is None and not codigo_malformado(codigo):
+            _sem_regulamento_na_praca.append(codigo)
         return _cache_regulamento[codigo]
     if codigo_malformado(codigo):
         # nao adianta perguntar: o codigo nao existe na agencia
@@ -405,7 +420,12 @@ def regulamento(op, codigo):
         _falhas_regulamento.append("%s: %s" % (codigo, str(e)[:70]))
         oferta = None
 
-    _cache_regulamento[codigo] = oferta
+    _tentativas_regulamento[codigo] = _tentativas_regulamento.get(codigo, 0) + 1
+    if (oferta is not None
+            or _tentativas_regulamento[codigo] >= TENTATIVAS_REGULAMENTO):
+        _cache_regulamento[codigo] = oferta
+    if oferta is None:
+        _sem_regulamento_na_praca.append(codigo)
     return oferta
 
 
@@ -720,6 +740,7 @@ def coletar(cidade, uf, verbose=True):
     saida = {"operadora": "Vivo", "praca": "%s/%s" % (cidade, uf),
              "capturado_em": agora.isoformat(), "ofertas": [], "avisos": []}
 
+    del _sem_regulamento_na_praca[:]
     if verbose:
         print("=" * 70)
         print("COLETOR VIVO  |  %s/%s  |  %s" % (cidade, uf, agora.strftime("%d/%m/%Y %H:%M")))
@@ -847,11 +868,15 @@ def coletar(cidade, uf, verbose=True):
             "fidelidade, multa nem preco de tabela nessas ofertas. Erro da "
             "fonte, nao ha o que reprocessar"
             % (len(_codigos_quebrados), ", ".join(_codigos_quebrados[:3])))
-    if _falhas_regulamento:
+    if _sem_regulamento_na_praca:
+        # a ultima falha de um codigo DESTA praca, que e a que explica
+        codigos = set(_sem_regulamento_na_praca)
+        motivo = next((f for f in reversed(_falhas_regulamento)
+                       if f.split(":")[0] in codigos), "?")
         saida["avisos"].append(
             "regulamento falhou em %d oferta(s) - fidelidade, multa e preco "
             "de tabela ficam vazios. Primeira: %s"
-            % (len(_falhas_regulamento), _falhas_regulamento[0]))
+            % (len(_sem_regulamento_na_praca), motivo))
     return saida
 
 

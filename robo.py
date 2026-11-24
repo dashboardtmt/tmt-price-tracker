@@ -143,6 +143,36 @@ def _dizer(linha):
     print(linha, flush=True)
 
 
+# A RECUSA DA FONTE, e a segunda volta que ela pede.
+#
+# Em 21 e 23/11/2026 a Vivo respondeu 403 (Forbidden) em algumas pracas -
+# combo, Lite e regulamento em Sao Paulo, controle e fibra em outras - e
+# as outras 14 passaram normalmente minutos depois. coletores/rede.py nao
+# insiste em 4xx de proposito: repetir a recusa na mesma hora alonga o
+# bloqueio. Mas a rodada fechava "20 de 20", o repique nao rodava, e o
+# produto da praca se perdia no dia - 157 ofertas em 23/11.
+#
+# A segunda volta e outra coisa: UMA tentativa, so das pracas recusadas,
+# no fim da rodada da operadora e depois de uma pausa. Fica a segunda se
+# ela vier com MENOS recusas e pelo menos as mesmas ofertas; senao fica a
+# primeira, e o aviso diz que a volta nao resolveu.
+RECUSA = re.compile(r"HTTP (?:Error )?(?:403|429|5\d\d)\b")
+PAUSA_SEGUNDA_VOLTA = 60
+
+
+def _recusas(d):
+    """Quantos avisos da praca sao recusa da fonte."""
+    return sum(1 for a in (d.get("avisos") or ()) if RECUSA.search(str(a)))
+
+
+def _uma_praca(modulo, p):
+    """(resultado, erro) da coleta de uma praca - e nunca levanta."""
+    try:
+        return modulo.coletar(p["cidade"], p["uf"], verbose=False), None
+    except Exception as e:
+        return None, e
+
+
 def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True,
                       escrever=_dizer):
     """Coleta uma operadora nas suas pracas e grava o que veio.
@@ -153,23 +183,49 @@ def coletar_operadora(nome, modulo, pracas, simular=False, verbose=True,
     sobrepostas e deixa de servir para achar onde travou.
     """
     inicio = agora()
-    ofertas, avisos, ok = [], [], 0
+    resultados = []
+    acumuladas = 0
 
     for i, p in enumerate(pracas, 1):
-        try:
-            d = modulo.coletar(p["cidade"], p["uf"], verbose=False)
-            ofertas.extend(d["ofertas"])
-            avisos.extend("%s: %s" % (rotulo(p), a) for a in d["avisos"])
-            if d["ofertas"]:
-                ok += 1
-            else:
-                avisos.append("%s: voltou vazia" % rotulo(p))
-        except Exception as e:
-            # uma praca que quebra nao pode derrubar as outras 19
-            avisos.append("%s: erro %s" % (rotulo(p), e))
+        d, erro = _uma_praca(modulo, p)
+        resultados.append([p, d, erro])
+        acumuladas += len(d["ofertas"]) if d else 0
         if verbose:
             escrever("  [%2d/%2d] %-22s %d ofertas acumuladas"
-                     % (i, len(pracas), rotulo(p), len(ofertas)))
+                     % (i, len(pracas), rotulo(p), acumuladas))
+
+    # A SEGUNDA VOLTA. Ver RECUSA.
+    recusadas = [r for r in resultados if r[1] and _recusas(r[1])]
+    if recusadas:
+        if verbose:
+            escrever("  segunda volta em %d praca(s) que levaram recusa, "
+                     "depois de %ds" % (len(recusadas), PAUSA_SEGUNDA_VOLTA))
+        time.sleep(PAUSA_SEGUNDA_VOLTA)
+        for r in recusadas:
+            d2, _erro2 = _uma_praca(modulo, r[0])
+            antes, depois = _recusas(r[1]), _recusas(d2) if d2 else None
+            if d2 and depois < antes and len(d2["ofertas"]) >= len(r[1]["ofertas"]):
+                d2["avisos"] = list(d2["avisos"]) + [
+                    "segunda volta: %d recusa(s) na primeira, %d na segunda"
+                    % (antes, depois)]
+                r[1] = d2
+            else:
+                r[1]["avisos"] = list(r[1]["avisos"]) + [
+                    "segunda volta nao melhorou: %d recusa(s) na primeira, %s "
+                    "na segunda" % (antes, "?" if depois is None else depois)]
+
+    ofertas, avisos, ok = [], [], 0
+    for p, d, erro in resultados:
+        if erro:
+            # uma praca que quebra nao pode derrubar as outras 19
+            avisos.append("%s: erro %s" % (rotulo(p), erro))
+            continue
+        ofertas.extend(d["ofertas"])
+        avisos.extend("%s: %s" % (rotulo(p), a) for a in d["avisos"])
+        if d["ofertas"]:
+            ok += 1
+        else:
+            avisos.append("%s: voltou vazia" % rotulo(p))
 
     registro = {
         "data_captura": inicio.date().isoformat(),
@@ -252,8 +308,18 @@ def rodar_coleta(uma_praca=None, simular=False, raias=RAIAS):
             marcar("  %d ofertas, %d/%d pracas%s" % (
                 len(ofertas), registro["pracas_ok"], registro["pracas_pedidas"],
                 "" if registro["sucesso"] else "  (COM AVISOS)"))
-            for a in (registro["avisos"] or [])[:5]:
+            # A RECUSA PRIMEIRO, E TODAS ELAS. Com o corte nos 5 primeiros,
+            # os avisos rotineiros do Lite ("1 codigo com vigencia
+            # encerrada", um por praca) escondiam o 403 que tirou 157
+            # ofertas da Vivo em 23/11/2026, e o log era o unico lugar
+            # onde ele aparecia fora da tabela de coletas.
+            avs = registro["avisos"] or []
+            avs = ([a for a in avs if RECUSA.search(str(a))]
+                   + [a for a in avs if not RECUSA.search(str(a))])
+            for a in avs[:30]:
                 marcar("     " + a)
+            if len(avs) > 30:
+                marcar("     ... e mais %d aviso(s)" % (len(avs) - 30))
             registros.append(registro)
         return registros
 
