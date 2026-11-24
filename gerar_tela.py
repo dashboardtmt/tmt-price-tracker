@@ -624,6 +624,21 @@ MOLDE = r"""<!DOCTYPE html>
     <div class="grafico-wrap"><canvas id="c-tempo-unit"></canvas></div>
   </div>
 
+  <div class="dupla" id="d-recarga" style="display:none">
+    <div class="bloco">
+      <h2 data-t="rc_t">Preço por frequência de recarga (R$)</h2>
+      <p class="descricao" data-t="rc_x"></p>
+      <div class="grafico-wrap baixo"><canvas id="c-recarga"></canvas></div>
+      <div class="nota" id="n-recarga"></div>
+    </div>
+    <div class="bloco">
+      <h2 data-t="rd_t">Preço/GB por dia (R$/GB por dia)</h2>
+      <p class="descricao" data-t="rd_x"></p>
+      <div class="grafico-wrap baixo"><canvas id="c-recarga-dia"></canvas></div>
+      <div class="nota" id="n-recarga-dia"></div>
+    </div>
+  </div>
+
   <div class="dupla">
     <div class="bloco">
       <h2 data-t="g2_t">Posicionamento preço-entrega</h2>
@@ -830,6 +845,11 @@ const T = {
       q_t:"Posicionamento das ofertas: preço × franquia", q_t_vel:"Posicionamento das ofertas: preço × velocidade", q_t_ent:"Posicionamento das ofertas: preço × entrega",
       r_entrada:"Só a entrada", r_todos:"Todas as ofertas",
       xl_titulo:"Baixar os dados em Excel", wpp:"WhatsApp ilimitado", dias:"dias",
+      rc_t:"Preço por frequência de recarga (R$)",
+      rc_x:"A recarga mais barata de cada operadora em cada faixa de validade.",
+      rd_t:"Preço/GB por dia (R$/GB por dia)",
+      rd_x:"A mesma recarga, dividida pela internet e pelos dias que vale.",
+      rc_sem:"A validade das recargas é lida desde 25/11/2026.",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada ponto é uma oferta do dia.",
       g1_t:"Evolução do preço de entrada (R$/mês)",
@@ -938,6 +958,11 @@ const T = {
       q_t:"Offer positioning: price × data allowance", q_t_vel:"Offer positioning: price × speed", q_t_ent:"Offer positioning: price × delivery",
       r_entrada:"Entry offers only", r_todos:"All offers",
       xl_titulo:"Download data to Excel", wpp:"Unlimited WhatsApp", dias:"days",
+      rc_t:"Price by recharge frequency (R$)",
+      rc_x:"The cheapest recharge of each carrier in each validity range.",
+      rd_t:"Price/GB per day (R$/GB per day)",
+      rd_x:"The same recharge, divided by its data and by the days it lasts.",
+      rc_sem:"Recharge validity is read from 11/25/2026 onward.",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day.",
       g1_t:"Entry price evolution (R$/month)",
@@ -2222,6 +2247,104 @@ function grafUnitario(){
   });
 }
 
+// AS RECARGAS DO PRE-PAGO POR VALIDADE (24/11/2026), os dois quadros do
+// price tracker da XP lado a lado: o preco de cada faixa de validade e o
+// preco por GB por dia, que poe a recarga de 15 dias e a de 30 na mesma
+// regua. So aparecem no pre-pago, o unico produto com validade.
+//
+// As faixas sao as da XP (30, 22-25, 17-20 e 15 dias), mas o ROTULO sai
+// dos dias lidos: com Claro em 20 e TIM em 17 a faixa diz "17-20 dias";
+// so com 30 lido, diz "30 dias". Em cada faixa entra a recarga mais
+// barata da operadora (empate: a que entrega mais GB), e o segundo quadro
+// divide ESSA recarga - os dois falam da mesma oferta.
+const FAIXAS_RECARGA = [[28, 999], [21, 27], [16, 20], [1, 15]];
+
+function validadeDe(o){
+  return num(o.validade_dias != null ? o.validade_dias
+             : (o.bruto && o.bruto.validade_dias));
+}
+
+function recargasPorFaixa(dia){
+  const f = filtro();
+  const base = DADOS.filter(o =>
+    (o.praca === f.praca || o.praca === PRACA_NACIONAL)
+    && o.produto === "prepago" && !desligadas.has(o.operadora)
+    && diaDe(o) === dia && precoDe(o) != null && validadeDe(o));
+  const faixas = FAIXAS_RECARGA.map(() => ({dias:[], por:{}}));
+  for (const o of base) {
+    const d = validadeDe(o);
+    const i = FAIXAS_RECARGA.findIndex(([de, ate]) => d >= de && d <= ate);
+    if (i < 0) continue;
+    const fx = faixas[i], atual = fx.por[o.operadora];
+    fx.dias.push(d);
+    const p = precoDe(o), g = num(o.franquia_anunciada_gb) || 0;
+    if (!atual || p < precoDe(atual)
+        || (p === precoDe(atual) && g > (num(atual.franquia_anunciada_gb) || 0))) {
+      fx.por[o.operadora] = o;
+    }
+  }
+  return faixas.filter(fx => fx.dias.length).map(fx => {
+    const lo = Math.min(...fx.dias), hi = Math.max(...fx.dias);
+    return {rotulo:(lo === hi ? lo : lo + "-" + hi) + " " + t("dias"), por:fx.por};
+  });
+}
+
+function grafRecargas(){
+  const caixa = document.getElementById("d-recarga");
+  const pre = filtro().produto === "prepago";
+  caixa.style.display = pre ? "" : "none";
+  const ids = ["c-recarga", "c-recarga-dia"];
+  const apagar = () => ids.forEach(id => {
+    if (graficos[id]) graficos[id].destroy(), delete graficos[id];
+  });
+  if (!pre) { apagar(); return; }
+  const dia = document.getElementById("f-data").value || DIAS[DIAS.length-1];
+  const faixas = recargasPorFaixa(dia);
+  const sem = faixas.length ? "" : t("rc_sem");
+  document.getElementById("n-recarga").textContent = sem;
+  document.getElementById("n-recarga-dia").textContent = sem;
+  if (!faixas.length) { apagar(); return; }
+  const ops = [...new Set(faixas.flatMap(fx => Object.keys(fx.por)))].sort(porRelevancia);
+  const porDia = o => {
+    const g = num(o.franquia_anunciada_gb), d = validadeDe(o), p = precoDe(o);
+    return g && d ? p / g / d : null;
+  };
+  const conjunto = medir => ops.map(op => ({
+    label:op, backgroundColor:CORES[op] || "#999", borderRadius:4,
+    maxBarThickness:28, categoryPercentage:0.72, barPercentage:0.9,
+    data:faixas.map(fx => fx.por[op] ? medir(fx.por[op]) : null),
+  }));
+  const dica = c => {
+    const o = faixas[c.dataIndex].por[c.dataset.label];
+    if (!o) return "";
+    return c.dataset.label + ": " + reais(precoDe(o)) + " · "
+      + (num(o.franquia_anunciada_gb) || "—") + " GB · " + validadeDe(o)
+      + " " + t("dias") + " · " + (o.nome_oferta || "");
+  };
+  const opcoes = (casas, rotuloY) => ({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:legenda(), tooltip:{callbacks:{label:dica}}},
+    scales:{
+      x:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
+         ticks:{color:"#2B2621", font:{size:12, weight:"600"}, maxRotation:0}},
+      y:{beginAtZero:true, grid:{display:true, color:EIXO.grade, drawTicks:false},
+         border:{display:true, color:EIXO.borda, width:1},
+         ticks:{color:"#7C7468", font:{size:11},
+                callback:v => "R$ " + Number(v).toLocaleString("pt-BR",
+                  {minimumFractionDigits:casas, maximumFractionDigits:casas})}}},
+  });
+  const rotulos = faixas.map(fx => fx.rotulo);
+  trocar("c-recarga", {type:"bar",
+    data:{labels:rotulos, datasets:conjunto(o => precoDe(o))},
+    options:opcoes(2)});
+  trocar("c-recarga-dia", {type:"bar",
+    data:{labels:rotulos, datasets:conjunto(o => {
+      const v = porDia(o);
+      return v == null ? null : +v.toFixed(4);
+    })},
+    options:opcoes(3)});
+}
+
 // A matriz do Exhibit 1 do J.P. Morgan: linhas sao a oferta, colunas sao
 // as datas, e a celula traz o preco. A mudanca aparece sem grafico e sem
 // frase - a celula que muda recebe seta e cor.
@@ -3033,6 +3156,7 @@ function desenhar(){
   grafQuadrante();
   grafTempo();
   grafTempoUnitario();
+  grafRecargas();
   grafDispersao();
   grafUnitario();
   matriz();
