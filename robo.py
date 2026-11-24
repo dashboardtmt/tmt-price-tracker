@@ -2935,6 +2935,12 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
         "texto": u"o Prezão da Claro passou a ser lido como 20 GB (17 de "
                  u"uso livre e 3 de YouTube), como o card da Claro mostra, "
                  u"e não como 17 GB",
+    }, {
+        # um trecho de CSS ("max-width") lido como o app Max desde 21/10
+        "quem": [("TIM", "prepago", u"TIM Pré XIP")],
+        "texto": u"as recargas de R$ 20 e R$ 25 do TIM Pré XIP deixaram de "
+                 u"aparecer com o HBO Max, que a TIM não inclui - era um "
+                 u"trecho de estilo da página lido como nome de app",
     }],
 }
 

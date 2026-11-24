@@ -133,7 +133,13 @@ def texto(campo):
     v = campo[0].get("value")
     if v is None:
         return None
-    limpo = re.sub(r"<[^>]+>", " ", str(v))
+    # O ESTILO E O SCRIPT SAEM INTEIROS, e nao so as tags. Desde 21/10/2026
+    # o campo de preco do TIM Pre XIP traz um <style> com ".service img {
+    # max-width: 110px }" - e "max" no texto virava o app Max: as recargas
+    # de R$ 20 e R$ 25 entraram na serie com HBO Max e nivel 2 em 1.400
+    # linhas, sem Max nenhum na pagina (medido em 24/11/2026).
+    v = re.sub(r"<(style|script)\b[^>]*>.*?</\1>", " ", str(v), flags=re.S | re.I)
+    limpo = re.sub(r"<[^>]+>", " ", v)
     limpo = limpo.replace("&nbsp;", " ").replace("&amp;", "&")
     limpo = re.sub(r"\s+", " ", limpo).strip()
     return limpo or None

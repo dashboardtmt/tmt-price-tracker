@@ -2336,6 +2336,12 @@ MUTACOES = [
         '            "whatsapp": apps.whatsapp_incluso(re.sub(r"<[^>]+>", " ", bloco)),\n',
         '            "whatsapp": apps.whatsapp_incluso(txt),\n',
         "Wa6. o WhatsApp da Claro volta a ser lido do card cortado"),
+    # O CSS NAO E APP (24/11/2026): "max-width" virava o HBO Max.
+    Mutacao(
+        "coletores/tim.py",
+        '    v = re.sub(r"<(style|script)\\b[^>]*>.*?</\\1>", " ", str(v), flags=re.S | re.I)\n',
+        '    v = str(v)\n',
+        "Cs1. o CSS da TIM volta a ser lido como nome de app"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
