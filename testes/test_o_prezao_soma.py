@@ -32,14 +32,20 @@ class OPrezaoSoma(unittest.TestCase):
         claro.buscar = lambda op, url, *a, **k: (200, TABELA)
         self.addCleanup(setattr, claro, "buscar", guarda)
 
-    def test_o_degrau_de_30_dias_e_20_gb_com_17_de_uso_livre(self):
+    def test_as_quatro_recargas_com_a_validade(self):
+        u"""Desde 25/11/2026 entram as quatro, cada uma com os dias que
+        vale - escolha de quem le: "Todas, com a validade"."""
         ofertas, erro = claro.ler_prezao(None, "http://x")
         self.assertIsNone(erro)
-        self.assertEqual(len(ofertas), 1)
-        o = ofertas[0]
-        self.assertEqual((o["nome_oferta"], o["preco_promocional"],
-                          o["franquia_anunciada_gb"], o["franquia_contratual_gb"]),
-                         ("Claro Prezao 20GB", 30.0, 20, 17))
+        lidas = [(o["nome_oferta"], o["preco_promocional"],
+                  o["franquia_anunciada_gb"], o["franquia_contratual_gb"],
+                  o["validade_dias"]) for o in ofertas]
+        self.assertEqual(lidas, [
+            ("Claro Prezao 20GB", 30.0, 20, 17, 30),
+            ("Claro Prezao 12GB", 25.0, 12, 10, 25),
+            ("Claro Prezao 10GB", 20.0, 10, 8, 20),
+            ("Claro Prezao 5GB", 15.0, 5, None, 15),
+        ])
 
     def test_os_outros_degraus_ficam_na_composicao(self):
         ofertas, _ = claro.ler_prezao(None, "http://x")

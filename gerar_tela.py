@@ -829,7 +829,7 @@ const T = {
                 satelite:"Satélite", btl:"Below-the-line"},
       q_t:"Posicionamento das ofertas: preço × franquia", q_t_vel:"Posicionamento das ofertas: preço × velocidade", q_t_ent:"Posicionamento das ofertas: preço × entrega",
       r_entrada:"Só a entrada", r_todos:"Todas as ofertas",
-      xl_titulo:"Baixar os dados em Excel", wpp:"WhatsApp ilimitado",
+      xl_titulo:"Baixar os dados em Excel", wpp:"WhatsApp ilimitado", dias:"dias",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada ponto é uma oferta do dia.",
       g1_t:"Evolução do preço de entrada (R$/mês)",
@@ -937,7 +937,7 @@ const T = {
                 satelite:"Satellite", btl:"Below-the-line"},
       q_t:"Offer positioning: price × data allowance", q_t_vel:"Offer positioning: price × speed", q_t_ent:"Offer positioning: price × delivery",
       r_entrada:"Entry offers only", r_todos:"All offers",
-      xl_titulo:"Download data to Excel", wpp:"Unlimited WhatsApp",
+      xl_titulo:"Download data to Excel", wpp:"Unlimited WhatsApp", dias:"days",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day.",
       g1_t:"Entry price evolution (R$/month)",
@@ -1196,6 +1196,12 @@ function celulaEntrega(o){
     return `<td class="num">—</td>`;
   }
   let txt = e.v + " " + e.u;
+  // A VALIDADE DA RECARGA, no pre-pago: 20 GB por 30 dias e 10 GB por 17
+  // nao sao a mesma oferta mensal, e a escolha de quem le (24/11/2026) foi
+  // mostrar todas com a validade a vista, em vez de cortar as curtas.
+  const dias = num(o.validade_dias != null ? o.validade_dias
+                   : (o.bruto && o.bruto.validade_dias));
+  if (dias) txt += ` <span class="perna">\u00b7 ${dias} ${t("dias")}</span>`;
   const gbMovel = num(o.franquia_anunciada_gb);
   if (o.produto === "combo" && e.u === t("mbps") && gbMovel) {
     txt += ` <span class="perna">+ ${gbMovel} ${t("gb")}</span>`;

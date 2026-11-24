@@ -2310,6 +2310,33 @@ MUTACOES = [
         '        junto = "Inclui Skeelo (um best-seller por mes para clientes Claro Pre). "\n',
         '        junto = ""\n',
         "Pz8. o Prezao perde o Skeelo das vantagens do pre"),
+    # A VALIDADE DA RECARGA (24/11/2026): todas as recargas, com os dias.
+    Mutacao(
+        "coletores/claro.py",
+        '            "validade_dias": int(dias),\n',
+        '            "validade_dias": None,\n',
+        "Vd1. o Prezao perde a validade"),
+    Mutacao(
+        "coletores/tim.py",
+        "    return int(m.group(1)) if m else None\n",
+        "    return None\n",
+        "Vd2. a recarga da TIM perde a validade"),
+    Mutacao(
+        "coletores/tim.py",
+        '            if real != "prepago":\n'
+        '                o["validade_dias"] = None\n',
+        "",
+        "Vd3. o pos da TIM ganha validade de recarga"),
+    Mutacao(
+        "coletores/vivo.py",
+        '                "validade_dias": (int(_vd.group(1)) if produto == "prepago"\n',
+        '                "validade_dias": (int(_vd.group(1)) if True\n',
+        "Vd4. o controle da Vivo ganha validade de recarga"),
+    Mutacao(
+        "gerar_tela.py",
+        "  if (dias) txt += ` <span class=\"perna\">\\u00b7 ${dias} ${t(\"dias\")}</span>`;\n",
+        "",
+        "Vd5. a tela deixa de mostrar os dias da recarga"),
     # O WHATSAPP INCLUSO (24/11/2026): sempre que a oferta disser.
     Mutacao(
         "coletores/apps.py",

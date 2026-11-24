@@ -224,6 +224,11 @@ def ler_ofertas(op, url, uf):
     return ofertas_do_html(h)
 
 
+def _validade(txt):
+    m = re.search(r"\bpor\s+(\d{1,3})\s+dias\b", txt or "", re.I)
+    return int(m.group(1)) if m else None
+
+
 def ofertas_do_html(h):
     """As ofertas do drupalSettings de uma pagina ja baixada."""
     m = re.search(r'<script[^>]*drupal-settings-json[^>]*>(.*?)</script>', h, re.S)
@@ -265,6 +270,9 @@ def ofertas_do_html(h):
             "uf_declarada": o.get("langcode"),
             "ddds": len(o.get("field_oferta_ddd") or []) or None,
             "nid": (o.get("nid") or [{}])[0].get("value") if isinstance(o.get("nid"), list) else o.get("nid"),
+            # "R$20 por 17 dias": a validade da recarga; o coletar so a
+            # guarda no pre-pago
+            "validade_dias": _validade(texto(o.get("field_preco_principal_7_1_3"))),
             "composicao": info,
         })
     # mesma razao de claro.ler_cards: lista vazia sem erro faz a rodada
@@ -771,6 +779,8 @@ def coletar(cidade, uf, verbose=True):
 
         for o in ofertas:
             real = classificar(o["nome_oferta"], o["destaque"])
+            if real != "prepago":
+                o["validade_dias"] = None
             o.update({"operadora": "TIM", "produto": real, "praca": praca,
                       "pagina": produto,
                       "capturado_em": agora.isoformat(),

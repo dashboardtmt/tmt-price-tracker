@@ -457,10 +457,11 @@ def ler_por_texto(op, url, produto):
 #                       8GB + 2GB Youtube / 20 dias
 #                       5GB / 15 dias
 #
-# So o degrau de 30 DIAS entra no tracker. Os outros valem 25, 20 e 15
-# dias, e o tracker compara preco MENSAL - gravar R$ 15 por 5GB ao lado
-# de um plano mensal diria que a Claro e tres vezes mais barata do que e.
-# Os quatro degraus ficam registrados na composicao.
+# OS QUATRO DEGRAUS ENTRAM, cada um com a validade, desde 25/11/2026.
+# Ate ali so o de 30 dias entrava ("o tracker compara preco mensal"),
+# enquanto Vivo e TIM gravavam todas as recargas - a entrada delas parecia
+# R$ 20 contra R$ 30 da Claro. Escolha de quem le: todas, com a validade
+# a vista, e a comparacao mensal fica com o leitor.
 FAIXA_PREZAO = re.compile(
     r"Valor do saldo\s*((?:R\$\s?\d{1,3},\d{2}\s*){2,6})"
     r"(.{0,80}?)"
@@ -494,9 +495,8 @@ def ler_prezao(op, url):
     junto = ""
     if re.search(r"skeelo.{0,200}?clientes claro pr[eé]", t, re.I):
         junto = "Inclui Skeelo (um best-seller por mes para clientes Claro Pre). "
+    saida = []
     for preco, (gigas, extra, dias) in zip(precos, degraus):
-        if int(dias) != 30:
-            continue
         # "17GB + 3GB Youtube" E 20 GB, E NAO 17. Ate 24/11/2026 a leitura
         # tomava 17 como o total e 3 como parte dele, e gravava 17 GB
         # anunciados e 14 de uso livre. O card da propria Claro desfaz a
@@ -506,7 +506,7 @@ def ler_prezao(op, url):
         app = re.search(r"\+\s*(\d{1,3})\s*GB", extra)
         livre = int(gigas)
         total = livre + (int(app.group(1)) if app else 0)
-        return [{
+        saida.append({
             "id_catalogo": None,
             "nome_oferta": "Claro Prezao %sGB" % total,
             "destaque": "%s GB" % total,
@@ -515,10 +515,13 @@ def ler_prezao(op, url):
             # "WhatsApp ilimitado com videochamadas", na tabela do Prezao
             "whatsapp": apps.whatsapp_incluso(t),
             "preco_promocional": numero(preco),
+            "validade_dias": int(dias),
             "composicao": (junto + "Prezao R$1 por dia, renovacao a cada %s "
                            "dias. Escada completa: %s" % (dias, escada))[:400],
-        }], None
-    return None, "a escada nao tem degrau de 30 dias"
+        })
+    if not saida:
+        return None, "a escada do Prezao veio vazia"
+    return saida, None
 
 
 def coletar(cidade, uf, verbose=True):

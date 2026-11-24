@@ -823,6 +823,11 @@ def coletar(cidade, uf, verbose=True):
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],
                 "codigo_anatel": c["codigo_anatel"],
+                # "Nas recargas de Valor R$ 35 Por 30 dias": so no pre
+                "validade_dias": (int(_vd.group(1)) if produto == "prepago"
+                                  and (_vd := re.search(r"\bpor\s+(\d{1,3})\s+dias\b",
+                                                        c["texto"] or "", re.I))
+                                  else None),
                 "avisos_oferta": apps.juntar_avisos(None, _aviso_apps),
                 "campanha": None,
                 "id_catalogo": None,

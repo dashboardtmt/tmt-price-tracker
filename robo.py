@@ -2934,7 +2934,9 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
         "quem": [("Claro", "prepago", u"Claro Prezao")],
         "texto": u"o Prezão da Claro passou a ser lido como 20 GB (17 de "
                  u"uso livre e 3 de YouTube), como o card da Claro mostra, "
-                 u"e com o Skeelo que a página oferece aos clientes do pré",
+                 u"com o Skeelo que a página oferece aos clientes do pré, e "
+                 u"com as quatro recargas (R$ 30, 25, 20 e 15) em vez de só "
+                 u"a de 30 dias",
     }, {
         # um trecho de CSS ("max-width") lido como o app Max desde 21/10
         "quem": [("TIM", "prepago", u"TIM Pré XIP")],

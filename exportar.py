@@ -52,7 +52,9 @@ CAMPOS = ("operadora,produto,praca,uf,data_captura,capturado_em,nome_oferta,"
           "velocidade_declarada:bruto->>velocidade_declarada,"
           # o WhatsApp incluso (24/11/2026): campo proprio, fora da lista
           # de apps. Ver coletores/apps.whatsapp_incluso.
-          "whatsapp:bruto->whatsapp")
+          "whatsapp:bruto->whatsapp,"
+          # a validade da recarga do pre-pago, em dias (24/11/2026)
+          "validade_dias:bruto->validade_dias")
 
 PAGINA = 1000   # o PostgREST corta a resposta nesse tamanho
 
