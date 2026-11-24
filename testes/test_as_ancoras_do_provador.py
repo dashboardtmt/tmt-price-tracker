@@ -22,6 +22,11 @@ sys.path.insert(0, AQUI)
 import provar_a_suite as P                                    # noqa: E402
 
 
+# NAO RODA DENTRO DO PROVADOR. Ele aplica a mutacao e roda a suite: a
+# ancora da mutacao aplicada some do arquivo, e este teste "pegaria" toda
+# mutacao - inclusive o controle. Em ce9440b foi exatamente isso.
+@unittest.skipIf(os.environ.get("PROVADOR_ATIVO"),
+                 "dentro do provador a ancora da mutacao aplicada some")
 class AsAncorasDoProvador(unittest.TestCase):
 
     def test_toda_mutacao_encontra_o_seu_trecho(self):

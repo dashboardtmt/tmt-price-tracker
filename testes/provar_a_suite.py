@@ -2309,8 +2309,14 @@ MUTACOES = [
 
 
 def suite_verde():
+    # PROVADOR_ATIVO tira da suite o teste das ancoras: com a mutacao
+    # aplicada a ancora dela some, e ele pegaria TODA mutacao - o provador
+    # deixaria de medir qualquer coisa. Aconteceu em ce9440b: o controle
+    # saiu "PEGOU - suspeito", e era esse teste.
+    env = dict(os.environ, PROVADOR_ATIVO="1")
     r = subprocess.run([sys.executable, "-m", "unittest", "discover",
-                        "-s", "testes"], cwd=BASE, capture_output=True)
+                        "-s", "testes"], cwd=BASE, capture_output=True,
+                       env=env)
     return r.returncode == 0
 
 
