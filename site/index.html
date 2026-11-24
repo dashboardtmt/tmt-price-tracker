@@ -7,35 +7,36 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23000512'/%3E%3Cpath%20d='M7%2022%20L13%2015%20L19%2018%20L25%209'%20stroke='%23FF5000'%20stroke-width='3'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
-    /* os mesmos tokens do Dashboard TMT - identidade clean, bege quente */
-    /* Inter na frente da pilha de sistema: ela tem numeral tabular de
-       verdade e um cinza otico mais parelho em corpo pequeno, que e
-       quase toda esta tela. Se a fonte nao carregar, a pilha antiga
-       assume e nada se desloca - as duas tem metrica parecida. */
-    --fonte: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* TOKENS NEUTROS, desde 24/11/2026. O bege quente, a sombra larga,
+       o botao em pilula e o titulo com traco laranja grosso liam como
+       tela generica - "padrao", nas palavras de quem le. Fundo cinza
+       frio, cartao branco com fio fino, e o laranja so onde e marca ou
+       estado. As cores das operadoras nao mudam (ver CORES). */
+    /* IBM Plex Sans: numeral tabular de verdade e o desenho de relatorio
+       de mercado. Se nao carregar, a pilha de sistema assume. */
+    --fonte: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --laranja:#FF5000; --laranja-claro:#FFAE66;
     --preto:#000512;            /* o preto oficial Itau (0,5,18) */
-    --cinza-medio:#6E6E6E; --cinza:#A0A0A0; --cinza-claro:#CFCFCF;
-    --cor-fundo:#EFEBE1;        /* bege quente */
-    --cor-superficie:#FFFFFF;   /* o cartao e branco: o bege e o fundo */
-    --cor-texto:#241F1A; --cor-texto-suave:#7C7468; --cor-borda:#E6E0D2;
-    --cor-borda-forte:#D6CEBC;
-    /* duas camadas: um fio de contato e uma sombra larga e rasa. Uma
-       sombra so, forte, faz cartao de brinquedo; esta levanta o papel. */
-    --sombra:0 1px 2px rgba(36,31,26,.05), 0 10px 26px -16px rgba(36,31,26,.30);
+    --cinza-medio:#6E6E6E; --cinza:#9AA1AC; --cinza-claro:#CFD4DB;
+    --cor-fundo:#F4F5F7;
+    --cor-superficie:#FFFFFF;
+    --cor-texto:#14171C; --cor-texto-suave:#5E6673; --cor-borda:#E3E6EB;
+    --cor-borda-forte:#CBD0D8;
+    --cor-linha:#EEF0F3;        /* o fio entre linhas de tabela */
+    --cor-realce:#F7F8FA;       /* linha em foco, grupo, bloco alternado */
+    --sombra:0 1px 2px rgba(16,24,40,.04);
+    --raio:8px;
     --positivo:#2E7D32; --negativo:#C62828;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--cor-fundo);color:var(--cor-texto);
        font-family:var(--fonte);font-size:14px;line-height:1.5;
-       background-image:radial-gradient(1100px 380px at 50% -170px,
-         rgba(255,80,0,.055), rgba(255,80,0,0));
-       background-repeat:no-repeat;background-attachment:fixed}
+       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
   /* fixo no topo, como no Dashboard TMT: a tela tem tabela longa e rolar
      nao pode custar a referencia de onde se esta */
@@ -44,10 +45,8 @@
      e dois numeros de frescor - data da coleta e tamanho da base -,
      e a resposta foi "ficou cafona". A data ja esta no seletor de
      Data, logo abaixo; o tamanho da base nao se le, se confia. */
-  header{background:linear-gradient(180deg,#0A1020 0%,var(--preto) 100%);
-         border-bottom:3px solid var(--laranja);
-         padding:9px 0 10px;position:sticky;top:0;z-index:200;
-         box-shadow:0 2px 14px rgba(0,5,18,.20)}
+  header{background:#0B0D11;border-bottom:2px solid var(--laranja);
+         padding:10px 0;position:sticky;top:0;z-index:200}
   .dentro{max-width:1440px;margin:0 auto;padding:0 28px}
   header .dentro{display:flex;justify-content:space-between;align-items:center;
                  gap:16px;flex-wrap:wrap}
@@ -56,12 +55,11 @@
      titulo e a assinatura do Dashboard TMT - continua sendo laranja a
      esquerda do nome, com forma propria e o unico bloco de laranja
      cheio da tela. */
-  .monograma{display:grid;place-items:center;width:33px;height:33px;
-    border-radius:9px;background:var(--laranja);color:#fff;font-size:11.5px;
-    font-weight:800;letter-spacing:.3px;flex:none;
-    box-shadow:0 3px 12px -3px rgba(255,80,0,.75)}
-  header h1{margin:0;font-size:17px;font-weight:800;color:#fff;
-    letter-spacing:-.35px;line-height:1.15}
+  .monograma{display:grid;place-items:center;width:30px;height:30px;
+    border-radius:6px;background:var(--laranja);color:#fff;font-size:11px;
+    font-weight:700;letter-spacing:.4px;flex:none}
+  header h1{margin:0;font-size:16px;font-weight:600;color:#fff;
+    letter-spacing:-.1px;line-height:1.15}
   /* O RECADO DA CARGA FICA ABAIXO DA LINHA DO QUE A TELA E, e nao no
      lugar dela: ele diz "carregando" e, se a serie nao vier, diz que
      nao veio - em cor quente, porque pagina no ar sem dado tem de se
@@ -71,15 +69,15 @@
   .recado:empty{display:none}
   /* os dois idiomas num trilho so: dois botoes soltos com borda cinza
      pareciam controle de formulario em cima de um cabecalho escuro */
-  .idioma{display:flex;gap:3px;padding:3px;
-    background:rgba(255,255,255,.07);border-radius:9px}
+  .idioma{display:flex;gap:2px;padding:2px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+    border-radius:7px}
   .bandeira{display:flex;align-items:center;gap:5px;font:inherit;font-size:11px;
-    font-weight:600;padding:3px 8px;cursor:pointer;border:1px solid transparent;
-    border-radius:7px;background:transparent;color:#B9B2A6;
+    font-weight:500;padding:3px 8px;cursor:pointer;border:1px solid transparent;
+    border-radius:5px;background:transparent;color:#A3AAB5;
     transition:background .12s,color .12s}
   .bandeira:hover{color:#fff}
-  .bandeira.on{background:rgba(255,80,0,.20);
-    border-color:rgba(255,80,0,.55);color:#fff}
+  .bandeira.on{background:rgba(255,255,255,.12);color:#fff}
   .bandeira .flag{width:19px;height:13px;display:block;overflow:hidden;
     border-radius:2px;line-height:0}
   .bandeira .flag svg{width:19px;height:13px;display:block}
@@ -89,59 +87,62 @@
   /* grade regular: com flex-wrap cada campo achava seu lugar e sobravam
      orfaos em linhas diferentes, o que deixava o cabecalho irregular */
   .controles{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-left:3px solid var(--laranja);border-radius:10px;padding:4px 13px 5px;
-    margin:4px 0 7px;display:grid;gap:4px 14px;
+    border-radius:var(--raio);padding:8px 14px 8px;
+    margin:12px 0 10px;display:grid;gap:6px 14px;
     grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
     position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
-    box-shadow:0 2px 8px rgba(45,38,30,.06)}
+    box-shadow:0 1px 2px rgba(16,24,40,.05)}
   /* o rotulo ao LADO dos chips, nao em cima: empilhado, ele sozinho
      custava uma fileira inteira de altura na barra */
   .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
-    padding-top:4px;margin-top:0;display:flex;align-items:center;gap:10px}
+    padding-top:7px;margin-top:0;display:flex;align-items:center;gap:10px}
   .controles .campo-largo label{margin-bottom:0;white-space:nowrap}
   .abas{position:sticky;top:calc(var(--topo-h, 86px) + var(--filtros-h, 92px));
         z-index:28;background:var(--cor-fundo)}
-  .campo label{display:block;font-size:8.5px;line-height:1.25;text-transform:uppercase;
-    letter-spacing:.6px;color:var(--cor-texto-suave);margin-bottom:1px;font-weight:700}
+  .campo label{display:block;font-size:10px;line-height:1.25;text-transform:uppercase;
+    letter-spacing:.5px;color:var(--cor-texto-suave);margin-bottom:3px;font-weight:600}
   /* O SELETOR NATIVO E A PECA QUE MAIS DENUNCIA TELA NAO DESENHADA: a
      seta do sistema, a altura de 20px e a borda cinza-claro sao de
      formulario. Mesma caixa, com a seta desenhada na paleta e estados
      de hover e foco em laranja. */
-  .campo select{font:inherit;font-size:12.5px;font-weight:600;
-    padding:4px 25px 4px 10px;border-radius:8px;
+  .campo select{font:inherit;font-size:13px;font-weight:500;
+    padding:5px 28px 5px 10px;border-radius:6px;
     border:1px solid var(--cor-borda-forte);background-color:#fff;
     color:var(--cor-texto);width:100%;cursor:pointer;
     appearance:none;-webkit-appearance:none;-moz-appearance:none;
-    background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237C7468' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235E6673' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat;background-position:right 9px center;
     background-size:9px 6px;
     transition:border-color .12s,box-shadow .12s}
-  .campo select:hover{border-color:var(--cinza-medio)}
+  .campo select:hover{border-color:var(--cinza)}
   .campo select:focus{outline:none;border-color:var(--laranja);
     box-shadow:0 0 0 3px rgba(255,80,0,.15)}
   .chips{display:flex;gap:5px;flex-wrap:wrap}
-  .chip{display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;
-    padding:1px 8px;border:1px solid var(--cor-borda);border-radius:20px;
-    background:#fff;user-select:none;font-weight:600;
+  .chip{display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;
+    padding:2px 9px;border:1px solid var(--cor-borda);border-radius:6px;
+    background:#fff;user-select:none;font-weight:500;color:var(--cor-texto);
     transition:border-color .12s, opacity .12s}
-  .chip:hover{border-color:var(--cinza)}
+  .chip:hover{border-color:var(--cor-borda-forte)}
   .chip.off{opacity:.4}
-  .chip .marcador{width:8px;height:8px;border-radius:50%}
+  .chip .marcador{width:8px;height:8px;border-radius:2px}
 
 
   .bloco{background:var(--cor-superficie);border:1px solid var(--cor-borda);
-    border-radius:14px;padding:20px 26px 22px;margin-bottom:18px;
+    border-radius:var(--raio);padding:20px 24px 20px;margin-bottom:16px;
     box-shadow:var(--sombra)}
   /* TITULO DE SECAO NO PADRAO DOS DECKS: preto, negrito, a esquerda, e o
      fio laranja CURTO embaixo. O fio atravessando a tela inteira em
      laranja claro competia com o proprio titulo e pintava area sem
      dizer nada - o mesmo laranja rende mais num traco de 34px. */
-  .secao{font-size:18px;font-weight:800;color:var(--preto);margin:6px 0 13px;
-    padding-bottom:9px;letter-spacing:-.35px;position:relative}
-  .secao::after{content:"";position:absolute;left:0;bottom:0;
-    width:34px;height:3px;border-radius:2px;background:var(--laranja)}
-  .bloco h2{margin:0;font-size:16px;font-weight:700;letter-spacing:-.2px;
-    color:var(--preto)}
+  /* O TRACO LARANJA SAIU EM 24/11/2026: titulo de secao e um rotulo
+     de navegacao, e um fio cinza que segue ate a borda separa sem
+     disputar com o dado. */
+  .secao{font-size:15px;font-weight:600;color:var(--cor-texto);
+    margin:18px 0 12px;letter-spacing:-.1px;
+    display:flex;align-items:center;gap:12px}
+  .secao::after{content:"";flex:1;height:1px;background:var(--cor-borda)}
+  .bloco h2{margin:0;font-size:14.5px;font-weight:600;letter-spacing:-.1px;
+    color:var(--cor-texto)}
   td.vazia{color:var(--cinza)}
   td.sobe{color:var(--negativo);font-weight:600}
   td.desce{color:var(--positivo);font-weight:600}
@@ -167,12 +168,12 @@
      "1000 Mbps" nao medem igual): vai medida no JS, nao chutada. */
   #matriz{scroll-snap-type:x proximity}
   #matriz th.num,#matriz td.num{scroll-snap-align:start}
-  #matriz tr.bloco-alt td{background:rgba(45,38,30,.04)}
+  #matriz tr.bloco-alt td{background:var(--cor-realce)}
   #matriz tr.bloco-alt td.op-col,
-  #matriz tr.bloco-alt td.degrau{background-color:#F3F0E9}
-  #matriz tbody tr:hover td{background:#FFF6F2}
+  #matriz tr.bloco-alt td.degrau{background-color:var(--cor-realce)}
+  #matriz tbody tr:hover td{background:#F1F3F6}
   #matriz tbody tr:hover td.op-col,
-  #matriz tbody tr:hover td.degrau{background-color:#FFF0E8}
+  #matriz tbody tr:hover td.degrau{background-color:#F1F3F6}
   #matriz td.trocou{color:var(--cor-texto);font-weight:600}
   .legenda-matriz{font-size:11px;color:var(--cor-texto-suave);margin-top:9px;
                   display:flex;gap:16px;flex-wrap:wrap}
@@ -200,49 +201,55 @@
   /* a ultima linha do bloco abre mao do seu fio: o ar embaixo basta, e
      dois tracos colados (o dela e o do bloco seguinte) pesavam */
   #matriz tbody tr:has(+ tr.troca-op) td{border-bottom:none}
-  .bloco .descricao{font-size:11.5px;color:var(--cor-texto-suave);margin:2px 0 12px}
+  .bloco .descricao{font-size:12px;color:var(--cor-texto-suave);margin:3px 0 14px}
   /* abas no topo, coladas ao cabecalho, como no Dashboard TMT */
   nav.abas{background:var(--cor-superficie);border-bottom:1px solid var(--cor-borda);
-    position:sticky;top:var(--topo-h, 86px);z-index:150;
-    box-shadow:0 1px 4px rgba(45,38,30,.05)}
+    position:sticky;top:var(--topo-h, 86px);z-index:150}
   nav.abas ul{display:flex;list-style:none;gap:4px;margin:0;padding:0;
     overflow-x:auto;-webkit-overflow-scrolling:touch}
-  nav.abas a{display:block;padding:10px 15px 9px;text-decoration:none;
-    color:var(--cor-texto-suave);font-weight:600;font-size:13px;
-    letter-spacing:-.1px;white-space:nowrap;position:relative;
-    transition:color .12s}
+  nav.abas a{display:block;padding:11px 14px 10px;text-decoration:none;
+    color:var(--cor-texto-suave);font-weight:500;font-size:13px;
+    white-space:nowrap;position:relative;transition:color .12s}
   nav.abas a:hover{color:var(--cor-texto)}
-  nav.abas a.ativa{color:var(--preto);font-weight:700}
+  nav.abas a.ativa{color:var(--cor-texto);font-weight:600}
   /* o indicador nao vai de ponta a ponta da aba: um traco curto sob o
      texto, de ponta arredondada, como o fio do titulo de secao */
-  nav.abas a::after{content:"";position:absolute;left:15px;right:15px;
-    bottom:0;height:3px;border-radius:3px 3px 0 0;background:transparent;
+  nav.abas a::after{content:"";position:absolute;left:14px;right:14px;
+    bottom:0;height:2px;background:transparent;
     transition:background .14s}
   nav.abas a.ativa::after{background:var(--laranja)}
   #pg-ofertas{padding-top:4px} #pg-panorama{padding-top:4px}
   .faixa{margin-bottom:20px}
   .faixa:last-child{margin-bottom:0}
-  .faixa-rot{font-size:12px;font-weight:700;color:var(--laranja);
-    text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+  .faixa-rot{font-size:11px;font-weight:600;color:var(--cor-texto-suave);
+    text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
   /* duas tabelas em sequencia precisam de ar entre elas: sem isso o
      rotulo da segunda nasce colado na barra de rolagem da primeira.
      A barra flutuante entra como irma no meio, entao o seletor nao
      pode ser o de irmao imediato. */
   .tabela-wrap ~ .faixa-rot{margin-top:22px}
-  .grupo-op{background:var(--cor-fundo);font-weight:600}
+  .grupo-op{background:var(--cor-realce);font-weight:600}
   .grupo-op td{padding-top:8px;padding-bottom:5px}
   .cabeca{display:flex;justify-content:space-between;align-items:flex-start;
           gap:14px;flex-wrap:wrap}
   .metricas{display:flex;gap:12px;flex:none;align-items:center}
   .metricas{flex-wrap:wrap}
-  .metricas button{font:inherit;font-size:11.5px;padding:5px 12px;cursor:pointer;
-    font-weight:600;letter-spacing:-.1px;
-    border:1px solid var(--cor-borda);border-radius:999px;background:#fff;
-    color:var(--cor-texto-suave);transition:border-color .12s,color .12s}
-  .metricas button:hover{border-color:var(--cor-borda-forte);
-    color:var(--cor-texto)}
-  .metricas button.on{background:var(--preto);border-color:var(--preto);
-    color:#fff;box-shadow:0 1px 6px -2px rgba(36,31,26,.5)}
+  .metricas button{font:inherit;font-size:12px;padding:4px 12px;cursor:pointer;
+    font-weight:500;border:1px solid var(--cor-borda);border-radius:6px;
+    background:#fff;color:var(--cor-texto-suave);
+    transition:background .12s,color .12s,box-shadow .12s}
+  .metricas button:hover{color:var(--cor-texto)}
+  .metricas button.on{background:var(--cor-texto);border-color:var(--cor-texto);
+    color:#fff}
+  /* AS OPCOES DE UM MESMO GRAFICO NUM TRILHO SO, desde 24/11/2026: a
+     pilula preta solta ao lado de pilulas brancas parecia dois botoes
+     sem relacao. No trilho, a escolhida e a chapa branca. */
+  .segmento{display:inline-flex;gap:2px;padding:2px;background:#EEF0F3;
+    border:1px solid var(--cor-borda);border-radius:7px}
+  .metricas .segmento button{border:none;border-radius:5px;
+    background:transparent;padding:4px 12px}
+  .metricas .segmento button.on{background:#fff;color:var(--cor-texto);
+    box-shadow:0 1px 2px rgba(16,24,40,.12),0 0 0 1px rgba(16,24,40,.05)}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
   .grafico-wrap.alto{height:450px}
@@ -251,7 +258,14 @@
                  color:var(--cor-texto-suave)}
   .legenda-ponto i{width:9px;height:9px;border-radius:50%;display:inline-block}
   .legenda-ponto i.vazado{background:transparent;border:2px solid var(--cinza)}
-  .dupla{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  /* MINMAX(0, 1FR), E NAO 1FR. O canvas do Chart.js guarda a largura do
+     ultimo desenho, e "1fr" nao deixa a coluna ficar menor que o conteudo:
+     ao estreitar a janela o par de graficos ficava largo e passava da
+     borda dos quadros de cima (24/11/2026, no celular chegava a 662px
+     numa tela de 390). Com o minimo em zero a coluna encolhe e o grafico
+     se redesenha nela. */
+  .dupla{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:16px}
+  .dupla > .bloco, .grafico-wrap{min-width:0}
 
   table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;
     font-variant-numeric:tabular-nums}
@@ -260,14 +274,16 @@
      tarjas pretas horizontais, e o olho batia nelas antes de qualquer
      numero. O mesmo preto num fio de 2px embaixo do rotulo separa
      igual e nao disputa. */
+  /* e o fio preto de 2px virou um fio cinza de 1px em 24/11/2026: o
+     rotulo em caixa alta ja separa o cabecalho do corpo */
   th{background:var(--cor-superficie);color:var(--cor-texto-suave);
-     text-align:left;padding:7px 12px 6px;
-     font-weight:700;white-space:nowrap;font-size:10px;
-     text-transform:uppercase;letter-spacing:.7px;
-     border-bottom:2px solid var(--preto)}
+     text-align:left;padding:8px 12px 7px;
+     font-weight:600;white-space:nowrap;font-size:10.5px;
+     text-transform:uppercase;letter-spacing:.45px;
+     border-bottom:1px solid var(--cor-borda-forte)}
   table{line-height:1.35}
-  td{border-bottom:1px solid var(--cor-borda);padding:4px 11px}
-  tbody tr:hover td{background:rgba(255,80,0,.045)}
+  td{border-bottom:1px solid var(--cor-linha);padding:5px 11px}
+  tbody tr:hover td{background:var(--cor-realce)}
   tbody tr:last-child td{border-bottom:none}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   /* Nas listas de oferta o numero fica CENTRADO na coluna: alinhado a
@@ -302,7 +318,7 @@
      fichas, que e o tamanho da informacao que ela tem */
   .cat-lista{display:flex;gap:6px;flex-wrap:wrap}
   .cat-item{display:inline-flex;align-items:baseline;gap:6px;
-    border:1px solid var(--cor-borda);background:#fff;border-radius:7px;
+    border:1px solid var(--cor-borda);background:#fff;border-radius:6px;
     padding:3px 9px;font-size:11.5px;color:var(--cor-texto-suave)}
   .cat-item b{font-size:12px;color:var(--cor-texto);
     font-variant-numeric:tabular-nums}
@@ -313,10 +329,10 @@
   .cat-tab td{padding:5px 10px}
   .cat-tab td.cat-nome{font-weight:600;white-space:nowrap}
   /* a oferta que so existe num grupo e o achado da tabela */
-  .cat-tab tr.so-aqui td{background:rgba(255,80,0,.07)}
+  .cat-tab tr.so-aqui td{background:rgba(255,80,0,.06)}
   .cat-tab .selo{font-size:9px;font-weight:700;text-transform:uppercase;
     letter-spacing:.5px;color:var(--laranja);border:1px solid rgba(255,80,0,.4);
-    border-radius:20px;padding:1px 7px;margin-left:8px;vertical-align:1px}
+    border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:1px}
   .cat-rodape{display:flex;flex-direction:column;gap:3px;margin-top:9px;
     font-size:11px;color:var(--cor-texto-suave);line-height:1.45}
   .cat-quais b{color:var(--cor-texto);font-weight:700}
@@ -328,20 +344,21 @@
   .mapa{border-collapse:separate;border-spacing:2px;font-size:11.5px;
     width:auto;table-layout:fixed}
   .mapa th{background:transparent;color:var(--cor-texto-suave);
-    font-size:10px;text-transform:uppercase;letter-spacing:.6px;
-    font-weight:700;padding:0 6px 6px;text-align:center;white-space:nowrap}
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.45px;
+    font-weight:600;padding:0 6px 7px;text-align:center;white-space:nowrap;
+    border-bottom:none}
   .mapa th.praca{text-align:left;padding-left:2px}
   .mapa td.praca{text-align:left;font-weight:600;white-space:nowrap;
     color:var(--cor-texto);padding:0 10px 0 2px;font-size:11.5px;
     background:transparent;border:none;width:146px;min-width:146px}
   .mapa td.praca .uf{font-size:9.5px;color:var(--cor-texto-suave);
     margin-left:4px;font-weight:600}
-  .mapa td.cel{padding:5px 4px;border-radius:4px;text-align:center;
+  .mapa td.cel{padding:5px 4px;border-radius:3px;text-align:center;
     font-variant-numeric:tabular-nums;font-weight:600;border:none;
     width:78px;min-width:78px;transition:outline-color .1s}
   .mapa td.cel.fora{background:transparent;color:var(--cinza);
     box-shadow:inset 0 0 0 1px var(--cor-borda)}
-  .mapa tr:hover td.cel{outline:2px solid rgba(0,5,18,.28);outline-offset:-2px}
+  .mapa tr:hover td.cel{outline:1px solid rgba(16,24,40,.35);outline-offset:-1px}
   .mapa tr:hover td.praca{color:var(--laranja)}
   /* ---- o mapa de calor de player por produto ---- */
   /* a primeira coluna e o player, com a bolinha da marca: a cor ja
@@ -393,15 +410,15 @@
   .scroll-flutuante > div{height:1px}
   .scroll-flutuante::-webkit-scrollbar{height:8px}
   .scroll-flutuante::-webkit-scrollbar-track{background:transparent}
-  .scroll-flutuante::-webkit-scrollbar-thumb{background:rgba(255,80,0,.30);
+  .scroll-flutuante::-webkit-scrollbar-thumb{background:rgba(16,24,40,.20);
     border-radius:8px;transition:background .15s}
-  .scroll-flutuante:hover::-webkit-scrollbar-thumb{background:rgba(255,80,0,.55)}
+  .scroll-flutuante:hover::-webkit-scrollbar-thumb{background:rgba(16,24,40,.38)}
   .scroll-flutuante::-webkit-scrollbar-button{display:none;width:0;height:0}
   .scroll-flutuante{scrollbar-width:thin;
-    scrollbar-color:rgba(255,80,0,.30) transparent}
+    scrollbar-color:rgba(16,24,40,.20) transparent}
   .cab-flutuante{position:fixed;z-index:30;overflow:hidden;display:none;
     background:var(--cor-superficie);
-    border-radius:8px 8px 0 0;box-shadow:0 8px 16px rgba(45,38,30,.16)}
+    border-radius:6px 6px 0 0;box-shadow:0 6px 12px rgba(16,24,40,.10)}
   .cab-flutuante::-webkit-scrollbar{display:none}
   .cab-flutuante{scrollbar-width:none}
   .cab-flutuante table{margin:0}
@@ -417,7 +434,7 @@
     .controles{grid-template-columns:repeat(2, minmax(0, 1fr))}
   }
   @media(max-width:860px){
-    .dupla{grid-template-columns:1fr}
+    .dupla{grid-template-columns:minmax(0, 1fr)}
     .bloco{padding:13px 15px 15px}
     .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
@@ -500,10 +517,9 @@
       </div>
       <div class="metricas">
         <span id="legenda-datas" style="display:flex;gap:12px"></span>
-        <span style="display:flex;gap:5px">
+        <span class="segmento">
           <button id="bt-r-todos" class="on" onclick="rotulos('todos')" data-t="r_todos">Todas as ofertas</button>
           <button id="bt-r-entrada" onclick="rotulos('entrada')" data-t="r_entrada">Só a entrada</button>
-          <button id="bt-r-nenhum" onclick="rotulos('nenhum')" data-t="r_nenhum">Sem nomes</button>
         </span>
       </div>
     </div>
@@ -542,10 +558,10 @@
         <h2 data-t="mat_t">Preço por degrau, dia a dia</h2>
         <p class="descricao" data-t="mat_x"></p>
       </div>
-      <div class="metricas">
+      <div class="metricas"><span class="segmento">
         <button id="bt-mes" class="on" onclick="metrica('mes')">R$/mês</button>
         <button id="bt-gb" onclick="metrica('unidade')">R$/un.</button>
-      </div>
+      </span></div>
     </div>
     <div class="tabela-wrap" id="matriz"></div>
   </div>
@@ -634,7 +650,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "24/11/2026 11:31";
+const GERADO = "24/11/2026 14:28";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -726,7 +742,7 @@ const T = {
                 combo:"Combo (fibra + móvel)", prepago:"Pré-pago",
                 satelite:"Satélite", btl:"Below-the-line"},
       q_t:"Onde cada oferta está",
-      r_entrada:"Só a entrada", r_todos:"Todas as ofertas", r_nenhum:"Sem nomes",
+      r_entrada:"Só a entrada", r_todos:"Todas as ofertas",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada ponto é uma oferta do dia.",
       g1_t:"Preço de entrada, por operadora (R$/mês)",
@@ -832,7 +848,7 @@ const T = {
                 combo:"Bundle (fibre + mobile)", prepago:"Prepaid",
                 satelite:"Satellite", btl:"Below-the-line"},
       q_t:"Where each offer sits",
-      r_entrada:"Entry offers only", r_todos:"All offers", r_nenhum:"No labels",
+      r_entrada:"Entry offers only", r_todos:"All offers",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day.",
       g1_t:"Entry price, by carrier (R$/month)",
@@ -881,7 +897,7 @@ let rotulosAtual = "todos";
 
 function rotulos(v){
   rotulosAtual = v;
-  for (const k of ["entrada", "todos", "nenhum"]) {
+  for (const k of ["entrada", "todos"]) {
     document.getElementById("bt-r-" + k).className = (k === v ? "on" : "");
   }
   grafQuadrante();
@@ -1331,7 +1347,7 @@ function porDegrau(dia){
 // operadora e devolve a legibilidade.
 function escurecer(hex, f){
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
-  if (!m) return "#4A443C";
+  if (!m) return "#3B424D";
   const v = parseInt(m[1], 16);
   const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
     .map(x => Math.max(0, Math.round(x * f)));
@@ -1350,7 +1366,7 @@ function escurecer(hex, f){
 const RAMPA = ["#FCE7D8", "#F9C6A4", "#F49A66", "#E96B2E", "#C9400A"];
 
 // Texto branco a partir do quarto passo, onde o fundo escurece.
-const RAMPA_TINTA = ["#2B2621", "#2B2621", "#2B2621", "#fff", "#fff"];
+const RAMPA_TINTA = ["#1F242C", "#1F242C", "#1F242C", "#fff", "#fff"];
 
 // Abaixo disso a coluna e considerada PLANA e fica toda no passo claro.
 // A Brisanet varia R$ 0,09 entre pracas: espalhar isso pela rampa
@@ -1359,7 +1375,7 @@ const VARIACAO_MINIMA = 0.02;
 
 const EIXO = {
   grade: "rgba(0,0,0,0.055)",     // so o suficiente para guiar o olho
-  borda: "#000512",
+  borda: "#C4CAD3",
 };
 
 // Um eixo com marcas em numero redondo E espacadas por igual.
@@ -1467,7 +1483,7 @@ function legenda(extra){
   return Object.assign({
     display:true, position:"bottom", align:"center",
     labels:{usePointStyle:true, pointStyle:"circle", boxWidth:7, boxHeight:7,
-            padding:14, color:"#2B2621", font:{size:11.5, weight:"600"}},
+            padding:14, color:"#1F242C", font:{size:11.5, weight:"600"}},
     onHover:(e, item, leg) => {
       e.native.target.style.cursor = "pointer";
       realcar(leg.chart, item.datasetIndex);
@@ -1533,14 +1549,14 @@ function eixos(rotuloY){
   return {
     x: { grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
          ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:10,
-                color:"#7C7468", font:{size:11}} },
+                color:"#5E6673", font:{size:11}} },
     // Comeca no zero. Tres planos entre R$ 58,99 e R$ 59,90 abriam um eixo
     // de um real, e a diferenca de centavos ocupava a tela inteira como se
     // fossem precos distantes. Sao quase iguais, e o grafico tem de dizer isso.
     y: { beginAtZero:true,
          grid:{display:true, color:EIXO.grade, drawTicks:false},
          border:{display:true, color:EIXO.borda, width:1},
-         ticks:{padding:8, color:"#7C7468", font:{size:11},
+         ticks:{padding:8, color:"#5E6673", font:{size:11},
                 callback:v=>rotuloY?rotuloY(v):v} },
   };
 }
@@ -1555,27 +1571,27 @@ if (window.Chart) {
     const d = Chart.defaults.scales[eixo];
     if (!d) continue;
     d.ticks = Object.assign({}, d.ticks,
-      {maxRotation: 0, minRotation: 0, color: "#8A8277", padding: 6});
+      {maxRotation: 0, minRotation: 0, color: "#6B7280", padding: 6});
     // A GRADE RECUA. Em cinza cheio ela disputava com a linha do dado,
     // e o Chart.js ainda desenhava o fio do eixo por cima - dois tracos
     // pretos em volta de cada quadro.
     d.grid = Object.assign({}, d.grid,
-      {color: "rgba(36,31,26,.07)", tickLength: 0, drawTicks: false});
+      {color: "rgba(16,24,40,.06)", tickLength: 0, drawTicks: false});
     d.border = Object.assign({}, d.border, {display: false});
   }
   // E A FONTE DOS GRAFICOS E A DA PAGINA. Sem isto o Chart.js desenha
   // em Helvetica 12, que e outra familia e outro peso ao lado do texto
   // - um dos detalhes que fazem uma tela "parecer padrao".
-  Chart.defaults.font.family = "'Inter', ui-sans-serif, system-ui, " +
+  Chart.defaults.font.family = "'IBM Plex Sans', ui-sans-serif, system-ui, " +
     "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
   Chart.defaults.font.size = 11;
-  Chart.defaults.color = "#7C7468";
+  Chart.defaults.color = "#5E6673";
   const lg = Chart.defaults.plugins.legend.labels;
   lg.usePointStyle = true; lg.boxWidth = 7; lg.boxHeight = 7;
-  lg.padding = 15; lg.font = {size: 11.5, weight: "600"};
+  lg.padding = 15; lg.font = {size: 11.5, weight: "500"};
   const tt = Chart.defaults.plugins.tooltip;
   tt.backgroundColor = "rgba(0,5,18,.95)"; tt.padding = 10;
-  tt.cornerRadius = 9; tt.boxPadding = 4; tt.usePointStyle = true;
+  tt.cornerRadius = 6; tt.boxPadding = 4; tt.usePointStyle = true;
   tt.titleFont = {size: 11.5, weight: "700"};
   tt.bodyFont = {size: 11.5};
   tt.titleMarginBottom = 6;
@@ -1729,7 +1745,6 @@ function textoRotulo(v, ctx){
 
 function rotular(ds, p){
   if (ds.ordem !== 1) return false;            // data de comparacao
-  if (rotulosAtual === "nenhum") return false;
   // no modo entrada so restam ofertas de entrada no grafico
   return true;
 }
@@ -1766,9 +1781,9 @@ const UNIDADE_EIXO = {
     if (!opcoes || !ch.chartArea) return;
     const c = ch.ctx, a = ch.chartArea;
     c.save();
-    c.font = "700 10px ui-sans-serif, system-ui, -apple-system, "
+    c.font = "600 10px 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, "
            + "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-    c.fillStyle = "#7C7468";
+    c.fillStyle = "#5E6673";
     if (opcoes.y) {
       c.textAlign = "left";
       c.textBaseline = "bottom";
@@ -1787,7 +1802,7 @@ function posicionarRotulos(ch){
   const ex = ch.scales.x, ey = ch.scales.y;
   const pincel = ch.ctx;
   pincel.save();
-  pincel.font = "600 9.5px ui-sans-serif, system-ui, -apple-system, "
+  pincel.font = "600 9.5px 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, "
               + "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   const bolinhas = [], itens = [];
@@ -1902,7 +1917,7 @@ function grafQuadrante(){
   const series = [];
   for (const [op, pts] of Object.entries(pontos(dia, true))) {
     series.push({label:op, data:pts, backgroundColor:CORES[op] || "#999",
-      borderColor:"#FCFBF7", borderWidth:2,
+      borderColor:"#FFFFFF", borderWidth:2,
       pointRadius:6.5, pointHoverRadius:9, ordem:1});
   }
 
@@ -1953,7 +1968,7 @@ function grafQuadrante(){
         // uma entrada por operadora: os datasets da data de comparacao
         // repetiriam os mesmos nomes
         legend:legenda({labels:{usePointStyle:true, pointStyle:"circle",
-          boxWidth:7, boxHeight:7, padding:14, color:"#2B2621",
+          boxWidth:7, boxHeight:7, padding:14, color:"#1F242C",
           font:{size:11.5, weight:"600"}}}),
         unidadeEixo:{y:"R$/" + t("mes") + (log ? " (log)" : ""), x:u},
         tooltip:{callbacks:{label:c=>{
@@ -1976,9 +1991,9 @@ function grafQuadrante(){
           anchor:"center", clamp:true, clip:false,
           // o nome na cor da propria operadora: liga o texto a bolinha
           // sem depender de o leitor seguir a linha ate ela
-          color: ctx => escurecer(CORES[ctx.dataset.label] || "#4A443C", 0.62),
+          color: ctx => escurecer(CORES[ctx.dataset.label] || "#3B424D", 0.62),
           font:{size:9.5, weight:"700"},
-          textStrokeColor:"#FCFBF7", textStrokeWidth:3,   // halo: separa o texto do que passa atras
+          textStrokeColor:"#FFFFFF", textStrokeWidth:3,   // halo: separa o texto do que passa atras
           formatter:textoRotulo,
         },
       },
@@ -2051,7 +2066,7 @@ function grafDispersao(){
           +" · "+c.parsed.x+" "+c.raw.u}}},
       scales:{
         x:{...eixos().x, title:{display:true, text:unidade,
-           color:"#7C7468", font:{size:11}}},
+           color:"#5E6673", font:{size:11}}},
         y:eixos(v=>reais(v).replace("R$ ","")).y}},
   });
 }
@@ -2093,12 +2108,12 @@ function grafUnitario(){
       scales:{
         x:{grid:{display:true, color:EIXO.grade, drawTicks:false},
            border:{display:true, color:EIXO.borda, width:1},
-           title:{display:true, text:"R$/"+u, color:"#7C7468", font:{size:11}},
-           ticks:{color:"#7C7468", font:{size:11},
+           title:{display:true, text:"R$/"+u, color:"#5E6673", font:{size:11}},
+           ticks:{color:"#5E6673", font:{size:11},
                   callback:v=>Number(v).toLocaleString("pt-BR",
                     {minimumFractionDigits:casas, maximumFractionDigits:casas})}},
         y:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}}}},
+           ticks:{color:"#1F242C", font:{size:12, weight:"600"}}}}},
   });
 }
 
