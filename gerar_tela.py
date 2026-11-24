@@ -462,6 +462,10 @@ MOLDE = r"""<!DOCTYPE html>
   .mapa td.cel.vazia{background:transparent;color:var(--cinza);
     box-shadow:inset 0 0 0 1px var(--cor-borda);font-weight:600}
   .mapa th.prod{min-width:96px}
+  /* o mapa de ofertas: a celula alem da ultima oferta da operadora fica
+     em branco, sem moldura - nao e "nao vende", e so que acabou a escada */
+  .mapa td.cel.nada{background:transparent}
+  .mapa td.cel small .sep{display:none}
   /* a dispersao entre pracas e a unica coisa que sobra de geografia
      nesta celula: um tracinho discreto, nao um segundo numero */
   .mapa td.cel .espalha{display:block;height:2px;border-radius:1px;
@@ -687,6 +691,18 @@ MOLDE = r"""<!DOCTYPE html>
     </div>
 
     <div class="bloco">
+      <div class="cabeca">
+        <div>
+          <h2 data-t="mo_t">Mapa de ofertas por produto</h2>
+          <p class="descricao" data-t="mo_x"></p>
+        </div>
+      </div>
+      <div id="t-mapa-ofertas"><div class="tabela-wrap"></div></div>
+      <div class="rampa" id="r-mapa-ofertas"></div>
+      <div class="nota" id="n-mapa-ofertas"></div>
+    </div>
+
+    <div class="bloco">
       <h2 data-t="pr_t">O que muda entre praças</h2>
       <p class="descricao" data-t="pr_x"></p>
       <div class="tabela-wrap" id="t-pracas"></div>
@@ -776,6 +792,10 @@ const T = {
       mc_varia:"de {a} a {b}, entre as {n} praças",
       mc_menor:"menor", mc_maior:"maior",
       mc_nota:"Cada célula é a mediana das praças.",
+      mo_t:"Mapa de ofertas por produto",
+      mo_x:"Todas as ofertas de cada operadora, da mais barata à mais cara.",
+      mo_entrada:"Entrada", mo_n:"{n}ª",
+      mo_nota:"Cada célula é um degrau de entrega (GB ou Mbps): o menor preço do degrau em cada praça e a mediana entre as praças. A cor compara os preços dentro do produto.",
       pr_t:"O que muda entre praças",
       pr_x:"As operadoras cujo catálogo muda de uma praça para outra. O filtro de praça não vale nesta aba.",
       pr2_t:"Como cada praça se moveu",
@@ -902,6 +922,10 @@ const T = {
       mc_varia:"from {a} to {b}, across {n} cities",
       mc_menor:"lower", mc_maior:"higher",
       mc_nota:"Each cell is the median across cities.",
+      mo_t:"Offer map by product",
+      mo_x:"Every offer of each carrier, from cheapest to most expensive.",
+      mo_entrada:"Entry", mo_n:"#{n}",
+      mo_nota:"Each cell is a delivery tier (GB or Mbps): the lowest price of the tier in each city, and the median across cities. Color compares prices within the product.",
       pr_t:"What changes between cities",
       pr2_t:"How each city moved",
       pr_x:"The carriers whose catalogue changes from one city to another. The city filter does not apply in this tab.",
@@ -2871,6 +2895,123 @@ function desenharMapa(metrica, idAlvo){
   return true;
 }
 
+// O MAPA DE OFERTAS POR PRODUTO (24/11/2026), pedido de quem le: o mapa
+// de calor estendido, um quadro por produto - Controle primeiro, depois o
+// pre-pago, e assim por diante -, cada operadora numa linha com todas as
+// ofertas dela, da mais barata a mais cara.
+//
+// A celula e um DEGRAU (operadora, GB ou Mbps), como na grade de precos:
+// em cada praca, o menor preco do degrau; na celula, a mediana entre as
+// pracas que o vendem, com o tracinho da dispersao do mapa de calor.
+// Oferta sem entrega lida (TIM Black Express, os Familia) entra pelo nome,
+// para nao sumir do mapa. A cor e por produto: comparar o pos de R$ 300
+// com o pre de R$ 20 na mesma rampa pintaria um quadro inteiro de claro.
+// E e pela POSICAO do preco dentro do produto, nao pela distancia: na
+// fibra, os 10 Gbps da Vivo a R$ 2.000 deixavam todo o resto, de R$ 80 a
+// R$ 370, no mesmo tom claro.
+const ORDEM_MAPA_OFERTAS = ["controle", "prepago", "movel", "btl", "fibra",
+                            "combo", "satelite"];
+
+function degrausDoProduto(dia, produto){
+  const por = {};
+  for (const o of DADOS) {
+    if (o.produto !== produto || diaDe(o) !== dia || desligadas.has(o.operadora)) continue;
+    if (precoDe(o) == null) continue;
+    const e = entregaDe(o);
+    const k = e.v != null ? "v" + e.v : "n" + (o.nome_oferta || "");
+    const op = por[o.operadora] || (por[o.operadora] = {});
+    const d = op[k] || (op[k] = {entrega: e.v, u: e.u, pracas: {}});
+    const atual = d.pracas[o.praca];
+    if (!atual || menor(o, atual)) d.pracas[o.praca] = o;
+  }
+  const saida = {};
+  for (const [op, ks] of Object.entries(por)) {
+    saida[op] = Object.values(ks).map(d => {
+      const ofertas = Object.values(d.pracas);
+      const vals = ofertas.map(precoDe);
+      const med = mediana(vals);
+      // o nome e o da praca mediana, como no mapa de calor
+      let nome = "", perto = Infinity;
+      for (const o of ofertas) {
+        const dist = Math.abs(precoDe(o) - med);
+        if (dist < perto) { perto = dist; nome = o.nome_oferta || ""; }
+      }
+      const pracas = Object.keys(d.pracas);
+      return {v: med, lo: Math.min.apply(null, vals), hi: Math.max.apply(null, vals),
+              entrega: d.entrega, u: d.u, nome, pracas: pracas.length,
+              unica: pracas.length === 1 ? pracas[0].split("/")[0] : "",
+              nacional: pracas.length === 1 && pracas[0] === PRACA_NACIONAL};
+    }).sort((a, b) => a.v - b.v || (a.entrega || 0) - (b.entrega || 0));
+  }
+  return saida;
+}
+
+function alcanceDaOferta(c){
+  if (c.nacional) return t("mc_nacional");
+  if (c.pracas === 1) return t("mc_so_em").replace("{p}", c.unica);
+  if (c.lo === c.hi) return t("mc_igual").replace("{n}", c.pracas);
+  return t("mc_varia").replace("{a}", reais(c.lo)).replace("{b}", reais(c.hi))
+    .replace("{n}", c.pracas);
+}
+
+function mapaDeOfertas(){
+  const alvo = document.getElementById("t-mapa-ofertas");
+  const legenda = document.getElementById("r-mapa-ofertas");
+  const nota = document.getElementById("n-mapa-ofertas");
+  const dia = document.getElementById("f-data").value;
+  const prods = ORDEM_MAPA_OFERTAS.filter(p => PRODUTOS.includes(p))
+    .concat(PRODUTOS.filter(p => !ORDEM_MAPA_OFERTAS.includes(p)).sort(porOrdemProduto));
+  const quadros = [];
+  for (const pr of prods) {
+    const por = degrausDoProduto(dia, pr);
+    const ops = Object.keys(por).sort(porRelevancia);
+    if (!ops.length) continue;
+    const todas = ops.flatMap(op => por[op]);
+    const lo = Math.min.apply(null, todas.map(c => c.v));
+    const hi = Math.max.apply(null, todas.map(c => c.v));
+    const plano = !hi || (hi - lo) / hi < VARIACAO_MINIMA;
+    const valores = [...new Set(todas.map(c => c.v))].sort((a, b) => a - b);
+    const colunas = Math.max.apply(null, ops.map(op => por[op].length));
+    const cab = `<tr><th class="praca"></th>` + Array.from({length: colunas}, (_, i) =>
+      `<th>${i ? t("mo_n").replace("{n}", i + 1) : t("mo_entrada")}</th>`).join("") + `</tr>`;
+    const corpo = ops.map(op => {
+      const cels = Array.from({length: colunas}, (_, i) => {
+        const c = por[op][i];
+        if (!c) return `<td class="cel nada"></td>`;
+        const passo = plano || valores.length < 2 ? 0 : Math.min(RAMPA.length - 1,
+          Math.floor(valores.indexOf(c.v) / (valores.length - 1) * RAMPA.length));
+        const esp = c.hi ? Math.min(1, (c.hi - c.lo) / c.hi) : 0;
+        const entrega = c.entrega != null
+          ? Number(c.entrega).toLocaleString("pt-BR") + " " + c.u : "";
+        const dica = [
+          `${op} · ${nomeProduto(pr)}` + (entrega ? " · " + entrega : ""),
+          `${t("mc_mediana")}: ${reais(c.v)}`,
+          alcanceDaOferta(c),
+          c.nome ? t("mc_plano") + ": " + c.nome : ""
+        ].filter(Boolean).join(" \n");
+        return `<td class="cel" title="${esc(dica)}" style="background:${RAMPA[passo]};color:${RAMPA_TINTA[passo]}">`
+          + reais(c.v).replace("R$ ", "")
+          + (entrega ? `<small><span class="sep"> · </span>${entrega}</small>` : "")
+          + (esp > 0.02 ? `<span class="espalha" style="width:${Math.round(14 + esp * 46)}%"></span>` : "")
+          + `</td>`;
+      }).join("");
+      return `<tr><td class="op"><span class="ponto" style="background:${CORES[op] || "#888"}"></span>${op}</td>${cels}</tr>`;
+    }).join("");
+    quadros.push(`<div class="faixa-rot">${esc(nomeProduto(pr))}</div>`
+      + `<div class="tabela-wrap"><table class="mapa"><thead>${cab}</thead><tbody>${corpo}</tbody></table></div>`);
+  }
+  if (!quadros.length) {
+    alvo.innerHTML = `<div class="tabela-wrap"><div class="vazio">${t("sem_dado")}</div></div>`;
+    legenda.innerHTML = ""; nota.textContent = "";
+    return;
+  }
+  alvo.innerHTML = quadros.join("");
+  legenda.innerHTML = `<span>${t("mc_menor")}</span><span class="passos">`
+    + RAMPA.map(c => `<i style="background:${c}"></i>`).join("")
+    + `</span><span>${t("mc_maior")}</span>`;
+  nota.textContent = t("mo_nota");
+}
+
 // O rotulo de um valor do mapa, com a unidade que a metrica pede.
 function rotuloValor(c, v){
   const x = (v == null) ? c.v : v;
@@ -3139,6 +3280,7 @@ function desenhar(){
   rotuloDaMetrica();
   if (!document.getElementById("pg-pracas").hidden) {
     mapaDeCalor();
+    mapaDeOfertas();
     tabelaPracas();
     tabelaPracasTempo();
     ajustarTabelas();
