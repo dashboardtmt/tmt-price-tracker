@@ -898,7 +898,8 @@ def gerar(dados, entradas, caminho):
             "edição, se a rotina de coleta cobriu todas as operadoras e "
             "praças previstas." % str(dados["erro_coleta"])[:120],
             ESTILOS["corpo"]))
-    elif dados.get("falhas") or dados.get("sem_registro") or not dados.get("coletas"):
+    elif (dados.get("falhas") or dados.get("sem_registro")
+          or not dados.get("coletas") or dados.get("nao_lidos")):
         hist += _secao("Cobertura da coleta")
         hist.append(Paragraph(
             "A coleta do dia não cobriu todas as operadoras ou praças "
@@ -906,6 +907,20 @@ def gerar(dados, entradas, caminho):
             "universo efetivamente coletado.",
             ESTILOS["corpo"]))
         hist.append(_bloco_coleta(dados))
+        # O PRODUTO QUE NINGUEM LEU, praca por praca: a mensagem diz
+        # quantas, e a lista inteira mora aqui. Ver robo._produtos_nao_lidos.
+        for n in dados.get("nao_lidos") or ():
+            hist.append(Paragraph(
+                "<b>%s</b> \u2014 %s sem nenhuma oferta lida em %d "
+                "pra\u00e7a(s) onde havia oferta no dia anterior: %s. "
+                "A aus\u00eancia n\u00e3o \u00e9 tratada como sa\u00edda da "
+                "vitrine." % (_sem_marcacao(n["operadora"]),
+                              _sem_marcacao(dict(PRODUTOS).get(
+                                  n["produto"], n["produto"])),
+                              len(n["pracas"]),
+                              _sem_marcacao(", ".join(
+                                  p.split("/")[0] for p in n["pracas"]))),
+                ESTILOS["nota"]))
 
     if dados.get("erro_comparacao"):
         hist += _secao("Comparação indisponível")
@@ -1096,7 +1111,10 @@ def gerar(dados, entradas, caminho):
             _bloco_produto(itens, chave,
                            (dados.get("erros_catalogo") or {}).get(chave))))
 
-    if not (dados.get("falhas") or dados.get("sem_registro")):
+    # o produto nao lido ja abriu a secao de cima, com a tabela: aqui
+    # ela sairia duas vezes
+    if not (dados.get("falhas") or dados.get("sem_registro")
+            or dados.get("nao_lidos")):
         hist.append(_com_titulo("Estado da coleta", _bloco_coleta(dados)))
 
         # O QUE CADA COLETOR AVISOU, inclusive nas rodadas que

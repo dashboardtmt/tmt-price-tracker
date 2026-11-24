@@ -761,6 +761,7 @@ def mudancas(hoje, ontem):
              "voltaram": [], "remodeladas": [], "leitura": [],
              "contratuais": [], "saidas": [], "velocidades": [],
              "entradas": [], "passou_a_ler": [],
+             "nao_lidos": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
              "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
@@ -958,7 +959,12 @@ def mudancas(hoje, ontem):
     # A SAIDA NAO SAI DO INDICE de proposito: _indexar descarta o par
     # indistinguivel, e oferta descartada apareceria como saida todo dia.
     do_dia, antes, erro_vigia = _capturas_para_o_vigia(hoje)
-    saidas = (_ofertas_que_sairam(do_dia, antes, ontem, casadas_por_nome)
+    # O PRODUTO QUE NINGUEM LEU, antes da saida: ele tira pracas do que
+    # a saida pode afirmar. Ver _produtos_nao_lidos.
+    nao_lidos = (_produtos_nao_lidos(do_dia, (antes or {}).get(ontem))
+                 if not erro_vigia else [])
+    saidas = (_ofertas_que_sairam(do_dia, antes, ontem, casadas_por_nome,
+                                  nao_lidos)
               if not erro_vigia else [])
     # O ESPELHO DA SAIDA, com os mesmos renomes: o que o detector de
     # renome casou nao entrou nem saiu - mudou de nome.
@@ -994,6 +1000,7 @@ def mudancas(hoje, ontem):
             "leitura": leitura, "contratuais": contratuais,
             "saidas": saidas, "velocidades": velocidades,
             "entradas": entradas, "passou_a_ler": passou_a_ler,
+            "nao_lidos": nao_lidos,
             # a janela crua, para o vigia nao repetir a consulta
             "_vigia": (do_dia, antes, erro_vigia),
             "erro": None, "cego": cego, "cego_ontem": cego_o,
@@ -2824,14 +2831,88 @@ def _serie_sem_safra(nome):
     return re.sub(r"[^a-z0-9]+", " ", SAFRA.sub(" ", (nome or "").lower())).strip()
 
 
-def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
+def _produtos_nao_lidos(do_dia, de_ontem):
+    u"""O produto inteiro que sumiu de uma praca que a coleta leu.
+
+    Em 17/11/2026 a TIM trocou o card do Ultracombo por um componente
+    com o preco preenchido pelo JavaScript, o coletor nao reconheceu
+    nada - e AVISOU, "nenhum card de combo reconhecido - a pagina
+    mudou" - e a rodada fechou como sucesso, porque toda praca trouxe
+    alguma oferta. A mensagem disse que os dois Ultracombos sairam da
+    vitrine nas 20 pracas. A pagina mostrava os dois, no preco de ontem.
+
+    MEDIDO ANTES DE ESCREVER, nos 49 dias publicados: um produto inteiro
+    de uma operadora zerou numa praca coletada 23 vezes, e em TODAS era
+    leitura - 21 voltaram no dia seguinte ou poucos dias depois, uma era
+    o combo de 17/11 e a outra a NuCel trocando de balde. Nenhuma era o
+    mercado tirando o produto. Em 23/11 a Vivo zerou 15 pares (praca,
+    produto) em 6 pracas, e nada disso chegou a quem le.
+
+    Tres condicoes, todas sobre o dado:
+      1. a operadora foi coletada HOJE na praca - praca que caiu inteira
+         ja sai na manchete, pelo pracas_ok;
+      2. o produto tinha linha ONTEM na praca e nao tem nenhuma hoje;
+      3. nenhuma serie de ontem daquele produto aparece hoje na praca,
+         em produto nenhum - senao e o classificador trocando o balde,
+         como a NuCel de movel para controle em 07/10.
+
+    Devolve [{operadora, produto, pracas}], ordenado.
+    """
+    if not do_dia or not de_ontem:
+        return []
+    coletadas = set()
+    tem_hoje = set()
+    series_hoje = collections.defaultdict(set)
+    for l in do_dia:
+        op, pr = l.get("operadora"), l.get("praca")
+        coletadas.add((op, pr))
+        tem_hoje.add((op, pr, l.get("produto")))
+        series_hoje[(op, pr)].add(_serie_sem_safra(l.get("nome_oferta")))
+    series_ontem = collections.defaultdict(set)
+    for l in de_ontem:
+        series_ontem[(l.get("operadora"), l.get("praca"), l.get("produto"))].add(
+            _serie_sem_safra(l.get("nome_oferta")))
+    por_produto = collections.defaultdict(set)
+    for (op, pr, produto), series in series_ontem.items():
+        if (op, pr) not in coletadas or (op, pr, produto) in tem_hoje:
+            continue
+        if series & series_hoje[(op, pr)]:
+            continue
+        por_produto[(op, produto)].add(pr)
+    return [{"operadora": op, "produto": produto, "pracas": sorted(pracas)}
+            for (op, produto), pracas in sorted(por_produto.items())]
+
+
+def _frase_dos_nao_lidos(nao_lidos):
+    u""""TIM sem ler combo em 20 pra\u00e7as" - uma por operadora.
+
+    A PRACA E CONTADA UMA VEZ por operadora: com cinco produtos em seis
+    pracas, "em 6 pracas" e o que o leitor precisa, e a lista inteira
+    esta no relatorio.
+    """
+    por_op = collections.OrderedDict()
+    for n in nao_lidos or ():
+        d = por_op.setdefault(n["operadora"], [[], set()])
+        nome = CATEGORIA.get(n["produto"], n["produto"]).lower()
+        if nome not in d[0]:
+            d[0].append(nome)
+        d[1].update(n["pracas"])
+    frases = []
+    for op, (produtos, pracas) in por_op.items():
+        frases.append("%s sem ler %s em %d pra\u00e7a%s"
+                      % (op, _costurar(produtos), len(pracas),
+                         "" if len(pracas) == 1 else "s"))
+    return frases
+
+
+def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=(), nao_lidos=()):
     """A oferta que deixou a vitrine: qual, de onde, e por quanto.
 
     Pedido de quem le, em 03/11/2026, depois de 01/11 ter passado em
     silencio: a Vivo Lite Anual II e a Mensal II sairam das 20 pracas e
     a mensagem disse "nenhuma mudanca". Ausencia nao tinha detector.
 
-    SEIS FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
+    SETE FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
     desenhou a regra: a definicao ingenua - chave que estava ontem e nao
     esta hoje - rende 2.560 linhas em 34 dias, e quase nenhuma e saida.
 
@@ -2857,6 +2938,11 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
          mais barata: o renome casou ("-6%") e a semelhanca nao, e a
          mesma mensagem disse que a oferta foi renomeada E que saiu da
          vitrine. Quem decide renome e o detector de renome.
+      7. O PRODUTO TEM DE TER SIDO LIDO NA PRACA. Praca coletada nao e
+         produto lido: em 17/11/2026 a TIM trocou o card do Ultracombo,
+         o coletor nao leu nenhum combo e avisou, a rodada fechou como
+         sucesso, e os dois Ultracombos "sairam da vitrine" nas 20
+         pracas, com a pagina mostrando os dois. Ver _produtos_nao_lidos.
 
     Com isso: 22 saidas em 34 dias, em 6 dias - e as que sobram sao
     oferta de verdade saindo, como a promo "Relampago" da Claro que
@@ -2899,11 +2985,26 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=()):
                       _serie_sem_safra(a.get("nome_oferta")))].update(
             r.get("pracas") or ())
 
+    # o filtro 7: em que praca cada serie de ontem estava em produto que
+    # hoje ninguem leu
+    nao_lido = {(n["operadora"], p, n["produto"])
+                for n in nao_lidos or () for p in n["pracas"]}
+    produtos_em = collections.defaultdict(set)
+    for l in antes[ontem]:
+        produtos_em[(l.get("operadora"),
+                     _serie_sem_safra(l.get("nome_oferta")),
+                     l.get("praca"))].add(l.get("produto"))
+
+    def lido(operadora, serie, praca):
+        ps = produtos_em.get((operadora, serie, praca)) or set()
+        return not ps or not all((operadora, praca, p) in nao_lido for p in ps)
+
     saidas = []
     for k, pracas_ontem in de_ontem.items():
         operadora, serie = k
         comparaveis = set(x for x in pracas_ontem
-                          if (operadora, x) in coletadas)
+                          if (operadora, x) in coletadas
+                          and lido(operadora, serie, x))
         if not comparaveis or comparaveis & de_hoje.get(k, set()):
             continue
         if comparaveis & renomeada_em.get(k, set()):
@@ -3598,6 +3699,7 @@ def montar_mensagem(hoje, ontem):
     saidas = r.get("saidas") or []
     velocidades = r.get("velocidades") or []
     entradas = r.get("entradas") or []
+    nao_lidos = r.get("nao_lidos") or []
 
     # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
     # tambem pode. Este retorno era descartado num `_`, e `col` vazio
@@ -3641,11 +3743,17 @@ def montar_mensagem(hoje, ontem):
     elif not col:
         linhas += ["", "O ROB\u00d4 N\u00c3O RODOU HOJE.",
                    "Nenhum registro de coleta. Nada do que vem abaixo \u00e9 de hoje."]
-    elif falhas or sem_registro:
+    elif falhas or sem_registro or nao_lidos:
         # a falha e manchete e cabe em duas linhas: o detalhe por coletor
         # esta na tabela "Estado da coleta" do relatorio anexo
         quem = [_porque_falhou(c) for c in falhas]
         quem += ["%s sem registro" % op for op in sem_registro]
+        # O PRODUTO QUE NINGUEM LEU E FALHA TAMBEM, mesmo com a rodada
+        # fechada: ver _produtos_nao_lidos. A operadora que ja falhou
+        # inteira nao repete aqui.
+        ja = {c.get("operadora") for c in falhas}
+        quem += _frase_dos_nao_lidos(
+            [n for n in nao_lidos if n["operadora"] not in ja])
         linhas += ["", "COLETA INCOMPLETA \u2014 %s." % ", ".join(quem),
                    "O que vem abaixo vale s\u00f3 para o que foi coletado."]
 
@@ -4307,6 +4415,7 @@ def montar_mensagem(hoje, ontem):
         "contratuais": contratuais, "saidas": saidas,
         "velocidades": velocidades,
         "entradas": entradas, "passou_a_ler": r.get("passou_a_ler") or [],
+        "nao_lidos": nao_lidos,
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio
         "duvidosa": duvidosa,

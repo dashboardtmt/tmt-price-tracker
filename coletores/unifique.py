@@ -127,6 +127,32 @@ def extrair(texto):
     return unicas
 
 
+# A FAIXA DA CAMPANHA, que fica entre o nome do plano e a velocidade.
+#
+#   <span ...>FIBRA IDEAL</span>
+#   <span class="campaign-plan-badge ...">BLACK UNIFIQUE - 1o PAGAMENTO EM 2027</span>
+#   <h3 ...>500 Mega</h3>
+#
+# extrair() le como nome o trecho em maiusculas colado na velocidade, e
+# de 19 a 23/11/2026 esse trecho era a faixa: o "o" sobrescrito de "1o"
+# cortava a leitura, e sobrava "PAGAMENTO EM 2027" como nome de quatro
+# planos e "MAS VOCE CONTINUA ONLINE" ("FALTOU LUZ, ...") como nome dos
+# tres FIBRA + POWER - que entraram em 20/11 e sairam na mensagem como
+# UMA oferta, porque tinham o mesmo nome. A faixa sem sobrescrito ia
+# inteira para o nome: e quase certamente de onde veio o "WI-FI EXTRA"
+# de "FIBRA COMPLETA WI-FI EXTRA", gravado por 50 dias - a pagina chama
+# o plano de "FIBRA COMPLETA".
+#
+# PELA CLASSE, e nao pelo texto: a faixa e tao maiuscula quanto o nome,
+# e o texto dela muda a cada campanha.
+FAIXA = re.compile(r"<(span|div|p)\b[^>]*campaign-plan-badge[^>]*>.*?</\1>",
+                   re.S | re.I)
+
+
+def sem_faixa(html):
+    return FAIXA.sub(" ", html)
+
+
 def buscar(url):
     """A rota da cidade, em texto. Devolve (status, texto).
 
@@ -149,6 +175,7 @@ def buscar(url):
     # colariam em "500Mega" ou grudariam no numero do card vizinho.
     t = re.sub(r"<script.*?</script>", " ", bruto, flags=re.S)
     t = re.sub(r"<style.*?</style>", " ", t, flags=re.S)
+    t = sem_faixa(t)
     t = re.sub(r"<br\s*/?>", " ", t)
     t = re.sub(r"<[^>]+>", " ", t)
     t = t.replace("&nbsp;", " ").replace("&amp;", "&")

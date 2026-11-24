@@ -1,0 +1,316 @@
+<!-- Recorte de https://unifique.com.br/para-voce/internet-fibra/sc/florianopolis em 23/11/2026: do cabecalho da cidade ao fim dos seis cards, sem os icones svg. -->
+<html><body>
+<div class="border-b md:border border-white/30 bg-black/20 backdrop-blur-md shadow-lg md:rounded-xl p-4">
+ <span class="font-semibold text-[var(--color-07)] text-md">Ofertas Exclusivas para</span></p>
+ <div class="flex items-center justify-between mt-2">
+ <p><span class="font-bold">Florianópolis - SC</span></p>
+ <a href="#" @click.prevent="openCityModal" class="text-cyan-highlight underline flex items-center gap-1">mudar
+ </a>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <!-- Start card plano -->
+ <div x-data="scrollHandler" x-init="updateButtonStates" class="font-sans overflow-hidden">
+ <!-- Section Header: Centered within the container -->
+ <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-4">
+ <div class="flex items-center justify-between mb-8 md:mb-12">
+ <h2 class="text-4xl md:text-5xl font-bold text-gray-800 tracking-tight lg:pl-8"></h2>
+ <!-- Desktop Navigation Buttons -->
+ <div class="hidden md:flex items-center gap-4">
+ <button
+ @click="scrollLeft"
+ class="rounded-full p-2.5 transition-all duration-300"
+ :class="{ 'bg-gray-100 text-gray-600 opacity-5 cursor-not-allowed': !canScrollLeft, 'bg-05 text-white hover:opacity-50': canScrollLeft }"
+ aria-label="Previous product">
+ </button>
+ <button
+ @click="scrollRight"
+ class="rounded-full p-2.5 transition-all duration-300"
+ :class="{ 'bg-gray-100 text-gray-600 opacity-5 cursor-not-allowed': !canScrollRight, 'bg-05 text-white hover:opacity-50': canScrollRight }"
+ aria-label="Next product">
+ </button>
+ </div>
+ </div>
+ </div>
+ <!-- Scrolling Container: Full width, starts aligned with the container above -->
+ <div
+ x-ref="container"
+ @scroll.debounce.100ms="updateButtonStates"
+ @mousedown="startDrag($event)"
+ @mousemove="onDrag($event)"
+ @mouseup="endDrag()"
+ @mouseleave="endDrag()"
+ style="cursor: grab;" 
+ class="flex gap-4 md:gap-6 snap-x snap-mandatory overflow-x-auto scrollbar-hide pb-16">
+ <div class="shrink-0 w-2 sm:w-0 lg:w-[calc((100vw-1440px)/2+4rem)]"></div>
+ <div class="card-item campaign-plan-card flex-shrink-0 w-80 bg-white text-dark-text rounded-3xl p-6 flex flex-col shadow-xl">
+ <!-- Parte superior ajusta acordo com a informação -->
+ <div class="flex-grow">
+ <div class="flex justify-between items-center mb-2 font-noto-sans">
+ <span class="border border-[var(--color-03)] rounded-full px-3 text-sm text-[var(--color-03)]">FIBRA IDEAL</span>
+ <span class="campaign-plan-badge bg-[var(--color-07)] text-[var(--color-03)] rounded-full px-3 py-1 text-xs font-semibold">BLACK UNIFIQUE - 1º PAGAMENTO EM 2027</span>
+ </div>
+ <h3 class="text-3xl font-bold font-montserrat text-[var(--color-01)]">500 Mega</h3>
+ <p class="text-[var(--color-01)] font-noto-sans text-md font-noto-sans tracking-tighter font-semibold mb-2">Wi-Fi para todo mundo, sem disputa pela internet</p>
+ <div class="border border-gray-200 my-2"></div>
+ <ul class="space-y-2 text-gray-700 text-sm font-noto-sans font-medium">
+ <li class="flex items-start gap-2">Instalação grátis</li>
+ <li class="flex items-start gap-2">Aplicativo de livros digitais</li>
+ </ul>
+ <div class="border border-gray-200 my-4"></div>
+ </div>
+ <!-- Parte inferior alinha para baixo -->
+ <div>
+ <div class="mb-4">
+ <p class="text-gray-600 font-medium line-through font-noto-sans text-sm"></p>
+ <p class="flex items-baseline font-montserrat"><span class="text-xl font-semibold text-[var(--color-01)]">R$</span><span class="text-4xl text-[var(--color-01)] font-bold">
+ 119,90</span><span class="text-lg text-gray-700">&nbsp;/mês</span>
+ </p>
+ </div>
+ <div class="flex justify-center items-center">
+ <!-- Accordion "Contrate no App" -->
+ <div x-data="appAccordion('acc-11757')" class="w-full relative">
+ <button @click="toggle()" class="px-6 py-3 w-full bg-[var(--color-01)] text-white text-center rounded-full font-bold hover:bg-[var(--color-01)]/80 transition-all duration-300 flex justify-center items-center" type="button">
+ <span class="font-bold">Assine já</span>
+ </button>
+ <div x-show="isOpen" 
+ x-transition:enter="transition ease-out duration-300" 
+ x-transition:enter-start="opacity-0 transform translate-y-[-10px]" 
+ x-transition:enter-end="opacity-100 transform translate-y-0" 
+ x-transition:leave="transition ease-in duration-200" 
+ x-transition:leave-start="opacity-100 transform translate-y-0" 
+ x-transition:leave-end="opacity-0 transform translate-y-[-10px]"
+ class="absolute top-full left-0 w-full bg-[var(--color-01)] rounded-lg overflow-hidden shadow-lg z-50"
+ style="margin-top: 4px;"
+ x-cloak>
+ <div class="pt-4 pb-6 px-6 space-y-3">
+ <a href="https://unifique.com.br/quero-ser-unifique/para-voce/internet-fibra/11757" target="_self" id="11757-android" class="flex items-center justify-center text-center gap-2 py-2 px-4 transition-colors rounded-full font-medium text-sm whitespace-nowrap bg-[var(--color-03)] hover:bg-gray-700 text-white hover:text-white">
+ Assine no WhatsApp </a>
+ <a href="https://unifique.com.br/assine/fibra-optica/11757/1" target="_blank" id="11757-ios" class="flex items-center justify-center text-center gap-2 py-2 px-4 transition-colors rounded-full font-medium text-sm whitespace-nowrap bg-[var(--color-03)] hover:bg-gray-700 text-white hover:text-white">
+ Assine no Site </a>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="mt-4 font-noto-sans font-semibold">
+ <!--mensagem 03-->
+ <button @click="openOfferDetails('offer-11757')" class="border border-[var(--color-05)] rounded-full px-3 py-2 text-xs text-[var(--color-05)] whitespace-nowrap flex-shrink-0 font-semibold">Mais Detalhes</button>
+ </div>
+ </div>
+ </div>
+ <!-- End Card -->
+ <div class="card-item campaign-plan-card flex-shrink-0 w-80 bg-white text-dark-text rounded-3xl p-6 flex flex-col shadow-xl">
+ <!-- Parte superior ajusta acordo com a informação -->
+ <div class="flex-grow">
+ <div class="flex justify-between items-center mb-2 font-noto-sans">
+ <span class="border border-[var(--color-03)] rounded-full px-3 text-sm text-[var(--color-03)]">FIBRA + POWER</span>
+ <span class="campaign-plan-badge bg-[var(--color-07)] text-[var(--color-03)] rounded-full px-3 py-1 text-xs font-semibold">FALTOU LUZ, MAS VOCÊ CONTINUA ONLINE</span>
+ </div>
+ <h3 class="text-3xl font-bold font-montserrat text-[var(--color-01)]">500 Mega</h3>
+ <div class="border border-gray-200 my-2"></div>
+ <ul class="space-y-2 text-gray-700 text-sm font-noto-sans font-medium">
+ <li class="flex items-start gap-2">Unifique Power - Mini Nobreak</li>
+ <li class="flex items-start gap-2">Instalação grátis</li>
+ <li class="flex items-start gap-2">Aplicativo de livros digitais</li>
+ </ul>
+ <div class="border border-gray-200 my-4"></div>
+ </div>
+ <div class="mb-4">
+ <p class="text-[var(--color-01)] font-noto-sans tracking-tighter font-semibold">O Unifique Power mantém sua internet funcionando mesmo quando falta luz</p>
+ </div>
+ <!-- Parte inferior alinha para baixo -->
+ <div>
+ <div class="mb-4">
+ <p class="text-gray-600 font-medium line-through font-noto-sans text-sm"></p>
+ <p class="flex items-baseline font-montserrat"><span class="text-xl font-semibold text-[var(--color-01)]">R$</span><span class="text-4xl text-[var(--color-01)] font-bold">
+ 134,90</span><span class="text-lg text-gray-700">&nbsp;/mês</span>
+ </p>
+ </div>
+ <div class="flex justify-center items-center">
+ <a href="https://unifique.com.br/quero-ser-unifique/para-voce/internet-fibra/11757-10" class="px-6 py-3 w-full bg-[var(--color-01)] text-white text-center rounded-full font-bold hover:bg-[var(--color-01)]/80 transition-colors">Assine já</a>
+ </div>
+ <div class="mt-4 font-noto-sans font-semibold">
+ <!--mensagem 03-->
+ <button @click="openOfferDetails('offer-11757-10')" class="border border-[var(--color-05)] rounded-full px-3 py-2 text-xs text-[var(--color-05)] whitespace-nowrap flex-shrink-0 font-semibold">Mais Detalhes</button>
+ </div>
+ </div>
+ </div>
+ <!-- End Card -->
+ <div class="card-item campaign-plan-card flex-shrink-0 w-80 bg-white text-dark-text rounded-3xl p-6 flex flex-col shadow-xl">
+ <!-- Parte superior ajusta acordo com a informação -->
+ <div class="flex-grow">
+ <div class="flex justify-between items-center mb-2 font-noto-sans">
+ <span class="border border-[var(--color-03)] rounded-full px-3 text-sm text-[var(--color-03)]">FIBRA COMPLETA</span>
+ <span class="campaign-plan-badge bg-[var(--color-07)] text-[var(--color-03)] rounded-full px-3 py-1 text-xs font-semibold">BLACK UNIFIQUE - 1º PAGAMENTO EM 2027</span>
+ </div>
+ <h3 class="text-3xl font-bold font-montserrat text-[var(--color-01)]">600 Mega</h3>
+ <p class="text-[var(--color-01)] font-noto-sans text-md font-noto-sans tracking-tighter font-semibold mb-2">Internet forte em mais lugares da casa, para ninguém ficar sem sinal</p>
+ <div class="border border-gray-200 my-2"></div>
+ <ul class="space-y-2 text-gray-700 text-sm font-noto-sans font-medium">
+ <li class="flex items-start gap-2">Ponto Extra de Wi-Fi</li>
+ <li class="flex items-start gap-2">Instalação grátis</li>
+ <li class="flex items-start gap-2">Aplicativo de livros digitais</li>
+ </ul>
+ <div class="border border-gray-200 my-4"></div>
+ </div>
+ <!-- Parte inferior alinha para baixo -->
+ <div>
+ <div class="mb-4">
+ <p class="text-gray-600 font-medium line-through font-noto-sans text-sm">R$ 138,00</p>
+ <p class="flex items-baseline font-montserrat"><span class="text-xl font-semibold text-[var(--color-01)]">R$</span><span class="text-4xl text-[var(--color-01)] font-bold">
+ 129,90</span><span class="text-lg text-gray-700">&nbsp;/mês</span>
+ </p>
+ </div>
+ <div class="flex justify-center items-center">
+ <a href="https://unifique.com.br/quero-ser-unifique/para-voce/internet-fibra/11811" class="px-6 py-3 w-full bg-[var(--color-01)] text-white text-center rounded-full font-bold hover:bg-[var(--color-01)]/80 transition-colors">Assine no WhatsApp</a>
+ </div>
+ <div class="mt-4 font-noto-sans font-semibold">
+ <!--mensagem 03-->
+ <button @click="openOfferDetails('offer-11811')" class="border border-[var(--color-05)] rounded-full px-3 py-2 text-xs text-[var(--color-05)] whitespace-nowrap flex-shrink-0 font-semibold">Mais Detalhes</button>
+ </div>
+ </div>
+ </div>
+ <!-- End Card -->
+ <div class="card-item campaign-plan-card flex-shrink-0 w-80 bg-white text-dark-text rounded-3xl p-6 flex flex-col shadow-xl">
+ <!-- Parte superior ajusta acordo com a informação -->
+ <div class="flex-grow">
+ <div class="flex justify-between items-center mb-2 font-noto-sans">
+ <span class="border border-[var(--color-03)] rounded-full px-3 text-sm text-[var(--color-03)]">FIBRA + POWER</span>
+ <span class="campaign-plan-badge bg-[var(--color-07)] text-[var(--color-03)] rounded-full px-3 py-1 text-xs font-semibold">FALTOU LUZ, MAS VOCÊ CONTINUA ONLINE</span>
+ </div>
+ <h3 class="text-3xl font-bold font-montserrat text-[var(--color-01)]">600 Mega</h3>
+ <div class="border border-gray-200 my-2"></div>
+ <ul class="space-y-2 text-gray-700 text-sm font-noto-sans font-medium">
+ <li class="flex items-start gap-2">Ponto Extra de Wi-Fi</li>
+ <li class="flex items-start gap-2">Unifique Power - Mini Nobreak</li>
+ <li class="flex items-start gap-2">Instalação grátis</li>
+ <li class="flex items-start gap-2">Aplicativo de livros digitais</li>
+ </ul>
+ <div class="border border-gray-200 my-4"></div>
+ </div>
+ <div class="mb-4">
+ <p class="text-[var(--color-01)] font-noto-sans tracking-tighter font-semibold">O Unifique Power mantém sua internet funcionando mesmo quando falta luz</p>
+ </div>
+ <!-- Parte inferior alinha para baixo -->
+ <div>
+ <div class="mb-4">
+ <p class="text-gray-600 font-medium line-through font-noto-sans text-sm"></p>
+ <p class="flex items-baseline font-montserrat"><span class="text-xl font-semibold text-[var(--color-01)]">R$</span><span class="text-4xl text-[var(--color-01)] font-bold">
+ 144,90</span><span class="text-lg text-gray-700">&nbsp;/mês</span>
+ </p>
+ </div>
+ <div class="flex justify-center items-center">
+ <a href="https://unifique.com.br/quero-ser-unifique/para-voce/internet-fibra/11811-10" class="px-6 py-3 w-full bg-[var(--color-01)] text-white text-center rounded-full font-bold hover:bg-[var(--color-01)]/80 transition-colors">Assine já</a>
+ </div>
+ <div class="mt-4 font-noto-sans font-semibold">
+ <!--mensagem 03-->
+ <button @click="openOfferDetails('offer-11811-10')" class="border border-[var(--color-05)] rounded-full px-3 py-2 text-xs text-[var(--color-05)] whitespace-nowrap flex-shrink-0 font-semibold">Mais Detalhes</button>
+ </div>
+ </div>
+ </div>
+ <!-- End Card -->
+ <div class="card-item campaign-plan-card flex-shrink-0 w-80 bg-white text-dark-text rounded-3xl p-6 flex flex-col shadow-xl">
+ <!-- Parte superior ajusta acordo com a informação -->
+ <div class="flex-grow">
+ <div class="flex justify-between items-center mb-2 font-noto-sans">
+ <span class="border border-[var(--color-03)] rounded-full px-3 text-sm text-[var(--color-03)]">FIBRA TURBO</span>
+ <span class="campaign-plan-badge bg-[var(--color-07)] text-[var(--color-03)] rounded-full px-3 py-1 text-xs font-semibold">BLACK UNIFIQUE - 1º PAGAMENTO EM 2027</span>
+ </div>
+ <h3 class="text-3xl font-bold font-montserrat text-[var(--color-01)]">1000 Mega</h3>
+ <p class="text-[var(--color-01)] font-noto-sans text-md font-noto-sans tracking-tighter font-semibold mb-2">Casa cheia de telas, jogo pesado e trabalho que não pode cair</p>
+ <div class="border border-gray-200 my-2"></div>
+ <ul class="space-y-2 text-gray-700 text-sm font-noto-sans font-medium">
+ <li class="flex items-start gap-2">Instalação grátis</li>
+ <li class="flex items-start gap-2">Wi-Fi 6</li>
+ <li class="flex items-start gap-2">Aplicativo de livros digitais</li>
+ </ul>
+ <div class="border border-gray-200 my-4"></div>
+ </div>
+ <!-- Parte inferior alinha para baixo -->
+ <div>
+ <div class="mb-4">
+ <p class="text-gray-600 font-medium line-through font-noto-sans text-sm"></p>
+ <p class="flex items-baseline font-montserrat"><span class="text-xl font-semibold text-[var(--color-01)]">R$</span><span class="text-4xl text-[var(--color-01)] font-bold">
+ 159,90</span><span class="text-lg text-gray-700">&nbsp;/mês</span>
+ </p>
+ </div>
+ <div class="flex justify-center items-center">
+ <!-- Accordion "Contrate no App" -->
+ <div x-data="appAccordion('acc-11760')" class="w-full relative">
+ <button @click="toggle()" class="px-6 py-3 w-full bg-[var(--color-01)] text-white text-center rounded-full font-bold hover:bg-[var(--color-01)]/80 transition-all duration-300 flex justify-center items-center" type="button">
+ <span class="font-bold">Assine já</span>
+ </button>
+ <div x-show="isOpen" 
+ x-transition:enter="transition ease-out duration-300" 
+ x-transition:enter-start="opacity-0 transform translate-y-[-10px]" 
+ x-transition:enter-end="opacity-100 transform translate-y-0" 
+ x-transition:leave="transition ease-in duration-200" 
+ x-transition:leave-start="opacity-100 transform translate-y-0" 
+ x-transition:leave-end="opacity-0 transform translate-y-[-10px]"
+ class="absolute top-full left-0 w-full bg-[var(--color-01)] rounded-lg overflow-hidden shadow-lg z-50"
+ style="margin-top: 4px;"
+ x-cloak>
+ <div class="pt-4 pb-6 px-6 space-y-3">
+ <a href="https://unifique.com.br/quero-ser-unifique/para-voce/internet-fibra/11760" target="_self" id="11760-android" class="flex items-center justify-center text-center gap-2 py-2 px-4 transition-colors rounded-full font-medium text-sm whitespace-nowrap bg-[var(--color-03)] hover:bg-gray-700 text-white hover:text-white">
+ Assine no WhatsApp </a>
+ <a href="https://unifique.com.br/assine/fibra-optica/11760/1" target="_blank" id="11760-ios" class="flex items-center justify-center text-center gap-2 py-2 px-4 transition-colors rounded-full font-medium text-sm whitespace-nowrap bg-[var(--color-03)] hover:bg-gray-700 text-white hover:text-white">
+ Assine no Site </a>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="mt-4 font-noto-sans font-semibold">
+ <!--mensagem 03-->
+ <button @click="openOfferDetails('offer-11760')" class="border border-[var(--color-05)] rounded-full px-3 py-2 text-xs text-[var(--color-05)] whitespace-nowrap flex-shrink-0 font-semibold">Mais Detalhes</button>
+ </div>
+ </div>
+ </div>
+ <!-- End Card -->
+ <div class="card-item campaign-plan-card flex-shrink-0 w-80 bg-white text-dark-text rounded-3xl p-6 flex flex-col shadow-xl">
+ <!-- Parte superior ajusta acordo com a informação -->
+ <div class="flex-grow">
+ <div class="flex justify-between items-center mb-2 font-noto-sans">
+ <span class="border border-[var(--color-03)] rounded-full px-3 text-sm text-[var(--color-03)]">FIBRA + POWER</span>
+ <span class="campaign-plan-badge bg-[var(--color-07)] text-[var(--color-03)] rounded-full px-3 py-1 text-xs font-semibold">FALTOU LUZ, MAS VOCÊ CONTINUA ONLINE</span>
+ </div>
+ <h3 class="text-3xl font-bold font-montserrat text-[var(--color-01)]">1000 Mega</h3>
+ <div class="border border-gray-200 my-2"></div>
+ <ul class="space-y-2 text-gray-700 text-sm font-noto-sans font-medium">
+ <li class="flex items-start gap-2">Unifique Power - Mini Nobreak</li>
+ <li class="flex items-start gap-2">Instalação grátis</li>
+ <li class="flex items-start gap-2">Wi-Fi 6</li>
+ <li class="flex items-start gap-2">Aplicativo de livros digitais</li>
+ </ul>
+ <div class="border border-gray-200 my-4"></div>
+ </div>
+ <div class="mb-4">
+ <p class="text-[var(--color-01)] font-noto-sans tracking-tighter font-semibold">O Unifique Power mantém sua internet funcionando mesmo quando falta luz</p>
+ </div>
+ <!-- Parte inferior alinha para baixo -->
+ <div>
+ <div class="mb-4">
+ <p class="text-gray-600 font-medium line-through font-noto-sans text-sm"></p>
+ <p class="flex items-baseline font-montserrat"><span class="text-xl font-semibold text-[var(--color-01)]">R$</span><span class="text-4xl text-[var(--color-01)] font-bold">
+ 174,90</span><span class="text-lg text-gray-700">&nbsp;/mês</span>
+ </p>
+ </div>
+ <div class="flex justify-center items-center">
+ <a href="https://unifique.com.br/quero-ser-unifique/para-voce/internet-fibra/11760-10" class="px-6 py-3 w-full bg-[var(--color-01)] text-white text-center rounded-full font-bold hover:bg-[var(--color-01)]/80 transition-colors">Assine já</a>
+ </div>
+ <div class="mt-4 font-noto-sans font-semibold">
+ <!--mensagem 03-->
+ <button @click="openOfferDetails('offer-11760-10')" class="border border-[var(--color-05)] rounded-full px-3 py-2 text-xs text-[var(--color-05)] whitespace-nowrap flex-shrink-0 font-semibold">Mais Detalhes</button>
+ </div>
+ </div>
+ </div>
+ <!-- End Card -->
+ <!-- Right Spacer: Provides padding at the end of the scroll area -->
+ <div class="shrink-0 w-4 sm:w-6 lg:w-8"></div>
+ </div>
+ </div>
+ <!-- End card plano -->
+ <div class="flex justify-center">
+ <p class="border-b md:border border-white/30 md:rounded-xl p-2 w-fit">
+<p>Caso opte por ofertas sem apps</p></body></html>

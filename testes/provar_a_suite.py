@@ -2168,6 +2168,51 @@ MUTACOES = [
         '        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), titulo, desc))\n',
         '        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), desc, titulo))\n',
         "Uc3. o card remontado perde a ordem que a regex le"),
+    # O PRODUTO QUE NINGUEM LEU (23/11/2026): o combo da TIM de 17/11
+    # saiu como "saiu da vitrine" nas 20 pracas.
+    Mutacao(
+        "robo.py",
+        "        return not ps or not all((operadora, praca, p) in nao_lido for p in ps)\n",
+        "        return True\n",
+        "Pz1. a saida volta a afirmar o produto que ninguem leu"),
+    Mutacao(
+        "robo.py",
+        "        if (op, pr) not in coletadas or (op, pr, produto) in tem_hoje:\n",
+        "        if True:\n",
+        "Pz2. o produto zerado deixa de ser reconhecido"),
+    Mutacao(
+        "robo.py",
+        "        if series & series_hoje[(op, pr)]:\n"
+        "            continue\n"
+        "        por_produto[(op, produto)].add(pr)\n",
+        "        por_produto[(op, produto)].add(pr)\n",
+        "Pz3. o balde trocado vira produto zerado"),
+    Mutacao(
+        "robo.py",
+        "        if (op, pr) not in coletadas or (op, pr, produto) in tem_hoje:\n",
+        "        if (op, pr, produto) in tem_hoje:\n",
+        "Pz4. a praca que caiu inteira repete como produto zerado"),
+    Mutacao(
+        "robo.py",
+        "    elif falhas or sem_registro or nao_lidos:\n",
+        "    elif falhas or sem_registro:\n",
+        "Pz5. o produto zerado some da manchete"),
+    Mutacao(
+        "relatorio.py",
+        '          or not dados.get("coletas") or dados.get("nao_lidos")):\n',
+        '          or not dados.get("coletas")):\n',
+        "Pz6. o PDF deixa de listar o produto zerado"),
+    # A FAIXA DA UNIFIQUE (23/11/2026): "PAGAMENTO EM 2027" como nome.
+    Mutacao(
+        "coletores/unifique.py",
+        '    return FAIXA.sub(" ", html)\n',
+        "    return html\n",
+        "Fx1. a faixa da campanha volta a ser lida como nome"),
+    Mutacao(
+        "coletores/unifique.py",
+        "    t = sem_faixa(t)\n",
+        "",
+        "Fx2. o buscar deixa de tirar a faixa"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

@@ -57,7 +57,11 @@ GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
 # caso fica no relatorio, junto do motivo.
 # "passou_a_ler" (16/11/2026) e a coleta passando a ler mais ofertas
 # num produto: nao e evento de mercado, e diz isso em uma frase no PDF.
-RESSALVAS = ("duvidosa", "recusadas", "nao_auditado", "passou_a_ler")
+# "nao_lidos" (23/11/2026) e o produto que a coleta nao leu numa praca:
+# e falha de coleta, sai na manchete com a contagem de pracas e a lista
+# vai ao PDF.
+RESSALVAS = ("duvidosa", "recusadas", "nao_auditado", "passou_a_ler",
+             "nao_lidos")
 
 # A mensagem corta cada grupo em tres e manda o resto para o PDF.
 MOSTRADOS = 3
