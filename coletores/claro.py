@@ -485,16 +485,21 @@ def ler_prezao(op, url):
     for preco, (gigas, extra, dias) in zip(precos, degraus):
         if int(dias) != 30:
             continue
-        # "17GB + 3GB Youtube": o total e 17, dos quais 3 so valem no
-        # YouTube. O que serve para qualquer coisa e a diferenca.
+        # "17GB + 3GB Youtube" E 20 GB, E NAO 17. Ate 24/11/2026 a leitura
+        # tomava 17 como o total e 3 como parte dele, e gravava 17 GB
+        # anunciados e 14 de uso livre. O card da propria Claro desfaz a
+        # duvida: "Melhor opcao 20GB R$30/30 dias - Para uso livre 17GB,
+        # Para YouTube 3GB"; e o de R$ 25 diz "12GB" sobre "10GB + 2GB". O
+        # anunciado e a soma; o de uso livre e o primeiro numero.
         app = re.search(r"\+\s*(\d{1,3})\s*GB", extra)
-        total = int(gigas)
+        livre = int(gigas)
+        total = livre + (int(app.group(1)) if app else 0)
         return [{
             "id_catalogo": None,
             "nome_oferta": "Claro Prezao %sGB" % total,
             "destaque": "%s GB" % total,
             "franquia_anunciada_gb": total,
-            "franquia_contratual_gb": total - int(app.group(1)) if app else None,
+            "franquia_contratual_gb": livre if app else None,
             "preco_promocional": numero(preco),
             "composicao": ("Prezao R$1 por dia, renovacao a cada %s dias. "
                            "Escada completa: %s" % (dias, escada))[:400],

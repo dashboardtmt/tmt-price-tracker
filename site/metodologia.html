@@ -68,7 +68,7 @@
 <div class="wrap">
 <nav>
   <a href="#s1">1. O que é</a>
-  <a href="#s2">2. As 122 decisões</a>
+  <a href="#s2">2. As 123 decisões</a>
   <a href="#s3">3. Escopo</a>
   <a href="#s4">4. As 20 praças</a>
   <a href="#s5">5. Como a série funciona</a>
@@ -105,7 +105,7 @@
 </section>
 
 <section id="s2">
-  <h2><span class="num">2.</span> As 122 decisões</h2>
+  <h2><span class="num">2.</span> As 123 decisões</h2>
   <table class="decisoes">
     <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
     <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
@@ -230,6 +230,7 @@
     <tr><td>120</td><td>A p&aacute;gina desempata a janela</td><td>O 1 Giga sem app da TIM ficava fora da s&eacute;rie em 19 das 20 pra&ccedil;as: a p&aacute;gina de fibra o publica a R$ 99,99 e a R$ 129,99 para a mesma UF, e a regra de 03/11 era n&atilde;o escolher. Medido no HTML em 24/11: o de 99,99 &eacute; o card da p&aacute;gina, e a faixa do topo diz &quot;Leve 1 GIGA por R$99,99&quot; nas 28 UFs; o de 129,99 s&oacute; existe dentro da janela de compara&ccedil;&atilde;o escondida, que ficou com o pre&ccedil;o de antes. Quando os pre&ccedil;os de um degrau discordam e <b>um s&oacute;</b> aparece fora da janela, vale esse; se a p&aacute;gina n&atilde;o separa, o degrau continua fora. Junto, a franquia garantida do Ultracombo (10 e 15 GB &quot;do plano&quot;) passou a ser lida: a regra exigia par&ecirc;nteses que a TIM tirou, e o campo ficava vazio nos 40 combos. Nenhuma das duas vira not&iacute;cia no primeiro dia &mdash; conferido na bancada com o dia simulado.</td></tr>
     <tr><td>121</td><td>A recusa da fonte ganha uma segunda volta</td><td>Em 21 e 23/11 a Vivo respondeu 403 (acesso recusado) em algumas pra&ccedil;as, e as outras passaram minutos depois. O coletor n&atilde;o insiste numa recusa na hora &mdash; repetir alonga o bloqueio &mdash;, mas a rodada fechava &quot;20 de 20&quot;, o repique n&atilde;o rodava e o produto da pra&ccedil;a se perdia no dia: 157 ofertas em 23/11. Agora a pra&ccedil;a que levou recusa (403, 429 ou 5xx) &eacute; refeita <b>uma vez</b>, no fim da rodada da operadora e depois de um minuto; fica a segunda se vier com menos recusas e pelo menos as mesmas ofertas. Junto, dois defeitos do regulamento da Vivo: a falha passageira ia para o cache da rodada e valia para as 20 pra&ccedil;as (agora o c&oacute;digo &eacute; tentado de novo nas seguintes, at&eacute; tr&ecirc;s vezes), e o aviso somava a rodada inteira e se repetia em toda pra&ccedil;a (agora conta s&oacute; a pra&ccedil;a). Os c&oacute;digos que falharam no servidor do rob&ocirc; abriam normalmente de outra m&aacute;quina.</td></tr>
     <tr><td>122</td><td>Pre&ccedil;o relido n&atilde;o &eacute; reajuste</td><td>O TIM Black Fam&iacute;lia vinha de um carrossel da p&aacute;gina de p&oacute;s-pago que o cliente n&atilde;o v&ecirc; e que a TIM n&atilde;o atualiza: R$ 284,99 para o Fam&iacute;lia Plus, contra R$ 264,99 na p&aacute;gina do plano, e sem franquia em tr&ecirc;s dos quatro planos. Desde 25/11 o Fam&iacute;lia &eacute; lido da p&aacute;gina dele, pelo card que o cliente v&ecirc; (pre&ccedil;o total, franquia anunciada e a do contrato). <b>No dia em que a fonte de uma oferta muda, a diferen&ccedil;a de pre&ccedil;o &eacute; a nossa leitura, e n&atilde;o o mercado</b>: a declara&ccedil;&atilde;o <code>LEITURA_DE_OFERTA_MUDOU_EM</code> tira da not&iacute;cia, nesse dia e s&oacute; nas ofertas declaradas, o que os detectores acharem nelas; a mensagem diz numa linha quantas ficaram de fora e por qu&ecirc;, e o PDF lista cada uma em &quot;Mudan&ccedil;as da nossa leitura&quot;. Pre&ccedil;o de outra oferta no mesmo dia continua not&iacute;cia. Escolha de quem l&ecirc;, em 24/11, feita para a troca de fonte da fibra e do Multi da Claro e aplicada aqui primeiro. Simulado na bancada com o ensaio das 20 pra&ccedil;as: sem a declara&ccedil;&atilde;o, a mensagem de 25/11 diria &quot;Fam&iacute;lia Plus 284,99 &rarr; 264,99 (-7%)&quot;.</td></tr>
+    <tr><td>123</td><td>O Prez&atilde;o soma</td><td>A tabela do Prez&atilde;o da Claro escreve &quot;17GB + 3GB Youtube / 30 dias&quot;, e a leitura tomava o 17 como o total: gravava 17 GB anunciados e 14 de uso livre. O card da pr&oacute;pria Claro diz &quot;20GB &mdash; Para uso livre 17GB, Para YouTube 3GB&quot;, e o de R$ 25 diz 12 GB sobre &quot;10GB + 2GB&quot;. Desde 25/11 o Prez&atilde;o &eacute; gravado como <b>20 GB anunciados, 17 de uso livre</b>, com o nome &quot;Claro Prezao 20GB&quot;; a s&eacute;rie muda de chave nesse dia. Continua valendo a regra de s&oacute; comparar o degrau de 30 dias: as recargas de R$ 25, 20 e 15 valem 25, 20 e 15 dias e ficam na composi&ccedil;&atilde;o. O WhatsApp ilimitado que a Claro inclui n&atilde;o entra na lista de servi&ccedil;os, que &eacute; de assinaturas.</td></tr>
   </table>
   <div class="box">
     <span class="rotulo">Por que começar só com a Vivo</span>

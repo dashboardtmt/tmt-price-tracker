@@ -2927,6 +2927,14 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"próprio plano, e não de um carrossel escondido da "
                  u"página de pós-pago - o preço do Plus e a franquia de "
                  u"três planos passaram a ser os que o cliente vê",
+    }, {
+        # "17GB + 3GB Youtube" era lido como 17 GB no total; o card da
+        # Claro diz 20 GB (17 de uso livre e 3 de YouTube). Muda o nome
+        # ("Claro Prezao 20GB") e a chave da serie.
+        "quem": [("Claro", "prepago", u"Claro Prezao")],
+        "texto": u"o Prezão da Claro passou a ser lido como 20 GB (17 de "
+                 u"uso livre e 3 de YouTube), como o card da Claro mostra, "
+                 u"e não como 17 GB",
     }],
 }
 

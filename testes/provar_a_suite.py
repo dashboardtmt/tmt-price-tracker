@@ -2299,6 +2299,12 @@ MUTACOES = [
         "    relidos = r.get(\"relidos\") or []\n    if relidos:\n",
         "    relidos = r.get(\"relidos\") or []\n    if False:\n",
         "Rl3. a mensagem cala o que tirou da noticia"),
+    # O PREZAO SOMA (24/11/2026): "17GB + 3GB Youtube" sao 20 GB.
+    Mutacao(
+        "coletores/claro.py",
+        "        total = livre + (int(app.group(1)) if app else 0)\n",
+        "        total = livre\n",
+        "Pz7. o Prezao volta a ler 17 GB onde o card diz 20"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
