@@ -95,7 +95,10 @@ MOLDE = r"""<!DOCTYPE html>
     --laranja:#FF5000; --laranja-claro:#FFAE66;
     --preto:#000512;            /* o preto oficial Itau (0,5,18) */
     --cinza-medio:#6E6E6E; --cinza:#9AA1AC; --cinza-claro:#CFD4DB;
-    --cor-fundo:#F4F5F7;
+    /* O FUNDO CONTINUA O BEGE de antes: em 24/11/2026 ele foi trocado
+       por um cinza frio junto com o resto, e a resposta foi que a cor
+       antiga era melhor. O que mudou e o que esta em cima dele. */
+    --cor-fundo:#EFEBE1;        /* bege quente */
     --cor-superficie:#FFFFFF;
     --cor-texto:#14171C; --cor-texto-suave:#5E6673; --cor-borda:#E3E6EB;
     --cor-borda-forte:#CBD0D8;
@@ -108,7 +111,10 @@ MOLDE = r"""<!DOCTYPE html>
   *{box-sizing:border-box}
   body{margin:0;background:var(--cor-fundo);color:var(--cor-texto);
        font-family:var(--fonte);font-size:14px;line-height:1.5;
-       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+       -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+       background-image:radial-gradient(1100px 380px at 50% -170px,
+         rgba(255,80,0,.055), rgba(255,80,0,0));
+       background-repeat:no-repeat;background-attachment:fixed}
 
   /* fixo no topo, como no Dashboard TMT: a tela tem tabela longa e rolar
      nao pode custar a referencia de onde se esta */
