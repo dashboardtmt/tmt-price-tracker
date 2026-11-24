@@ -508,9 +508,9 @@ MUTACOES = [
     # portfolio sem detector. Cinco filtros, cinco mutacoes.
     Mutacao(
         "robo.py",
-        '        comparaveis = set(x for x in pracas_ontem\n'
-        '                          if (operadora, x) in coletadas)\n',
-        '        comparaveis = set(pracas_ontem)\n',
+        '                          if (operadora, x) in coletadas\n'
+        '                          and lido(operadora, serie, x))\n',
+        '                          if lido(operadora, serie, x))\n',
         "B1. praca sem coleta hoje volta a render saida"),
 
     Mutacao(
