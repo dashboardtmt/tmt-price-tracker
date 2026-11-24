@@ -587,7 +587,7 @@
     <div class="bloco">
       <div class="cabeca">
         <div>
-          <h2 data-t="mc_t">Mapa de calor — player por produto</h2>
+          <h2 data-t="mc_t">Mapa de calor: operadora × produto</h2>
           <p class="descricao" data-t="mc_x"></p>
         </div>
       </div>
@@ -663,7 +663,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "24/11/2026 17:30";
+const GERADO = "24/11/2026 17:51";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -678,7 +678,7 @@ const T = {
       d_declarada:"A operadora declara uma faixa, e não um degrau. A frase é a dela; o número não entra em nenhum cálculo porque faixa não se compara com degrau.",
       ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Mapa do mercado",
       sec_pr:"O mercado em uma tela",
-      mc_t:"Mapa de calor — player por produto",
+      mc_t:"Mapa de calor: operadora × produto",
       mc_x:"Mediana das praças em que o player vende o produto.",
       mc_m1:"Preço de entrada", mc_m2:"Preço por unidade",
       mc_sem:"Este player não vende este produto — célula vazia, nunca zero.",
@@ -799,7 +799,7 @@ const T = {
       d_declarada:"The carrier states a range, not a tier. The wording is theirs; the number enters no calculation, because a range does not compare with a tier.",
       ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Market map",
       sec_pr:"The market on one screen",
-      mc_t:"Heat map — carrier by product",
+      mc_t:"Heat map: carrier × product",
       mc_x:"Median across the cities where the carrier sells the product.",
       mc_m1:"Entry price", mc_m2:"Price per unit",
       mc_sem:"This carrier does not sell this product — blank cell, never zero.",
