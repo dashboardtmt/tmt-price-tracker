@@ -72,6 +72,23 @@ class OUltracomboEmComponente(unittest.TestCase):
         self.assertEqual((seis["preco_promocional"], seis["degrau_mbps"],
                           seis["franquia_anunciada_gb"]), (139.99, 1000, 70))
 
+    def test_le_a_franquia_do_plano_sem_parentese(self):
+        u"""\"65GB de internet movel: 10GB do plano + 50GB promo\" - a
+        TIM tirou o parentese, e a contratual ficava vazia."""
+        self.assertIn("10GB do plano", self.html)
+        self.assertNotIn("(10GB do plano", self.html)
+        combos, _ = tim.ler_combos(None, "http://x")
+        por_nome = dict((o["nome_oferta"], o["franquia_contratual_gb"])
+                        for o in combos)
+        self.assertEqual(por_nome, {"TIM Ultracombo 7 600MEGA + 65GB": 10,
+                                    "TIM Ultracombo 6 1GIGA + 70GB": 15})
+
+    def test_o_formato_com_parentese_continua_lido(self):
+        t = ("TIM Ultracombo 7 500MEGA + 65GB 500MEGA de internet + 65GB "
+             "(10GB do plano + 50GB promo) Por R$89,99/mes")
+        o = tim._combos_do_texto(t, {})[0]
+        self.assertEqual(o["franquia_contratual_gb"], 10)
+
     def test_nao_le_o_preco_que_sobrou_de_campanha(self):
         self.assertIn("129,99", self.html,
                       "o recorte tem de carregar o preco velho para medir algo")

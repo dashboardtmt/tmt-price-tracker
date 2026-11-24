@@ -2168,6 +2168,30 @@ MUTACOES = [
         '        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), titulo, desc))\n',
         '        cards.append("TIM Ultracombo %s %s %s" % (n.group(1), desc, titulo))\n',
         "Uc3. o card remontado perde a ordem que a regex le"),
+    Mutacao(
+        "coletores/tim.py",
+        '        mc = re.search(r"\\(?(\\d+)\\s*GB do plano", meio, re.I)\n',
+        '        mc = re.search(r"\\((\\d+)\\s*GB do plano", meio, re.I)\n',
+        "Uc4. a contratual do Ultracombo volta a exigir parentese"),
+    # O 1 GIGA DA TIM (24/11/2026): o card da pagina desempata o preco
+    # velho da janela de comparacao escondida.
+    Mutacao(
+        "coletores/tim.py",
+        '        na_pagina = [o for o in grupo if not o["_na_janela"]]\n',
+        "        na_pagina = grupo\n",
+        "Jn1. o degrau da pagina volta a empatar com o da janela"),
+    Mutacao(
+        "coletores/tim.py",
+        "    return a > f\n",
+        "    return False\n",
+        "Jn2. a janela de comparacao deixa de ser reconhecida"),
+    Mutacao(
+        "coletores/tim.py",
+        '        if len(precos) > 1 and len(set(o["preco_promocional"]\n'
+        '                                       for o in na_pagina)) == 1:\n',
+        '        if len(precos) > 1 and len(set(o["preco_promocional"]\n'
+        '                                       for o in na_pagina)) >= 1:\n',
+        "Jn3. dois precos na pagina passam a eleger um"),
     # O PRODUTO QUE NINGUEM LEU (23/11/2026): o combo da TIM de 17/11
     # saiu como "saiu da vitrine" nas 20 pracas.
     Mutacao(

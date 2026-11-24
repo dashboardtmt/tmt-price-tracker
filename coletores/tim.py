@@ -386,7 +386,14 @@ def _combos_do_texto(t, extras):
         vistos.add(nome)
         # "(10GB do plano + 50GB promo)": o primeiro numero e o que o
         # contrato garante; o resto e promocao, que pode cair na revisao
-        mc = re.search(r"\((\d+)\s*GB do plano", meio, re.I)
+        #
+        # O PARENTESE E OPCIONAL desde 24/11/2026. A TIM passou a
+        # escrever "65GB de internet movel: 10GB do plano + 50GB promo +
+        # 5GB bonus", sem parentese, e a regra que o exigia deixava a
+        # contratual vazia em todo combo - medido nas 40 linhas de 16/11.
+        # Vazio para 10 nao vira noticia: _texto_contratual exige os dois
+        # lados lidos.
+        mc = re.search(r"\(?(\d+)\s*GB do plano", meio, re.I)
         # o texto do card para o preco e a franquia; o JSON para o que
         # vem junto, que no texto so existe numa galeria compartilhada
         chave = ("%s%s + %sGB" % (vel, unid.upper(), gigas)).lower()
@@ -447,6 +454,18 @@ DEGRAU_FIBRA = re.compile(
     r"data-ic-franquia\s*>\s*([^<]{1,30}?)\s*</p>.{0,300}?"
     r"data-ic-valor\s*>\s*R\$\s*([\d.]+,\d{2})")
 UFS_DO_BLOCO = re.compile(r'regionalization-toggle="([^"]*)"')
+# A JANELA DE COMPARACAO: a pagina guarda parte da escada dentro de
+# janelas modais escondidas ("sec-modal-landing-page"), que abrem e
+# fecham com um "X". Ver o desempate em ler_escada_de_fibra.
+ABRE_JANELA = re.compile(r'class="coh-modal ssa-component')
+FECHA_JANELA = re.compile(r'coh-modal-close-wrapper')
+
+
+def _na_janela(pos, aberturas, fechamentos):
+    """O ponto do HTML esta dentro de uma janela modal ainda aberta?"""
+    a = max([x for x in aberturas if x < pos] or [-1])
+    f = max([x for x in fechamentos if x < pos] or [-1])
+    return a > f
 
 
 def _desescapar(html):
@@ -474,7 +493,9 @@ def ler_escada_de_fibra(op, url, uf):
         return None, ("nenhum degrau de fibra na pagina - o formato "
                       "mudou")
 
-    saida, vistos = [], set()
+    aberturas = [x.start() for x in ABRE_JANELA.finditer(d)]
+    fechamentos = [x.start() for x in FECHA_JANELA.finditer(d)]
+    saida, vistos = [], {}
     for m in pares:
         franquia, preco = m.group(1), m.group(2)
         # o bloco que vale e o ULTIMO toggle antes do degrau
@@ -489,9 +510,13 @@ def ler_escada_de_fibra(op, url, uf):
         if not mbps_ or valor is None:
             continue
         nome = "TIM Ultrafibra %s" % re.sub(r"\s+", " ", franquia).strip()
+        janela = _na_janela(m.start(), aberturas, fechamentos)
         if (mbps_, valor) in vistos:
-            continue        # a pagina repete o degrau em mais de um bloco
-        vistos.add((mbps_, valor))
+            # a pagina repete o degrau em mais de um bloco; basta UM
+            # deles fora da janela para o degrau estar na pagina
+            if not janela:
+                vistos[(mbps_, valor)]["_na_janela"] = False
+            continue
         lista_apps = apps.apps_do_texto(franquia)
         saida.append({
             "nome_oferta": nome[:60],
@@ -505,7 +530,9 @@ def ler_escada_de_fibra(op, url, uf):
             "apps_rotulo": apps.rotulo(lista_apps, franquia) or None,
             "apps_planos": apps.planos_dos_apps(lista_apps, franquia),
             "composicao": re.sub(r"\s+", " ", franquia).strip(),
+            "_na_janela": janela,
         })
+        vistos[(mbps_, valor)] = saida[-1]
     if not saida:
         return [], ("nenhum degrau de fibra para %s - a leitura nao "
                     "reconheceu nada, e nao ha como afirmar que a TIM "
@@ -528,15 +555,32 @@ def ler_escada_de_fibra(op, url, uf):
     for o in saida:
         k = (o["degrau_mbps"], tuple(sorted(o.get("apps") or ())))
         por_degrau.setdefault(k, []).append(o)
+    # A PAGINA DESEMPATA A JANELA, desde 24/11/2026. No Rio, em BH, em
+    # Recife e em mais 23 UFs o "1GIGA" sem app aparecia a R$ 99,99 e a
+    # R$ 129,99 - e ficava fora da serie em 19 das 20 pracas, justo o
+    # plano da Black Friday. Medido no HTML: o de 99,99 e o card da
+    # PAGINA, e a faixa do topo diz "Leve 1 GIGA por R$99,99" para as 28
+    # UFs; o de 129,99 so existe dentro da janela de comparacao
+    # escondida, que ficou com o preco de antes. Entao, quando os precos
+    # do degrau discordam e UM SO deles aparece fora da janela, vale
+    # esse. Se os dois estao na pagina, ou os dois so na janela, a
+    # pagina nao disse qual vale, e o degrau continua fora.
     limpas, ambiguos = [], []
     for k, grupo in por_degrau.items():
         precos = sorted(set(o["preco_promocional"] for o in grupo))
+        na_pagina = [o for o in grupo if not o["_na_janela"]]
+        if len(precos) > 1 and len(set(o["preco_promocional"]
+                                       for o in na_pagina)) == 1:
+            limpas.append(na_pagina[0])
+            continue
         if len(precos) > 1:
             ambiguos.append("%s Mbps a %s" % (
                 k[0], " e a ".join(("%.2f" % x).replace(".", ",")
                                    for x in precos)))
             continue
         limpas.append(grupo[0])
+    for o in limpas:
+        o.pop("_na_janela", None)
     if ambiguos:
         return limpas, ("a pagina publica o mesmo degrau a dois precos em "
                         "%s e nao diz qual vale (%s) - o degrau ficou fora "
