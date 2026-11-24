@@ -1,0 +1,38 @@
+name: Preencher WhatsApp de 24/11
+
+# Roda preencher_whatsapp.py com os segredos do Supabase. Sem "aplicar",
+# so conta. Ver o cabecalho do script. Nao manda mensagem e nao mexe na
+# tela; depois de aplicar, rodar "Atualizar a tela".
+
+on:
+  workflow_dispatch:
+    inputs:
+      aplicar:
+        description: "Gravar (sem isto, so conta)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  preencher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Preencher
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          if [ "${{ inputs.aplicar }}" = "true" ]; then
+            python preencher_whatsapp.py --aplicar
+          else
+            python preencher_whatsapp.py
+          fi
