@@ -680,11 +680,11 @@ MOLDE = r"""<!DOCTYPE html>
   </div>
 
   <div id="pg-ofertas" hidden>
-    <div class="secao" data-t="sec_of">As ofertas de hoje</div>
+    <div class="secao" data-t="sec_of">Ofertas vigentes</div>
     <div class="bloco">
       <div class="cabeca">
         <div>
-          <h2 data-t="of_t">Todas as ofertas, por operadora</h2>
+          <h2 data-t="of_t">Grade de ofertas por operadora</h2>
           <p class="descricao" data-t="of_x"></p>
         </div>
         <div class="campo" style="flex:none">
@@ -697,19 +697,19 @@ MOLDE = r"""<!DOCTYPE html>
     </div>
 
     <div class="bloco">
-      <h2 data-t="cmp_t">Comparação entre operadoras</h2>
+      <h2 data-t="cmp_t">Ofertas de entrada por operadora</h2>
       <p class="descricao" data-t="cmp_x"></p>
       <div class="tabela-wrap" id="t-comparacao"></div>
     </div>
 
     <div class="bloco">
-      <h2 data-t="top_t">Topo de linha, operadora a operadora</h2>
+      <h2 data-t="top_t">Ofertas premium por operadora</h2>
       <p class="descricao" data-t="top_x"></p>
       <div class="tabela-wrap" id="t-topo"></div>
     </div>
 
     <div class="bloco">
-      <h2 data-t="fx_t">Comparação por faixa de entrega</h2>
+      <h2 data-t="fx_t">Comparativo por faixa de franquia</h2>
       <p class="descricao" data-t="fx_x"></p>
       <div id="t-faixas"></div>
     </div>
@@ -783,16 +783,17 @@ const T = {
       pr_piso:"Entrada do mercado, da ponta à ponta:",
       pr_variam:"Variam por praça:",
       pr_nenhuma_varia:"Nenhuma operadora muda de preço entre praças.",
-      sec_pan:"Panorama competitivo", sec_of:"As ofertas de hoje",
-      of_t:"Todas as ofertas, por operadora",
+      sec_pan:"Panorama competitivo", sec_of:"Ofertas vigentes",
+      of_t:"Grade de ofertas por operadora",
       of_x:"Todas as ofertas do dia, por operadora, da mais barata à mais cara.",
-      fx_t:"Comparação por faixa de entrega",
+      fx_t:"Comparativo por faixa de franquia", fx_t_vel:"Comparativo por faixa de velocidade", fx_t_ent:"Comparativo por faixa de entrega",
       fx_x:"A oferta mais barata de cada operadora em cada faixa de entrega.",
-      fx_baixa:"Faixa de entrada", fx_media:"Faixa intermediária", fx_alta:"Faixa alta",
-      top_t:"Topo de linha, operadora a operadora",
+      fx_baixa:"Segmento de entrada", fx_media:"Segmento intermediário", fx_alta:"Segmento premium",
+      fx_ate:"até", fx_a:"a", fx_acima:"acima de",
+      top_t:"Ofertas premium por operadora",
       top_x:"O plano mais caro de cada operadora.",
       col_topo:["Operadora","Plano mais caro","Entrega","Preço","R$/un.","Serviços inclusos"],
-      cmp_t:"Comparação entre operadoras",
+      cmp_t:"Ofertas de entrada por operadora",
       cmp_x:"A oferta de entrada de cada operadora.",
       f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
       n_player:"{n} ofertas capturadas em {d}, em {p}.",
@@ -903,16 +904,17 @@ const T = {
       pr_piso:"Market entry, end to end:",
       pr_variam:"Vary by city:",
       pr_nenhuma_varia:"No carrier changes price between cities.",
-      sec_pan:"Competitive landscape", sec_of:"Today's offers",
-      of_t:"All offers, by carrier",
+      sec_pan:"Competitive landscape", sec_of:"Current offers",
+      of_t:"Offer grid by carrier",
       of_x:"All of the day's offers, by carrier, cheapest first.",
-      fx_t:"Comparison by delivery tier",
+      fx_t:"Comparison by data allowance tier", fx_t_vel:"Comparison by speed tier", fx_t_ent:"Comparison by delivery tier",
       fx_x:"The cheapest offer of each carrier in each delivery tier.",
-      fx_baixa:"Entry tier", fx_media:"Mid tier", fx_alta:"Top tier",
-      top_t:"Top of the range, carrier by carrier",
+      fx_baixa:"Entry segment", fx_media:"Mid segment", fx_alta:"Premium segment",
+      fx_ate:"up to", fx_a:"to", fx_acima:"above",
+      top_t:"Premium offers by carrier",
       top_x:"The priciest plan of each carrier.",
       col_topo:["Carrier","Priciest plan","Delivers","Price","R$/unit","Included services"],
-      cmp_t:"Carrier comparison",
+      cmp_t:"Entry offers by carrier",
       cmp_x:"Each carrier's entry offer.",
       f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
       n_player:"{n} offers captured on {d}, in {p}.",
@@ -2926,6 +2928,12 @@ function tabelaFaixas(){
     && o.produto === filtro().produto && diaDe(o) === dia
     && !desligadas.has(o.operadora)
     && precoDe(o) != null && entregaDe(o).v != null);
+  // FRANQUIA OU VELOCIDADE no titulo, pela unidade das ofertas (24/11/
+  // 2026): "faixa de franquia" na fibra seria falso. Misturadas, "entrega".
+  const uTitulo = unidadeComum(ofertas.map(entregaDe));
+  const h2fx = document.querySelector('[data-t="fx_t"]');
+  if (h2fx) h2fx.textContent = t(uTitulo === t("mbps") ? "fx_t_vel"
+                                 : uTitulo === t("gb") ? "fx_t" : "fx_t_ent");
   if (ofertas.length < 2) { alvo.innerHTML = ""; return; }
 
   // A FAIXA SO EXISTE DENTRO DE UMA UNIDADE. Aqui a unidade nao decide
@@ -2945,9 +2953,9 @@ function tabelaFaixas(){
   const c1 = vals[Math.floor(vals.length / 3)];
   const c2 = vals[Math.floor(vals.length * 2 / 3)];
   const faixas = [
-    {nome: t("fx_baixa") + " — até " + c1 + " " + u, min: -Infinity, max: c1},
-    {nome: t("fx_media") + " — " + c1 + " a " + c2 + " " + u, min: c1, max: c2},
-    {nome: t("fx_alta") + " — acima de " + c2 + " " + u, min: c2, max: Infinity},
+    {nome: t("fx_baixa") + " — " + t("fx_ate") + " " + c1 + " " + u, min: -Infinity, max: c1},
+    {nome: t("fx_media") + " — " + c1 + " " + t("fx_a") + " " + c2 + " " + u, min: c1, max: c2},
+    {nome: t("fx_alta") + " — " + t("fx_acima") + " " + c2 + " " + u, min: c2, max: Infinity},
   ];
 
   const c = colunas("col_cmp", ofertas);
