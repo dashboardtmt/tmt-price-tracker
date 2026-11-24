@@ -593,11 +593,11 @@ MOLDE = r"""<!DOCTYPE html>
   </div>
 
   <div id="pg-panorama">
-  <div class="secao" data-t="sec_pan">Panorama do mercado</div>
+  <div class="secao" data-t="sec_pan">Panorama competitivo</div>
   <div class="bloco">
     <div class="cabeca">
       <div>
-        <h2 data-t="q_t">Onde cada oferta está</h2>
+        <h2 data-t="q_t">Posicionamento das ofertas: preço × franquia</h2>
         <p class="descricao" data-t="q_x"></p>
       </div>
       <div class="metricas">
@@ -612,26 +612,26 @@ MOLDE = r"""<!DOCTYPE html>
   </div>
 
   <div class="bloco">
-    <h2 data-t="g1_t">Preço de entrada, por operadora</h2>
+    <h2 data-t="g1_t">Evolução do preço de entrada</h2>
     <p class="descricao" data-t="g1_x"></p>
     <div class="grafico-wrap"><canvas id="c-tempo"></canvas></div>
     <div class="nota" id="n-tempo"></div>
   </div>
 
   <div class="bloco">
-    <h2 data-t="g5_t">Preço por unidade entregue</h2>
+    <h2 data-t="g5_t">Evolução do preço unitário</h2>
     <p class="descricao" data-t="g5_x"></p>
     <div class="grafico-wrap"><canvas id="c-tempo-unit"></canvas></div>
   </div>
 
   <div class="dupla">
     <div class="bloco">
-      <h2 data-t="g2_t">Quanto custa o que entrega</h2>
+      <h2 data-t="g2_t">Posicionamento preço-entrega</h2>
       <p class="descricao" data-t="g2_x"></p>
       <div class="grafico-wrap baixo"><canvas id="c-dispersao"></canvas></div>
     </div>
     <div class="bloco">
-      <h2 data-t="g3_t">Preço por unidade entregue</h2>
+      <h2 data-t="g3_t">Competitividade de preço por operadora</h2>
       <p class="descricao" data-t="g3_x"></p>
       <div class="grafico-wrap baixo"><canvas id="c-unitario"></canvas></div>
     </div>
@@ -640,7 +640,7 @@ MOLDE = r"""<!DOCTYPE html>
   <div class="bloco">
     <div class="cabeca">
       <div>
-        <h2 data-t="mat_t">Preço por degrau, dia a dia</h2>
+        <h2 data-t="mat_t">Evolução da grade de preços</h2>
         <p class="descricao" data-t="mat_x"></p>
       </div>
       <div class="metricas"><span class="segmento">
@@ -783,7 +783,7 @@ const T = {
       pr_piso:"Entrada do mercado, da ponta à ponta:",
       pr_variam:"Variam por praça:",
       pr_nenhuma_varia:"Nenhuma operadora muda de preço entre praças.",
-      sec_pan:"Panorama do mercado", sec_of:"As ofertas de hoje",
+      sec_pan:"Panorama competitivo", sec_of:"As ofertas de hoje",
       of_t:"Todas as ofertas, por operadora",
       of_x:"Todas as ofertas do dia, por operadora, da mais barata à mais cara.",
       fx_t:"Comparação por faixa de entrega",
@@ -826,21 +826,21 @@ const T = {
       produtos:{controle:"Controle", movel:"Pós-pago", fibra:"Fibra",
                 combo:"Combo (fibra + móvel)", prepago:"Pré-pago",
                 satelite:"Satélite", btl:"Below-the-line"},
-      q_t:"Onde cada oferta está",
+      q_t:"Posicionamento das ofertas: preço × franquia", q_t_vel:"Posicionamento das ofertas: preço × velocidade", q_t_ent:"Posicionamento das ofertas: preço × entrega",
       r_entrada:"Só a entrada", r_todos:"Todas as ofertas",
       xl_titulo:"Baixar os dados em Excel",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada ponto é uma oferta do dia.",
-      g1_t:"Preço de entrada, por operadora (R$/mês)",
+      g1_t:"Evolução do preço de entrada (R$/mês)",
       g1_x:"O plano mais barato de cada operadora, dia a dia.",
       sobre:"praticamente sobre a",
-      g5_t:"Preço por unidade entregue",
+      g5_t:"Evolução do preço unitário",
       g5_x:"A mesma série, dividida pelo que cada plano entrega.",
-      g2_t:"Quanto custa o que entrega (R$/mês × entrega)",
+      g2_t:"Posicionamento preço-entrega (R$/mês × entrega)",
       g2_x:"Preço contra entrega, oferta a oferta.",
-      g3_t:"Quem entrega mais barato hoje",
+      g3_t:"Competitividade de preço por operadora",
       g3_x:"Preço de entrada dividido pela entrega, do menor ao maior.",
-      mat_t:"Preço por degrau, dia a dia", mes:"mês",
+      mat_t:"Evolução da grade de preços", mes:"mês",
       mat_x:"Um degrau por linha, um dia por coluna. ▲▼ preço da mesma oferta; ◆ outra oferta no degrau.",
       m_trocou:"Outra oferta assumiu o degrau",
       m_grade:"A operadora manteve os preços e mudou as franquias — a grade inteira andou, não é mudança de preço",
@@ -903,7 +903,7 @@ const T = {
       pr_piso:"Market entry, end to end:",
       pr_variam:"Vary by city:",
       pr_nenhuma_varia:"No carrier changes price between cities.",
-      sec_pan:"Market overview", sec_of:"Today's offers",
+      sec_pan:"Competitive landscape", sec_of:"Today's offers",
       of_t:"All offers, by carrier",
       of_x:"All of the day's offers, by carrier, cheapest first.",
       fx_t:"Comparison by delivery tier",
@@ -933,21 +933,21 @@ const T = {
       produtos:{controle:"Hybrid (Controle)", movel:"Postpaid", fibra:"Fibre",
                 combo:"Bundle (fibre + mobile)", prepago:"Prepaid",
                 satelite:"Satellite", btl:"Below-the-line"},
-      q_t:"Where each offer sits",
+      q_t:"Offer positioning: price × data allowance", q_t_vel:"Offer positioning: price × speed", q_t_ent:"Offer positioning: price × delivery",
       r_entrada:"Entry offers only", r_todos:"All offers",
       xl_titulo:"Download data to Excel",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day.",
-      g1_t:"Entry price, by carrier (R$/month)",
+      g1_t:"Entry price evolution (R$/month)",
       g1_x:"The cheapest plan of each carrier, day by day.",
       sobre:"practically on top of",
-      g5_t:"Price per unit delivered",
+      g5_t:"Unit price evolution",
       g5_x:"The same series, divided by what each plan delivers.",
-      g2_t:"What you pay for what you get (R$/month × delivery)",
+      g2_t:"Price-delivery positioning (R$/month × delivery)",
       g2_x:"Price against delivery, offer by offer.",
-      g3_t:"Cheapest per unit today",
+      g3_t:"Price competitiveness by carrier",
       g3_x:"Entry price divided by delivery, lowest first.",
-      mat_t:"Price by tier, day by day", mes:"month",
+      mat_t:"Price grid evolution", mes:"month",
       mat_x:"One row per tier, one column per day. ▲▼ same offer changing price; ◆ a different offer on the tier.",
       m_trocou:"A different offer took over this tier",
       m_grade:"The carrier kept its prices and changed the allowances — the whole grid shifted, this is not a price change",
@@ -2041,7 +2041,11 @@ function grafQuadrante(){
   const h2q = document.querySelector('[data-t="q_t"]');
   // as unidades agora estao nos eixos; o titulo so avisa quando a escala
   // de preco deixa de ser linear
-  if (h2q) h2q.textContent = t("q_t") + (log ? " · " + t("escala_log") : "");
+  // FRANQUIA OU VELOCIDADE, pela unidade do eixo: o titulo escolhido em
+  // 24/11/2026 dizia "franquia", e na fibra o eixo e Mbps. Com unidades
+  // misturadas, "entrega", como o eixo.
+  const chaveQ = u === t("mbps") ? "q_t_vel" : u === t("gb") ? "q_t" : "q_t_ent";
+  if (h2q) h2q.textContent = t(chaveQ) + (log ? " · " + t("escala_log") : "");
 
   trocar("c-quadrante", {
     type:"scatter",
