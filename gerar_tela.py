@@ -462,10 +462,31 @@ MOLDE = r"""<!DOCTYPE html>
   .mapa td.cel.vazia{background:transparent;color:var(--cinza);
     box-shadow:inset 0 0 0 1px var(--cor-borda);font-weight:600}
   .mapa th.prod{min-width:96px}
-  /* o mapa de ofertas: a celula alem da ultima oferta da operadora fica
-     em branco, sem moldura - nao e "nao vende", e so que acabou a escada */
-  .mapa td.cel.nada{background:transparent}
-  .mapa td.cel small .sep{display:none}
+  /* O MAPA DE OFERTAS, numa grade inteira (24/11/2026). Com a celula
+     alem da ultima oferta em branco, o quadro virava "tudo branco": as
+     faixas claras da rampa sobre o cartao claro, cercadas de vazio. A
+     celula vazia ganha o neutro quente da tela - a grade fica inteira e o
+     vazio continua lido como "acabou a escada", nao como "nao vende" (que
+     no mapa de calor e o tracejado com travessao). */
+  .mapa.inteira{border-spacing:3px}
+  .mapa.inteira td.cel{border-radius:2px;padding:6px 4px;width:84px;min-width:84px}
+  .mapa.inteira td.cel.nada{background:#F3F0E9}
+  .mapa.inteira td.cel small .sep{display:none}
+  .mapa.inteira thead th{padding-bottom:6px;border-bottom:1px solid var(--cor-borda)}
+  .mapa.inteira thead th.praca{border-bottom:none}
+  .mapa.inteira td.op{border-bottom:1px solid var(--cor-borda)}
+  /* no mapa de calor o "nao vende" continua com o travessao, agora no
+     mesmo neutro da grade, sem a moldura tracejada */
+  .mapa.inteira td.cel.vazia{background:#F3F0E9;box-shadow:none}
+  /* o produto como faixa de titulo, com o fio laranja da marca a esquerda
+     - o mesmo do cabecalho da pagina */
+  .faixa-rot.faixa-prod{display:flex;align-items:center;gap:9px;
+    background:var(--cor-fundo);color:var(--cor-texto);font-size:11.5px;
+    font-weight:700;letter-spacing:.6px;padding:7px 12px 7px 0;
+    margin:0 0 10px;border-radius:2px}
+  .faixa-rot.faixa-prod::before{content:"";width:4px;align-self:stretch;
+    background:var(--laranja);border-radius:2px 0 0 2px}
+  .tabela-wrap ~ .faixa-rot.faixa-prod{margin-top:20px}
   /* a dispersao entre pracas e a unica coisa que sobra de geografia
      nesta celula: um tracinho discreto, nao um segundo numero */
   .mapa td.cel .espalha{display:block;height:2px;border-radius:1px;
@@ -682,9 +703,9 @@ MOLDE = r"""<!DOCTYPE html>
           <p class="descricao" data-t="mc_x"></p>
         </div>
       </div>
-      <div class="faixa-rot" data-t="mc_m1">Preço de entrada</div>
+      <div class="faixa-rot faixa-prod" data-t="mc_m1">Preço de entrada</div>
       <div class="tabela-wrap" id="t-mapa"></div>
-      <div class="faixa-rot" data-t="mc_m2">Preço por unidade</div>
+      <div class="faixa-rot faixa-prod" data-t="mc_m2">Preço por unidade</div>
       <div class="tabela-wrap" id="t-mapa-unit"></div>
       <div class="rampa" id="r-mapa"></div>
       <div class="nota" id="n-mapa"></div>
@@ -2891,7 +2912,7 @@ function desenharMapa(metrica, idAlvo){
     return `<tr><td class="op"><span class="ponto" style="background:${CORES[op] || "#888"}"></span>${op}</td>${celulas}</tr>`;
   }).join("");
 
-  alvo.innerHTML = `<table class="mapa"><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
+  alvo.innerHTML = `<table class="mapa inteira"><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
   return true;
 }
 
@@ -2997,8 +3018,8 @@ function mapaDeOfertas(){
       }).join("");
       return `<tr><td class="op"><span class="ponto" style="background:${CORES[op] || "#888"}"></span>${op}</td>${cels}</tr>`;
     }).join("");
-    quadros.push(`<div class="faixa-rot">${esc(nomeProduto(pr))}</div>`
-      + `<div class="tabela-wrap"><table class="mapa"><thead>${cab}</thead><tbody>${corpo}</tbody></table></div>`);
+    quadros.push(`<div class="faixa-rot faixa-prod">${esc(nomeProduto(pr))}</div>`
+      + `<div class="tabela-wrap"><table class="mapa inteira"><thead>${cab}</thead><tbody>${corpo}</tbody></table></div>`);
   }
   if (!quadros.length) {
     alvo.innerHTML = `<div class="tabela-wrap"><div class="vazio">${t("sem_dado")}</div></div>`;
@@ -3339,8 +3360,10 @@ function atualizarBarraFlut(wrap, ancorar){
   wrap.classList.toggle("tem-barra-flutuante", transborda);
   if (!transborda) return;
   wrap._spacerFlut.style.width = wrap.scrollWidth + "px";
-  // abre mostrando o dia mais recente, que fica na ponta direita
-  if (ancorar) wrap.scrollLeft = wrap.scrollWidth;
+  // abre mostrando o dia mais recente, que fica na ponta direita. OS
+  // MAPAS NAO: neles a ponta esquerda e a entrada e o pre-pago, e no
+  // celular os dois abriam no satelite e na ultima oferta (24/11/2026).
+  if (ancorar && !wrap.querySelector("table.mapa")) wrap.scrollLeft = wrap.scrollWidth;
   bar.scrollLeft = wrap.scrollLeft;
 }
 
