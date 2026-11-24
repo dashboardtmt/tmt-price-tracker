@@ -179,6 +179,27 @@ def _cabecalho_pagina(canvas, doc):
     canvas.restoreState()
 
 
+def _linha_relida(x):
+    """Uma linha por evento tirado da noticia pela leitura declarada."""
+    e = x["evento"]
+    a, d = e.get("antes") or {}, e.get("atual") or {}
+    nome = d.get("nome_oferta") or a.get("nome_oferta") or e.get("nome_oferta") \
+        or e.get("nome") or "?"
+    partes = []
+    pa, pd = a.get("preco_promocional"), d.get("preco_promocional")
+    if pa is not None and pd is not None and pa != pd:
+        partes.append("preço de %s para %s" % (_reais(pa), _reais(pd)))
+    ga, gd = a.get("franquia_anunciada_gb"), d.get("franquia_anunciada_gb")
+    if ga != gd and gd is not None:
+        partes.append("franquia de %s para %s GB" % (ga if ga is not None else "—", gd))
+    pracas = e.get("pracas") or []
+    return "<b>%s</b> — %s%s" % (
+        _sem_marcacao(nome),
+        "; ".join(partes) or "outra versão da oferta",
+        (" (em %d praça%s)" % (len(pracas), "" if len(pracas) == 1 else "s"))
+        if pracas else "")
+
+
 def _com_titulo(titulo, *conteudo):
     """Secao e conteudo numa peca so, para o titulo nao ficar orfao.
 
@@ -1081,6 +1102,21 @@ def gerar(dados, entradas, caminho):
                       "lançamento.", ESTILOS["corpo"]),
             _passou_a_ler(dados),
             _bloco_entradas(dados)))
+
+        # A LEITURA QUE MUDOU HOJE, por oferta: o que os detectores acharam
+        # nas ofertas declaradas e que a mensagem tirou da noticia. Ver
+        # robo.LEITURA_DE_OFERTA_MUDOU_EM.
+        if dados.get("relidos"):
+            hist.append(_com_titulo(
+                "Mudanças da nossa leitura",
+                Paragraph("Ofertas cuja leitura foi alterada nesta data. As "
+                          "diferenças abaixo decorrem da nova fonte de "
+                          "leitura, e não de movimento do mercado: "
+                          + _sem_marcacao("; ".join(dados.get("relidos_porque")
+                                                    or [])) + ".",
+                          ESTILOS["corpo"]),
+                *[Paragraph(_linha_relida(x), ESTILOS["nota"])
+                  for x in dados["relidos"]]))
 
         hist.append(_com_titulo(
             "Alterações de denominação",

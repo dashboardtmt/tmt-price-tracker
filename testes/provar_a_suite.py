@@ -2272,6 +2272,33 @@ MUTACOES = [
         "            _sem_regulamento_na_praca.append(codigo)\n",
         "",
         "Rg3. a praca sem regulamento do cache deixa de dizer"),
+    # O TIM BLACK FAMILIA (24/11/2026): da pagina dele, pelo card pronto.
+    Mutacao(
+        "coletores/tim.py",
+        '            "preco_promocional": numero(total.group(1)),\n',
+        "",
+        "Fm1. o Familia volta a gravar o preco velho do JSON"),
+    Mutacao(
+        "coletores/tim.py",
+        "    familia, err = ler_familia(op, FAMILIA % uf.lower(), uf)\n",
+        "    familia, err = [], None\n",
+        "Fm2. o coletar deixa de ler a pagina do Familia"),
+    # A LEITURA DE OFERTA DECLARADA (24/11/2026)
+    Mutacao(
+        "robo.py",
+        "    declarados = LEITURA_DE_OFERTA_MUDOU_EM.get(hoje) or []\n",
+        "    declarados = []\n",
+        "Rl1. o preco relido volta a sair como reajuste"),
+    Mutacao(
+        "robo.py",
+        "                        and (nome or \"\").lower().startswith(comeco.lower())):\n",
+        "                        and True):\n",
+        "Rl2. a declaracao cala o produto inteiro, e nao so a oferta"),
+    Mutacao(
+        "robo.py",
+        "    relidos = r.get(\"relidos\") or []\n    if relidos:\n",
+        "    relidos = r.get(\"relidos\") or []\n    if False:\n",
+        "Rl3. a mensagem cala o que tirou da noticia"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

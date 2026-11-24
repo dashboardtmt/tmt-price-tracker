@@ -60,8 +60,10 @@ GRUPOS = ("mudancas_preco", "mudancas_composicao", "remodeladas", "grades",
 # "nao_lidos" (23/11/2026) e o produto que a coleta nao leu numa praca:
 # e falha de coleta, sai na manchete com a contagem de pracas e a lista
 # vai ao PDF.
+# "relidos" (24/11/2026) e o que a leitura declarada de uma oferta tirou
+# da noticia: nao e movimento de mercado, e a mensagem diz isso.
 RESSALVAS = ("duvidosa", "recusadas", "nao_auditado", "passou_a_ler",
-             "nao_lidos")
+             "nao_lidos", "relidos", "relidos_porque")
 
 # A mensagem corta cada grupo em tres e manda o resto para o PDF.
 MOSTRADOS = 3

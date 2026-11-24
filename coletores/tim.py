@@ -24,6 +24,7 @@ Uso:  python coletores/tim.py [--praca "Sao Paulo/SP"]
 
 import argparse
 import http.cookiejar
+import html as _html
 import json
 import re
 import sys
@@ -214,6 +215,11 @@ def ler_ofertas(op, url, uf):
     s, h = buscar(op, url)
     if s != 200:
         return None, "HTTP %s" % s
+    return ofertas_do_html(h)
+
+
+def ofertas_do_html(h):
+    """As ofertas do drupalSettings de uma pagina ja baixada."""
     m = re.search(r'<script[^>]*drupal-settings-json[^>]*>(.*?)</script>', h, re.S)
     if not m:
         return None, "drupalSettings ausente - a pagina mudou de formato"
@@ -418,6 +424,74 @@ def _combos_do_texto(t, extras):
             "texto_apps": (meio.strip() + " " + junto).strip(),
         })
     return saida
+
+
+# O TIM BLACK FAMILIA, DA PAGINA DO PROPRIO PLANO, desde 24/11/2026.
+#
+# Ate ali os quatro planos vinham de um carrossel da pagina de pos-pago
+# que o cliente nem ve - ele nao aparece na pagina renderizada - e que
+# a TIM nao atualiza: dizia R$ 284,99 para o Familia Plus enquanto a
+# pagina do Familia cobra R$ 264,99, e nao trazia franquia, entao tres
+# dos quatro planos entravam na serie sem GB. A pagina do Familia publica
+# cada plano num <tim-card-pricing-offer> com tudo em atributo:
+#
+#   data-node-name="TIM Black Familia Plus - 180GB - [On Air] 7.1.3"
+#   data-first-consume="180GB"
+#   data-price="R$ 82,00/mes por pessoa  R$ 264,99/mes no total ..."
+#   field-regioes="ac,al,...,sp,sp-interior,to"
+#
+# Vale o TOTAL, que e o preco do plano - o mesmo que a pagina-hub grava
+# para o Familia Premium. O campo de preco do JSON (field_preco_card_
+# oferta) NAO serve: e resto de campanha, "88,00" para o Plus que cobra
+# 82 por pessoa. Do JSON vem so o que o card nao tem: a franquia do
+# contrato e a lista de apps.
+FAMILIA = "https://www.tim.com.br/%s/para-voce/planos/pos-pago/tim-black-familia"
+CARD_COM_PRECO = re.compile(r"<tim-card-pricing-offer\b([^>]*)>", re.S)
+ATRIBUTO = re.compile(r'([\w-]+)="([^"]*)"')
+PRECO_TOTAL = re.compile(r"R\$\s*([\d.]+,\d{2})\s*/\s*m[eê]s\s+no\s+total", re.I)
+
+
+def ler_familia(op, url, uf):
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    do_json = {}
+    for o in (ofertas_do_html(h)[0] or ()):
+        do_json[_nome_curto(o["nome_oferta"])] = o
+    saida, vistos = [], set()
+    for m in CARD_COM_PRECO.finditer(h):
+        a = dict(ATRIBUTO.findall(m.group(1)))
+        regioes = [x.strip() for x in (a.get("field-regioes") or "").split(",")
+                   if x.strip()]
+        if regioes and uf.lower() not in regioes:
+            continue
+        nome = _html.unescape(a.get("data-node-name") or "").split(" - ")[0].strip()
+        total = PRECO_TOTAL.search(_html.unescape(a.get("data-price") or ""))
+        franquia = gb(a.get("data-first-consume"))
+        if not nome or not total or "fam" not in nome.lower():
+            continue
+        if nome in vistos:
+            continue        # a pagina repete o card no layout mobile
+        vistos.add(nome)
+        base = dict(do_json.get(_nome_curto(nome)) or {})
+        base.update({
+            "nome_oferta": nome,
+            "destaque": "%dGB" % franquia if franquia else base.get("destaque"),
+            "franquia_anunciada_gb": franquia,
+            "preco_promocional": numero(total.group(1)),
+        })
+        base.setdefault("franquia_contratual_gb", None)
+        base.setdefault("nivel_bundle", 0)
+        base.setdefault("apps", None)
+        base.setdefault("apps_rotulo", None)
+        base.setdefault("apps_planos", None)
+        base.setdefault("composicao", None)
+        saida.append(base)
+    if not saida:
+        return [], ("nenhum card do TIM Black Familia reconhecido - a "
+                    "leitura falhou, e nao ha como afirmar que o plano "
+                    "saiu da praca")
+    return saida, None
 
 
 def _degrau_no_nome(nome):
@@ -729,6 +803,28 @@ def coletar(cidade, uf, verbose=True):
             saida["ofertas"].append(o)
         if verbose:
             print("  %-9s %d ofertas" % ("combo", len(combos)))
+    time.sleep(PAUSA)
+
+    # O FAMILIA, da pagina dele, antes da de pos-pago - que o traz num
+    # carrossel escondido e velho. Ver ler_familia. A HUB continua
+    # mandando no que ela tambem traz (o Familia Premium).
+    familia, err = ler_familia(op, FAMILIA % uf.lower(), uf)
+    if err:
+        saida["avisos"].append("familia: %s" % err)
+        if verbose:
+            print("  %-9s FALHOU (%s)" % ("familia", err))
+    else:
+        ja = set(_nome_curto(o.get("nome_oferta")) for o in saida["ofertas"])
+        for o in familia:
+            if _nome_curto(o["nome_oferta"]) in ja:
+                continue
+            o.update({"operadora": "TIM",
+                      "produto": classificar(o["nome_oferta"], o["destaque"]),
+                      "praca": praca, "pagina": "familia",
+                      "capturado_em": agora.isoformat(),
+                      "preco_cheio": None, "degrau_mbps": None,
+                      "codigo_anatel": None, "campanha": None})
+            saida["ofertas"].append(o)
     time.sleep(PAUSA)
 
     # A PAGINA DO PRODUTO, depois da hub e so com o que a hub nao

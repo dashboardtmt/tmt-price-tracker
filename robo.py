@@ -827,7 +827,7 @@ def mudancas(hoje, ontem):
              "voltaram": [], "remodeladas": [], "leitura": [],
              "contratuais": [], "saidas": [], "velocidades": [],
              "entradas": [], "passou_a_ler": [],
-             "nao_lidos": [],
+             "nao_lidos": [], "relidos": [], "relidos_porque": [],
              "erro": None, "cego": cego, "cego_ontem": cego_o,
              "duvidosa": duvidosa, "cobertura": None}
     if erro_h or erro_o:
@@ -1060,7 +1060,7 @@ def mudancas(hoje, ontem):
     # o detector que a produziu, e o que o dado nao sustenta nao sai. A
     # recusa fica no dicionario, em "recusadas" - auditor com defeito
     # tem de poder ser auditado de volta. Ver auditor.py.
-    return auditor.aplicar({"precos": precos, "composicao": composicao,
+    return _sem_o_relido(hoje, auditor.aplicar({"precos": precos, "composicao": composicao,
             "renomeadas": renomeadas, "grades": grades,
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura, "contratuais": contratuais,
@@ -1074,7 +1074,7 @@ def mudancas(hoje, ontem):
             # ordenacao: nao e evento de mercado, e ressalva sobre o dado
             "duvidosa": duvidosa,
             "cobertura": _cobertura(h, o, (cego_h or {}).get("quantas", 0))},
-        do_dia, (antes or {}).get(ontem) or [])
+        do_dia, (antes or {}).get(ontem) or []))
 
 
 # DIAS EM QUE A NOSSA LEITURA MUDOU, declarados a mao.
@@ -2897,6 +2897,94 @@ def _serie_sem_safra(nome):
     return re.sub(r"[^a-z0-9]+", " ", SAFRA.sub(" ", (nome or "").lower())).strip()
 
 
+# DIAS EM QUE A NOSSA LEITURA DE UMA OFERTA MUDOU, A PONTO DE MEXER NO
+# PRECO OU NA ENTREGA - por oferta, e nao pelo dia inteiro.
+#
+# LEITURA_MUDOU_EM atribui a nos o que muda SO DE VERSAO, e por regra
+# nunca o preco: reajuste simultaneo acontece, e quando acontece e a
+# noticia. Mas quando o coletor passa a ler o preco de outro lugar - o
+# card visivel em vez de um carrossel escondido, o card em vez de um
+# rotulo de acessibilidade -, a diferenca de preco no primeiro dia e a
+# nossa leitura, e a mensagem a publicaria como reajuste.
+#
+# Escolha de quem le, em 24/11/2026 (para a fibra e o Multi da Claro, e
+# vale igual para os outros): as diferencas ficam FORA DA NOTICIA, uma
+# linha diz quantas, e a lista vai no PDF. Preco de OUTRO produto da
+# mesma operadora no mesmo dia continua noticia - por isso a declaracao
+# e por (operadora, produto, comeco do nome), e nao por operadora.
+#
+# A DATA E A DA PRIMEIRA COLETA COM O LEITOR NOVO, como em
+# LEITURA_MUDOU_EM: a coleta roda de madrugada.
+LEITURA_DE_OFERTA_MUDOU_EM = {
+    # O TIM Black Familia vinha de um carrossel da pagina de pos-pago que
+    # o cliente nao ve: R$ 284,99 para o Familia Plus, contra R$ 264,99 na
+    # pagina do plano, e sem franquia em tres dos quatro planos. Simulado
+    # na bancada com o ensaio das 20 pracas: sem esta linha a mensagem
+    # de 25/11 diria "TIM Black Familia Plus 284,99 -> 264,99 (-7%)".
+    "2026-11-25": [{
+        "quem": [("TIM", "movel", u"TIM Black Família")],
+        "texto": u"o TIM Black Família passou a ser lido da página do "
+                 u"próprio plano, e não de um carrossel escondido da "
+                 u"página de pós-pago - o preço do Plus e a franquia de "
+                 u"três planos passaram a ser os que o cliente vê",
+    }],
+}
+
+# os grupos de evento de mudancas() que a declaracao alcanca
+GRUPOS_RELIDOS = ("precos", "composicao", "renomeadas", "grades", "voltaram",
+                  "remodeladas", "contratuais", "saidas", "velocidades",
+                  "entradas")
+
+
+def _quem_e(e):
+    """(operadora, produto, nome) de um evento, qualquer que seja o grupo."""
+    for k in ("atual", "antes"):
+        x = e.get(k)
+        if isinstance(x, dict):
+            return x.get("operadora"), x.get("produto"), x.get("nome_oferta")
+    return (e.get("operadora"), e.get("produto"),
+            e.get("nome_oferta") or e.get("nome"))
+
+
+def _sem_o_relido(hoje, d):
+    """Tira da noticia o que e a leitura declarada. Ver
+    LEITURA_DE_OFERTA_MUDOU_EM. Mexe em d e o devolve."""
+    declarados = LEITURA_DE_OFERTA_MUDOU_EM.get(hoje) or []
+    d.setdefault("relidos", [])
+    d.setdefault("relidos_porque", [])
+    if not declarados:
+        return d
+
+    def declarado(e):
+        op, produto, nome = _quem_e(e)
+        for dec in declarados:
+            for (o, p, comeco) in dec["quem"]:
+                if (op == o and produto == p
+                        and (nome or "").lower().startswith(comeco.lower())):
+                    return dec
+        return None
+
+    for grupo in GRUPOS_RELIDOS:
+        ficam = []
+        for e in d.get(grupo) or ():
+            dec = declarado(e)
+            if dec is None:
+                ficam.append(e)
+                continue
+            d["relidos"].append({"grupo": grupo, "evento": e,
+                                 "texto": dec["texto"]})
+            if dec["texto"] not in d["relidos_porque"]:
+                d["relidos_porque"].append(dec["texto"])
+        d[grupo] = ficam
+    return d
+
+
+def _ofertas_relidas(relidos):
+    """Quantas OFERTAS (nome por operadora) a declaracao tirou da noticia."""
+    return len({(_quem_e(x["evento"])[0], _quem_e(x["evento"])[2])
+                for x in relidos or ()})
+
+
 def _produtos_nao_lidos(do_dia, de_ontem):
     u"""O produto inteiro que sumiu de uma praca que a coleta leu.
 
@@ -4282,6 +4370,16 @@ def montar_mensagem(hoje, ontem):
     # A CAUSA DECLARADA E LIDA ANTES DO "if": ela viaja em dados para o
     # relatorio mesmo no dia em que nenhuma oferta caiu na ressalva -
     # a data declarada e um fato do dia, e nao um campo do evento.
+    # A LEITURA DE OFERTA QUE MUDOU HOJE, declarada: o que ficou fora da
+    # noticia, contado, e a causa. Ver LEITURA_DE_OFERTA_MUDOU_EM.
+    relidos = r.get("relidos") or []
+    if relidos:
+        n = _ofertas_relidas(relidos)
+        linhas += ["", "A nossa leitura mudou hoje: %s. %d oferta%s %s fora "
+                   "da not\u00edcia por isso; a lista est\u00e1 no relat\u00f3rio."
+                   % ("; ".join(r.get("relidos_porque") or []), n,
+                      "" if n == 1 else "s", "ficou" if n == 1 else "ficaram")]
+
     declarado = LEITURA_MUDOU_EM.get(hoje)
     if leitura:
         ops = sorted({x["operadora"] for x in leitura})
@@ -4482,6 +4580,8 @@ def montar_mensagem(hoje, ontem):
         "velocidades": velocidades,
         "entradas": entradas, "passou_a_ler": r.get("passou_a_ler") or [],
         "nao_lidos": nao_lidos,
+        "relidos": r.get("relidos") or [],
+        "relidos_porque": r.get("relidos_porque") or [],
         # a recusa do coletor: a frase curta foi na mensagem, a conta
         # inteira por operadora e praca e do relatorio
         "duvidosa": duvidosa,
