@@ -659,7 +659,7 @@ MOLDE = r"""<!DOCTYPE html>
     <div class="bloco">
       <div class="cabeca">
         <div>
-          <h2 data-t="mc_t">Mapa de calor — player por produto</h2>
+          <h2 data-t="mc_t">Mapa de calor: operadora × produto</h2>
           <p class="descricao" data-t="mc_x"></p>
         </div>
       </div>
@@ -750,7 +750,7 @@ const T = {
       d_declarada:"A operadora declara uma faixa, e não um degrau. A frase é a dela; o número não entra em nenhum cálculo porque faixa não se compara com degrau.",
       ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Mapa do mercado",
       sec_pr:"O mercado em uma tela",
-      mc_t:"Mapa de calor — player por produto",
+      mc_t:"Mapa de calor: operadora × produto",
       mc_x:"Mediana das praças em que o player vende o produto.",
       mc_m1:"Preço de entrada", mc_m2:"Preço por unidade",
       mc_sem:"Este player não vende este produto — célula vazia, nunca zero.",
@@ -871,7 +871,7 @@ const T = {
       d_declarada:"The carrier states a range, not a tier. The wording is theirs; the number enters no calculation, because a range does not compare with a tier.",
       ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Market map",
       sec_pr:"The market on one screen",
-      mc_t:"Heat map — carrier by product",
+      mc_t:"Heat map: carrier × product",
       mc_x:"Median across the cities where the carrier sells the product.",
       mc_m1:"Entry price", mc_m2:"Price per unit",
       mc_sem:"This carrier does not sell this product — blank cell, never zero.",
