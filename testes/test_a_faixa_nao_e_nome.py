@@ -58,7 +58,14 @@ class AFaixaNaoEONome(unittest.TestCase):
         with io.open(PAGINA, "rb") as f:
             corpo = f.read()
         guarda = unifique.urllib.request.urlopen
-        unifique.urllib.request.urlopen = lambda req, timeout=None: _Resposta(corpo)
+
+        # desde 26/11/2026 a coleta le tambem o combo e o celular; a
+        # fixture e so a pagina de fibra, e as outras rotas respondem 404
+        def abrir(req, timeout=None):
+            if "internet-fibra" in req.full_url:
+                return _Resposta(corpo)
+            raise unifique.urllib.error.HTTPError(req.full_url, 404, "nao", {}, None)
+        unifique.urllib.request.urlopen = abrir
         self.addCleanup(setattr, unifique.urllib.request, "urlopen", guarda)
 
     def test_o_recorte_tem_a_faixa(self):
@@ -80,7 +87,8 @@ class AFaixaNaoEONome(unittest.TestCase):
             (1000, 159.9, "FIBRA TURBO"),
             (1000, 174.9, "FIBRA + POWER"),
         ])
-        self.assertEqual(r["avisos"], [])
+        # nenhum aviso da fibra; o combo e o celular respondem 404 aqui
+        self.assertEqual([a for a in r["avisos"] if "nao vende" not in a], [])
 
     def test_nenhuma_frase_da_faixa_vira_nome(self):
         r = unifique.coletar("Florianopolis", "SC", verbose=False)

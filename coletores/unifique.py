@@ -57,6 +57,11 @@ from . import apps
 from datetime import datetime, timedelta, timezone
 
 PAGINA = "https://unifique.com.br/para-voce/internet-fibra"
+# O CELULAR E O COMBO, desde 26/11/2026. O coletor lia so a fibra; quem le
+# viu no site os combos e os planos de celular que o tracker nao tinha. As
+# duas paginas tem a mesma forma de rota por cidade da fibra.
+PAGINA_COMBO = "https://unifique.com.br/para-voce/combos-fibra-movel"
+PAGINA_MOVEL = "https://unifique.com.br/para-voce/movel-planos-de-celular"
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/129.0 Safari/537.36")
@@ -187,7 +192,81 @@ def sem_acento(s):
                    if unicodedata.category(c) != "Mn")
 
 
-def rota_da_cidade(cidade, uf):
+def _vitrine(texto):
+    u"""So o bloco de cards da cidade, de "Ofertas Exclusivas" ao fim dele.
+
+    A pagina repete o nome e os GB de cada plano nos "Mais Detalhes",
+    sem preco; lendo a pagina inteira, o nome de um detalhe colaria no
+    preco do card seguinte."""
+    i = texto.find("Ofertas Exclusivas")
+    if i < 0:
+        return ""
+    fim = re.search(r"Caso opte por ofertas|Cobertura nacional\s+Consulte|Por que escolher",
+                    texto[i:])
+    return texto[i:i + fim.start()] if fim else texto[i:]
+
+
+# "LEVE 10 GB ... Fidelidade 12 meses R$ 39,90 /mes"
+CARD_MOVEL = re.compile(
+    r"([A-Z\u00c0-\u00da][A-Z\u00c0-\u00da ]{2,20}?)\s+(\d{1,3})\s*GB\s+(.{0,400}?)"
+    r"R\$\s*(\d{2,4},\d{2})\s*/\s*m[e\u00ea]s", re.S)
+
+
+def extrair_movel(texto):
+    u"""Os planos de celular: nome, GB, fidelidade e preco do card."""
+    saida = []
+    for m in CARD_MOVEL.finditer(_vitrine(texto)):
+        nome, gb, meio, preco = m.groups()
+        nome = re.sub(r"\s+", " ", nome).strip()
+        fid = re.search(r"Fidelidade\s+(\d{1,2})\s*meses", meio, re.I)
+        saida.append({
+            "nome_oferta": "%s %s GB" % (nome, gb),
+            "destaque": "%s GB" % gb,
+            "degrau_mbps": None,
+            "franquia_anunciada_gb": int(gb),
+            "preco_promocional": _num(preco),
+            "preco_cheio": None,
+            "fidelidade_meses": int(fid.group(1)) if fid else None,
+            "contexto": re.sub(r"\s+", " ", meio)[:300],
+        })
+    return saida
+
+
+# "Celular 30 GB ... Fibra Optica 550 Mega Instalacao Gratis R$ 149,90
+#  R$ 119,90 /mes ... R$ 119,90 nos primeiros 12 meses. Apos 12 meses
+#  R$ 149,90. Mais Detalhes"
+CARD_COMBO = re.compile(
+    r"Celular\s+(\d{1,3})\s*GB(.{0,250}?)Fibra\s+\S+\s+(\d{3,4})\s*Mega(.{0,160}?)"
+    r"((?:R\$\s*\d{2,4},\d{2}\s*)+)/\s*m[e\u00ea]s(.{0,220}?)Mais Detalhes", re.S)
+
+
+def extrair_combo(texto):
+    u"""Os combos fibra + celular: velocidade, GB, preco e o depois."""
+    saida = []
+    for m in CARD_COMBO.finditer(_vitrine(texto)):
+        gb, movel, mega, fibra, precos, nota = m.groups()
+        valores = [_num(x) for x in re.findall(r"\d{2,4},\d{2}", precos)]
+        meses = re.search(r"nos\s+(?:(\d{1,2})\s+primeiros|primeiros\s+(\d{1,2}))\s+meses", nota, re.I)
+        depois = re.search(r"Ap[o\u00f3]s\s+\d{1,2}\s+meses\s+R\$\s*(\d{2,4},\d{2})", nota, re.I)
+        contexto = re.sub(r"\s+", " ", " ".join((movel, fibra, nota))).strip()
+        saida.append({
+            "nome_oferta": "Combo Fibra %s Mega + Celular %s GB" % (mega, gb),
+            "destaque": "%s Mega + %s GB" % (mega, gb),
+            "degrau_mbps": _mbps(mega + " Mega"),
+            "franquia_anunciada_gb": int(gb),
+            # o card riscado ("R$ 149,90 R$ 119,90") traz os dois
+            "preco_cheio": valores[0] if len(valores) > 1 else None,
+            "preco_promocional": valores[-1],
+            "meses_desconto": int(next(g for g in meses.groups() if g)) if meses else None,
+            "preco_pos_promocao": _num(depois.group(1)) if depois else None,
+            "taxa_instalacao": 0.0 if re.search(r"instala\S*o\s+gr\S*tis", fibra, re.I) else None,
+            "fidelidade_meses": None,
+            "contexto": contexto[:300],
+        })
+    return saida
+
+
+def rota_da_cidade(cidade, uf, pagina=None):
     """A URL propria da cidade, que e para onde o seletor navega.
 
     O endereco e sem acento e com hifen: "Sao Jose dos Campos" vira
@@ -195,7 +274,7 @@ def rota_da_cidade(cidade, uf):
     passou um mes fora da coleta.
     """
     pedaco = re.sub(r"[^a-z0-9]+", "-", sem_acento(cidade).lower()).strip("-")
-    return "%s/%s/%s" % (PAGINA, uf.lower(), pedaco)
+    return "%s/%s/%s" % (pagina or PAGINA, uf.lower(), pedaco)
 
 
 def coletar(cidade, uf, verbose=True, pagina=None):
@@ -232,6 +311,7 @@ def coletar(cidade, uf, verbose=True, pagina=None):
             saida["avisos"].append(err)
             if verbose:
                 print("  %s" % err)
+            _celular_e_combo(cidade, uf, praca, agora, saida, verbose)
             return saida
         # SEM ACENTO DOS DOIS LADOS. A cesta guarda "Florianopolis" e a
         # pagina escreve "Florianopolis" com acento: comparar cru faz a
@@ -268,11 +348,59 @@ def coletar(cidade, uf, verbose=True, pagina=None):
                     "o layout da Unifique provavelmente mudou")
         if verbose:
             print("  fibra  %d ofertas" % len(saida["ofertas"]))
+        _celular_e_combo(cidade, uf, praca, agora, saida, verbose)
     except Exception as e:
         saida["avisos"].append("leitura: %s" % str(e)[:140])
         if verbose:
             print("  ERRO: %s" % str(e)[:140])
     return saida
+
+
+def _celular_e_combo(cidade, uf, praca, agora, saida, verbose):
+    u"""O combo e o celular da cidade, cada um na sua rota.
+
+    404 e a Unifique nao vender o produto ali (informacao, nao falha);
+    outro erro sai dito; pagina da cidade sem card e ausencia, e pagina
+    que nem confirma a cidade e layout quebrado - a mesma regra da fibra.
+    """
+    for produto, pagina, ler in (("combo", PAGINA_COMBO, extrair_combo),
+                                 ("movel", PAGINA_MOVEL, extrair_movel)):
+        status, texto = buscar(rota_da_cidade(cidade, uf, pagina))
+        if status == 404:
+            saida["avisos"].append("a Unifique nao vende %s em %s/%s" % (produto, cidade, uf))
+            continue
+        if status != 200:
+            saida["avisos"].append("%s: HTTP %s ao ler %s/%s" % (produto, status, cidade, uf))
+            continue
+        achadas = ler(texto)
+        if not achadas:
+            if sem_acento(cidade).lower() in sem_acento(texto).lower():
+                saida["avisos"].append("sem oferta de %s em %s" % (produto, cidade))
+            else:
+                saida["avisos"].append("%s: nenhuma oferta lida e a cidade nao confirmou - "
+                                       "o layout da Unifique provavelmente mudou" % produto)
+            continue
+        for o in achadas:
+            contexto = o.pop("contexto", "")
+            o.update({
+                "operadora": "Unifique", "produto": produto, "praca": praca,
+                "capturado_em": agora.isoformat(),
+                "franquia_contratual_gb": None,
+                "nivel_bundle": nivel_bundle(contexto),
+                # "WhatsApp* e Waze ilimitados": o asterisco aponta para
+                # "*WhatsApp ilimitado para mensagens, fotos e videos", no
+                # pe da pagina - a regua comum nao casa com o "e Waze"
+                "whatsapp": (apps.whatsapp_incluso(contexto) or bool(re.search(
+                    r"whats\s?app\*?\s+e\s+waze\s+ilimitad", contexto, re.I))),
+                # o que o card diz alem do preco: os apps, a portabilidade
+                "composicao": contexto,
+                "codigo_anatel": None, "campanha": None, "id_catalogo": None,
+                "multa_fidelidade": None,
+            })
+            o.setdefault("taxa_instalacao", None)
+            saida["ofertas"].append(o)
+        if verbose:
+            print("  %-6s %d ofertas" % (produto, len(achadas)))
 
 
 def main():

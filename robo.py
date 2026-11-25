@@ -1171,9 +1171,10 @@ LEITURA_MUDOU_EM = {
     # com o leitor novo e a de 26/11. Ver LEITURA_DE_OFERTA_MUDOU_EM.
     "2026-11-26": "o pré da Claro passou a incluir os cinco Prezões "
                   "temáticos (Kwai, TikTok, Uber, Shopee e Free Fire), que "
-                  "estão no site desde antes do início do tracker; e a "
-                  "Starlink passou a ter gravado o preço cheio, que ela "
-                  "publica à parte durante a promoção",
+                  "estão no site desde antes do início do tracker; a "
+                  "Unifique passou a ter o celular e os combos, que a "
+                  "coleta não lia; e a Starlink passou a ter gravado o "
+                  "preço cheio, que ela publica à parte durante a promoção",
 }
 
 
@@ -1212,8 +1213,8 @@ LEITURA_EM_UMA_LINHA = {
                   "oferecido à escolha deixou de entrar como incluso",
     "2026-11-05": "a TIM voltou a ter os apps que a nossa leitura "
                   "havia perdido, e a lista deixou de vir cortada",
-    "2026-11-26": "entraram os cinco Prezões temáticos da Claro, e o "
-                  "preço cheio da Starlink",
+    "2026-11-26": "entraram os Prezões temáticos da Claro, o celular e "
+                  "os combos da Unifique, e o preço cheio da Starlink",
 }
 
 
@@ -2966,6 +2967,12 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"temáticos (Kwai, TikTok, Uber, Shopee e Free Fire, de "
                  u"R$ 34,99 a R$ 35 por 30 dias), que estão no site desde "
                  u"antes do início do tracker e a coleta não lia",
+    }, {
+        # a Unifique nao tinha celular nem combo no tracker: tudo o que
+        # entra nos dois produtos e leitura nova
+        "quem": [("Unifique", "movel", u""), ("Unifique", "combo", u"")],
+        "texto": u"a Unifique passou a ter o celular e os combos de fibra + "
+                 u"celular, que estão no site e a coleta não lia",
     }, {
         "quem": [("Starlink", "satelite", u"Residencial")],
         "texto": u"a Starlink passou a ter gravado o preço cheio (R$ 189 "
