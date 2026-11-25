@@ -2303,6 +2303,11 @@ function grafUnitario(){
 // barata da operadora (empate: a que entrega mais GB), e o segundo quadro
 // divide ESSA recarga - os dois falam da mesma oferta.
 const FAIXAS_RECARGA = [[28, 999], [21, 27], [16, 20], [1, 15]];
+// O PRIMEIRO DIA EM QUE AS TRES LEEM A VALIDADE. O Prezao relido
+// (reler_prezao.py) da validade a Claro tambem nos dias anteriores, e a
+// TIM e a Vivo nao tem: o quadro de uma data antiga mostraria so a Claro,
+// como se as outras nao vendessem recarga.
+const RECARGA_DESDE = "2026-11-25";
 
 function validadeDe(o){
   return num(o.validade_dias != null ? o.validade_dias
@@ -2310,6 +2315,7 @@ function validadeDe(o){
 }
 
 function recargasPorFaixa(dia){
+  if (dia < RECARGA_DESDE) return [];
   const f = filtro();
   const base = DADOS.filter(o =>
     (o.praca === f.praca || o.praca === PRACA_NACIONAL)

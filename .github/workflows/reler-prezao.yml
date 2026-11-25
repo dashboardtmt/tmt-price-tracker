@@ -1,0 +1,41 @@
+name: Reler o Prezao gravado
+
+# Roda reler_prezao.py com os segredos do Supabase, que so existem aqui.
+# Sem "aplicar", so conta e mostra o que mudaria; com ele, grava e
+# confere. Ver o cabecalho de reler_prezao.py.
+#
+# NAO MANDA MENSAGEM E NAO MEXE NA TELA. Depois de aplicar, o dado
+# publicado so muda na proxima "Atualizar a tela" (ou na rotina diaria).
+
+on:
+  workflow_dispatch:
+    inputs:
+      aplicar:
+        description: "Gravar a releitura (sem isto, so conta)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  reler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Reler
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          if [ "${{ inputs.aplicar }}" = "true" ]; then
+            python reler_prezao.py --aplicar
+          else
+            python reler_prezao.py
+          fi
