@@ -2359,9 +2359,13 @@ function grafRecargas(){
     const g = num(o.franquia_anunciada_gb), d = validadeDe(o), p = precoDe(o);
     return g && d ? p / g / d : null;
   };
+  // na tela estreita a barra ocupa mais da faixa: e o que da lugar ao
+  // rotulo sem encostar no da vizinha
+  const estreito = window.innerWidth < 600;
   const conjunto = medir => ops.map(op => ({
     label:op, backgroundColor:CORES[op] || "#999", borderRadius:4,
-    maxBarThickness:28, categoryPercentage:0.72, barPercentage:0.9,
+    maxBarThickness:28, categoryPercentage:estreito ? 0.94 : 0.72,
+    barPercentage:estreito ? 0.94 : 0.9,
     data:faixas.map(fx => fx.por[op] ? medir(fx.por[op]) : null),
   }));
   const dica = c => {
@@ -2373,7 +2377,17 @@ function grafRecargas(){
   };
   const opcoes = (casas, rotuloY) => ({
     responsive:true, maintainAspectRatio:false,
-    plugins:{legend:legenda(), tooltip:{callbacks:{label:dica}}},
+    // folga em cima para o rotulo da barra mais alta
+    layout:{padding:{top:18}},
+    plugins:{legend:legenda(), tooltip:{callbacks:{label:dica}},
+      // o valor em cima de cada barra, com as casas do eixo; o R$ ja esta
+      // no titulo do quadro. No celular a barra estreita pede letra menor.
+      datalabels:{anchor:"end", align:"end", offset:1, clamp:true, clip:false,
+        color:"#2B2621",
+        font: ctx => ({size: ctx.chart.width < 520 ? 7.5 : 10, weight:"700"}),
+        display: ctx => ctx.dataset.data[ctx.dataIndex] != null,
+        formatter: v => Number(v).toLocaleString("pt-BR",
+          {minimumFractionDigits:casas, maximumFractionDigits:casas})}},
     scales:{
       x:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
          ticks:{color:"#2B2621", font:{size:12, weight:"600"}, maxRotation:0}},
@@ -2386,13 +2400,13 @@ function grafRecargas(){
   const rotulos = faixas.map(fx => fx.rotulo);
   trocar("c-recarga", {type:"bar",
     data:{labels:rotulos, datasets:conjunto(o => precoDe(o))},
-    options:opcoes(2)});
+    options:opcoes(2), plugins:[ChartDataLabels]});
   trocar("c-recarga-dia", {type:"bar",
     data:{labels:rotulos, datasets:conjunto(o => {
       const v = porDia(o);
       return v == null ? null : +v.toFixed(4);
     })},
-    options:opcoes(3)});
+    options:opcoes(3), plugins:[ChartDataLabels]});
 }
 
 // A matriz do Exhibit 1 do J.P. Morgan: linhas sao a oferta, colunas sao
