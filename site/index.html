@@ -291,6 +291,9 @@
   .baixar[disabled]{opacity:.5;cursor:progress}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
+  /* o par posicionamento/competitividade: a operadora com 11 ofertas
+     precisa de andares de rotulo em cima das barras */
+  .grafico-wrap.alto{height:380px}
   .grafico-wrap.alto{height:450px}
   @media(max-width:860px){.grafico-wrap.alto{height:340px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
@@ -639,12 +642,12 @@
     <div class="bloco">
       <h2 data-t="g2_t">Posicionamento preço-entrega</h2>
       <p class="descricao" data-t="g2_x"></p>
-      <div class="grafico-wrap baixo"><canvas id="c-dispersao"></canvas></div>
+      <div class="grafico-wrap alto"><canvas id="c-dispersao"></canvas></div>
     </div>
     <div class="bloco">
       <h2 data-t="g3_t">Competitividade de preço por operadora</h2>
       <p class="descricao" data-t="g3_x"></p>
-      <div class="grafico-wrap baixo"><canvas id="c-unitario"></canvas></div>
+      <div class="grafico-wrap alto"><canvas id="c-unitario"></canvas></div>
     </div>
   </div>
 
@@ -758,7 +761,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "25/11/2026 16:27";
+const GERADO = "25/11/2026 16:44";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -870,8 +873,7 @@ const T = {
       g5_t:"Evolução do preço unitário",
       g5_x:"A mesma série, dividida pelo que cada plano entrega.",
       g2_t:"Posicionamento preço-entrega (R$/mês × entrega)",
-      g2_x:"A oferta mais barata de cada operadora em cada entrega.",
-      g2_mais:"mais {n} oferta(s) nesta entrega, até {p}",
+      g2_x:"Cada barra é uma oferta, da mais barata para a mais cara de cada operadora.",
       g3_t:"Competitividade de preço por operadora",
       g3_x:"Preço de entrada dividido pela entrega, do menor ao maior.",
       mat_t:"Evolução da grade de preços", mes:"mês",
@@ -988,8 +990,7 @@ const T = {
       g5_t:"Unit price evolution",
       g5_x:"The same series, divided by what each plan delivers.",
       g2_t:"Price-delivery positioning (R$/month × delivery)",
-      g2_x:"Each carrier's cheapest offer at each delivery level.",
-      g2_mais:"{n} more offer(s) at this delivery, up to {p}",
+      g2_x:"Each bar is an offer, cheapest to most expensive within each carrier.",
       g3_t:"Price competitiveness by carrier",
       g3_x:"Entry price divided by delivery, lowest first.",
       mat_t:"Price grid evolution", mes:"month",
@@ -2254,48 +2255,66 @@ function grafQuadrante(){
 // no primeiro andar em que nao encosta em nenhuma ja posta. A altura entra
 // na conta: o numero de uma barra baixa que sobe pode cair na altura do
 // da barra vizinha, mais alta. Sem disputa, fica no chao.
-const ANDARES_ROTULO = [2, 14, 26];
-
+// O formato devolve as LINHAS do rotulo: a primeira (o preco) em negrito,
+// as outras (a entrega) menores. Quatro andares; sem lugar em nenhum, o chao.
 const ROTULOS_EM_ANDARES = {
   id: "rotulosEmAndares",
   afterDatasetsDraw(ch, _args, op){
     if (!op || !op.formato) return;
-    const tam = ch.width < 520 ? 7.5 : 9.5;
-    const c = ch.ctx, postas = [];
-    const itens = [];
+    const estreito = ch.width < 520;
+    const tam = estreito ? 7.5 : 9.5, tam2 = tam - 1.5;
+    const familia = Chart.defaults.font.family;
+    const area = ch.chartArea;
+    const c = ch.ctx, postas = [], itens = [];
     ch.data.datasets.forEach((d, i) => {
       if (!ch.isDatasetVisible(i)) return;
       ch.getDatasetMeta(i).data.forEach((b, j) => {
         if (d.data[j] == null || !b) return;
-        itens.push({x:b.x, y:b.y, texto:op.formato(d.data[j])});
+        const l = op.formato(d.data[j], i, j);
+        // no celular, so a primeira linha (o preco)
+        const linhas = (Array.isArray(l) ? l : [l]).filter(Boolean);
+        itens.push({x:b.x, y:b.y, linhas:estreito ? linhas.slice(0, 1) : linhas});
       });
     });
     itens.sort((a, b) => a.x - b.x);
     const encosta = r => postas.some(q => r.e < q.d + 2 && r.d > q.e - 2
                                          && r.c < q.b + 1 && r.b > q.c - 1);
+    const fonte = k => (k ? "600 " + tam2 : "700 " + tam) + "px " + familia;
     c.save();
-    c.font = "700 " + tam + "px " + Chart.defaults.font.family;
     c.textAlign = "center";
     c.textBaseline = "bottom";
     c.lineJoin = "round";
     for (const it of itens) {
-      const w = c.measureText(it.texto).width;
+      let w = 0;
+      it.linhas.forEach((s, k) => { c.font = fonte(k); w = Math.max(w, c.measureText(s).width); });
+      const alt = tam + (it.linhas.length - 1) * (tam2 + 2);
+      // o rotulo da ponta nao sai do quadro
+      const xc = Math.min(Math.max(it.x, area.left + w / 2), area.right - w / 2);
       const caixa = n => {
-        const b = it.y - ANDARES_ROTULO[n];
-        return {e:it.x - w / 2, d:it.x + w / 2, b, c:b - tam, n};
+        const b = it.y - 2 - n * (alt + 3);
+        return {e:xc - w / 2, d:xc + w / 2, b, c:b - alt};
       };
       let r = null;
-      for (let n = 0; n < ANDARES_ROTULO.length && !r; n++) {
+      for (let n = 0; n < 4 && !r; n++) {
         if (!encosta(caixa(n))) r = caixa(n);
       }
+      // sem lugar em nenhum andar: no celular cede a vez (a dica diz o
+      // valor); na tela larga, que quase nunca chega aqui, fica no chao
+      if (!r && estreito) continue;
       r = r || caixa(0);
       postas.push(r);
-      // halo da cor do cartao: separa o numero da grade que passa atras
-      c.lineWidth = 3;
-      c.strokeStyle = "#FCFBF7";
-      c.strokeText(it.texto, it.x, r.b);
-      c.fillStyle = "#2B2621";
-      c.fillText(it.texto, it.x, r.b);
+      // de baixo para cima: a ultima linha encosta no pe da caixa
+      let yb = r.b;
+      for (let k = it.linhas.length - 1; k >= 0; k--) {
+        c.font = fonte(k);
+        // halo da cor do cartao: separa o texto da grade que passa atras
+        c.lineWidth = 3;
+        c.strokeStyle = "#FCFBF7";
+        c.strokeText(it.linhas[k], xc, yb);
+        c.fillStyle = k ? "#5E574E" : "#2B2621";
+        c.fillText(it.linhas[k], xc, yb);
+        yb -= (k ? tam2 : tam) + 2;
+      }
     }
     c.restore();
   },
@@ -2308,62 +2327,56 @@ function grafDispersao(){
   // Claro - num dia em que a Claro nao foi coletada no pre-pago. A
   // tela afirmava um R$/GB da Claro num dia sem oferta da Claro.
   const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
-  // EM BARRAS VERTICAIS, AGRUPADAS POR ENTREGA (25/11/2026, escolha de
-  // quem le). Uma faixa por entrega, da menor para a maior, e em cada uma
-  // a oferta mais barata de cada operadora. Quando a operadora tem mais de
-  // uma oferta na mesma entrega, a dica diz quantas e ate quanto vao: a
-  // mais cara sai da barra, mas nao some calada.
-  const grupos = {}, entregas = [];
+  // POR OPERADORA, AS OFERTAS EM BARRAS EM CIMA DO NOME (25/11/2026, pedido
+  // de quem le). Dentro de cada operadora, da mais barata para a mais cara;
+  // o rotulo diz o preco e a entrega. Cada conjunto e uma posicao (1a, 2a,
+  // 3a oferta...), e skipNull fecha o buraco de quem tem menos ofertas.
+  const porOp = {};
   for (const o of doFiltro(hoje)) {
-    const e = entregaDe(o), p = precoDe(o);
-    if (e.v==null || p==null) continue;
-    entregas.push(e);
-    const g = (grupos[e.v] = grupos[e.v] || {});
-    (g[o.operadora] = g[o.operadora] || []).push({p, nome:o.nome_oferta||""});
+    const p = precoDe(o);
+    if (p == null) continue;
+    (porOp[o.operadora] = porOp[o.operadora] || []).push(
+      {p, e:entregaDe(o), nome:o.nome_oferta || ""});
   }
-  const faixas = Object.keys(grupos).map(Number).sort((a, b) => a - b);
-  if (!faixas.length) {
+  const ops = Object.keys(porOp).sort(porRelevancia);
+  if (!ops.length) {
     if (graficos["c-dispersao"]) graficos["c-dispersao"].destroy(), delete graficos["c-dispersao"];
     return;
   }
-  for (const v of faixas) {
-    for (const op in grupos[v]) grupos[v][op].sort((a, b) => a.p - b.p);
-  }
-  const unidade = unidadeComum(entregas);
-  const ops = [...new Set(faixas.flatMap(v => Object.keys(grupos[v])))].sort(porRelevancia);
+  for (const op of ops) porOp[op].sort((a, b) => a.p - b.p || (a.e.v || 0) - (b.e.v || 0));
+  const nMax = Math.max(...ops.map(op => porOp[op].length));
   const estreito = window.innerWidth < 600;
-  const series = ops.map(op => ({
-    label:op, backgroundColor:CORES[op]||"#999", borderRadius:4,
-    maxBarThickness:28, skipNull:true,
-    categoryPercentage:estreito ? 0.94 : 0.8, barPercentage:estreito ? 0.94 : 0.9,
-    data:faixas.map(v => grupos[v][op] ? grupos[v][op][0].p : null),
+  const entrega = x => x.e.v != null ? Number(x.e.v).toLocaleString("pt-BR") + " " + x.e.u : "";
+  const series = Array.from({length:nMax}, (_, k) => ({
+    label:String(k + 1), skipNull:true, borderRadius:3, maxBarThickness:30,
+    categoryPercentage:estreito ? 0.94 : 0.88, barPercentage:0.9,
+    backgroundColor:ops.map(op => CORES[op] || "#999"),
+    data:ops.map(op => porOp[op][k] ? porOp[op][k].p : null),
   }));
   trocar("c-dispersao", {
     type:"bar",
-    data:{labels:faixas.map(v => Number(v).toLocaleString("pt-BR")), datasets:series},
+    data:{labels:ops, datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
-      // folga em cima para a unidade do preco e o rotulo da barra mais
-      // alta, e embaixo para a unidade da entrega
-      layout:{padding:{top:44, bottom:14}},
-      plugins:{legend:legenda(),
-        unidadeEixo:{y:"R$/" + t("mes"), x:unidade},
-        tooltip:{callbacks:{label:c => {
-          const l = grupos[faixas[c.dataIndex]][c.dataset.label];
-          if (!l) return null;
-          const base = c.dataset.label + " · " + l[0].nome + ": " + reais(l[0].p);
-          if (l.length < 2) return base;
-          return [base, "   " + t("g2_mais").replace("{n}", l.length - 1)
-                                 .replace("{p}", reais(l[l.length - 1].p))];
+      // folga em cima para a unidade do preco e os andares de rotulo
+      layout:{padding:{top:24}},
+      plugins:{legend:{display:false},
+        unidadeEixo:{y:"R$/" + t("mes")},
+        tooltip:{callbacks:{
+          title:c => c.length ? c[0].label : "",
+          label:c => {
+            const x = porOp[c.label] && porOp[c.label][c.datasetIndex];
+            if (!x) return null;
+            return x.nome + ": " + reais(x.p) + (entrega(x) ? " · " + entrega(x) : "");
+          }}},
+        rotulosEmAndares:{formato:(v, i, j) => {
+          const x = porOp[ops[j]][i];
+          return [Number(v).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}),
+                  x ? entrega(x) : ""];
         }}},
-        // o preco em cima da barra (ver ROTULOS_EM_ANDARES)
-        rotulosEmAndares:{formato: v => Number(v).toLocaleString("pt-BR",
-          {minimumFractionDigits:2, maximumFractionDigits:2})}},
       scales:{
-        // no celular a letra do eixo desce: na fibra, "1.000", "2.000" e
-        // "10.000" se encostavam em faixas de 30 px
         x:{...eixos().x, ticks:{...eixos().x.ticks, autoSkip:false,
-           color:"#2B2621", font:{size:estreito ? 8 : 11, weight:"600"}}},
-        y:eixos(v=>reais(v).replace("R$ ","")).y}},
+           color:"#2B2621", font:{size:12, weight:"700"}}},
+        y:{...eixos(v=>reais(v).replace("R$ ","")).y, grace:"22%"}}},
     plugins:[ROTULOS_EM_ANDARES, UNIDADE_EIXO],
   });
 }
