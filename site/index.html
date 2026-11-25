@@ -84,7 +84,7 @@
      orfaos em linhas diferentes, o que deixava o cabecalho irregular */
   .controles{background:var(--cor-superficie);border:1px solid var(--borda-cartao);
     border-radius:var(--raio);padding:9px 16px 9px;
-    margin:12px 0 10px;display:grid;gap:6px 14px;
+    margin:8px 0 6px;display:grid;gap:6px 14px;
     grid-template-columns:repeat(3, minmax(0, 1fr));align-items:end;
     position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
     box-shadow:var(--sombra)}
@@ -96,13 +96,24 @@
   /* O PRODUTO EM PILULAS, na fileira de cima, com o rotulo ao lado como o
      das operadoras. A fita e a da barra de PLAYER do Dashboard TMT: bordas
      entre as pilulas, a selecionada em laranja com letra branca. */
-  .controles .campo-produto{border-top:0;padding-top:0;padding-bottom:7px;
+  /* AS DUAS FILEIRAS DE PILULAS, Produto e Operadoras, uma embaixo da
+     outra e com as colunas alinhadas: o rotulo tem largura fixa e toda
+     pilula o mesmo comprimento (a do produto, colada na fita, ocupa o
+     mesmo passo que a da operadora mais o espaco entre elas). Um fio so,
+     embaixo das duas, separa os seletores. */
+  .controles .campo-largo label{width:84px;flex:none}
+  /* a fileira que desliza nao alarga a grade: sem isto ela empurrava os
+     seletores para fora da tela no celular */
+  .controles .campo-largo{min-width:0}
+  .controles .campo-produto{border-top:0;padding-top:0}
+  .controles .campo-ops{border-top:0;padding-top:0;padding-bottom:7px;
     border-bottom:1px solid var(--cor-borda)}
   .campo select[hidden]{display:none}
   .seg-produto{display:inline-flex;border:1px solid var(--cor-borda);
     border-radius:9px;overflow:hidden;background:#fff}
   .seg-produto button{font:inherit;font-size:12px;font-weight:700;
-    padding:4px 13px;border:0;background:none;color:var(--cor-texto-suave);
+    width:108px;box-sizing:border-box;text-align:center;
+    padding:4px 6px;border:0;background:none;color:var(--cor-texto-suave);
     cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
   .seg-produto button + button{border-left:1px solid var(--cor-borda)}
   .seg-produto button:hover{color:var(--laranja)}
@@ -129,8 +140,9 @@
     box-shadow:0 0 0 3px rgba(255,80,0,.15)}
   .chips{display:flex;gap:5px;flex-wrap:wrap}
   /* a pilula do Dashboard */
-  .chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;
-    padding:3px 11px;border:1px solid var(--cor-borda);border-radius:999px;
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;
+    width:103px;box-sizing:border-box;justify-content:center;
+    padding:4px 6px;border:1px solid var(--cor-borda);border-radius:999px;
     background:#F4F1EB;user-select:none;font-weight:600;color:var(--cor-texto);
     transition:border-color .12s, opacity .12s}
   .chip:hover{border-color:var(--cor-borda-forte)}
@@ -139,7 +151,7 @@
 
 
   .bloco{background:var(--cor-superficie);border:1px solid var(--borda-cartao);
-    border-radius:var(--raio);padding:20px 24px 16px;margin-bottom:18px;
+    border-radius:var(--raio);padding:14px 18px 12px;margin-bottom:12px;
     box-shadow:var(--sombra)}
   /* TITULO DE SECAO NO PADRAO DOS DECKS: preto, negrito, a esquerda, e o
      fio laranja CURTO embaixo. O fio atravessando a tela inteira em
@@ -148,7 +160,7 @@
   /* TITULO DE SECAO COMO O DO DASHBOARD: grande, preto, pesado, com o
      traco laranja curto EM CIMA. */
   .secao{font-size:19px;font-weight:800;color:#1F1A15;
-    margin:20px 0 14px;padding-top:12px;letter-spacing:-.3px;position:relative}
+    margin:10px 0 8px;padding-top:9px;letter-spacing:-.3px;position:relative}
   .secao::before{content:"";position:absolute;left:0;top:0;
     width:30px;height:3px;background:var(--laranja)}
   /* TITULO DE QUADRO EM LARANJA SOBRE UM FIO, como os quadros do
@@ -216,7 +228,7 @@
   /* a ultima linha do bloco abre mao do seu fio: o ar embaixo basta, e
      dois tracos colados (o dela e o do bloco seguinte) pesavam */
   #matriz tbody tr:has(+ tr.troca-op) td{border-bottom:none}
-  .bloco .descricao{font-size:12px;color:var(--cor-texto-suave);margin:7px 0 14px}
+  .bloco .descricao{font-size:12px;color:var(--cor-texto-suave);margin:5px 0 8px}
   /* abas no topo, coladas ao cabecalho, como no Dashboard TMT */
   nav.abas{background:var(--cor-superficie);border-bottom:1px solid var(--cor-borda);
     position:sticky;top:var(--topo-h, 86px);z-index:150}
@@ -291,7 +303,7 @@
      borda dos quadros de cima (24/11/2026, no celular chegava a 662px
      numa tela de 390). Com o minimo em zero a coluna encolhe e o grafico
      se redesenha nela. */
-  .dupla{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:16px}
+  .dupla{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px}
   .dupla > .bloco, .grafico-wrap{min-width:0}
 
   table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;
@@ -484,18 +496,24 @@
 
   /* a fita nao cabe numa linha no celular: as pilulas se soltam e
      quebram a linha, cada uma com a propria borda */
-  @media(max-width:700px){
-    .controles .campo-produto{align-items:flex-start}
-    .controles .campo-produto label{padding-top:6px}
-    .seg-produto{flex-wrap:wrap;gap:4px;border:0;border-radius:0;
-      overflow:visible;background:none}
-    .seg-produto button{border:1px solid var(--cor-borda);border-radius:7px;
-      background:#fff;padding:4px 10px}
+  /* NA TELA ESTREITA AS FILEIRAS DESLIZAM, uma linha cada. Quebrando a
+     linha, cada fileira ocupava quatro num painel que gruda no topo; a
+     pilula selecionada e trazida a vista (marcarPilulaProduto). */
+  @media(max-width:900px){
+    .controles .campo-largo label{width:74px}
+    .seg-produto, .chips{display:flex;flex-wrap:nowrap;gap:4px;
+      flex:1 1 auto;min-width:0;overflow-x:auto;position:relative;
+      scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .seg-produto::-webkit-scrollbar, .chips::-webkit-scrollbar{display:none}
+    .seg-produto{border:0;border-radius:0;background:none}
+    .seg-produto button{flex:none;width:96px;border:1px solid var(--cor-borda);
+      border-radius:7px;background:#fff}
     .seg-produto button + button{border-left:1px solid var(--cor-borda)}
+    .chip{flex:none;width:92px}
   }
   @media(max-width:860px){
     .dupla{grid-template-columns:minmax(0, 1fr)}
-    .bloco{padding:13px 15px 15px}
+    .bloco{padding:11px 13px 11px}
     .dentro{padding:0 14px}
     .grafico-wrap{height:270px}
   }
@@ -505,7 +523,7 @@
      colunas sao duas fileiras; abaixo de 560px dois lado a lado
      cortariam o texto da opcao no meio, e so ai vale uma coluna. */
   @media(max-width:560px){
-    .controles{grid-template-columns:1fr;gap:5px;padding:7px 12px 8px}
+    .controles{grid-template-columns:minmax(0, 1fr);gap:5px;padding:7px 12px 8px}
     .controles .campo-largo{padding-top:6px}
   }
 </style>
@@ -549,6 +567,10 @@
            da tela le o produto dele (ver montarPilulasProduto) -->
       <select id="f-produto" onchange="desenhar()" hidden aria-hidden="true" tabindex="-1"></select>
     </div>
+    <div class="campo campo-largo campo-ops">
+      <label data-t="f_operadora">Operadoras</label>
+      <div class="chips" id="f-ops"></div>
+    </div>
     <div class="campo">
       <label data-t="f_praca">Praça</label>
       <select id="f-praca" onchange="desenhar()"></select>
@@ -563,10 +585,6 @@
     <div class="campo">
       <label data-t="f_data">Data</label>
       <select id="f-data" onchange="desenhar()"></select>
-    </div>
-    <div class="campo campo-largo">
-      <label data-t="f_operadora">Operadoras</label>
-      <div class="chips" id="f-ops"></div>
     </div>
   </div>
 
@@ -740,7 +758,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "25/11/2026 15:42";
+const GERADO = "25/11/2026 16:27";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -1380,6 +1398,15 @@ function marcarPilulaProduto(){
     b.classList.toggle("ativo", on);
     b.setAttribute("aria-selected", on ? "true" : "false");
   });
+  // na fileira que desliza (celular), a selecionada fica a vista
+  const caixa = document.getElementById("f-produtos");
+  const ativo = caixa && caixa.querySelector && caixa.querySelector("button.ativo");
+  if (ativo && caixa.scrollWidth > caixa.clientWidth) {
+    const l = ativo.offsetLeft, r = l + ativo.offsetWidth;
+    if (l < caixa.scrollLeft || r > caixa.scrollLeft + caixa.clientWidth) {
+      caixa.scrollLeft = Math.max(0, l - 8);
+    }
+  }
 }
 
 function montarFiltros(){
