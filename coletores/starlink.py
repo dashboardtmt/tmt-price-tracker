@@ -233,9 +233,15 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
                     nome, s.get("longDescription")),
                 "franquia_anunciada_gb": franquia(nome),
                 "franquia_contratual_gb": None,
-                # a Starlink nao publica preco de tabela separado: o
-                # adjustedPrice e o preco anunciado (decisao 9)
-                "preco_cheio": None,
+                # O PRECO CHEIO, QUANDO HA PROMOCAO. Em 06/10 "price" e
+                # "adjustedPrice" eram iguais e o campo ficava vazio; desde
+                # 07/11 a Starlink da 30% ate 30/11 e publica os dois
+                # (189 e 132,30). Sem o cheio gravado, a volta dele em
+                # 01/12 sairia como reajuste de +43%. O anunciado continua
+                # sendo o adjustedPrice (decisao 9).
+                "preco_cheio": (_num(s.get("price"))
+                                if (_num(s.get("price")) or 0) > preco + 0.004
+                                else None),
                 "preco_promocional": preco,
                 # o kit nao e instalacao, mas e o custo de entrada que o
                 # campo representa nas outras operadoras

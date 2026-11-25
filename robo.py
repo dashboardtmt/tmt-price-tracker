@@ -1167,6 +1167,13 @@ LEITURA_MUDOU_EM = {
                   "como escolha, e a lista de apps passou a ler o mesmo "
                   "texto que o nível de bundle lê, em vez da composição "
                   "cortada em 400 caracteres",
+    # O commit de 25/11 entrou depois da coleta das 6h; a primeira coleta
+    # com o leitor novo e a de 26/11. Ver LEITURA_DE_OFERTA_MUDOU_EM.
+    "2026-11-26": "o pré da Claro passou a incluir os cinco Prezões "
+                  "temáticos (Kwai, TikTok, Uber, Shopee e Free Fire), que "
+                  "estão no site desde antes do início do tracker; e a "
+                  "Starlink passou a ter gravado o preço cheio, que ela "
+                  "publica à parte durante a promoção",
 }
 
 
@@ -1205,6 +1212,8 @@ LEITURA_EM_UMA_LINHA = {
                   "oferecido à escolha deixou de entrar como incluso",
     "2026-11-05": "a TIM voltou a ter os apps que a nossa leitura "
                   "havia perdido, e a lista deixou de vir cortada",
+    "2026-11-26": "entraram os cinco Prezões temáticos da Claro, e o "
+                  "preço cheio da Starlink",
 }
 
 
@@ -2943,6 +2952,25 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
         "texto": u"as recargas de R$ 20 e R$ 25 do TIM Pré XIP deixaram de "
                  u"aparecer com o HBO Max, que a TIM não inclui - era um "
                  u"trecho de estilo da página lido como nome de app",
+    }],
+    # Os Prezoes tematicos entram como oferta nova na coleta de 26/11, mas
+    # nao sao lancamento: estao no site desde antes de 30/09 (Web Archive,
+    # 02/09 e 04/10) e a coleta lia so a primeira aba da pagina.
+    "2026-11-26": [{
+        "quem": [("Claro", "prepago", u"Claro Prezao Kwai"),
+                 ("Claro", "prepago", u"Claro Prezao TikTok"),
+                 ("Claro", "prepago", u"Claro Prezao Uber"),
+                 ("Claro", "prepago", u"Claro Prezao Shopee"),
+                 ("Claro", "prepago", u"Claro Prezao Free Fire")],
+        "texto": u"o pré da Claro passou a incluir os cinco Prezões "
+                 u"temáticos (Kwai, TikTok, Uber, Shopee e Free Fire, de "
+                 u"R$ 34,99 a R$ 35 por 30 dias), que estão no site desde "
+                 u"antes do início do tracker e a coleta não lia",
+    }, {
+        "quem": [("Starlink", "satelite", u"Residencial")],
+        "texto": u"a Starlink passou a ter gravado o preço cheio (R$ 189 "
+                 u"e R$ 249), que ela publica à parte durante a promoção "
+                 u"de 30% até 30/11",
     }],
 }
 

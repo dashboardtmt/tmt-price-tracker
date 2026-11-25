@@ -44,6 +44,14 @@ PAGINAS = {
     "prepago": "https://www.claro.com.br/celular/planos-pre/prezao",
 }
 
+# OS PREZOES TEMATICOS, desde 26/11/2026. A pagina do Prezao tem duas abas,
+# e ate 25/11 so a primeira (o Prezao R$ 1 por dia) era lida. A segunda,
+# "Outras ofertas Pre", aponta para esta pagina, com cinco Prezoes de 30
+# dias - Kwai, TikTok, Uber, Shopee e Free Fire - de R$ 34,99 a R$ 35.
+# Estavam no site desde antes do primeiro dia do tracker (Web Archive,
+# 02/09 e 04/10). Quem viu foi quem le, no site: "parece um erro grave".
+PREZAO_TEMATICOS = "https://www.claro.com.br/celular/planos-pre/ofertas-pre"
+
 # Montadas em Storyblok, sem os cards do movel: a leitura e pelo texto que
 # a Claro exibe ao cliente.
 POR_TEXTO = {"fibra", "combo"}
@@ -524,6 +532,80 @@ def ler_prezao(op, url):
     return saida, None
 
 
+# O CARD DE CONTRATAR de cada Prezao tematico, como a pagina o mostra:
+#
+#   Que tal levar o Prezao Kwai agora? 22GB 17GB uso livre + 5GB para
+#   Kwai WhatsApp ilimitado para tudo. Ligacoes ilimitadas para qualquer
+#   operadora do Brasil. Por apenas R$ 35 , 00 /mes Contratar
+#
+# O CARD, E NAO A TABELA DE RENOVACAO do pe da pagina: a tabela poe o Free
+# Fire na coluna de R$ 35,00, e o card - o que o cliente contrata - diz
+# R$ 34,99. O total e o primeiro numero (22 GB), o de uso livre o segundo
+# (17), como no Prezao: "17GB + 3GB Youtube" sao 20 GB.
+CARD_TEMATICO = re.compile(
+    r"(\d{1,3})\s*GB\s+(\d{1,3})\s*GB\s+uso livre\s*\+\s*(\d{1,3})\s*GB\s+para\s+"
+    r"([^\W\d][\w ]{1,20}?)\s+(WhatsApp ilimitado.{0,260}?)"
+    r"Por apenas\s*R\$\s*(\d{1,3})\s*,\s*(\d{2})\s*/\s*(m[e\u00ea]s|\d{1,3}\s*dias)", re.I | re.S)
+# a validade, na tabela de renovacao: "Prezao KWAI | 17GB + 5GB Kwai/30 dias"
+VALIDADE_TEMATICO = re.compile(
+    r"Prez[a\u00e3]o\s+([A-Za-z][A-Za-z ]{1,15}?)\s+\d{1,3}\s*GB\s*\+\s*\d{1,3}\s*GB\s*"
+    r"[A-Za-z ]{1,15}?/\s*(\d{1,3})\s*dias", re.I)
+
+
+def _so_letras(s):
+    return re.sub(r"[^a-z]", "", (s or "").lower())
+
+
+def ler_prezao_tematico(op, url):
+    u"""Os Prezoes tematicos: uma oferta por card de contratar."""
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    t = re.sub(r"<script.*?</script>", " ", h, flags=re.S)
+    t = re.sub(r"<style.*?</style>", " ", t, flags=re.S)
+    t = re.sub(r"<[^>]+>", " ", t).replace("&nbsp;", " ")
+    t = re.sub(r"\s+", " ", t)
+    dias_por_tema = dict((_so_letras(m.group(1)), int(m.group(2)))
+                         for m in VALIDADE_TEMATICO.finditer(t))
+    saida, vistos = [], set()
+    for m in CARD_TEMATICO.finditer(t):
+        total, livre, extra_gb = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        tema = m.group(4).strip()
+        if _so_letras(tema) in vistos:
+            continue
+        vistos.add(_so_letras(tema))
+        corpo = m.group(5)
+        preco = float("%s.%s" % (m.group(6), m.group(7)))
+        periodo = m.group(8).lower()
+        # "/mes" no card; a tabela de renovacao da os dias. Sem a tabela,
+        # o mes do card vale 30 dias, como no Prezao
+        dias = (int(re.sub(r"\D", "", periodo)) if "dia" in periodo
+                else dias_por_tema.get(_so_letras(tema), 30))
+        # o que vem alem dos gigas: voucher, cupom, diamantes
+        brinde = re.sub(r"\s+", " ", re.split(r"Liga\S*es ilimitadas para qualquer operadora do Brasil\.?",
+                                           corpo)[-1]).strip(" .")
+        saida.append({
+            "id_catalogo": None,
+            "nome_oferta": "Claro Prezao %s %sGB" % (tema, total),
+            "destaque": "%s GB" % total,
+            "franquia_anunciada_gb": total,
+            "franquia_contratual_gb": livre,
+            "whatsapp": apps.whatsapp_incluso(corpo),
+            "preco_promocional": preco,
+            "validade_dias": dias,
+            # A VARIANTE E O TEMA. Kwai e TikTok entregam os mesmos 22 GB,
+            # e Uber, Shopee e Free Fire os mesmos 17: sem isto as cinco
+            # dividiriam duas chaves, e a serie alternaria entre elas
+            "variante": "prezao_" + _so_letras(tema),
+            "composicao": ("Prezao %s: %sGB de uso livre + %sGB para %s, renovacao a cada %s dias."
+                           "%s" % (tema, livre, extra_gb, tema, dias,
+                                   (" " + brinde + ".") if brinde else ""))[:400],
+        })
+    if not saida:
+        return None, "nenhum Prezao tematico reconhecido - a pagina mudou"
+    return saida, None
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op, _ = navegador()
@@ -553,6 +635,20 @@ def coletar(cidade, uf, verbose=True):
     for produto, url in PAGINAS.items():
         if produto == "prepago":
             cards, erro = ler_prezao(op, url)
+            # os tematicos vem de outra pagina: uma falha la nao derruba o
+            # Prezao, e a do Prezao nao derruba os tematicos - cada uma
+            # sai dita nos avisos
+            time.sleep(PAUSA)
+            temas, erro_t = ler_prezao_tematico(op, PREZAO_TEMATICOS)
+            if erro_t:
+                saida["avisos"].append("prepago tematicos: %s" % erro_t)
+                if verbose:
+                    print("  %-7s FALHOU nos tematicos (%s)" % (produto, erro_t))
+            elif erro:
+                saida["avisos"].append("%s: %s" % (produto, erro))
+                cards, erro = [], None
+            if temas:
+                cards = (cards or []) + temas
         elif produto in POR_TEXTO:
             cards, erro = ler_por_texto(op, url, produto)
         else:
