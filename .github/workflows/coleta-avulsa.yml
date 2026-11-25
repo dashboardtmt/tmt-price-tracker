@@ -1,0 +1,59 @@
+name: Coleta avulsa
+
+# Roda coleta_avulsa.py com os segredos do Supabase: uma operadora, um
+# produto, so as ofertas cujo nome comeca pelos prefixos dados, gravadas no
+# dia de hoje. Sem "gravar", so mostra. Ver o cabecalho de coleta_avulsa.py.
+#
+# NAO MANDA MENSAGEM, NAO REGISTRA RODADA E NAO MEXE NA TELA. Depois de
+# gravar, o dado publicado so muda na proxima "Atualizar a tela".
+
+on:
+  workflow_dispatch:
+    inputs:
+      operadora:
+        description: "Operadora, como em robo.COLETORES (ex.: Claro)"
+        required: true
+      produto:
+        description: "Produto (ex.: prepago)"
+        required: true
+      prefixos:
+        description: "Comeco do nome das ofertas, separados por virgula"
+        required: true
+      gravar:
+        description: "Gravar (sem isto, so mostra)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Instalar o navegador
+        run: |
+          python -m pip install --quiet playwright pypdf
+          python -m playwright install --with-deps chromium
+
+      - name: Coletar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          OPERADORA: ${{ inputs.operadora }}
+          PRODUTO: ${{ inputs.produto }}
+          PREFIXOS: ${{ inputs.prefixos }}
+        run: |
+          IFS=',' read -ra PREF <<< "$PREFIXOS"
+          if [ "${{ inputs.gravar }}" = "true" ]; then
+            python coleta_avulsa.py "$OPERADORA" "$PRODUTO" "${PREF[@]}" --gravar
+          else
+            python coleta_avulsa.py "$OPERADORA" "$PRODUTO" "${PREF[@]}"
+          fi
