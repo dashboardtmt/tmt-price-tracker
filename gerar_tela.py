@@ -890,7 +890,7 @@ const T = {
       rc_x:"A recarga mais barata de cada operadora em cada faixa de validade.",
       rd_t:"Preço/GB por dia (R$/GB por dia)",
       rd_x:"A mesma recarga, dividida pela internet e pelos dias que vale.",
-      rc_sem:"A validade das recargas é lida desde 25/11/2026.",
+      rc_sem:"Sem dado para esta data: a validade das recargas passa a ser lida na coleta de 25/11/2026.",
       escala_log:"preço em escala logarítmica",
       q_x:"Cada ponto é uma oferta do dia.",
       g1_t:"Evolução do preço de entrada (R$/mês)",
@@ -1007,7 +1007,7 @@ const T = {
       rc_x:"The cheapest recharge of each carrier in each validity range.",
       rd_t:"Price/GB per day (R$/GB per day)",
       rd_x:"The same recharge, divided by its data and by the days it lasts.",
-      rc_sem:"Recharge validity is read from 11/25/2026 onward.",
+      rc_sem:"No data for this date: recharge validity is read from the 11/25/2026 collection onward.",
       escala_log:"price on a log scale",
       q_x:"Each dot is an offer on the day.",
       g1_t:"Entry price evolution (R$/month)",
@@ -2348,6 +2348,11 @@ function grafRecargas(){
   const sem = faixas.length ? "" : t("rc_sem");
   document.getElementById("n-recarga").textContent = sem;
   document.getElementById("n-recarga-dia").textContent = sem;
+  // sem dado, a area do grafico recolhe: fica o titulo e a nota, nao um
+  // quadro vazio de 350 px que parece defeito
+  ids.forEach(id => {
+    document.getElementById(id).parentElement.style.display = faixas.length ? "" : "none";
+  });
   if (!faixas.length) { apagar(); return; }
   const ops = [...new Set(faixas.flatMap(fx => Object.keys(fx.por)))].sort(porRelevancia);
   const porDia = o => {
