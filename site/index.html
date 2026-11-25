@@ -106,6 +106,23 @@
      seletores para fora da tela no celular */
   .controles .campo-largo{min-width:0}
   .controles .campo-produto{border-top:0;padding-top:0}
+  /* NA TELA LARGA, OS SELETORES AO LADO DAS PILULAS (25/11/2026, pedido
+     de quem le: "fica mais clean"). As duas fileiras ficam na primeira
+     coluna e Praca, Planos e Data ocupam as outras tres, na altura das
+     duas; um fio vertical separa. Abaixo de 1.380 px os tres voltam para
+     a linha de baixo - ao lado das pilulas cada um teria menos de 125 px. */
+  @media(min-width:1380px){
+    .controles{grid-template-columns:max-content repeat(3, minmax(0, 1fr));
+      column-gap:16px;align-items:center}
+    /* lugar explicito para todos: a grade posiciona primeiro quem tem
+       linha definida, e sem coluna os seletores tomavam a primeira */
+    .controles .campo-produto{grid-column:1;grid-row:1}
+    .controles .campo-largo.campo-ops{grid-column:1;grid-row:2;border-bottom:0;padding-bottom:0}
+    .controles .campo-ops + .campo{grid-column:2;grid-row:1 / span 2;
+      border-left:1px solid var(--cor-borda);padding-left:16px}
+    .controles .campo-ops + .campo + .campo{grid-column:3;grid-row:1 / span 2}
+    .controles .campo-ops + .campo + .campo + .campo{grid-column:4;grid-row:1 / span 2}
+  }
   .controles .campo-ops{border-top:0;padding-top:0;padding-bottom:7px;
     border-bottom:1px solid var(--cor-borda)}
   .campo select[hidden]{display:none}
@@ -291,9 +308,6 @@
   .baixar[disabled]{opacity:.5;cursor:progress}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
-  /* o par posicionamento/competitividade: a operadora com 11 ofertas
-     precisa de andares de rotulo em cima das barras */
-  .grafico-wrap.alto{height:380px}
   .grafico-wrap.alto{height:450px}
   @media(max-width:860px){.grafico-wrap.alto{height:340px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
@@ -597,7 +611,6 @@
     <div class="cabeca">
       <div>
         <h2 data-t="q_t">Posicionamento das ofertas: preço × franquia</h2>
-        <p class="descricao" data-t="q_x"></p>
       </div>
       <div class="metricas">
         <span id="legenda-datas" style="display:flex;gap:12px"></span>
@@ -612,27 +625,23 @@
 
   <div class="bloco">
     <h2 data-t="g1_t">Evolução do preço de entrada</h2>
-    <p class="descricao" data-t="g1_x"></p>
     <div class="grafico-wrap"><canvas id="c-tempo"></canvas></div>
     <div class="nota" id="n-tempo"></div>
   </div>
 
   <div class="bloco">
     <h2 data-t="g5_t">Evolução do preço unitário</h2>
-    <p class="descricao" data-t="g5_x"></p>
     <div class="grafico-wrap"><canvas id="c-tempo-unit"></canvas></div>
   </div>
 
   <div class="dupla" id="d-recarga" style="display:none">
     <div class="bloco">
       <h2 data-t="rc_t">Preço por frequência de recarga (R$)</h2>
-      <p class="descricao" data-t="rc_x"></p>
       <div class="grafico-wrap baixo"><canvas id="c-recarga"></canvas></div>
       <div class="nota" id="n-recarga"></div>
     </div>
     <div class="bloco">
       <h2 data-t="rd_t">Preço/GB por dia (R$/GB por dia)</h2>
-      <p class="descricao" data-t="rd_x"></p>
       <div class="grafico-wrap baixo"><canvas id="c-recarga-dia"></canvas></div>
       <div class="nota" id="n-recarga-dia"></div>
     </div>
@@ -641,12 +650,10 @@
   <div class="dupla">
     <div class="bloco">
       <h2 data-t="g2_t">Posicionamento preço-entrega</h2>
-      <p class="descricao" data-t="g2_x"></p>
       <div class="grafico-wrap alto"><canvas id="c-dispersao"></canvas></div>
     </div>
     <div class="bloco">
       <h2 data-t="g3_t">Competitividade de preço por operadora</h2>
-      <p class="descricao" data-t="g3_x"></p>
       <div class="grafico-wrap alto"><canvas id="c-unitario"></canvas></div>
     </div>
   </div>
@@ -655,7 +662,6 @@
     <div class="cabeca">
       <div>
         <h2 data-t="mat_t">Evolução da grade de preços</h2>
-        <p class="descricao" data-t="mat_x"></p>
       </div>
       <div class="metricas"><span class="segmento">
         <button id="bt-mes" class="on" onclick="metrica('mes')">R$/mês</button>
@@ -663,6 +669,7 @@
       </span></div>
     </div>
     <div class="tabela-wrap" id="matriz"></div>
+    <div class="nota" data-t="mat_x"></div>
   </div>
 
     </div>
@@ -674,7 +681,6 @@
       <div class="cabeca">
         <div>
           <h2 data-t="mc_t">Mapa de calor: operadora × produto</h2>
-          <p class="descricao" data-t="mc_x"></p>
         </div>
       </div>
       <div class="faixa-rot faixa-prod" data-t="mc_m1">Preço de entrada</div>
@@ -689,7 +695,6 @@
       <div class="cabeca">
         <div>
           <h2 data-t="mo_t">Mapa de ofertas por produto</h2>
-          <p class="descricao" data-t="mo_x"></p>
         </div>
       </div>
       <div id="t-mapa-ofertas"><div class="tabela-wrap"></div></div>
@@ -699,7 +704,6 @@
 
     <div class="bloco">
       <h2 data-t="pr_t">O que muda entre praças</h2>
-      <p class="descricao" data-t="pr_x"></p>
       <div class="tabela-wrap" id="t-pracas"></div>
       <div class="nota" id="n-pracas"></div>
     </div>
@@ -711,7 +715,6 @@
       <div class="cabeca">
         <div>
           <h2 data-t="of_t">Grade de ofertas por operadora</h2>
-          <p class="descricao" data-t="of_x"></p>
         </div>
         <div class="campo" style="flex:none">
           <label data-t="f_player">Operadora</label>
@@ -724,19 +727,16 @@
 
     <div class="bloco">
       <h2 data-t="cmp_t">Ofertas de entrada por operadora</h2>
-      <p class="descricao" data-t="cmp_x"></p>
       <div class="tabela-wrap" id="t-comparacao"></div>
     </div>
 
     <div class="bloco">
       <h2 data-t="top_t">Ofertas premium por operadora</h2>
-      <p class="descricao" data-t="top_x"></p>
       <div class="tabela-wrap" id="t-topo"></div>
     </div>
 
     <div class="bloco">
       <h2 data-t="fx_t">Comparativo por faixa de franquia</h2>
-      <p class="descricao" data-t="fx_x"></p>
       <div id="t-faixas"></div>
     </div>
   </div>
@@ -761,7 +761,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "25/11/2026 16:44";
+const GERADO = "25/11/2026 17:12";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -777,7 +777,6 @@ const T = {
       ab_pan:"Overview", ab_of:"Detalhes por player", ab_pr:"Mapa do mercado",
       sec_pr:"O mercado em uma tela",
       mc_t:"Mapa de calor: operadora × produto",
-      mc_x:"Mediana das praças em que o player vende o produto.",
       mc_m1:"Preço de entrada", mc_m2:"Preço por unidade",
       mc_sem:"Este player não vende este produto — célula vazia, nunca zero.",
       mc_mediana:"mediana", mc_plano:"plano na praça mediana",
@@ -788,11 +787,9 @@ const T = {
       mc_menor:"menor", mc_maior:"maior",
       mc_nota:"Cada célula é a mediana das praças.",
       mo_t:"Mapa de ofertas por produto",
-      mo_x:"Todas as ofertas de cada operadora, da mais barata à mais cara.",
       mo_entrada:"Entrada", mo_n:"{n}ª",
       mo_nota:"Cada célula é um degrau de entrega (GB ou Mbps): o menor preço do degrau em cada praça e a mediana entre as praças. A cor compara os preços dentro do produto.",
       pr_t:"O que muda entre praças",
-      pr_x:"As operadoras cujo catálogo muda de uma praça para outra. O filtro de praça não vale nesta aba.",
       pr2_t:"Como cada praça se moveu",
       pr2_x:"Preço de entrada do mercado em cada praça, dia a dia.",
       pr_mercado:"Mercado", pr_espalha:"Distância",
@@ -815,16 +812,12 @@ const T = {
       pr_nenhuma_varia:"Nenhuma operadora muda de preço entre praças.",
       sec_pan:"Panorama competitivo", sec_of:"Ofertas vigentes",
       of_t:"Grade de ofertas por operadora",
-      of_x:"Todas as ofertas do dia, por operadora, da mais barata à mais cara.",
       fx_t:"Comparativo por faixa de franquia", fx_t_vel:"Comparativo por faixa de velocidade", fx_t_ent:"Comparativo por faixa de entrega",
-      fx_x:"A oferta mais barata de cada operadora em cada faixa de entrega.",
       fx_baixa:"Segmento de entrada", fx_media:"Segmento intermediário", fx_alta:"Segmento premium",
       fx_ate:"até", fx_a:"a", fx_acima:"acima de",
       top_t:"Ofertas premium por operadora",
-      top_x:"O plano mais caro de cada operadora.",
       col_topo:["Operadora","Plano mais caro","Entrega","Preço","R$/un.","Serviços inclusos"],
       cmp_t:"Ofertas de entrada por operadora",
-      cmp_x:"A oferta de entrada de cada operadora.",
       f_player:"Operadora", todas:"Todas", oferta:"oferta", ofertas:"ofertas",
       n_player:"{n} ofertas capturadas em {d}, em {p}.",
       col_player:["Oferta","Entrega","Preço","R$/un.","Serviços inclusos"],
@@ -861,21 +854,14 @@ const T = {
       r_entrada:"Só a entrada", r_todos:"Todas as ofertas",
       xl_titulo:"Baixar os dados em Excel", wpp:"WhatsApp ilimitado", dias:"dias",
       rc_t:"Preço por frequência de recarga (R$)",
-      rc_x:"A recarga mais barata de cada operadora em cada faixa de validade.",
       rd_t:"Preço/GB por dia (R$/GB por dia)",
-      rd_x:"A mesma recarga, dividida pela internet e pelos dias que vale.",
       rc_sem:"Sem dado para esta data: a validade das recargas passa a ser lida na coleta de 25/11/2026.",
       escala_log:"preço em escala logarítmica",
-      q_x:"Cada ponto é uma oferta do dia.",
       g1_t:"Evolução do preço de entrada (R$/mês)",
-      g1_x:"O plano mais barato de cada operadora, dia a dia.",
       sobre:"praticamente sobre a",
       g5_t:"Evolução do preço unitário",
-      g5_x:"A mesma série, dividida pelo que cada plano entrega.",
       g2_t:"Posicionamento preço-entrega (R$/mês × entrega)",
-      g2_x:"Cada barra é uma oferta, da mais barata para a mais cara de cada operadora.",
       g3_t:"Competitividade de preço por operadora",
-      g3_x:"Preço de entrada dividido pela entrega, do menor ao maior.",
       mat_t:"Evolução da grade de preços", mes:"mês",
       mat_x:"Um degrau por linha, um dia por coluna. ▲▼ preço da mesma oferta; ◆ outra oferta no degrau.",
       m_trocou:"Outra oferta assumiu o degrau",
@@ -907,7 +893,6 @@ const T = {
       ab_pan:"Overview", ab_of:"Detail by player", ab_pr:"Market map",
       sec_pr:"The market on one screen",
       mc_t:"Heat map: carrier × product",
-      mc_x:"Median across the cities where the carrier sells the product.",
       mc_m1:"Entry price", mc_m2:"Price per unit",
       mc_sem:"This carrier does not sell this product — blank cell, never zero.",
       mc_mediana:"median", mc_plano:"plan in the median city",
@@ -918,12 +903,10 @@ const T = {
       mc_menor:"lower", mc_maior:"higher",
       mc_nota:"Each cell is the median across cities.",
       mo_t:"Offer map by product",
-      mo_x:"Every offer of each carrier, from cheapest to most expensive.",
       mo_entrada:"Entry", mo_n:"#{n}",
       mo_nota:"Each cell is a delivery tier (GB or Mbps): the lowest price of the tier in each city, and the median across cities. Color compares prices within the product.",
       pr_t:"What changes between cities",
       pr2_t:"How each city moved",
-      pr_x:"The carriers whose catalogue changes from one city to another. The city filter does not apply in this tab.",
       pr2_x:"Market entry price in each city, day by day.",
       pr_mercado:"Market", pr_espalha:"Spread",
       pr_piso_igual:"The market entry price is the same in all 20 cities.",
@@ -945,16 +928,12 @@ const T = {
       pr_nenhuma_varia:"No carrier changes price between cities.",
       sec_pan:"Competitive landscape", sec_of:"Current offers",
       of_t:"Offer grid by carrier",
-      of_x:"All of the day's offers, by carrier, cheapest first.",
       fx_t:"Comparison by data allowance tier", fx_t_vel:"Comparison by speed tier", fx_t_ent:"Comparison by delivery tier",
-      fx_x:"The cheapest offer of each carrier in each delivery tier.",
       fx_baixa:"Entry segment", fx_media:"Mid segment", fx_alta:"Premium segment",
       fx_ate:"up to", fx_a:"to", fx_acima:"above",
       top_t:"Premium offers by carrier",
-      top_x:"The priciest plan of each carrier.",
       col_topo:["Carrier","Priciest plan","Delivers","Price","R$/unit","Included services"],
       cmp_t:"Entry offers by carrier",
-      cmp_x:"Each carrier's entry offer.",
       f_player:"Carrier", todas:"All", oferta:"offer", ofertas:"offers",
       n_player:"{n} offers captured on {d}, in {p}.",
       col_player:["Offer","Delivers","Price","R$/unit","Included services"],
@@ -978,21 +957,14 @@ const T = {
       r_entrada:"Entry offers only", r_todos:"All offers",
       xl_titulo:"Download data to Excel", wpp:"Unlimited WhatsApp", dias:"days",
       rc_t:"Price by recharge frequency (R$)",
-      rc_x:"The cheapest recharge of each carrier in each validity range.",
       rd_t:"Price/GB per day (R$/GB per day)",
-      rd_x:"The same recharge, divided by its data and by the days it lasts.",
       rc_sem:"No data for this date: recharge validity is read from the 11/25/2026 collection onward.",
       escala_log:"price on a log scale",
-      q_x:"Each dot is an offer on the day.",
       g1_t:"Entry price evolution (R$/month)",
-      g1_x:"The cheapest plan of each carrier, day by day.",
       sobre:"practically on top of",
       g5_t:"Unit price evolution",
-      g5_x:"The same series, divided by what each plan delivers.",
       g2_t:"Price-delivery positioning (R$/month × delivery)",
-      g2_x:"Each bar is an offer, cheapest to most expensive within each carrier.",
       g3_t:"Price competitiveness by carrier",
-      g3_x:"Entry price divided by delivery, lowest first.",
       mat_t:"Price grid evolution", mes:"month",
       mat_x:"One row per tier, one column per day. ▲▼ same offer changing price; ◆ a different offer on the tier.",
       m_trocou:"A different offer took over this tier",
