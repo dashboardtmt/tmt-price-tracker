@@ -157,7 +157,7 @@ MOLDE = r"""<!DOCTYPE html>
   .controles{background:var(--cor-superficie);border:1px solid var(--borda-cartao);
     border-radius:var(--raio);padding:9px 16px 9px;
     margin:12px 0 10px;display:grid;gap:6px 14px;
-    grid-template-columns:repeat(4, minmax(0, 1fr));align-items:end;
+    grid-template-columns:repeat(3, minmax(0, 1fr));align-items:end;
     position:sticky;top:calc(var(--topo-h, 86px) + var(--abas-h, 44px));z-index:30;
     box-shadow:var(--sombra)}
   /* o rotulo ao LADO dos chips, nao em cima: empilhado, ele sozinho
@@ -165,6 +165,20 @@ MOLDE = r"""<!DOCTYPE html>
   .controles .campo-largo{grid-column:1 / -1;border-top:1px solid var(--cor-borda);
     padding-top:7px;margin-top:0;display:flex;align-items:center;gap:10px}
   .controles .campo-largo label{margin-bottom:0;white-space:nowrap}
+  /* O PRODUTO EM PILULAS, na fileira de cima, com o rotulo ao lado como o
+     das operadoras. A fita e a da barra de PLAYER do Dashboard TMT: bordas
+     entre as pilulas, a selecionada em laranja com letra branca. */
+  .controles .campo-produto{border-top:0;padding-top:0;padding-bottom:7px;
+    border-bottom:1px solid var(--cor-borda)}
+  .campo select[hidden]{display:none}
+  .seg-produto{display:inline-flex;border:1px solid var(--cor-borda);
+    border-radius:9px;overflow:hidden;background:#fff}
+  .seg-produto button{font:inherit;font-size:12px;font-weight:700;
+    padding:4px 13px;border:0;background:none;color:var(--cor-texto-suave);
+    cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+  .seg-produto button + button{border-left:1px solid var(--cor-borda)}
+  .seg-produto button:hover{color:var(--laranja)}
+  .seg-produto button.ativo{background:var(--laranja);color:#fff}
   .abas{position:sticky;top:calc(var(--topo-h, 86px) + var(--filtros-h, 92px));
         z-index:28;background:var(--cor-fundo)}
   .campo label{display:block;font-size:10px;line-height:1.25;text-transform:uppercase;
@@ -540,8 +554,16 @@ MOLDE = r"""<!DOCTYPE html>
   footer{border-top:1px solid var(--cor-borda);margin-top:14px;padding:20px 0 34px;
          font-size:11.5px;color:var(--cor-texto-suave);text-align:center}
 
-  @media(max-width:980px){
-    .controles{grid-template-columns:repeat(2, minmax(0, 1fr))}
+  /* a fita nao cabe numa linha no celular: as pilulas se soltam e
+     quebram a linha, cada uma com a propria borda */
+  @media(max-width:700px){
+    .controles .campo-produto{align-items:flex-start}
+    .controles .campo-produto label{padding-top:6px}
+    .seg-produto{flex-wrap:wrap;gap:4px;border:0;border-radius:0;
+      overflow:visible;background:none}
+    .seg-produto button{border:1px solid var(--cor-borda);border-radius:7px;
+      background:#fff;padding:4px 10px}
+    .seg-produto button + button{border-left:1px solid var(--cor-borda)}
   }
   @media(max-width:860px){
     .dupla{grid-template-columns:minmax(0, 1fr)}
@@ -592,9 +614,12 @@ MOLDE = r"""<!DOCTYPE html>
 
 <div class="dentro">
   <div class="controles">
-    <div class="campo">
+    <div class="campo campo-largo campo-produto">
       <label data-t="f_produto">Produto</label>
-      <select id="f-produto" onchange="desenhar()"></select>
+      <div class="seg-produto" id="f-produtos" role="tablist"></div>
+      <!-- o seletor continua, escondido, como guardiao do valor: o resto
+           da tela le o produto dele (ver montarPilulasProduto) -->
+      <select id="f-produto" onchange="desenhar()" hidden aria-hidden="true" tabindex="-1"></select>
     </div>
     <div class="campo">
       <label data-t="f_praca">Praça</label>
@@ -899,7 +924,8 @@ const T = {
       g5_t:"Evolução do preço unitário",
       g5_x:"A mesma série, dividida pelo que cada plano entrega.",
       g2_t:"Posicionamento preço-entrega (R$/mês × entrega)",
-      g2_x:"Preço contra entrega, oferta a oferta.",
+      g2_x:"A oferta mais barata de cada operadora em cada entrega.",
+      g2_mais:"mais {n} oferta(s) nesta entrega, até {p}",
       g3_t:"Competitividade de preço por operadora",
       g3_x:"Preço de entrada dividido pela entrega, do menor ao maior.",
       mat_t:"Evolução da grade de preços", mes:"mês",
@@ -1016,7 +1042,8 @@ const T = {
       g5_t:"Unit price evolution",
       g5_x:"The same series, divided by what each plan delivers.",
       g2_t:"Price-delivery positioning (R$/month × delivery)",
-      g2_x:"Price against delivery, offer by offer.",
+      g2_x:"Each carrier's cheapest offer at each delivery level.",
+      g2_mais:"{n} more offer(s) at this delivery, up to {p}",
       g3_t:"Price competitiveness by carrier",
       g3_x:"Entry price divided by delivery, lowest first.",
       mat_t:"Price grid evolution", mes:"month",
@@ -1224,11 +1251,22 @@ function porRelevancia(a, b){
   return ia - ib;
 }
 
+// A ORDEM DO FILTRO DE PRODUTO, escolhida por quem le em 25/11/2026:
+// "Controle, Pre-pago, below-the-line, pos-pago, fibra, combo, satelite".
+// Produto que nao estiver aqui vai para o fim, em ordem alfabetica.
+const ORDEM_FILTRO_PRODUTO = ["controle", "prepago", "btl", "movel", "fibra",
+                              "combo", "satelite"];
+
+function porOrdemDoFiltro(a, b){
+  const ia = ORDEM_FILTRO_PRODUTO.indexOf(a), ib = ORDEM_FILTRO_PRODUTO.indexOf(b);
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+}
+
 function derivar(){
   corrigirHistorico();
   OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort(porRelevancia);
   PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
-  PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort();
+  PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort(porOrdemDoFiltro);
   DIAS = [...new Set(DADOS.map(diaDe))].filter(Boolean).sort();
 }
 
@@ -1383,8 +1421,37 @@ function idioma(l){
     const atual = fd.value;
     fd.innerHTML = PRODUTOS.map(p=>`<option value="${p}">${nomeProduto(p)}</option>`).join("");
     fd.value = atual;
+    montarPilulasProduto();
   }
   desenhar();
+}
+
+// O PRODUTO EM PILULAS (25/11/2026). Cada pilula escreve no seletor
+// escondido e redesenha; o nome curto tira o parentese ("Combo"), e o
+// nome inteiro fica na dica.
+function montarPilulasProduto(){
+  const caixa = document.getElementById("f-produtos");
+  const fd = document.getElementById("f-produto");
+  if (!caixa || !fd) return;
+  caixa.innerHTML = PRODUTOS.map(p => {
+    const nome = nomeProduto(p), curto = nome.replace(/\s*\(.*\)\s*$/, "");
+    return `<button type="button" role="tab" data-produto="${p}" title="${esc(nome)}">${esc(curto)}</button>`;
+  }).join("");
+  caixa.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    if (fd.value === b.dataset.produto) return;
+    fd.value = b.dataset.produto;
+    desenhar();
+  }));
+  marcarPilulaProduto();
+}
+
+function marcarPilulaProduto(){
+  const fd = document.getElementById("f-produto");
+  document.querySelectorAll("#f-produtos button").forEach(b => {
+    const on = !!fd && b.dataset.produto === fd.value;
+    b.classList.toggle("ativo", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
 }
 
 function montarFiltros(){
@@ -1394,6 +1461,7 @@ function montarFiltros(){
   const fd = document.getElementById("f-produto");
   fd.innerHTML = PRODUTOS.map(p=>`<option value="${p}">${nomeProduto(p)}</option>`).join("");
   if (PRODUTOS.includes("controle")) fd.value = "controle";          // decisao 2
+  montarPilulasProduto();
   const fdata = document.getElementById("f-data");
   fdata.innerHTML = DIAS.slice().reverse()
     .map(d=>`<option value="${d}">${dataCurta(d)}</option>`).join("");
@@ -1444,11 +1512,21 @@ function doFiltro(dia){
 // A oferta de entrada: a mais barata da operadora naquele dia. E a
 // espinha dorsal da serie (decisao 7), e o que torna operadoras com
 // portfolios diferentes comparaveis entre si.
+// A ENTRADA SO DESDE O DIA EM QUE TODA A ESCADA ENTROU. De 30/09 a 07/10
+// so a recarga de R$ 30 da TIM era lida, e a coleta nao guardou as
+// outras - a "entrada" desses dias era o topo, e a linha caia para R$ 20
+// em 08/10 sem a TIM mexer em preco. A Claro, no mesmo caso, foi relida
+// pela escada gravada (reler_prezao.py); a TIM nao tem o que reler.
+// Escolha de quem le, em 25/11/2026: a linha da TIM comeca em 08/10.
+const ENTRADA_DESDE = {"TIM|prepago": "2026-10-08"};
+
 function entradaPorOperadora(dia){
   const por = {};
   for (const o of doFiltro(dia)) {
     const p = precoDe(o);
     if (p == null) continue;
+    const desde = ENTRADA_DESDE[o.operadora + "|" + o.produto];
+    if (desde && dia < desde) continue;
     const atual = por[o.operadora];
     if (!atual || p < precoDe(atual)) por[o.operadora] = o;
   }
@@ -2209,6 +2287,65 @@ function grafQuadrante(){
   });
 }
 
+// O PRECO EM CIMA DE CADA BARRA, desenhado na hora do desenho, e nao pelo
+// chartjs-plugin-datalabels: ele decide o lugar de cada rotulo enquanto o
+// Chart.js ainda posiciona as barras, conjunto a conjunto, e quando
+// pergunta onde esta a barra da TIM ela ainda nao tem lugar. Aqui todas
+// ja estao onde ficam.
+//
+// O NUMERO SOBE UM ANDAR SO QUANDO ENCOSTARIA NO VIZINHO. Cada numero vira
+// uma caixa - a largura do texto, a altura da letra - em cima da barra.
+// As barras sao percorridas da esquerda para a direita, e cada caixa fica
+// no primeiro andar em que nao encosta em nenhuma ja posta. A altura entra
+// na conta: o numero de uma barra baixa que sobe pode cair na altura do
+// da barra vizinha, mais alta. Sem disputa, fica no chao.
+const ANDARES_ROTULO = [2, 14, 26];
+
+const ROTULOS_EM_ANDARES = {
+  id: "rotulosEmAndares",
+  afterDatasetsDraw(ch, _args, op){
+    if (!op || !op.formato) return;
+    const tam = ch.width < 520 ? 7.5 : 9.5;
+    const c = ch.ctx, postas = [];
+    const itens = [];
+    ch.data.datasets.forEach((d, i) => {
+      if (!ch.isDatasetVisible(i)) return;
+      ch.getDatasetMeta(i).data.forEach((b, j) => {
+        if (d.data[j] == null || !b) return;
+        itens.push({x:b.x, y:b.y, texto:op.formato(d.data[j])});
+      });
+    });
+    itens.sort((a, b) => a.x - b.x);
+    const encosta = r => postas.some(q => r.e < q.d + 2 && r.d > q.e - 2
+                                         && r.c < q.b + 1 && r.b > q.c - 1);
+    c.save();
+    c.font = "700 " + tam + "px " + Chart.defaults.font.family;
+    c.textAlign = "center";
+    c.textBaseline = "bottom";
+    c.lineJoin = "round";
+    for (const it of itens) {
+      const w = c.measureText(it.texto).width;
+      const caixa = n => {
+        const b = it.y - ANDARES_ROTULO[n];
+        return {e:it.x - w / 2, d:it.x + w / 2, b, c:b - tam, n};
+      };
+      let r = null;
+      for (let n = 0; n < ANDARES_ROTULO.length && !r; n++) {
+        if (!encosta(caixa(n))) r = caixa(n);
+      }
+      r = r || caixa(0);
+      postas.push(r);
+      // halo da cor do cartao: separa o numero da grade que passa atras
+      c.lineWidth = 3;
+      c.strokeStyle = "#FCFBF7";
+      c.strokeText(it.texto, it.x, r.b);
+      c.fillStyle = "#2B2621";
+      c.fillText(it.texto, it.x, r.b);
+    }
+    c.restore();
+  },
+};
+
 function grafDispersao(){
   // O DIA E O DO SELETOR. Este painel e o grafUnitario liam sempre o
   // ultimo dia da serie, enquanto o quadrante ao lado lia o seletor:
@@ -2216,33 +2353,63 @@ function grafDispersao(){
   // Claro - num dia em que a Claro nao foi coletada no pre-pago. A
   // tela afirmava um R$/GB da Claro num dia sem oferta da Claro.
   const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
-  const porOp = {};
+  // EM BARRAS VERTICAIS, AGRUPADAS POR ENTREGA (25/11/2026, escolha de
+  // quem le). Uma faixa por entrega, da menor para a maior, e em cada uma
+  // a oferta mais barata de cada operadora. Quando a operadora tem mais de
+  // uma oferta na mesma entrega, a dica diz quantas e ate quanto vao: a
+  // mais cara sai da barra, mas nao some calada.
+  const grupos = {}, entregas = [];
   for (const o of doFiltro(hoje)) {
     const e = entregaDe(o), p = precoDe(o);
     if (e.v==null || p==null) continue;
-    (porOp[o.operadora] = porOp[o.operadora] || []).push(
-      {x:e.v, y:p, nome:o.nome_oferta||"", u:e.u});
+    entregas.push(e);
+    const g = (grupos[e.v] = grupos[e.v] || {});
+    (g[o.operadora] = g[o.operadora] || []).push({p, nome:o.nome_oferta||""});
   }
-  const series = Object.entries(porOp).map(([op, pts])=>(
-    {label:op, data:pts, backgroundColor:CORES[op]||"#999",
-     pointRadius:5, pointHoverRadius:7}));
-  if (!series.length) {
+  const faixas = Object.keys(grupos).map(Number).sort((a, b) => a - b);
+  if (!faixas.length) {
     if (graficos["c-dispersao"]) graficos["c-dispersao"].destroy(), delete graficos["c-dispersao"];
     return;
   }
-  const unidade = unidadeComum(series.flatMap(s2 => s2.data));
+  for (const v of faixas) {
+    for (const op in grupos[v]) grupos[v][op].sort((a, b) => a.p - b.p);
+  }
+  const unidade = unidadeComum(entregas);
+  const ops = [...new Set(faixas.flatMap(v => Object.keys(grupos[v])))].sort(porRelevancia);
+  const estreito = window.innerWidth < 600;
+  const series = ops.map(op => ({
+    label:op, backgroundColor:CORES[op]||"#999", borderRadius:4,
+    maxBarThickness:28, skipNull:true,
+    categoryPercentage:estreito ? 0.94 : 0.8, barPercentage:estreito ? 0.94 : 0.9,
+    data:faixas.map(v => grupos[v][op] ? grupos[v][op][0].p : null),
+  }));
   trocar("c-dispersao", {
-    type:"scatter",
-    data:{datasets:series},
+    type:"bar",
+    data:{labels:faixas.map(v => Number(v).toLocaleString("pt-BR")), datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
+      // folga em cima para a unidade do preco e o rotulo da barra mais
+      // alta, e embaixo para a unidade da entrega
+      layout:{padding:{top:44, bottom:14}},
       plugins:{legend:legenda(),
-        tooltip:{callbacks:{label:c=>
-          c.dataset.label+" · "+c.raw.nome+": "+reais(c.parsed.y)
-          +" · "+c.parsed.x+" "+c.raw.u}}},
+        unidadeEixo:{y:"R$/" + t("mes"), x:unidade},
+        tooltip:{callbacks:{label:c => {
+          const l = grupos[faixas[c.dataIndex]][c.dataset.label];
+          if (!l) return null;
+          const base = c.dataset.label + " · " + l[0].nome + ": " + reais(l[0].p);
+          if (l.length < 2) return base;
+          return [base, "   " + t("g2_mais").replace("{n}", l.length - 1)
+                                 .replace("{p}", reais(l[l.length - 1].p))];
+        }}},
+        // o preco em cima da barra (ver ROTULOS_EM_ANDARES)
+        rotulosEmAndares:{formato: v => Number(v).toLocaleString("pt-BR",
+          {minimumFractionDigits:2, maximumFractionDigits:2})}},
       scales:{
-        x:{...eixos().x, title:{display:true, text:unidade,
-           color:"#7C7468", font:{size:11}}},
+        // no celular a letra do eixo desce: na fibra, "1.000", "2.000" e
+        // "10.000" se encostavam em faixas de 30 px
+        x:{...eixos().x, ticks:{...eixos().x.ticks, autoSkip:false,
+           color:"#2B2621", font:{size:estreito ? 8 : 11, weight:"600"}}},
         y:eixos(v=>reais(v).replace("R$ ","")).y}},
+    plugins:[ROTULOS_EM_ANDARES, UNIDADE_EIXO],
   });
 }
 
@@ -2267,28 +2434,37 @@ function grafUnitario(){
   const u = unidadeComum(itens);
   // casas decimais conforme a grandeza: R$/GB fica na ordem de centavos
   const casas = itens[itens.length-1].v < 1 ? 2 : 1;
+  // EM COLUNAS (25/11/2026): da mais barata, a esquerda, a mais cara. O
+  // rotulo leva uma casa a mais que o eixo - 1,18 e 1,20 sao "1,2" os dois.
+  const casasRot = Math.min(casas + 1, 3);
   trocar("c-unitario", {
     type:"bar",
     data:{labels:itens.map(i=>i.op),
           datasets:[{data:itens.map(i=>+i.v.toFixed(3)),
             backgroundColor:itens.map(i=>CORES[i.op]||"#999"),
-            borderRadius:4, barThickness:22}]},
-    options:{indexAxis:"y", responsive:true, maintainAspectRatio:false,
+            borderRadius:4, maxBarThickness:56}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:22}},
       plugins:{legend:{display:false},
+        unidadeEixo:{y:"R$/" + u},
         tooltip:{callbacks:{label:c=>{
           const i = itens[c.dataIndex];
           return i.nome+": "+reais(i.v)+"/"+i.u
                  +"  ("+reais(i.preco)+" ÷ "+i.entrega+" "+i.u+")";
-        }}}},
+        }}},
+        datalabels:{anchor:"end", align:"end", offset:1, clamp:true, clip:false,
+          color:"#2B2621", font:{size:10.5, weight:"700"},
+          formatter:v=>Number(v).toLocaleString("pt-BR",
+            {minimumFractionDigits:casasRot, maximumFractionDigits:casasRot})}},
       scales:{
-        x:{grid:{display:true, color:EIXO.grade, drawTicks:false},
+        x:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
+           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}},
+        y:{beginAtZero:true, grid:{display:true, color:EIXO.grade, drawTicks:false},
            border:{display:true, color:EIXO.borda, width:1},
-           title:{display:true, text:"R$/"+u, color:"#7C7468", font:{size:11}},
            ticks:{color:"#7C7468", font:{size:11},
                   callback:v=>Number(v).toLocaleString("pt-BR",
-                    {minimumFractionDigits:casas, maximumFractionDigits:casas})}},
-        y:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}}}},
+                    {minimumFractionDigits:casas, maximumFractionDigits:casas})}}}},
+    plugins:[ChartDataLabels, UNIDADE_EIXO],
   });
 }
 
@@ -3321,6 +3497,7 @@ function tabelaFaixas(){
 }
 
 function desenhar(){
+  marcarPilulaProduto();
   // trocar de produto ou de praca pode trocar a unidade das ofertas, e
   // o rotulo do botao de metrica tem de acompanhar
   rotuloDaMetrica();

@@ -147,7 +147,10 @@ for (const c of consultas) {
       o[k] = {
         series: (g.data.datasets || []).map(d => d.label || ""),
         rotulos: g.data.labels || [],
-        eixoX: ((((g.options||{}).scales||{}).x||{}).title||{}).text || "",
+        // a unidade do eixo X mora no titulo da escala ou, desde que os
+        // quadros viraram barras (25/11/2026), no plugin unidadeEixo
+        eixoX: ((((g.options||{}).scales||{}).x||{}).title||{}).text
+               || ((((g.options||{}).plugins||{}).unidadeEixo)||{}).x || "",
       };
     }
     return o;

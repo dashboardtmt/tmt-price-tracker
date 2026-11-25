@@ -1559,9 +1559,9 @@ MUTACOES = [
     Mutacao(
         "gerar_tela.py",
         '  const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];\n'
-        '  const porOp = {};',
+        '  // EM BARRAS VERTICAIS, AGRUPADAS POR ENTREGA',
         '  const hoje = DIAS[DIAS.length-1];\n'
-        '  const porOp = {};',
+        '  // EM BARRAS VERTICAIS, AGRUPADAS POR ENTREGA',
         "T4. a dispersao volta a ignorar o seletor de data"),
 
     # ---------------------------------------------------------------
