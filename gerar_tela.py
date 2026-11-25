@@ -363,9 +363,6 @@ MOLDE = r"""<!DOCTYPE html>
   .baixar[disabled]{opacity:.5;cursor:progress}
   .grafico-wrap{position:relative;height:320px}
   .grafico-wrap.baixo{height:260px}
-  /* o par posicionamento/competitividade: a operadora com 11 ofertas
-     precisa de andares de rotulo em cima das barras */
-  .grafico-wrap.alto{height:380px}
   .grafico-wrap.alto{height:450px}
   @media(max-width:860px){.grafico-wrap.alto{height:340px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;

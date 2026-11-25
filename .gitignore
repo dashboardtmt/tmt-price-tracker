@@ -53,3 +53,6 @@ relatorio-*.pdf
 
 # O ensaio da coleta: paginas vivas e as duas leituras, so local
 .ensaio/
+
+# o deck do price tracker e de uso interno: nada dele entra neste repositorio publico
+deck/
