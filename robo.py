@@ -1202,7 +1202,11 @@ LEITURA_MUDOU_EM = {
                   "e os planos sem fidelidade da loja (Controle de 15 e 20 GB "
                   "e Pós de 50 a 200 GB, com e sem os apps exclusivos); e o "
                   "Vivo Fibra 500 Mega Lite, card com regulamento vencido na "
-                  "Anatel, passou a entrar: o que vale é o site",
+                  "Anatel, passou a entrar: o que vale é o site; e o Controle e o "
+                  "Pós do hub da Claro passaram a ter a fidelidade de 12 meses que "
+                  "a loja declara, com o card fechando no \"Mais detalhes\" (o Pós "
+                  "250 GB deixou de levar o Claro Música dos cards do Flex que "
+                  "vêm depois dele)",
 }
 
 

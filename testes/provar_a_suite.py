@@ -2673,6 +2673,50 @@ MUTACOES = [
         "NACIONAL = False\n",
         "NACIONAL = True\n",
         "Tz2. o FIT volta a ser nacional"),
+    # O CARD DA CLARO FECHA NO "MAIS DETALHES", E A FIDELIDADE DA LOJA (27/11/2026)
+    Mutacao(
+        "coletores/claro.py",
+        "            bloco = bloco[:fecha + 4] if fecha >= 0 else bloco[:mais.end()]\n",
+        "            pass\n",
+        "Cd1. o ultimo card do pos volta a levar os apps do Flex"),
+    Mutacao(
+        "coletores/claro.py",
+        '            "id_catalogo": codigo or (ident.group(1) if ident else None),\n',
+        '            "id_catalogo": (ident.group(1) if ident else None),\n',
+        "Cd2. o codigo do plano volta a ser o do card seguinte"),
+    Mutacao(
+        "coletores/claro.py",
+        '                o["fidelidade_meses"] = prazos[o["id_catalogo"]]\n',
+        "                pass\n",
+        "Fd1. a fidelidade da loja deixa de chegar ao plano do hub"),
+    Mutacao(
+        "coletores/claro.py",
+        '    if not erros:\n        _cache_fidelidade["mapa"] = dict(mapa)\n',
+        '    _cache_fidelidade["mapa"] = dict(mapa)\n',
+        "Fd2. o mapa pela metade fica guardado para a rodada"),
+    Mutacao(
+        "coletores/claro.py",
+        '        if erro:\n            saida["avisos"].append("fidelidade da loja: %s" % erro)\n',
+        "",
+        "Fd3. a loja que falha deixa a fidelidade vazia calada"),
+    # O TIER QUE O CARD DA VIVO DIZ (27/11/2026)
+    Mutacao(
+        "coletores/vivo.py",
+        '        fontes = (do_card or None, oferta.get("nome_regulamento"),\n',
+        '        fontes = (None, oferta.get("nome_regulamento"),\n',
+        "Vt1. o regulamento volta a apagar o tier que o card disse"),
+    Mutacao(
+        "coletores/vivo.py",
+        '                "apps_planos": apps.planos_dos_apps(\n'
+        '                    _apps_do_card, c["plano"], c["texto"], c.get("tiers_da_pagina")),\n',
+        '                "apps_planos": apps.planos_dos_apps(\n'
+        '                    _apps_do_card, c["plano"], c["texto"]),\n',
+        "Vt2. a frase da pagina do pre deixa de dar o tier"),
+    Mutacao(
+        "coletores/vivo.py",
+        '            "tiers_da_pagina": ". ".join(f for v, f in por_recarga if valor >= v) or None,\n',
+        '            "tiers_da_pagina": ". ".join(f for v, f in por_recarga) or None,\n',
+        "Vt3. a frase da recarga de R$ 35 passa a valer na de R$ 30"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

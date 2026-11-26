@@ -1,0 +1,90 @@
+{
+ "pos-pago": {
+  "props": {
+   "pageProps": {
+    "filteredProducts": [
+     {
+      "code": "24153",
+      "name": "80 GIGA",
+      "identifier": "80GB",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     },
+     {
+      "code": "24154",
+      "name": "80 GIGA Geforce",
+      "identifier": "80GB Geforce",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     },
+     {
+      "code": "24156",
+      "name": "150 GIGA",
+      "identifier": "150GB",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     },
+     {
+      "code": "24158",
+      "name": "200 GIGA",
+      "identifier": "200GB",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     },
+     {
+      "code": "24159",
+      "name": "250 GIGA",
+      "identifier": "250GB",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     }
+    ]
+   }
+  }
+ },
+ "controle": {
+  "props": {
+   "pageProps": {
+    "filteredProducts": [
+     {
+      "code": "23809",
+      "name": "50 GIGA",
+      "identifier": "50GB",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     },
+     {
+      "code": "23811",
+      "name": "55 GIGA",
+      "identifier": "55GB",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     },
+     {
+      "code": "23883",
+      "name": "55 GIGA Geforce",
+      "identifier": "55GB Geforce",
+      "loyaltySummary": {
+       "title": "Fidelidade de 12 meses",
+       "description": "Na contratação com fidelidade há uma permanência mínima de 12 meses com os serviços contratados. Em caso de cancelamento antecipado de um ou mais serviços haverá a perda dos benefícios do pacote e será cobrada multa proporcional ao tempo restante do contrato de acordo com o produto cancelado."
+      }
+     }
+    ]
+   }
+  }
+ }
+}

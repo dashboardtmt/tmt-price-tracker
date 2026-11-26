@@ -172,6 +172,23 @@ def ler_cards(op, url, produto):
     cards = []
     sem_preco_real = 0
     for bloco in re.split(r'class="[^"]*card-planos', h)[1:]:
+        # O CARD TERMINA NO "MAIS DETALHES" (27/11/2026). O corte pela classe
+        # do card seguinte deixa o ULTIMO card de cada carrossel ir ate o fim
+        # da pagina: no hub de Sao Paulo de 26/11 o Pos 250 GB levava os
+        # quatro cards do Claro Flex que vem depois dele, e o "Claro Musica"
+        # do Flex de 55 e de 80 GB entrava como app do Pos - uma assinatura
+        # que o card dele nao tem. Cada card fecha com um unico link "Mais
+        # detalhes" (data-automation="plan-more-details"), que aponta para a
+        # pagina do plano na loja e traz o codigo DELE; o id="plan-" que o
+        # corte deixa no fim do bloco e o do card seguinte (24159, o Pos 250,
+        # ficava no card do Pos 200). Bloco sem o link fica como era.
+        mais = re.search(r'<a\b([^>]*data-automation="plan-more-details"[^>]*)>', bloco)
+        codigo = None
+        if mais:
+            fecha = bloco.find("</a>", mais.end())
+            bloco = bloco[:fecha + 4] if fecha >= 0 else bloco[:mais.end()]
+            cod = re.search(r'href="[^"]*/(\d{3,})/?"', mais.group(1))
+            codigo = cod.group(1) if cod else None
         ident = re.search(r'id="plan-(\d+)"', bloco)
         # 12k porque os cards de pos-pago trazem o seletor de linhas
         # antes do preco; cortar em 4k perdia 6 dos 9 planos
@@ -203,13 +220,13 @@ def ler_cards(op, url, produto):
         campanha = [campanha] if campanha else None
         destaque = re.search(r"(\d+\s*(?:GB|MEGA|Mega|Giga|Mbps))", txt)
         cards.append({
-            "id_catalogo": ident.group(1) if ident else None,
+            "id_catalogo": codigo or (ident.group(1) if ident else None),
             "campanha": campanha,
             "nome_oferta": (nome or "Claro")[:70],
             "destaque": destaque.group(1) if destaque else None,
             "preco_promocional": numero(valor),
             "composicao": txt[:400],
-            # PELO BLOCO INTEIRO DO CARD, que vai so ate o card seguinte - e
+            # PELO BLOCO INTEIRO DO CARD, que vai so ate o "Mais detalhes" - e
             # nao pela composicao (400 caracteres) nem pelo txt (12 mil de
             # HTML): no Claro Pos Geforce o "WhatsApp e ligacoes
             # ilimitadas" vem depois dos dois cortes (medido em 24/11/2026).
@@ -1153,6 +1170,24 @@ def coletar(cidade, uf, verbose=True):
             print("  %-7s %d ofertas" % (produto, len(cards)))
         time.sleep(PAUSA)
 
+    # A FIDELIDADE DO HUB, da loja - ver ler_fidelidade. Se a loja nao
+    # responde, o plano fica com a fidelidade vazia, como era ate 26/11, e o
+    # aviso diz: o preco e a franquia do card nao dependem dela.
+    do_hub = [o for o in saida["ofertas"]
+              if o["produto"] in ("movel", "controle") and o.get("id_catalogo")]
+    if do_hub:
+        prazos, erro = ler_fidelidade(op)
+        for o in do_hub:
+            if o["id_catalogo"] in prazos:
+                o["fidelidade_meses"] = prazos[o["id_catalogo"]]
+        sem_par = [o["nome_oferta"] for o in do_hub if o.get("fidelidade_meses") is None]
+        if erro:
+            saida["avisos"].append("fidelidade da loja: %s" % erro)
+        if sem_par and not erro:
+            saida["avisos"].append(
+                "fidelidade da loja: %d plano(s) do hub sem o par na loja (%s)"
+                % (len(sem_par), ", ".join(sorted(set(sem_par)))[:120]))
+
     # OS PLANOS SEM FIDELIDADE, da loja - ver ler_sem_fidelidade. Se a loja
     # nao responde, o pos e o controle saem da praca hoje, como a pagina
     # extra da Vivo: o que so ela traz nao pode virar "saida da vitrine".
@@ -1253,6 +1288,59 @@ def ler_sem_fidelidade(op):
         return None, "nenhum plano reconhecido na loja sem fidelidade"
     _cache_sem_fidelidade["ofertas"] = saida
     return [dict(o) for o in saida], None
+
+
+# A FIDELIDADE DOS PLANOS DO HUB (27/11/2026). O card do hub nao diz que o
+# plano tem fidelidade; quem diz e a pagina do plano na loja, para onde o
+# "Mais detalhes" do card aponta: "Fidelidade de 12 meses - permanencia
+# minima de 12 meses ... multa proporcional ao tempo restante". Ate 26/11 o
+# Controle e o Pos do hub saiam com a fidelidade vazia, ao lado dos planos
+# sem fidelidade da loja com 0 - como se a diferenca entre os dois nao
+# existisse. As paginas de categoria da loja (pos-pago e controle) trazem o
+# "loyaltySummary" de cada plano no __NEXT_DATA__, pelo mesmo codigo do
+# link do card: duas buscas por rodada, e nao uma por card.
+#
+# SO O PRAZO. A multa e proporcional ao tempo que falta e nao tem valor
+# fixo na pagina: multa_fidelidade continua vazia, que e o que a Claro
+# declara.
+LOJA_COM_FIDELIDADE = ("https://loja.claro.com.br/c/planos-de-celular/pos-pago",
+                       "https://loja.claro.com.br/c/planos-de-celular/controle")
+_cache_fidelidade = {}
+
+
+def ler_fidelidade(op):
+    """({codigo do plano: meses de fidelidade}, erro ou None).
+
+    Pagina que falha nao apaga a que respondeu: o mapa volta com o que foi
+    lido e o erro diz o que faltou. So o mapa completo fica guardado.
+    """
+    if "mapa" in _cache_fidelidade:
+        return dict(_cache_fidelidade["mapa"]), None
+    mapa, erros = {}, []
+    for url in LOJA_COM_FIDELIDADE:
+        pagina_nome = url.rstrip("/").rsplit("/", 1)[-1]
+        s, h = buscar(op, url)
+        if s != 200:
+            erros.append("%s: HTTP %s" % (pagina_nome, s))
+            continue
+        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', h, re.S)
+        try:
+            produtos = json.loads(m.group(1))["props"]["pageProps"]["filteredProducts"]
+        except Exception:
+            erros.append("%s: sem a lista de planos no __NEXT_DATA__" % pagina_nome)
+            continue
+        lidos = 0
+        for p in produtos or ():
+            titulo = (p.get("loyaltySummary") or {}).get("title") or ""
+            f = re.search(r"fidelidade\s+de\s+(\d{1,2})\s+mes", titulo, re.I)
+            if f and p.get("code"):
+                mapa[str(p["code"])] = int(f.group(1))
+                lidos += 1
+        if not lidos:
+            erros.append("%s: nenhum plano com fidelidade declarada" % pagina_nome)
+    if not erros:
+        _cache_fidelidade["mapa"] = dict(mapa)
+    return mapa, ("; ".join(erros) or None)
 
 
 def main():

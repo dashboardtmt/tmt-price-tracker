@@ -262,6 +262,11 @@ OPCIONAIS = re.compile(
 # O APP DO TOPO DO CARD ("Apple Music Individual" no Controle Musica) mora
 # depois do corte de 12 mil caracteres: o titulo co-branded entra junto.
 COBRANDED = re.compile(r'unique-card__features-cobranded-title[^>]*>(.*?)<', re.S)
+# O beneficio que a pagina do pre liga a um valor de recarga, no titulo do
+# card de acesso rapido - ver ler_vitrine.
+RECARGA_COM_BENEFICIO = re.compile(
+    r'acesso-rapido__card-title[^>]*>\s*([^<]{3,160}?)\s+nas\s+recargas\s+a\s+partir\s+de\s+'
+    r'R\$(?:\s|&nbsp;)*(\d{1,3}(?:,\d{2})?)\s*<', re.S)
 
 
 # O PRECO PARTIDO EM DOIS. No Vivo Total V da pagina sem apps o card escreve
@@ -310,6 +315,19 @@ def ler_vitrine(op, produto, url=None, sufixo=None):
     if s != 200:
         return None, "HTTP %s" % s
 
+    # OS BENEFICIOS POR VALOR DE RECARGA (27/11/2026). O card do Vivo Pre
+    # de R$ 35 diz "Armazenamento extra com Google One"; o tier esta na
+    # propria pagina, num card de acesso rapido: "Armazenamento com o
+    # Google One Lite nas recargas a partir de R$ 35". Cada frase vale para
+    # os cards de valor igual ou maior, e serve SO de fonte de tier de um
+    # app que o card ja nomeia - nao poe app na lista (a lista e a chave da
+    # serie, e quem diz o que a oferta inclui e o card).
+    por_recarga = []
+    for f, v in RECARGA_COM_BENEFICIO.findall(doc):
+        par = (so_numero(v) or 0, _html.unescape(re.sub(r"\s+", " ", f)).strip())
+        if par not in por_recarga:
+            por_recarga.append(par)
+
     cards = []
     for bloco in re.split(r'class="unique-card ', doc)[1:]:
         plano = _primeiro(r'unique-card__plan[^>]*>(.*?)<', bloco)
@@ -355,6 +373,7 @@ def ler_vitrine(op, produto, url=None, sufixo=None):
             "codigo_anatel": codigos[0] if codigos else None,
             "codigos_anatel": codigos or None,
             "texto": texto,
+            "tiers_da_pagina": ". ".join(f for v, f in por_recarga if valor >= v) or None,
         })
         # a TV Completo do mesmo card, com o preco e o codigo dela
         for rotulo, extra, pos in _opcoes_de_tv(bloco):
@@ -722,9 +741,22 @@ def aplicar_regulamento(oferta, reg):
     # O tier do app costuma estar SO no nome registrado na Anatel: a
     # vitrine diz "Vivo Pos com Disney+" e a agencia, "VIVO POS COM
     # DISNEY+ PADRAO". Refaz o rotulo com essa fonte a mais.
+    #
+    # O TIER QUE O CARD JA DISSE VEM PRIMEIRO (27/11/2026). A primeira
+    # passada le o texto inteiro do card; esta so tem o bruto_texto, cortado
+    # em 600 caracteres, e o "Assinatura Netflix Padrao com anuncios" do
+    # Vivo Controle Netflix e o "Netflix Padrao inclusa" do Vivo Pos com
+    # Netflix ficam depois do corte. Refeito so com as fontes daqui, o
+    # tier saia vazio e apagava o que o card tinha dito - os dois planos
+    # chegavam a tela sem tier e sem preco de referencia do app. O nome da
+    # Anatel continua completando o que o card nao diz; o que o card diz
+    # vale primeiro, porque o que vale e o site.
     if oferta.get("apps"):
-        fontes = (oferta.get("nome_regulamento"), oferta.get("nome_oferta"),
-                  oferta.get("bruto_texto"))
+        do_card = "; ".join(
+            "%s %s" % ((apps.APPS.get(a) or {}).get("nome") or a, t)
+            for a, t in sorted((oferta.get("apps_planos") or {}).items()))
+        fontes = (do_card or None, oferta.get("nome_regulamento"),
+                  oferta.get("nome_oferta"), oferta.get("bruto_texto"))
         oferta["apps_rotulo"] = apps.rotulo(oferta["apps"], *fontes)
         oferta["apps_planos"] = apps.planos_dos_apps(oferta["apps"], *fontes)
 
@@ -1026,9 +1058,9 @@ def coletar(cidade, uf, verbose=True):
                 # nao, o nome registrado na Anatel ainda pode traze-lo, e
                 # por isso o rotulo e refeito depois do regulamento
                 "apps_rotulo": apps.rotulo(
-                    _apps_do_card, c["plano"], c["texto"]),
+                    _apps_do_card, c["plano"], c["texto"], c.get("tiers_da_pagina")),
                 "apps_planos": apps.planos_dos_apps(
-                    _apps_do_card, c["plano"], c["texto"]),
+                    _apps_do_card, c["plano"], c["texto"], c.get("tiers_da_pagina")),
                 # o texto do card alimenta o cruzamento que deduz quais
                 # apps correspondem a quais codigos SVA do regulamento
                 "bruto_texto": c["texto"][:600],
