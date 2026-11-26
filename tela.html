@@ -770,7 +770,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "26/11/2026 10:39";
+const GERADO = "26/11/2026 12:07";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -2317,7 +2317,31 @@ const ROTULOS_EM_ANDARES = {
 // caro, e o rotulo "preco · entrega" ao lado do ponto - em cima e embaixo,
 // alternando, e afastados ate nao encostar, presos ao ponto por um fio. O
 // barras-em-cima-do-nome de 25/11 empilhava os rotulos uns sobre os outros.
-const ALTURA_DA_LINHA = 54;
+// O ROTULO EM DUAS LINHAS (26/11/2026, "tem como mostrar as ofertas de
+// forma mais completa? ta muito estranho assim"): "35,00 · 22 GB x2" nao
+// dizia quais eram as duas, nem por quantos dias. A primeira linha e
+// preco e entrega; a segunda, a validade (no pre) e o nome curto de cada
+// oferta do ponto - "30 dias · Kwai, TikTok". A linha da regua cresce para
+// caber as duas em cima e embaixo; com tres operadoras o quadro segue nos
+// 292 px do padrao.
+const ALTURA_DA_LINHA = 72;
+const NOTA_MAX = 34;
+
+// O NOME CURTO DA OFERTA, para a segunda linha: sem a marca, sem a palavra
+// do produto e sem a entrega, que a primeira linha ja diz. "Claro Prezao
+// Kwai 22GB" vira "Kwai"; "TIM Black Plus", "Black Plus". A oferta de base
+// ("Vivo Pré", "Claro Prezao 20GB") fica sem nome, e entra o app que ela
+// inclui, quando inclui.
+function apelido(o){
+  let n = String(o.nome_oferta || "");
+  const marca = String(o.operadora || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (marca) n = n.replace(new RegExp("^\\s*" + marca + "\\s+", "i"), "");
+  n = n.replace(/\s*[-–]?\s*\d+(?:[.,]\d+)?\s*(?:GB|MB|MEGA|GIGA|Mbps|TB)\b/gi, " ");
+  // sem \b: no JavaScript o "e" acentuado nao e letra, e "Pré" passava
+  n = n.replace(/(^|\s)(?:Prez[aã]o|Pr[eé]|Ultrafibra|Fibra|P[oó]s|Controle)(?=\s|$)/gi, " ");
+  n = n.replace(/\s+/g, " ").replace(/^[\s\-–·]+|[\s\-–·]+$/g, "").trim();
+  return n || String(o.apps_rotulo || "").trim();
+}
 
 const REGUA = {
   id: "regua",
@@ -2345,25 +2369,41 @@ const REGUA = {
     c.save();
     c.font = "600 " + (estreito ? 9 : 10) + "px " + Chart.defaults.font.family;
     c.textBaseline = "middle";
+    const FONTE1 = "600 " + (estreito ? 9 : 10) + "px " + Chart.defaults.font.family;
+    const FONTE2 = "400 " + (estreito ? 8 : 9) + "px " + Chart.defaults.font.family;
     op.linhas.forEach((l, di) => {
       const meta = ch.getDatasetMeta(di);
       if (!ch.isDatasetVisible(di)) return;
-      // a mesma oferta duas vezes (mesmo preco e entrega) sai uma vez, "x2"
+      // ofertas no mesmo ponto (mesmo preco e entrega) saem num rotulo so,
+      // com o nome de cada uma na segunda linha
       const iguais = {};
       l.pontos.forEach((p, j) => {
         const txt = estreito ? p.curto : p.rotulo;
         if (!txt) return;
         const k = txt + "|" + Math.round(meta.data[j].x);
-        if (iguais[k]) { iguais[k].n += 1; return; }
-        iguais[k] = {px: meta.data[j].x, py: meta.data[j].y, txt, n: 1};
+        const x = iguais[k] = iguais[k] || {px: meta.data[j].x, py: meta.data[j].y, txt,
+                                            pre: p.pre || "", nomes: [], n: 0};
+        x.n += 1;
+        if (p.nome && !x.nomes.includes(p.nome)) x.nomes.push(p.nome);
       });
-      const itens = Object.values(iguais).map(x => (
-        {...x, txt: x.n > 1 ? x.txt + " \u00d7" + x.n : x.txt}));
+      const itens = Object.values(iguais).map(x => {
+        // sem nome que diferencie, o numero de ofertas ainda e dito
+        let nomes = x.nomes.length ? x.nomes.join(", ")
+                  : (x.n > 1 ? x.n + " " + t("ofertas") : "");
+        let nota = [x.pre, nomes].filter(Boolean).join(" \u00b7 ");
+        if (nota.length > NOTA_MAX) nota = nota.slice(0, NOTA_MAX - 1).trimEnd() + "\u2026";
+        return {...x, nota: estreito ? "" : nota};
+      });
       itens.sort((a, b) => a.px - b.px);
       // alterna em cima e embaixo, na ordem da regua
       [0, 1].forEach(lado => {
         const fila = itens.filter((_, k) => k % 2 === lado);
-        fila.forEach(x => { x.w = c.measureText(x.txt).width; });
+        fila.forEach(x => {
+          c.font = FONTE1;
+          const w1 = c.measureText(x.txt).width;
+          c.font = FONTE2;
+          x.w = Math.max(w1, x.nota ? c.measureText(x.nota).width : 0);
+        });
         let grupos = fila.map(x => [x]);
         const largura = g => g.reduce((s, x) => s + x.w, 0) + VAO * (g.length - 1);
         const inicio = g => {
@@ -2385,18 +2425,28 @@ const REGUA = {
           let x0 = inicio(g);
           g.forEach(x => {
             const meio = x0 + x.w / 2;
-            const yt = lado === 0 ? x.py - 15 : x.py + 15;
+            // a linha mais perto do ponto e a de baixo do bloco de cima e a
+            // de cima do bloco de baixo; o preco fica sempre por cima
+            const perto = lado === 0 ? x.py - 15 : x.py + 15;
+            const y1 = x.nota && lado === 0 ? perto - 12 : perto;
+            const y2 = lado === 0 ? perto : perto + 12;
             if (Math.abs(meio - x.px) > 3) {
               c.strokeStyle = "rgba(124,116,104,0.55)";
               c.lineWidth = 0.8;
               c.beginPath();
               c.moveTo(x.px, x.py + (lado === 0 ? -7 : 7));
-              c.lineTo(meio, yt + (lado === 0 ? 5 : -5));
+              c.lineTo(meio, perto + (lado === 0 ? 5 : -5));
               c.stroke();
             }
+            c.textAlign = "center";
+            c.font = FONTE1;
             c.fillStyle = "#2B2621";
-            c.textAlign = "left";
-            c.fillText(x.txt, x0, yt);
+            c.fillText(x.txt, meio, y1);
+            if (x.nota) {
+              c.font = FONTE2;
+              c.fillStyle = "#6E6A64";
+              c.fillText(x.nota, meio, y2);
+            }
             x0 += x.w + VAO;
           });
         });
@@ -2469,7 +2519,8 @@ function desenharRegua(id, linhas, opcoes){
              : {type: "linear", min: xmin, max: xmax,
                 grid: {color: EIXO.grade}, border: {display: false},
                 ticks: {color: "#7C7468", font: {size: 11}, stepSize: passo, callback: v => fmt(v)}},
-        y: {type: "linear", min: -0.6, max: linhas.length - 0.4, reverse: true,
+        // folga para as duas linhas do rotulo de baixo da ultima operadora
+        y: {type: "linear", min: -0.62, max: linhas.length - 0.5, reverse: true,
             grid: {display: false}, border: {display: false},
             afterBuildTicks: ax => { ax.ticks = linhas.map((_, i) => ({value: i})); },
             ticks: {color: "#2B2621", font: {size: 12, weight: "700"}, padding: 10,
@@ -2487,20 +2538,25 @@ function grafDispersao(){
   const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
   // A REGUA POR OPERADORA: cada oferta um ponto, na ordem do preco
   const porOp = {};
+  const pre = filtro().produto === "prepago";
   for (const o of doFiltro(hoje)) {
     const p = precoDe(o);
     if (p == null) continue;
     (porOp[o.operadora] = porOp[o.operadora] || []).push(
-      {p, e: entregaDe(o), nome: o.nome_oferta || ""});
+      {p, e: entregaDe(o), nome: o.nome_oferta || "", curto: apelido(o),
+       dias: pre ? validadeDe(o) : null});
   }
   const ops = Object.keys(porOp).sort(porRelevancia);
   const entrega = x => x.e.v != null ? Number(x.e.v).toLocaleString("pt-BR") + " " + x.e.u : "";
   const dois = v => Number(v).toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const dias = x => x.dias ? x.dias + " " + t("dias") : "";
   desenharRegua("c-dispersao", ops.map(op => ({op, pontos: porOp[op]
       .sort((a, b) => a.p - b.p || (a.e.v || 0) - (b.e.v || 0))
       .map(x => ({v: x.p, curto: dois(x.p),
                   rotulo: dois(x.p) + (entrega(x) ? " · " + entrega(x) : ""),
-                  dica: x.nome + ": " + reais(x.p) + (entrega(x) ? " · " + entrega(x) : "")}))})),
+                  pre: dias(x), nome: x.curto,
+                  dica: x.nome + ": " + reais(x.p) + (entrega(x) ? " · " + entrega(x) : "")
+                        + (dias(x) ? " · " + dias(x) : "")}))})),
     {unidade: "R$/" + t("mes"), formatoEixo: v => Number(v).toLocaleString("pt-BR", {maximumFractionDigits: 0})});
 }
 
@@ -2517,7 +2573,8 @@ function grafUnitario(){
   for (const o of doFiltro(hoje)) {
     const p = precoDe(o), e = entregaDe(o);
     if (p == null || !e.v) continue;
-    (porOp[o.operadora] = porOp[o.operadora] || []).push({p, e, nome: o.nome_oferta || ""});
+    (porOp[o.operadora] = porOp[o.operadora] || []).push(
+      {p, e, nome: o.nome_oferta || "", curto: apelido(o)});
     contaU[e.u] = (contaU[e.u] || 0) + 1;
   }
   const u = Object.keys(contaU).sort((a, b) => contaU[b] - contaU[a])[0];
@@ -2535,6 +2592,7 @@ function grafUnitario(){
       .map(x => {
         const v = x.p / x.e.v;
         return {v, curto: fmt(v, casasRot), rotulo: fmt(v, casasRot) + " · " + entrega(x),
+                nome: x.curto,
                 dica: x.nome + ": R$ " + fmt(v, casasRot) + "/" + u + "  (" + reais(x.p)
                       + " ÷ " + entrega(x) + ")"};
       })})),
