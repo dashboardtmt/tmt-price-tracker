@@ -262,15 +262,19 @@ def coletar(cidade="Brasil", uf="BR", verbose=True, pagina=None):
               % (praca, agora.strftime("%d/%m/%Y %H:%M")))
         print("=" * 70)
 
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        saida["avisos"].append(
-            "playwright nao instalado - o Claro Flex exige navegador "
-            "(pip install playwright && playwright install chromium)")
-        return saida
-
+    # O NAVEGADOR SO E IMPORTADO QUANDO E PRECISO ABRI-LO. Com a pagina dada
+    # (o teste, que roda onde o playwright nao esta instalado), o import
+    # devolvia o aviso abaixo e o Flex saia vazio antes de ler a pagina.
     proprio = pagina is None
+    if proprio:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            saida["avisos"].append(
+                "playwright nao instalado - o Claro Flex exige navegador "
+                "(pip install playwright && playwright install chromium)")
+            return saida
+
     contexto = nav = p = None
     try:
         if proprio:
