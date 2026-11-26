@@ -1060,7 +1060,7 @@ def mudancas(hoje, ontem):
     # o detector que a produziu, e o que o dado nao sustenta nao sai. A
     # recusa fica no dicionario, em "recusadas" - auditor com defeito
     # tem de poder ser auditado de volta. Ver auditor.py.
-    return _sem_o_relido(hoje, auditor.aplicar({"precos": precos, "composicao": composicao,
+    return _conferir_saidas(_sem_o_relido(hoje, auditor.aplicar({"precos": precos, "composicao": composicao,
             "renomeadas": renomeadas, "grades": grades,
             "voltaram": voltaram, "remodeladas": remodeladas,
             "leitura": leitura, "contratuais": contratuais,
@@ -1074,7 +1074,7 @@ def mudancas(hoje, ontem):
             # ordenacao: nao e evento de mercado, e ressalva sobre o dado
             "duvidosa": duvidosa,
             "cobertura": _cobertura(h, o, (cego_h or {}).get("quantas", 0))},
-        do_dia, (antes or {}).get(ontem) or []))
+        do_dia, (antes or {}).get(ontem) or [])))
 
 
 # DIAS EM QUE A NOSSA LEITURA MUDOU, declarados a mao.
@@ -3077,6 +3077,83 @@ def _sem_o_relido(hoje, d):
     return d
 
 
+# A SEGUNDA BARREIRA DA SAIDA: A PAGINA RELIDA ANTES DE AFIRMAR. Item 3 da
+# fila de 24/11/2026, escolha de quem le: "construir, comecando por TIM e
+# Unifique; nas outras, 'saida nao conferida na pagina' ate ficar pronto".
+#
+# POR QUE. Os sete filtros de _ofertas_que_sairam trabalham sobre o dado
+# gravado, e o dado gravado e a leitura de UMA passada pela pagina. Medido
+# nos 49 dias publicados: produto inteiro sumindo de praca coletada foi
+# leitura 23 de 23 vezes, e 21 voltaram no dia seguinte - falha passageira,
+# que uma segunda passada desmente. A oferta que a pagina relida ainda
+# mostra nao saiu da vitrine: sai da noticia e vai para o relatorio.
+#
+# RELE COM O COLETOR DE PRODUCAO, numa praca de onde a oferta saiu, e
+# procura a SERIE em todos os produtos da operadora (filtro 2: a serie e por
+# operadora, nao por balde). Relida que nao traz nenhuma oferta do produto
+# nao prova nada - a saida fica, com a ressalva dita.
+#
+# SO NO ROBO, pela variavel CONFERIR_SAIDAS do passo do aviso. Sem ela a
+# funcao nao faz nada: a suite, a bancada e o relatorio rodam sem rede.
+SAIDA_NAO_CONFERIDA = u"saída não conferida na página"
+SAIDA_SEM_RELEITURA = u"a página não pôde ser relida para conferir a saída"
+
+
+def _reler_tim(praca, produto):
+    from coletores import tim, tim_fit
+    if produto == "btl":
+        return tim_fit.coletar(verbose=False)
+    cidade, uf = praca.split("/")
+    return tim.coletar(cidade, uf, verbose=False)
+
+
+def _reler_unifique(praca, produto):
+    from coletores import unifique
+    cidade, uf = praca.split("/")
+    return unifique.coletar(cidade, uf, verbose=False)
+
+
+RELEITORES = {"TIM": _reler_tim, "Unifique": _reler_unifique}
+
+
+def _conferir_saidas(d, releitores=None):
+    """Tira da noticia a saida que a pagina relida desmente. Mexe em d."""
+    if releitores is None:
+        if not os.environ.get("CONFERIR_SAIDAS"):
+            return d
+        releitores = RELEITORES
+    d.setdefault("saidas_desmentidas", [])
+    ficam, relidas = [], {}
+    for s in d.get("saidas") or []:
+        reler = releitores.get(s.get("operadora"))
+        if reler is None:
+            s["conferida_texto"] = SAIDA_NAO_CONFERIDA
+            ficam.append(s)
+            continue
+        praca = (s.get("pracas") or [None])[0]
+        k = (s.get("operadora"), praca, s.get("produto") == "btl")
+        if k not in relidas:
+            try:
+                relidas[k] = list((reler(praca, s.get("produto")) or {}).get("ofertas") or ())
+            except Exception as e:                      # noqa: BLE001
+                print("  conferir saida: %s em %s falhou (%s)"
+                      % (s.get("operadora"), praca, str(e)[:120]))
+                relidas[k] = None
+        ofertas = relidas[k]
+        if not [o for o in ofertas or () if o.get("produto") == s.get("produto")]:
+            s["conferida_texto"] = SAIDA_SEM_RELEITURA
+            ficam.append(s)
+            continue
+        series = {_serie_sem_safra(o.get("nome_oferta")) for o in ofertas}
+        if _serie_sem_safra(s.get("nome_oferta")) in series:
+            d["saidas_desmentidas"].append(dict(s, relida_em=praca))
+            continue
+        s["conferida"] = True
+        ficam.append(s)
+    d["saidas"] = ficam
+    return d
+
+
 def _ofertas_relidas(relidos):
     """Quantas OFERTAS (nome por operadora) a declaracao tirou da noticia."""
     return len({(_quem_e(x["evento"])[0], _quem_e(x["evento"])[2])
@@ -4300,6 +4377,9 @@ def montar_mensagem(hoje, ontem):
         for ressalva in (s.get("substituta_texto"), s.get("piscou_texto")):
             if ressalva:
                 linhas.append("  e %s" % ressalva)
+        # a segunda barreira, quando nao conferiu - ver _conferir_saidas
+        if s.get("conferida_texto"):
+            linhas.append("  (%s)" % s["conferida_texto"])
         # A COLETA QUE CAIU, UMA VEZ POR OPERADORA. E um fato do dia da
         # operadora, e nao desta oferta: repetido embaixo de cada bloco,
         # quatro saidas da Brisanet virariam quatro vezes a mesma frase.
@@ -4675,6 +4755,8 @@ def montar_mensagem(hoje, ontem):
         # auditavel meses depois. Ver LEITURA_EM_UMA_LINHA.
         "leitura_declarada": declarado,
         "contratuais": contratuais, "saidas": saidas,
+        # a saida que a pagina relida desmentiu - fica para o relatorio
+        "saidas_desmentidas": r.get("saidas_desmentidas") or [],
         "velocidades": velocidades,
         "entradas": entradas, "passou_a_ler": r.get("passou_a_ler") or [],
         "nao_lidos": nao_lidos,

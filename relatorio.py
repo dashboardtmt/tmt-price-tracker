@@ -624,7 +624,17 @@ def _bloco_saidas(d):
             # outro nome.
             ("; ".join(x for x in (s.get("substituta_texto"),
                                    s.get("piscou_texto"),
-                                   s.get("coleta_texto")) if x) or "—"),
+                                   s.get("coleta_texto"),
+                                   s.get("conferida_texto")) if x) or "—"),
+        ])
+    # A SAIDA QUE A PAGINA RELIDA DESMENTIU nao foi noticia, mas fica aqui:
+    # e a nossa leitura falhando numa passada, e isso tem de ser contavel.
+    for s in d.get("saidas_desmentidas") or []:
+        linhas.append([
+            s.get("operadora"), s.get("produto"), s.get("nome_oferta"),
+            _reais(s.get("preco")), str(s.get("dias") or "—"), _pracas(s),
+            "fora da notícia: a página relida em %s ainda mostra a oferta"
+            % (s.get("relida_em") or "uma das praças"),
         ])
     return _tabela(
         ["Operadora", "Produto", "Oferta", "Último preço", "Dias",

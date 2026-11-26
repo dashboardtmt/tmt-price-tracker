@@ -405,6 +405,9 @@ jobs:
           EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_REMETENTE: ${{ secrets.RESEND_REMETENTE }}
+          # a segunda barreira da saida: rele a pagina da TIM e da Unifique
+          # antes de afirmar que uma oferta saiu (robo._conferir_saidas)
+          CONFERIR_SAIDAS: "1"
         run: |
           # o relatorio em PDF que vai anexado na mensagem
           pip install --quiet reportlab

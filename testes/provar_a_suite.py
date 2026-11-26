@@ -2428,6 +2428,22 @@ MUTACOES = [
         '    return int(v * 1000) if m.group(2).upper() == "TB" else int(v)\n',
         '    return int(v * 1024) if m.group(2).upper() == "TB" else int(v)\n',
         "Sw3. o terabyte volta a ser 1024 GB"),
+    # A SAIDA CONFERIDA NA PAGINA RELIDA (26/11/2026)
+    Mutacao(
+        "robo.py",
+        '        if _serie_sem_safra(s.get("nome_oferta")) in series:\n',
+        '        if False:\n',
+        "Sc1. a saida que a pagina relida desmente volta a ser noticia"),
+    Mutacao(
+        "robo.py",
+        '        if not [o for o in ofertas or () if o.get("produto") == s.get("produto")]:\n',
+        '        if ofertas is None:\n',
+        "Sc2. releitura sem o produto passa a confirmar a saida"),
+    Mutacao(
+        "robo.py",
+        '            s["conferida_texto"] = SAIDA_NAO_CONFERIDA\n',
+        '            pass\n',
+        "Sc3. a saida de quem nao tem releitor deixa de dizer que nao foi conferida"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
