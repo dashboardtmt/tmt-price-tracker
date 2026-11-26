@@ -55,7 +55,7 @@ class NoColetar(unittest.TestCase):
     def paginas(self, por_rota):
         guarda = unifique.buscar
 
-        def buscar(url):
+        def buscar(url, cookie=None):
             for pedaco, resposta in por_rota.items():
                 if pedaco in url:
                     return resposta

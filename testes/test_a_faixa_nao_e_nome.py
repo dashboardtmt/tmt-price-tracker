@@ -62,7 +62,9 @@ class AFaixaNaoEONome(unittest.TestCase):
         # desde 26/11/2026 a coleta le tambem o combo e o celular; a
         # fixture e so a pagina de fibra, e as outras rotas respondem 404
         def abrir(req, timeout=None):
-            if "internet-fibra" in req.full_url:
+            # a rota da cidade ("/internet-fibra/sc/..."), e nao a pagina
+            # sem apps ("/internet-fibra-sem-sva"), que responde 404 aqui
+            if "internet-fibra/" in req.full_url:
                 return _Resposta(corpo)
             raise unifique.urllib.error.HTTPError(req.full_url, 404, "nao", {}, None)
         unifique.urllib.request.urlopen = abrir

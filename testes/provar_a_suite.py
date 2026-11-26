@@ -2497,6 +2497,22 @@ MUTACOES = [
         '            falhou.add(produto)\n',
         '',
         "Br3. pagina que falha deixa o resto do produto sair como saida"),
+    # A UNIFIQUE INTEIRA (26/11/2026)
+    Mutacao(
+        "coletores/unifique.py",
+        '                                 ("combo", PAGINA_COMBO_TV, extrair_combo_tv),\n',
+        '',
+        "Un1. o combo com TV da Unifique deixa de ser lido"),
+    Mutacao(
+        "coletores/unifique.py",
+        '    if sem_acento(cidade).lower() not in sem_acento(vit).lower():\n        saida["avisos"].append("fibra sem apps: a pagina nao confirmou a cidade %s - "\n',
+        '    if False:\n        saida["avisos"].append("fibra sem apps: a pagina nao confirmou a cidade %s - "\n',
+        "Un2. a fibra sem apps de outra cidade passa a entrar"),
+    Mutacao(
+        "coletores/unifique.py",
+        '                "fidelidade_meses": fid.get((o["nome_oferta"], o["degrau_mbps"])),\n',
+        '                "fidelidade_meses": None,\n',
+        "Un3. a fidelidade de 12 meses da fibra volta a sumir"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

@@ -3013,7 +3013,9 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
     #   - os apps do controle e do pos da Claro pelo card inteiro (o Skeelo
     #     faltava nos cinco pos);
     #   - o Claro Flex com o WhatsApp do logo e a franquia "Livres";
-    #   - a Brisanet com as seis paginas de streaming e a fibra sem SVA.
+    #   - a Brisanet com as seis paginas de streaming e a fibra sem SVA;
+    #   - a Unifique com o combo com TV, a fibra sem apps, o riscado e a
+    #     fidelidade da fibra.
     # O resto de cada operadora (pre da Claro, controle e pos da TIM, Vivo,
     # Brisanet, Unifique, NuCel) continua noticia.
     "2026-11-27": [{
@@ -3021,13 +3023,15 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  ("TIM", "fibra", u""), ("Starlink", "satelite", u""),
                  ("Claro", "movel", u""), ("Claro", "controle", u""),
                  ("Claro", "btl", u"Claro Flex"),
-                 ("Brisanet", "fibra", u""), ("Brisanet", "combo", u"")],
+                 ("Brisanet", "fibra", u""), ("Brisanet", "combo", u""),
+                 ("Unifique", "fibra", u""), ("Unifique", "combo", u"")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
                  u"da Claro; sai um 700 Mega da TIM que nenhuma página "
                  u"mostra), as páginas de streaming e a fibra sem apps da "
-                 u"Brisanet, os planos de viagem da Starlink, e os apps e o "
+                 u"Brisanet, o combo com TV e a fibra sem apps da Unifique, os "
+                 u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],
 }

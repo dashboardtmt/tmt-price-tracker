@@ -136,8 +136,9 @@ class ONavegadorSaiuEOQueFicouNoLugar(unittest.TestCase):
         notar (mutacao E3)."""
         guarda = unifique.buscar
 
-        def buscar(url):
-            if unifique.PAGINA_COMBO in url or unifique.PAGINA_MOVEL in url:
+        def buscar(url, cookie=None):
+            if (unifique.PAGINA_COMBO in url or unifique.PAGINA_MOVEL in url
+                    or unifique.PAGINA_COMBO_TV in url or unifique.PAGINA_SEM_SVA in url):
                 return 404, ""
             return status, texto
         unifique.buscar = buscar

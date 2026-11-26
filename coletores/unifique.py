@@ -52,6 +52,7 @@ import re
 import sys
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 from . import apps
 from datetime import datetime, timedelta, timezone
@@ -62,6 +63,18 @@ PAGINA = "https://unifique.com.br/para-voce/internet-fibra"
 # duas paginas tem a mesma forma de rota por cidade da fibra.
 PAGINA_COMBO = "https://unifique.com.br/para-voce/combos-fibra-movel"
 PAGINA_MOVEL = "https://unifique.com.br/para-voce/movel-planos-de-celular"
+# O QUE A AUDITORIA DE 26/11/2026 ACHOU FORA DA COLETA, os dois no menu:
+#   - o combo celular + fibra + TV, com rota por cidade como os outros;
+#   - a fibra "sem SVA" (sem apps), que a pagina de fibra linka ("Caso opte
+#     por ofertas sem apps inclusos e/ou fidelidade, veja ofertas"). Ela NAO
+#     tem rota por cidade (404): a cidade vai no cookie ckUnifique[location],
+#     que o seletor publico grava - a rota em base64 mais um sufixo fixo,
+#     medido em 26/11 nas quatro pracas. Se o cookie mudar de formato a
+#     pagina deixa de confirmar a cidade, e a leitura falha alto em vez de
+#     gravar a fibra de outro lugar.
+PAGINA_COMBO_TV = "https://unifique.com.br/para-voce/combos-fibra-movel-tv"
+PAGINA_SEM_SVA = "https://unifique.com.br/para-voce/internet-fibra-sem-sva"
+SUFIXO_DO_COOKIE = "ck1Un2FQ24"
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/129.0 Safari/537.36")
@@ -110,6 +123,10 @@ def extrair(texto):
         if not nome or len(nome) < 3:
             nome = "Unifique %s Mega" % mega
         taxa = re.search(r"instala[çc][ãa]o\s*R\$\s*(\d{1,4},\d{2})", meio, re.I)
+        # O RISCADO, quando o card tem ("R$ 138,00 R$ 129,90 /mes" no FIBRA
+        # COMPLETA): o ultimo valor do meio, colado no preco. A taxa de
+        # instalacao vem com "a vista" depois, e nao casa aqui.
+        riscado = re.search(r"R\$\s*(\d{2,4},\d{2})\s*$", re.sub(r"\s+", " ", meio).strip())
         gratis = re.search(r"instala[çc][ãa]o\s*gr[áa]tis", meio, re.I)
         ofertas.append({
             "nome_oferta": nome[:60],
@@ -119,6 +136,8 @@ def extrair(texto):
             # a Unifique escreve a taxa no proprio card; as outras so trazem
             # isso no regulamento, quando trazem
             "taxa_instalacao": _num(taxa.group(1)) if taxa else (0.0 if gratis else None),
+            "preco_cheio": (_num(riscado.group(1)) if riscado
+                            and _num(riscado.group(1)) > (_num(preco) or 0) else None),
             "contexto": re.sub(r"\s+", " ", meio)[:260],
         })
     # tira repetido (a pagina repete o card em versao desktop e mobile)
@@ -158,14 +177,16 @@ def sem_faixa(html):
     return FAIXA.sub(" ", html)
 
 
-def buscar(url):
+def buscar(url, cookie=None):
     """A rota da cidade, em texto. Devolve (status, texto).
 
     O status importa: 404 e a Unifique NAO ATENDER a cidade, que e
     informacao, e nao falha. Era o navegador que lia isso antes.
     """
-    req = urllib.request.Request(url, headers={
-        "User-Agent": UA, "Accept-Language": "pt-BR,pt;q=0.9"})
+    cab = {"User-Agent": UA, "Accept-Language": "pt-BR,pt;q=0.9"}
+    if cookie:
+        cab["Cookie"] = cookie
+    req = urllib.request.Request(url, headers=cab)
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             bruto = r.read().decode("utf-8", "replace")
@@ -266,6 +287,66 @@ def extrair_combo(texto):
     return saida
 
 
+# A FIDELIDADE ESTA NOS "MAIS DETALHES" de cada plano, depois da vitrine:
+# "FIBRA IDEAL 500 Mega ... Assine no Site Fidelidade 12 meses". O card nao
+# a repete, e ela saia vazia nas 24 linhas de fibra.
+DETALHE_COM_FIDELIDADE = re.compile(
+    r"([A-ZÀ-Ú][A-ZÀ-Ú0-9\s\+\-\.]{3,40}?)\s*(\d{3,4})\s*Mega"
+    r"((?:(?!\bMega\b).){0,500}?)Fidelidade\s+(\d{1,2})\s+meses", re.S)
+
+
+def fidelidades(texto):
+    u"""{(nome, Mbps): meses} dos blocos de detalhe da pagina."""
+    saida = {}
+    for m in DETALHE_COM_FIDELIDADE.finditer(re.sub(r"\s+", " ", texto or "")):
+        nome = re.sub(r"\s+", " ", m.group(1)).strip(" -+.")
+        saida.setdefault((nome, int(m.group(2))), int(m.group(4)))
+    return saida
+
+
+# "CELULAR + FIBRA + TV 50 GB ... 650 Mega Instalacao gratis ... TV Completa
+#  Ver canais R$ 229,91 /mes ... R$ 229,91 por 12 meses. Apos R$ 259,91."
+CARD_COMBO_TV = re.compile(
+    r"CELULAR\s*\+\s*FIBRA\s*\+\s*TV\s+(\d{1,3})\s*GB(.{0,160}?)(\d{3,4})\s*Mega(.{0,260}?)"
+    r"((?:R\$\s*\d{2,4},\d{2}\s*)+)/\s*m[eê]s(.{0,220}?)Mais Detalhes", re.S | re.I)
+
+
+def extrair_combo_tv(texto):
+    u"""Os combos celular + fibra + TV: velocidade, GB, o pacote de TV e o preco."""
+    saida = []
+    for m in CARD_COMBO_TV.finditer(_vitrine(texto)):
+        gb, movel, mega, meio, precos, nota = m.groups()
+        valores = [_num(x) for x in re.findall(r"\d{2,4},\d{2}", precos)]
+        pacote = re.search(r"\bTV\s+([A-ZÀ-Ú][\wÀ-ú]+)", meio)
+        meses = re.search(r"por\s+(\d{1,2})\s+meses", nota, re.I)
+        depois = re.search(r"Ap[oó]s\s+R\$\s*(\d{2,4},\d{2})", nota, re.I)
+        tv = ("TV %s" % pacote.group(1)) if pacote else "TV"
+        contexto = re.sub(r"\s+", " ", " ".join((movel, meio, nota))).strip()
+        saida.append({
+            "nome_oferta": "Combo Fibra %s Mega + Celular %s GB + %s" % (mega, gb, tv),
+            "destaque": "%s Mega + %s GB + %s" % (mega, gb, tv),
+            "degrau_mbps": _mbps(mega + " Mega"),
+            "franquia_anunciada_gb": int(gb),
+            "preco_cheio": valores[0] if len(valores) > 1 else None,
+            "preco_promocional": valores[-1],
+            "meses_desconto": int(meses.group(1)) if meses else None,
+            "preco_pos_promocao": _num(depois.group(1)) if depois else None,
+            "taxa_instalacao": 0.0 if re.search(r"instala\S*o\s+gr\S*tis", meio, re.I) else None,
+            "fidelidade_meses": None,
+            "contexto": contexto[:300],
+        })
+    return saida
+
+
+def cookie_da_cidade(cidade, uf):
+    u"""O cookie que o seletor da Unifique grava: a rota em base64 + sufixo."""
+    import base64
+    rota = rota_da_cidade(cidade, uf).rstrip("/").split("/internet-fibra/")[1]
+    return "ckUnifique[location]=%s%s" % (
+        urllib.parse.quote(base64.b64encode(rota.encode("ascii")).decode("ascii")),
+        SUFIXO_DO_COOKIE)
+
+
 def rota_da_cidade(cidade, uf, pagina=None):
     """A URL propria da cidade, que e para onde o seletor navega.
 
@@ -319,15 +400,18 @@ def coletar(cidade, uf, verbose=True, pagina=None):
         if sem_acento(cidade).lower() not in sem_acento(texto).lower():
             saida["avisos"].append("a pagina nao confirmou a cidade %s" % cidade)
 
+        fid = fidelidades(texto)
         for o in extrair(texto):
             o.update({
                 "operadora": "Unifique", "produto": "fibra", "praca": praca,
                 "capturado_em": agora.isoformat(),
                 "franquia_anunciada_gb": None, "franquia_contratual_gb": None,
-                "preco_cheio": None,
+                # o riscado do card, quando tem (o FIBRA COMPLETA 600 Mega)
+                "preco_cheio": o.get("preco_cheio"),
                 "nivel_bundle": nivel_bundle(o.pop("contexto", "")),
                 "codigo_anatel": None, "campanha": None, "id_catalogo": None,
-                "fidelidade_meses": None, "multa_fidelidade": None,
+                "fidelidade_meses": fid.get((o["nome_oferta"], o["degrau_mbps"])),
+                "multa_fidelidade": None,
             })
             saida["ofertas"].append(o)
 
@@ -348,12 +432,56 @@ def coletar(cidade, uf, verbose=True, pagina=None):
                     "o layout da Unifique provavelmente mudou")
         if verbose:
             print("  fibra  %d ofertas" % len(saida["ofertas"]))
+        # A FIBRA SEM APPS FALHA SOZINHA: dentro do try do coletor, um
+        # erro dela levava o celular e o combo da praca junto
+        try:
+            _fibra_sem_apps(cidade, uf, praca, agora, saida, verbose)
+        except Exception as e:                          # noqa: BLE001
+            saida["avisos"].append("fibra sem apps: %s" % str(e)[:140])
         _celular_e_combo(cidade, uf, praca, agora, saida, verbose)
     except Exception as e:
         saida["avisos"].append("leitura: %s" % str(e)[:140])
         if verbose:
             print("  ERRO: %s" % str(e)[:140])
     return saida
+
+
+def _fibra_sem_apps(cidade, uf, praca, agora, saida, verbose):
+    u"""A fibra sem SVA da cidade, pela pagina que a cidade vai no cookie.
+
+    Os nomes sao os da vitrine comum ("FIBRA IDEAL 500 Mega"), a outro preco:
+    entram com "sem apps" no nome. Pagina que nao confirma a cidade e o cookie
+    que mudou de formato - aviso, e nada entra."""
+    status, texto = buscar(PAGINA_SEM_SVA, cookie=cookie_da_cidade(cidade, uf))
+    if status == 404:
+        # como nas outras paginas: 404 e a Unifique nao vender, nao falha
+        saida["avisos"].append("a Unifique nao vende fibra sem apps em %s/%s" % (cidade, uf))
+        return
+    if status != 200:
+        saida["avisos"].append("fibra sem apps: HTTP %s ao ler %s/%s" % (status, cidade, uf))
+        return
+    vit = _vitrine(texto)
+    if sem_acento(cidade).lower() not in sem_acento(vit).lower():
+        saida["avisos"].append("fibra sem apps: a pagina nao confirmou a cidade %s - "
+                               "o cookie da praca deve ter mudado de formato" % cidade)
+        return
+    achadas = extrair(vit)
+    for o in achadas:
+        o.update({
+            "operadora": "Unifique", "produto": "fibra", "praca": praca,
+            "capturado_em": agora.isoformat(),
+            "nome_oferta": ("%s sem apps" % o["nome_oferta"])[:60],
+            "variante": "sem_apps",
+            "franquia_anunciada_gb": None, "franquia_contratual_gb": None,
+            "preco_cheio": o.get("preco_cheio"),
+            "nivel_bundle": 0, "apps": None,
+            "composicao": o.pop("contexto", ""),
+            "codigo_anatel": None, "campanha": None, "id_catalogo": None,
+            "fidelidade_meses": None, "multa_fidelidade": None,
+        })
+        saida["ofertas"].append(o)
+    if verbose:
+        print("  fibra sem apps  %d ofertas" % len(achadas))
 
 
 def _celular_e_combo(cidade, uf, praca, agora, saida, verbose):
@@ -364,6 +492,7 @@ def _celular_e_combo(cidade, uf, praca, agora, saida, verbose):
     que nem confirma a cidade e layout quebrado - a mesma regra da fibra.
     """
     for produto, pagina, ler in (("combo", PAGINA_COMBO, extrair_combo),
+                                 ("combo", PAGINA_COMBO_TV, extrair_combo_tv),
                                  ("movel", PAGINA_MOVEL, extrair_movel)):
         status, texto = buscar(rota_da_cidade(cidade, uf, pagina))
         if status == 404:
