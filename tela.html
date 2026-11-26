@@ -761,7 +761,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "26/11/2026 08:49";
+const GERADO = "26/11/2026 09:01";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -2367,53 +2367,67 @@ function grafDispersao(){
 // comparar precos nominais de ofertas que entregam coisas diferentes.
 function grafUnitario(){
   const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
-  const entrada = entradaPorOperadora(hoje);
-  const itens = [];
-  for (const [op, o] of Object.entries(entrada)) {
-    const e = entregaDe(o), p = precoDe(o);
-    if (!e.v || p == null) continue;
-    itens.push({op, v:p/e.v, u:e.u, nome:o.nome_oferta||"", preco:p, entrega:e.v});
+  // O PAR DO POSICIONAMENTO (26/11/2026). "Esses graficos estao feios":
+  // a coluna unica por operadora so mostrava o R$/unidade da oferta de
+  // ENTRADA, que e quase sempre a pior relacao da grade. Agora o desenho e
+  // o do quadro ao lado - a operadora no eixo, as ofertas dela em barras
+  // em cima do nome, NA MESMA ORDEM (do preco menor ao maior) - e a barra
+  // k de um quadro e a mesma oferta da barra k do outro.
+  const porOp = {}, contaU = {};
+  for (const o of doFiltro(hoje)) {
+    const p = precoDe(o);
+    if (p == null) continue;
+    const e = entregaDe(o);
+    (porOp[o.operadora] = porOp[o.operadora] || []).push({p, e, nome:o.nome_oferta || ""});
+    if (e.v) contaU[e.u] = (contaU[e.u] || 0) + 1;
   }
-  itens.sort((a,b)=>a.v-b.v);
-  const alvo = document.getElementById("c-unitario");
-  if (!itens.length) {
+  // UMA UNIDADE SO NO EIXO: a mais comum. O satelite mistura Mbps
+  // (residencial) e GB (prioritario), e R$/Mbps ao lado de R$/GB na mesma
+  // regua seria comparar o que nao se compara; a outra fica na dica.
+  const u = Object.keys(contaU).sort((a, b) => contaU[b] - contaU[a])[0];
+  const ops = Object.keys(porOp).sort(porRelevancia)
+    .filter(op => porOp[op].some(x => x.e.v && x.e.u === u));
+  if (!u || !ops.length) {
     if (graficos["c-unitario"]) graficos["c-unitario"].destroy(), delete graficos["c-unitario"];
     return;
   }
-  const u = unidadeComum(itens);
-  // casas decimais conforme a grandeza: R$/GB fica na ordem de centavos
-  const casas = itens[itens.length-1].v < 1 ? 2 : 1;
-  // EM COLUNAS (25/11/2026): da mais barata, a esquerda, a mais cara. O
-  // rotulo leva uma casa a mais que o eixo - 1,18 e 1,20 sao "1,2" os dois.
+  for (const op of ops) porOp[op].sort((a, b) => a.p - b.p || (a.e.v || 0) - (b.e.v || 0));
+  const unit = x => (x && x.e.v && x.e.u === u) ? x.p / x.e.v : null;
+  const valores = ops.flatMap(op => porOp[op].map(unit)).filter(v => v != null);
+  // casas conforme a grandeza (R$/GB e R$/Mbps ficam em centavos); o
+  // rotulo leva uma a mais que o eixo - 1,18 e 1,20 sao "1,2" os dois
+  const casas = Math.max(...valores) < 1 ? 2 : 1;
   const casasRot = Math.min(casas + 1, 3);
+  const fmt = (v, c) => Number(v).toLocaleString("pt-BR", {minimumFractionDigits:c, maximumFractionDigits:c});
+  const nMax = Math.max(...ops.map(op => porOp[op].length));
+  const estreito = window.innerWidth < 600;
+  const series = Array.from({length:nMax}, (_, k) => ({
+    label:String(k + 1), skipNull:true, borderRadius:3, maxBarThickness:30,
+    categoryPercentage:estreito ? 0.94 : 0.88, barPercentage:0.9,
+    backgroundColor:ops.map(op => CORES[op] || "#999"),
+    data:ops.map(op => { const v = unit(porOp[op][k]); return v == null ? null : +v.toFixed(4); }),
+  }));
   trocar("c-unitario", {
     type:"bar",
-    data:{labels:itens.map(i=>i.op),
-          datasets:[{data:itens.map(i=>+i.v.toFixed(3)),
-            backgroundColor:itens.map(i=>CORES[i.op]||"#999"),
-            borderRadius:4, maxBarThickness:56}]},
+    data:{labels:ops, datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:22}},
+      layout:{padding:{top:24}},
       plugins:{legend:{display:false},
         unidadeEixo:{y:"R$/" + u},
-        tooltip:{callbacks:{label:c=>{
-          const i = itens[c.dataIndex];
-          return i.nome+": "+reais(i.v)+"/"+i.u
-                 +"  ("+reais(i.preco)+" ÷ "+i.entrega+" "+i.u+")";
-        }}},
-        datalabels:{anchor:"end", align:"end", offset:1, clamp:true, clip:false,
-          color:"#2B2621", font:{size:10.5, weight:"700"},
-          formatter:v=>Number(v).toLocaleString("pt-BR",
-            {minimumFractionDigits:casasRot, maximumFractionDigits:casasRot})}},
+        tooltip:{callbacks:{
+          title:c => c.length ? c[0].label : "",
+          label:c => {
+            const x = porOp[c.label] && porOp[c.label][c.datasetIndex];
+            if (!x || unit(x) == null) return null;
+            return x.nome + ": R$ " + fmt(unit(x), casasRot) + "/" + u
+                   + "  (" + reais(x.p) + " ÷ " + Number(x.e.v).toLocaleString("pt-BR") + " " + u + ")";
+          }}},
+        rotulosEmAndares:{formato:v => [fmt(v, casasRot)]}},
       scales:{
-        x:{grid:{display:false}, border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#2B2621", font:{size:12, weight:"600"}}},
-        y:{beginAtZero:true, grid:{display:true, color:EIXO.grade, drawTicks:false},
-           border:{display:true, color:EIXO.borda, width:1},
-           ticks:{color:"#7C7468", font:{size:11},
-                  callback:v=>Number(v).toLocaleString("pt-BR",
-                    {minimumFractionDigits:casas, maximumFractionDigits:casas})}}}},
-    plugins:[ChartDataLabels, UNIDADE_EIXO],
+        x:{...eixos().x, ticks:{...eixos().x.ticks, autoSkip:false,
+           color:"#2B2621", font:{size:12, weight:"700"}}},
+        y:{...eixos(v => fmt(v, casas)).y, grace:"18%"}}},
+    plugins:[ROTULOS_EM_ANDARES, UNIDADE_EIXO],
   });
 }
 
