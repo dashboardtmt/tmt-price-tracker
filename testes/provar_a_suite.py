@@ -2283,6 +2283,28 @@ MUTACOES = [
         "    familia, err = ler_familia(op, FAMILIA % uf.lower(), uf)\n",
         "    familia, err = [], None\n",
         "Fm2. o coletar deixa de ler a pagina do Familia"),
+    # O TIM BLACK (27/11/2026): da pagina dele, como o Familia.
+    Mutacao(
+        "coletores/tim.py",
+        "    black, err = ler_black(op, BLACK % uf.lower(), uf)\n",
+        "    black, err = [], None\n",
+        "Bk1. o coletar volta ao carrossel velho do pos-pago"),
+    Mutacao(
+        "coletores/tim.py",
+        "    if sum(int(x) for x in GB_DA_COMPOSICAO.findall(t)) != franquia:\n"
+        "        return None\n",
+        "",
+        "Bk2. a composicao velha do Premium vira contrato"),
+    Mutacao(
+        "coletores/tim.py",
+        "                if lida.get(\"pagina\") == \"black\" and not lida.get(\"apps\") and o.get(\"apps\"):\n",
+        "                if False:\n",
+        "Bk3. o Express perde o Deezer do card do pos"),
+    Mutacao(
+        "robo.py",
+        '            if grupo == "grades":\n',
+        "            if False:\n",
+        "Gr1. a grade relida volta a sair inteira como noticia"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",

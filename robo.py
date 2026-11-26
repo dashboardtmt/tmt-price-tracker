@@ -1191,7 +1191,11 @@ LEITURA_MUDOU_EM = {
                   "fidelidade de 12 meses do kit de R$ 49 e o terabyte "
                   "decimal (1 TB = 1.000 GB, e não 1.024); e a fibra da TIM "
                   "passou a ser lida dos cards da página, e não das janelas "
-                  "de comparação escondidas",
+                  "de comparação escondidas; e o TIM Black, o Plus e os três "
+                  "Express passaram a ser lidos da página do próprio plano, e "
+                  "não do carrossel velho da página de pós-pago (80 e 110 GB "
+                  "em vez de 70 e 80, e 77, 92 e 117 GB nos Express, que "
+                  "entravam sem franquia)",
 }
 
 
@@ -2615,11 +2619,13 @@ def _grades_reorganizadas(h, o):
     def por_preco(linhas):
         # entre duas ofertas do mesmo preco vale a que entrega mais: e a
         # que o cliente escolheria, e a que representa o degrau
+        # (o terceiro campo e o nome como a vitrine escreve: a declaracao
+        # de leitura o procura em cada movimento - ver _sem_o_relido)
         m = {}
         for l in linhas:
             p, e = l["preco_promocional"], _entrega(l)
             if p not in m or e > m[p][0]:
-                m[p] = (e, (l.get("nome_oferta") or "").lower())
+                m[p] = (e, (l.get("nome_oferta") or "").lower(), l.get("nome_oferta"))
         return m
 
     def por_entrega(linhas):
@@ -2628,7 +2634,7 @@ def _grades_reorganizadas(h, o):
         for l in linhas:
             p, e = l["preco_promocional"], _entrega(l)
             if e not in m or p < m[e][0]:
-                m[e] = (p, (l.get("nome_oferta") or "").lower())
+                m[e] = (p, (l.get("nome_oferta") or "").lower(), l.get("nome_oferta"))
         return m
 
     ah, ao = agrupar(h), agrupar(o)
@@ -2677,13 +2683,15 @@ def _grades_reorganizadas(h, o):
             # a unidade sai da linha, e nao do produto: ver _unidade
             "unidade": _unidade(atuais[0]),
             "saltos": [], "precos": [], "pracas": [],
-            "pracas_salto": {}, "pracas_preco": {}})
-        for movimentos, mapa in ((mesma_etiqueta, d["pracas_salto"]),
-                                 (mesmo_pacote, d["pracas_preco"])):
+            "pracas_salto": {}, "pracas_preco": {}, "nome_do_movimento": {}})
+        for tipo, movimentos, mapa, lado in (
+                ("s", mesma_etiqueta, d["pracas_salto"], ph),
+                ("p", mesmo_pacote, d["pracas_preco"], eh)):
             for m in movimentos:
                 em = mapa.setdefault(m, [])
                 if praca not in em:
                     em.append(praca)
+                d["nome_do_movimento"].setdefault((tipo,) + tuple(m), lado[m[0]][2])
         if praca not in d["pracas"]:
             d["pracas"].append(praca)
     # a ordem dos movimentos sai do mapa, e nao da ordem das pracas:
@@ -3018,9 +3026,12 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
     #     fidelidade da fibra;
     #   - a Vivo com as paginas que a vitrine linka (fibra com streaming, Vivo
     #     V, sem apps, o pre sem servico digital), a TV Completo dos cards, o
-    #     adicional opcional fora dos apps e o Apple Music.
-    # O resto de cada operadora (pre da Claro, controle e pos da TIM, Vivo,
-    # Brisanet, Unifique, NuCel) continua noticia.
+    #     adicional opcional fora dos apps e o Apple Music;
+    #   - o TIM Black, o Plus e os tres Express da pagina do Black, e nao do
+    #     carrossel velho do pos (80 e 110 GB em vez de 70 e 80; os Express
+    #     com 77, 92 e 117 GB, que entravam sem franquia).
+    # O resto de cada operadora (pre da Claro, controle da TIM, o Premium e
+    # o Familia, Vivo, Brisanet, Unifique, NuCel) continua noticia.
     "2026-11-27": [{
         "quem": [("Claro", "fibra", u""), ("Claro", "combo", u""),
                  ("TIM", "fibra", u""), ("Starlink", "satelite", u""),
@@ -3036,7 +3047,10 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  ("Vivo", "controle", u"re:sem apps$|^vivo controle$|^vivo controle música$"),
                  ("Vivo", "prepago", u"re:sem serviço digital$"),
                  # a TIM Controle FIT passa a ser lida do carrossel, por praca
-                 ("TIM", "btl", u"")],
+                 ("TIM", "btl", u""),
+                 # o Black da pagina dele; o Premium segue pela hub e o
+                 # reajuste dele continua noticia
+                 ("TIM", "movel", u"re:^tim black( plus| [abc] express)?$")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
@@ -3044,7 +3058,8 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"mostra), as páginas de streaming e a fibra sem apps da "
                  u"Brisanet, o combo com TV e a fibra sem apps da Unifique, as "
                  u"páginas de streaming e sem apps da Vivo (com o pré de 15 "
-                 u"dias), as três ofertas do TIM Controle FIT, os "
+                 u"dias), as três ofertas do TIM Controle FIT, a franquia do "
+                 u"TIM Black e dos três Express, os "
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],
@@ -3091,17 +3106,66 @@ def _sem_o_relido(hoje, d):
             return re.search(comeco[3:], nome or "", re.I) is not None
         return (nome or "").lower().startswith(comeco.lower())
 
-    def declarado(e):
-        op, produto, nome = _quem_e(e)
+    def achar(op, produto, nome):
         for dec in declarados:
             for (o, p, comeco) in dec["quem"]:
                 if op == o and produto == p and casa(nome, comeco):
                     return dec
         return None
 
+    def declarado(e):
+        return achar(*_quem_e(e))
+
+    def anotar(grupo, e, dec):
+        d["relidos"].append({"grupo": grupo, "evento": e, "texto": dec["texto"]})
+        if dec["texto"] not in d["relidos_porque"]:
+            d["relidos_porque"].append(dec["texto"])
+
+    # A GRADE SE PARTE POR MOVIMENTO (27/11/2026). Ela e um evento por
+    # escada, sem nome de oferta - e a declaracao procura nome. Na bancada da
+    # troca do TIM Black, o Express saiu da noticia (tem nome, e "entrada")
+    # e o Black e o Plus ficaram: "129,99: 70 -> 80 GB, +14% de internet
+    # pelo mesmo preco", que e a nossa leitura mudando de pagina. Cada
+    # movimento leva o nome da oferta que ocupa o degrau (o detector so
+    # pareia movimento de mesmo nome), e e ele que se procura.
+    def partir_a_grade(e):
+        nomes = e.get("nome_do_movimento") or {}
+        fica = dict(e)
+        for tipo, campo, mapa in (("s", "saltos", "pracas_salto"),
+                                  ("p", "precos", "pracas_preco")):
+            restam = []
+            for m in e.get(campo) or ():
+                km = (tipo,) + tuple(m)
+                # sem nome guardado, vale o nome do evento, como antes
+                nome = nomes.get(km, _quem_e(e)[2])
+                dec = achar(e.get("operadora"), e.get("produto"), nome)
+                if dec is None:
+                    restam.append(m)
+                    continue
+                lado = ({"franquia_anunciada_gb": m[1], "preco_promocional": m[0]},
+                        {"franquia_anunciada_gb": m[2], "preco_promocional": m[0]}) \
+                    if tipo == "s" and e.get("unidade") == "GB" else \
+                    ({"preco_promocional": m[1]}, {"preco_promocional": m[2]}) \
+                    if tipo == "p" else ({}, {})
+                quem = {"operadora": e.get("operadora"), "produto": e.get("produto"),
+                        "nome_oferta": nome}
+                anotar("grades", {"operadora": e.get("operadora"),
+                                  "produto": e.get("produto"), "nome_oferta": nome,
+                                  "antes": dict(quem, **lado[0]),
+                                  "atual": dict(quem, **lado[1]),
+                                  "pracas": list((e.get(mapa) or {}).get(m) or ())}, dec)
+            fica[campo] = restam
+            fica[mapa] = {k: v for k, v in (e.get(mapa) or {}).items() if k in restam}
+        return fica if (fica["saltos"] or fica["precos"]) else None
+
     for grupo in GRUPOS_RELIDOS:
         ficam = []
         for e in d.get(grupo) or ():
+            if grupo == "grades":
+                resto = partir_a_grade(e)
+                if resto is not None:
+                    ficam.append(resto)
+                continue
             dec = declarado(e)
             if dec is None:
                 ficam.append(e)

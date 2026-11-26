@@ -465,7 +465,51 @@ ATRIBUTO = re.compile(r'([\w-]+)="([^"]*)"')
 PRECO_TOTAL = re.compile(r"R\$\s*([\d.]+,\d{2})\s*/\s*m[eê]s\s+no\s+total", re.I)
 
 
-def ler_familia(op, url, uf):
+# O TIM BLACK, DA PAGINA DO PROPRIO PLANO, desde 27/11/2026 - o mesmo
+# caminho do Familia, e pelo mesmo motivo.
+#
+# A pagina de pos-pago e um carrossel velho tambem para o Black: dizia
+# 70GB para o TIM Black e 80GB para o Plus, e os tres Express sem
+# franquia nenhuma ("ate 67 gigas", que e teto). A pagina do Black
+# publica os seis cards com a franquia em data-first-consume: 80GB,
+# 110GB e 125GB, e 77GB, 92GB e 117GB nos Express (medido em 26/11/2026
+# em SP; o Premium de 125GB e o mesmo que a hub publica). O preco do
+# Black nao tem "no total": e o do mes, "R$ 129,99/mes na fatura".
+BLACK = "https://www.tim.com.br/%s/para-voce/planos/pos-pago/tim-black"
+PRECO_DO_MES = re.compile(r"R\$\s*([\d.]+,\d{2})\s*/\s*m[eê]s", re.I)
+GB_DA_COMPOSICAO = re.compile(r"(\d+)\s*GB", re.I)
+
+
+def _contratual_que_fecha(info, franquia):
+    u"""O "do plano" da composicao, so quando a composicao fecha com o card.
+
+    A COMPOSICAO DO JSON TAMBEM FICA VELHA. Na pagina do Black, em
+    26/11/2026, a do Premium dizia "40GB do plano + 20GB promo + 10GB de
+    bonus + 10GB para redes sociais" - 80GB, a conta de um plano anterior -
+    em cima de um card de 125GB; a hub, no mesmo dia, dizia 60GB do plano
+    e fechava os 125. Gravar 40 seria afirmar um contrato que a TIM nao
+    publica. A conta tem de dar a franquia do card; se nao da, o contrato
+    fica vazio.
+
+    "5 0GB" e digitacao da TIM (o C Express: 27 + 40 + 50 = 117), e o
+    total que abre a composicao do Black ("80GB: 40GB do plano + ...")
+    nao e parcela.
+    """
+    if not info or not franquia:
+        return None
+    t = re.sub(r"(\d)\s+(\d)(?=\s*GB)", r"\1\2", info, flags=re.I)
+    t = re.sub(r"^\s*\d+\s*GB\s*:", "", t, flags=re.I)
+    if sum(int(x) for x in GB_DA_COMPOSICAO.findall(t)) != franquia:
+        return None
+    return franquia_contratual(t)
+
+
+def _ler_pagina_de_plano(op, url, uf, do_plano, precos, rotulo):
+    u"""Os cards <tim-card-pricing-offer> da pagina de um plano.
+
+    do_plano(nome) diz que card e do plano; precos sao os padroes de preco
+    aceitos, em ordem - o Familia so aceita o total, porque o primeiro
+    preco do card e o por pessoa."""
     s, h = buscar(op, url)
     if s != 200:
         return None, "HTTP %s" % s
@@ -480,9 +524,10 @@ def ler_familia(op, url, uf):
         if regioes and uf.lower() not in regioes:
             continue
         nome = _html.unescape(a.get("data-node-name") or "").split(" - ")[0].strip()
-        total = PRECO_TOTAL.search(_html.unescape(a.get("data-price") or ""))
+        cru = _html.unescape(a.get("data-price") or "")
+        total = next((x for x in (p.search(cru) for p in precos) if x), None)
         franquia = gb(a.get("data-first-consume"))
-        if not nome or not total or "fam" not in nome.lower():
+        if not nome or not total or not do_plano(nome.lower()):
             continue
         if nome in vistos:
             continue        # a pagina repete o card no layout mobile
@@ -492,9 +537,9 @@ def ler_familia(op, url, uf):
             "nome_oferta": nome,
             "destaque": "%dGB" % franquia if franquia else base.get("destaque"),
             "franquia_anunciada_gb": franquia,
+            "franquia_contratual_gb": _contratual_que_fecha(base.get("composicao"), franquia),
             "preco_promocional": numero(total.group(1)),
         })
-        base.setdefault("franquia_contratual_gb", None)
         base.setdefault("nivel_bundle", 0)
         base.setdefault("apps", None)
         base.setdefault("apps_rotulo", None)
@@ -502,10 +547,23 @@ def ler_familia(op, url, uf):
         base.setdefault("composicao", None)
         saida.append(base)
     if not saida:
-        return [], ("nenhum card do TIM Black Familia reconhecido - a "
-                    "leitura falhou, e nao ha como afirmar que o plano "
-                    "saiu da praca")
+        return [], ("nenhum card do %s reconhecido - a leitura falhou, e "
+                    "nao ha como afirmar que o plano saiu da praca" % rotulo)
     return saida, None
+
+
+def ler_familia(op, url, uf):
+    return _ler_pagina_de_plano(op, url, uf, lambda n: "fam" in n,
+                                (PRECO_TOTAL,), "TIM Black Familia")
+
+
+def ler_black(op, url, uf):
+    u"""O TIM Black, o Plus, o Premium e os tres Express. O Familia e o
+    Empresa tem pagina propria e ficam fora."""
+    return _ler_pagina_de_plano(
+        op, url, uf,
+        lambda n: "black" in n and "fam" not in n and "empresa" not in n,
+        (PRECO_DO_MES,), "TIM Black")
 
 
 def _degrau_no_nome(nome):
@@ -995,6 +1053,26 @@ def coletar(cidade, uf, verbose=True):
             saida["ofertas"].append(o)
     time.sleep(PAUSA)
 
+    # O BLACK, da pagina dele, pelo mesmo caminho do Familia - ver ler_black.
+    # A hub continua mandando no que ela tambem traz (o Premium).
+    black, err = ler_black(op, BLACK % uf.lower(), uf)
+    if err:
+        saida["avisos"].append("black: %s" % err)
+        if verbose:
+            print("  %-9s FALHOU (%s)" % ("black", err))
+    else:
+        ja = set(_nome_curto(o.get("nome_oferta")) for o in saida["ofertas"])
+        for o in black:
+            if _nome_curto(o["nome_oferta"]) in ja:
+                continue
+            o.update({"operadora": "TIM", "produto": "movel",
+                      "praca": praca, "pagina": "black",
+                      "capturado_em": agora.isoformat(),
+                      "preco_cheio": None, "degrau_mbps": None,
+                      "codigo_anatel": None, "campanha": None})
+            saida["ofertas"].append(o)
+    time.sleep(PAUSA)
+
     # A PAGINA DO PRODUTO, depois da hub e so com o que a hub nao
     # trouxe. Quando o mesmo plano aparece nas duas, a HUB MANDA: e ela
     # que a TIM atualiza na campanha - o TIM Black Premium saiu de 110GB
@@ -1008,10 +1086,18 @@ def coletar(cidade, uf, verbose=True):
         if verbose:
             print("  %-9s FALHOU (%s)" % ("pos-pago", err))
     else:
-        ja = set(_nome_curto(o.get("nome_oferta")) for o in saida["ofertas"])
+        ja = dict((_nome_curto(o.get("nome_oferta")), o) for o in saida["ofertas"])
         novas = 0
         for o in pos:
-            if _nome_curto(o["nome_oferta"]) in ja:
+            lida = ja.get(_nome_curto(o["nome_oferta"]))
+            if lida is not None:
+                # OS APPS DO EXPRESS SAEM DAQUI. A pagina do Black da a
+                # franquia e o preco, e o JSON dela nao nomeia o Deezer que
+                # os tres Express incluem; o card daqui diz "Pos-pago com
+                # Deezer incluso". Eleger a fonte por campo.
+                if lida.get("pagina") == "black" and not lida.get("apps") and o.get("apps"):
+                    for k in ("apps", "apps_rotulo", "apps_planos", "nivel_bundle"):
+                        lida[k] = o.get(k)
                 continue
             o.update({"operadora": "TIM",
                       "produto": classificar(o["nome_oferta"], o["destaque"]),
