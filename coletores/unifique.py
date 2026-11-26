@@ -233,6 +233,43 @@ CARD_MOVEL = re.compile(
     r"R\$\s*(\d{2,4},\d{2})\s*/\s*m[e\u00ea]s", re.S)
 
 
+# O FIQUE PRE (27/11/2026). Ficou fora porque "o preco e montado por
+# JavaScript" - e e so a cidade: sem o cookie do seletor a pagina vem sem
+# card, e com ele o HTML servido ja traz "Fique Pre NOVIDADE! PLANO
+# PRE-PAGO 5 GB 1 chip Chamadas nacionais ilimitadas WhatsApp* ilimitado
+# Creditos com validade de 20 dias R$ 24,90 /20 dias" (medido em 26/11 nas
+# quatro pracas).
+PAGINA_PRE = "https://unifique.com.br/para-voce/planos-de-celular-pre-pago"
+CARD_PRE = re.compile(
+    r"PLANO\s+PR[ÉE]-PAGO\s+(\d{1,3})\s*GB(.{0,300}?)R\$\s*(\d{1,3},\d{2})\s*/\s*(\d{1,3})\s*dias",
+    re.S | re.I)
+
+
+def extrair_pre(texto):
+    u"""As recargas do Fique Pre: GB, preco e validade do card.
+
+    A pagina do pre nao tem o bloco "Ofertas Exclusivas" que _vitrine
+    recorta: o card e lido da pagina inteira, e o que se repete sai uma vez."""
+    saida, vistos = [], set()
+    for m in CARD_PRE.finditer(texto or ""):
+        gb, meio, preco, dias = m.groups()
+        if (gb, preco, dias) in vistos:
+            continue
+        vistos.add((gb, preco, dias))
+        saida.append({
+            "nome_oferta": u"Fique Pré %s GB" % gb,
+            "destaque": "%s GB" % gb,
+            "degrau_mbps": None,
+            "franquia_anunciada_gb": int(gb),
+            "preco_promocional": _num(preco),
+            "preco_cheio": None,
+            "fidelidade_meses": None,
+            "validade_dias": int(dias),
+            "contexto": re.sub(r"\s+", " ", meio)[:300],
+        })
+    return saida
+
+
 def extrair_movel(texto):
     u"""Os planos de celular: nome, GB, fidelidade e preco do card."""
     saida = []
@@ -491,10 +528,17 @@ def _celular_e_combo(cidade, uf, praca, agora, saida, verbose):
     outro erro sai dito; pagina da cidade sem card e ausencia, e pagina
     que nem confirma a cidade e layout quebrado - a mesma regra da fibra.
     """
-    for produto, pagina, ler in (("combo", PAGINA_COMBO, extrair_combo),
-                                 ("combo", PAGINA_COMBO_TV, extrair_combo_tv),
-                                 ("movel", PAGINA_MOVEL, extrair_movel)):
-        status, texto = buscar(rota_da_cidade(cidade, uf, pagina))
+    for produto, pagina, ler, por_cookie in (
+            ("combo", PAGINA_COMBO, extrair_combo, False),
+            ("combo", PAGINA_COMBO_TV, extrair_combo_tv, False),
+            ("movel", PAGINA_MOVEL, extrair_movel, False),
+            # o pre nao tem rota por cidade (404): a cidade vai no cookie,
+            # como na fibra sem apps
+            ("prepago", PAGINA_PRE, extrair_pre, True)):
+        if por_cookie:
+            status, texto = buscar(pagina, cookie=cookie_da_cidade(cidade, uf))
+        else:
+            status, texto = buscar(rota_da_cidade(cidade, uf, pagina))
         if status == 404:
             saida["avisos"].append("a Unifique nao vende %s em %s/%s" % (produto, cidade, uf))
             continue
@@ -518,9 +562,10 @@ def _celular_e_combo(cidade, uf, praca, agora, saida, verbose):
                 "nivel_bundle": nivel_bundle(contexto),
                 # "WhatsApp* e Waze ilimitados": o asterisco aponta para
                 # "*WhatsApp ilimitado para mensagens, fotos e videos", no
-                # pe da pagina - a regua comum nao casa com o "e Waze"
+                # pe da pagina - a regua comum nao casa com o "e Waze", nem
+                # com o "WhatsApp* ilimitado" do Fique Pre
                 "whatsapp": (apps.whatsapp_incluso(contexto) or bool(re.search(
-                    r"whats\s?app\*?\s+e\s+waze\s+ilimitad", contexto, re.I))),
+                    r"whats\s?app\*?\s+(?:e\s+waze\s+)?ilimitad", contexto, re.I))),
                 # o que o card diz alem do preco: os apps, a portabilidade
                 "composicao": contexto,
                 "codigo_anatel": None, "campanha": None, "id_catalogo": None,

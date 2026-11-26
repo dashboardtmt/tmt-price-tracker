@@ -2607,9 +2607,20 @@ MUTACOES = [
     # A UNIFIQUE INTEIRA (26/11/2026)
     Mutacao(
         "coletores/unifique.py",
-        '                                 ("combo", PAGINA_COMBO_TV, extrair_combo_tv),\n',
+        '            ("combo", PAGINA_COMBO_TV, extrair_combo_tv, False),\n',
         '',
         "Un1. o combo com TV da Unifique deixa de ser lido"),
+    # O FIQUE PRE, PELO COOKIE DA CIDADE (27/11/2026)
+    Mutacao(
+        "coletores/unifique.py",
+        '            ("prepago", PAGINA_PRE, extrair_pre, True)):\n',
+        '            ("prepago", PAGINA_PRE, extrair_pre, False)):\n',
+        "Fp1. o Fique Pre volta a ser pedido sem a cidade"),
+    Mutacao(
+        "coletores/unifique.py",
+        '                    r"whats\\s?app\\*?\\s+(?:e\\s+waze\\s+)?ilimitad", contexto, re.I))),\n',
+        '                    r"whats\\s?app\\*?\\s+e\\s+waze\\s+ilimitad", contexto, re.I))),\n',
+        "Fp2. o WhatsApp* ilimitado do Fique Pre volta a nao contar"),
     Mutacao(
         "coletores/unifique.py",
         '    if sem_acento(cidade).lower() not in sem_acento(vit).lower():\n        saida["avisos"].append("fibra sem apps: a pagina nao confirmou a cidade %s - "\n',
