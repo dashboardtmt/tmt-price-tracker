@@ -52,8 +52,9 @@ PAGINAS = {
 # 02/09 e 04/10). Quem viu foi quem le, no site: "parece um erro grave".
 PREZAO_TEMATICOS = "https://www.claro.com.br/celular/planos-pre/ofertas-pre"
 
-# Montadas em Storyblok, sem os cards do movel: a leitura e pelo texto que
-# a Claro exibe ao cliente.
+# Montadas em Storyblok, sem os cards do movel. Ate 26/11/2026 eram lidas
+# pelas frases de acessibilidade (ler_por_texto); desde 27/11, pelo mesmo
+# catalogo que monta os cards (ler_catalogo).
 POR_TEXTO = {"fibra", "combo"}
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
@@ -606,6 +607,346 @@ def ler_prezao_tematico(op, url):
     return saida, None
 
 
+# A FIBRA E O MULTI PELO CATALOGO, desde 27/11/2026.
+#
+# Ate 26/11 os dois eram lidos pelas FRASES DE ACESSIBILIDADE do HTML cru
+# (ler_por_texto, que fica para quem quiser reler o passado), e nao pelos
+# cards que o cliente ve: os cards sao montados pelo JavaScript a partir de
+# /api/catalog. Medido em Sao Paulo em 17/11 e de novo em 26/11/2026:
+#   - os planos de gigabit (1, 5 e 10 Giga, a R$ 179,90, 499,90 e
+#     1.999,90) nunca entraram: a frase deles nao tem preco;
+#   - o 350 Mega saia a 79,90 com o card a 89,90, e o 500 Mega a 109,90
+#     com o card a 119,90;
+#   - nenhum app entrava (a frase nao nomeia), com o card mostrando
+#     Globoplay, Skeelo e McAfee;
+#   - o Multi saia com tres ofertas que nao estao na vitrine (500 Mega a
+#     119,90, 600 Mega + 60 GB a 159,90 e um "750 Mega Especial" a 99,90)
+#     no lugar das que estao (750 Mega + Pos 100GB a 159,90, 1 Giga + Pos
+#     100GB a 179,90 e os dois com TV).
+#
+# A FONTE E A MESMA CHAMADA QUE A PAGINA FAZ. A pagina traz os cards
+# (componente card_360) no __NEXT_DATA__, cada um com um _uid; o catalogo
+# responde, para a UF e a cidade pedidas, o produto, o preco e o texto de
+# cada card. Publica, sem login. A cidade vai no endereco - nao depende do
+# cookie da praca, que e de outro site (planoscelular).
+#
+# TRES REGRAS DA PAGINA QUE O CATALOGO NAO APLICA, e que a leitura aplica no
+# lugar dela - sem elas entraria oferta que o cliente nao ve:
+#   1. a JANELA DO CARD (scheduling): card com data so aparece dentro dela.
+#      Em 26/11 o 600 Mega a 99,90 da pagina de fibra tinha janela de 15/11
+#      e o catalogo ainda o resolvia;
+#   2. a CIDADE EXCLUIDA (segments): o 1 Giga + Pos 100GB exclui 314
+#      cidades, Blumenau entre elas, e o catalogo o devolve para Blumenau a
+#      169,90;
+#   3. o card que o catalogo NAO ACHA na cidade (notFound) nao aparece.
+# Conferido no navegador em 26/11, Sao Paulo: as tres regras deixam
+# exatamente os cards que a pagina mostra, nas tres abas do Multi.
+#
+# O MULTI E FIBRA + CELULAR. A aba "Quero streamings e internet pra casa"
+# vende internet + TV, sem linha movel - nao e o combo que o tracker compara
+# nas outras operadoras, e fica fora. A de familia (internet, celular e TV)
+# entra, como os "+ TV" da Vivo.
+CATALOGO = "https://www.claro.com.br/api/catalog"
+NEXT_DATA = re.compile(
+    r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S)
+DE_POR = re.compile(r"de:?\s*~?\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})", re.I)
+APOS = re.compile(r"ap[oó]s,?\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})", re.I)
+MESES = re.compile(r"(\d+)\s*mes", re.I)
+# O TETO DE APPS DO CARD DO CATALOGO. O de apps.py (6) existe porque o texto
+# de uma PAGINA traz o portfolio inteiro em menu e rodape; o texto do
+# catalogo e o do proprio card, produto por produto, e o Multi com TV nomeia
+# 9 de verdade (Globoplay, Amazon Prime, Netflix, Disney+, HBO Max, Apple TV,
+# Skeelo, McAfee...). Com o teto de 6 a lista saia vazia e o aviso dizia
+# "a leitura pegou a vitrine junto com o card" - falso. O teto continua,
+# mais alto, contra o dia em que o catalogo trouxer a pagina inteira.
+LIMITE_DE_APPS_DO_CARD = 12
+# QUANTOS CARDS POR CHAMADA. Medido em 26/11/2026: com 21 _uids o catalogo
+# responde; com 22 ou mais devolve TODOS como notFound, com HTTP 200 e sem
+# erro nenhum - o Multi tem 23 cards na pagina. A pagina pede por aba (no
+# maximo 10), e a leitura pede em lotes do mesmo tamanho.
+LOTE_DO_CATALOGO = 10
+# "50GB + 50GB bonus": a primeira parcela e a contratual, a outra e bonus
+BONUS_MOVEL = re.compile(r"(\d+)\s*GB\s*\+\s*(\d+)\s*GB\s*b[oô]nus", re.I)
+
+
+def _cards_360(no):
+    """Os itens de cada componente card_360 publico da pagina, em ordem."""
+    if isinstance(no, dict):
+        if no.get("component") == "card_360":
+            dados = no.get("data") or {}
+            if dados.get("environment") == "public":
+                for it in dados.get("data") or ():
+                    if isinstance(it, dict) and it.get("_uid"):
+                        yield it
+            return
+        for v in no.values():
+            yield from _cards_360(v)
+    elif isinstance(no, list):
+        for v in no:
+            yield from _cards_360(v)
+
+
+def _data_do_card(txt, fuso):
+    try:
+        return datetime.strptime(txt.strip(), "%d/%m/%Y %H:%M").replace(tzinfo=fuso)
+    except (ValueError, AttributeError):
+        return None
+
+
+def no_ar(item, agora):
+    """O card esta dentro da janela dele? Sem janela, sempre."""
+    s = item.get("scheduling") or {}
+    ini = _data_do_card(s.get("datetimeStart") or "", agora.tzinfo)
+    fim = _data_do_card(s.get("datetimeEnd") or "", agora.tzinfo)
+    if ini and agora < ini:
+        return False
+    if fim and agora > fim:
+        return False
+    return True
+
+
+def _nome_de_lugar(x):
+    if isinstance(x, dict):
+        x = x.get("name") or x.get("uf") or x.get("value") or ""
+    return sem_acento(str(x or "")).strip().lower()
+
+
+def na_cidade(item, cidade, uf):
+    """O segmento do card deixa a cidade ver? Sem segmento, deixa.
+
+    Basta um segmento que inclua: UF listada (ou nenhuma), cidade listada
+    (ou nenhuma) e a cidade fora da lista de exclusao. Segmento por DDD ou
+    por rede nao se resolve daqui: o card entra, e a ressalva sai dita.
+    Devolve (deixa, ressalva)."""
+    segs = ((item.get("segments") or {}).get("data")) or []
+    if not segs:
+        return True, None
+    alvo, uf = _nome_de_lugar(cidade), (uf or "").upper()
+    for s in segs:
+        if not isinstance(s, dict):
+            continue
+        ufs = [_nome_de_lugar(u).upper() for u in s.get("ufs") or ()]
+        cidades = [_nome_de_lugar(c) for c in s.get("cities") or ()]
+        fora = {((c.get("uf") or "").upper(), _nome_de_lugar(c))
+                for c in s.get("cities_exclusion") or () if isinstance(c, dict)}
+        if ufs and uf not in ufs:
+            continue
+        if cidades and alvo not in cidades:
+            continue
+        if (uf, alvo) in fora:
+            continue
+        if s.get("ddds") or s.get("networkType") or s.get("networkName"):
+            return True, "segmento por DDD ou rede, que a leitura nao resolve"
+        return True, None
+    return False, None
+
+
+def preco_do_catalogo(item):
+    """(preco, preco_cheio, meses, preco_depois) como o card mostra.
+
+    O preco e o texto do card, e nao a soma dos produtos: no Multi o
+    catalogo da 99,90 pela fibra e 124,90 pelo Pos, e o card cobra 159,90.
+    O "De:" riscado e o preco cheio. O "2 meses" do periodo sozinho nao e
+    promocao - o card diz "Valor mensal"; so o "Apos, R$ X" do sufixo e."""
+    acoes = item.get("actions") or [{}]
+    p = (acoes[0] if isinstance(acoes[0], dict) else {}).get("price") or {}
+    preco = numero(p.get("price"))
+    m = DE_POR.search(p.get("prefix") or "")
+    cheio = numero(m.group(1)) if m else None
+    if cheio is not None and (preco is None or cheio <= preco):
+        cheio = None
+    suf = p.get("suffix") or ""
+    m = APOS.search(suf)
+    depois = numero(m.group(1)) if m else None
+    meses = None
+    if depois is not None:
+        mm = MESES.search("%s %s" % (p.get("period") or "", suf))
+        meses = int(mm.group(1)) if mm else None
+    return preco, cheio, meses, depois
+
+
+def _texto_do_card(item, produtos):
+    """O que o card escreve, na ordem dele, e o que cada produto inclui.
+
+    A fibra traz os itens soltos ({label}); o Multi, um bloco por produto
+    ({title, description, detail}). O logo de marca (brandGroup) entra
+    entre parenteses: "Streaming incluso" so diz qual com ele."""
+    def item_de(d):
+        rot = re.sub(r"\s+", " ", d.get("label") or "").strip()
+        marcas = [b.get("alt") for b in ((d.get("group") or {}).get("brandGroup") or ())
+                  if isinstance(b, dict) and b.get("alt")]
+        marcas = [m for m in marcas if m.lower() not in rot.lower()]
+        return ("%s (%s)" % (rot, ", ".join(marcas))) if marcas else rot
+
+    blocos, soltos = [], []
+    for d in item.get("detail") or ():
+        if not isinstance(d, dict):
+            continue
+        if isinstance(d.get("detail"), list):
+            cab = ", ".join(x.strip() for x in (d.get("title") or "", d.get("description") or "")
+                            if x and x.strip())
+            itens = [item_de(x) for x in d["detail"] if isinstance(x, dict)]
+            blocos.append("%s: %s" % (cab, "; ".join(i for i in itens if i)) if cab else
+                          "; ".join(i for i in itens if i))
+        else:
+            soltos.append(item_de(d))
+    partes = []
+    titulo = ((item.get("heading") or {}).get("children") or "").strip()
+    if soltos:
+        partes.append(("%s: " % titulo if titulo and "{{" not in titulo else "") +
+                      "; ".join(s for s in soltos if s))
+    partes.extend(b for b in blocos if b)
+    inclui = []
+    for prod in produtos:
+        for r in (prod.get("recursos") or {}).values():
+            if isinstance(r, dict):
+                t = (r.get("descricao") or r.get("nome") or "").strip()
+                if t and t not in inclui:
+                    inclui.append(t)
+    if inclui:
+        partes.append("Inclui: " + ", ".join(inclui))
+    return ". ".join(partes)
+
+
+def _cidade_do_catalogo(cidade):
+    """'Sao Paulo' -> 'sao_paulo', como a pagina pede."""
+    return re.sub(r"\s+", "_", sem_acento(cidade).strip().lower())
+
+
+def ler_catalogo(op, url, produto, cidade, uf, agora):
+    u"""A fibra ou o Multi como o card mostra. Ver o cabecalho do bloco.
+
+    Falha alto em vez de devolver vazio: pagina sem card, catalogo que nao
+    responde e catalogo que nao resolve NENHUM card da cidade (cidade que o
+    catalogo nao reconhece devolve tudo notFound - medido com uma cidade
+    inventada em 26/11) sao erro, para nao virarem saida de oferta."""
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    m = NEXT_DATA.search(h)
+    if not m:
+        return None, "a pagina nao trouxe o __NEXT_DATA__ - a pagina mudou"
+    try:
+        itens = list(_cards_360(json.loads(m.group(1))))
+    except ValueError as e:
+        return None, "o __NEXT_DATA__ nao abriu (%s)" % str(e)[:80]
+    if not itens:
+        return None, "nenhum card do catalogo na pagina - a pagina mudou"
+    hoje = [it for it in itens if no_ar(it, agora)]
+    if not hoje:
+        return None, "nenhum card da pagina dentro da janela de hoje"
+    resp = {}
+    for i in range(0, len(hoje), LOTE_DO_CATALOGO):
+        q = urllib.parse.urlencode([
+            ("state", uf.upper()), ("city", _cidade_do_catalogo(cidade)),
+            ("environment", "public"), ("component", "card_360"),
+            ("uuids", ",".join(it["_uid"] for it in hoje[i:i + LOTE_DO_CATALOGO])),
+            ("editMode", "false")], safe=",")
+        s, t = buscar(op, CATALOGO + "?" + q, extras={"Accept": "application/json"})
+        if s != 200:
+            return None, "catalogo HTTP %s" % s
+        try:
+            resp.update({x.get("_uid"): x for x in (json.loads(t).get("data") or ())
+                         if isinstance(x, dict)})
+        except (ValueError, AttributeError) as e:
+            return None, "o catalogo nao abriu (%s)" % str(e)[:80]
+
+    achados, resolvidos, ressalvas = [], 0, []
+    for it in hoje:
+        x = resp.get(it["_uid"])
+        cat = (x or {}).get("catalog") or {}
+        if not x or cat.get("notFound"):
+            continue
+        resolvidos += 1
+        deixa, ressalva = na_cidade(x if x.get("segments") else it, cidade, uf)
+        if not deixa:
+            continue
+        internet = cat.get("internet") or {}
+        celular = cat.get("celular") or {}
+        tv = cat.get("tv") or {}
+        if not internet.get("nome"):
+            continue
+        # a pagina de fibra so vende fibra; no Multi, sem celular nao e combo
+        if produto == "fibra" and (celular or tv):
+            continue
+        if produto == "combo" and not celular:
+            continue
+        preco, cheio, meses, depois = preco_do_catalogo(x)
+        if preco is None:
+            ressalvas.append("card sem preco: %s" % internet.get("nome"))
+            continue
+        nome_int = re.sub(r"\s+", " ", internet["nome"]).strip()
+        produtos = [p for p in (internet, celular, tv) if p]
+        texto = _texto_do_card(x, produtos)
+        if produto == "fibra":
+            nome = "Claro Fibra %s" % nome_int
+            gb_movel = contratual = None
+            ident = str(internet.get("id") or "") or None
+            codigo = internet.get("rgc") or None
+        else:
+            movel = re.sub(r"\s+", " ", celular.get("nomeAutomatico")
+                           or celular.get("nome") or "").strip()
+            nome = "Claro Multi %s + %s" % (nome_int, movel)
+            if tv:
+                nome += " + TV %s" % ("Soundbox" if "soundbox" in
+                                      (tv.get("nome") or "").lower() else "Box")
+            gb_movel = gb(movel)
+            mb = BONUS_MOVEL.search(texto)
+            contratual = int(mb.group(1)) if mb else None
+            ident = "%s+%s" % (internet.get("id"), celular.get("id"))
+            codigo = None
+        if ressalva:
+            ressalvas.append("%s: %s" % (nome, ressalva))
+        achados.append({
+            "id_catalogo": ident,
+            "nome_oferta": nome,
+            "destaque": nome_int,
+            "franquia_anunciada_gb": gb_movel,
+            "franquia_contratual_gb": contratual,
+            "preco_promocional": preco,
+            "preco_cheio": cheio,
+            "meses_desconto": meses,
+            "preco_pos_promocao": depois,
+            "codigo_anatel": codigo,
+            # o texto inteiro do card: e dele que saem os apps, e o Multi
+            # com TV passa de 700 caracteres com a lista do pacote
+            "composicao": texto[:1500],
+            "limite_apps": LIMITE_DE_APPS_DO_CARD,
+        })
+    if not resolvidos:
+        return None, ("o catalogo nao resolveu nenhum card em %s/%s - "
+                      "a cidade nao foi reconhecida" % (cidade, uf))
+    if not achados:
+        return None, ("nenhum card de %s visivel em %s/%s depois das regras "
+                      "da pagina" % (produto, cidade, uf))
+
+    # Mesmo nome com dois precos seria indistinguivel no banco: fica o
+    # menor e o caso vira aviso, como na leitura por frase.
+    por_nome, repetidos = {}, []
+    for a in achados:
+        antes = por_nome.get(a["nome_oferta"])
+        if antes is None:
+            por_nome[a["nome_oferta"]] = a
+        elif a["preco_promocional"] != antes["preco_promocional"]:
+            repetidos.append(a["nome_oferta"])
+            if a["preco_promocional"] < antes["preco_promocional"]:
+                por_nome[a["nome_oferta"]] = a
+    saida = list(por_nome.values())
+    if repetidos:
+        saida[0]["avisos_oferta"] = apps.juntar_avisos(
+            saida[0].get("avisos_oferta"),
+            apps.ressalva(
+                "nomes repetidos na vitrine, com preços diferentes",
+                "nomes repetidos com precos diferentes: %s"
+                % ", ".join(sorted(set(repetidos)))))
+    if ressalvas:
+        saida[0]["avisos_oferta"] = apps.juntar_avisos(
+            saida[0].get("avisos_oferta"),
+            apps.ressalva("leitura do catalogo com ressalva",
+                          "; ".join(ressalvas)[:300]))
+    return saida, None
+
+
 def coletar(cidade, uf, verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     op, _ = navegador()
@@ -650,7 +991,7 @@ def coletar(cidade, uf, verbose=True):
             if temas:
                 cards = (cards or []) + temas
         elif produto in POR_TEXTO:
-            cards, erro = ler_por_texto(op, url, produto)
+            cards, erro = ler_catalogo(op, url, produto, cidade, uf, agora)
         else:
             cards, erro = ler_cards(op, url, produto)
         if erro:
@@ -661,6 +1002,8 @@ def coletar(cidade, uf, verbose=True):
             continue
         for c in cards:
             nome = c["nome_oferta"]
+            # so o catalogo traz o teto proprio; os outros usam o de apps.py
+            lim = c.pop("limite_apps", None)
             if produto == "prepago":
                 real = "prepago"
             elif produto in POR_TEXTO:
@@ -675,18 +1018,19 @@ def coletar(cidade, uf, verbose=True):
                 # o Prezao ja chega com as duas franquias resolvidas
                 "franquia_anunciada_gb": c.get("franquia_anunciada_gb") if real in ("prepago", "combo")
                     else (gb(c["destaque"]) if real not in ("fibra", "combo") else None),
-                "franquia_contratual_gb": c.get("franquia_contratual_gb") if real == "prepago"
+                "franquia_contratual_gb": c.get("franquia_contratual_gb")
+                    if real in ("prepago", "combo")
                     else franquia_contratual(c["composicao"]),
                 "degrau_mbps": mbps(c["destaque"]) if real in ("fibra", "combo") else None,
                 "nivel_bundle": nivel_bundle(c["composicao"]),
                 # a frase da vitrine nomeia o que acompanha a oferta, e
                 # as vezes tambem o tier ("Netflix Padrao")
-                "apps": apps.apps_do_texto(c.get("composicao")),
+                "apps": apps.apps_do_texto(c.get("composicao"), limite=lim),
                 "apps_rotulo": apps.rotulo(
-                    apps.apps_do_texto(c.get("composicao")),
+                    apps.apps_do_texto(c.get("composicao"), limite=lim),
                     c.get("composicao"), c.get("nome_oferta")),
                 "apps_planos": apps.planos_dos_apps(
-                    apps.apps_do_texto(c.get("composicao")),
+                    apps.apps_do_texto(c.get("composicao"), limite=lim),
                     c.get("composicao"), c.get("nome_oferta")),
                 # A LEITURA LARGA SAI DITA. Acima do limite de apps a
                 # lista vira vazia, e vazio quer dizer "nenhum app
@@ -695,8 +1039,11 @@ def coletar(cidade, uf, verbose=True):
                 # mensagem e o relatorio leem.
                 "avisos_oferta": apps.juntar_avisos(
                     c.get("avisos_oferta"),
-                    apps.aviso_de_leitura(c.get("composicao"))),
-                "preco_cheio": None, "codigo_anatel": None,
+                    apps.aviso_de_leitura(c.get("composicao"), limite=lim)),
+                # so o catalogo (fibra e Multi) preenche os dois; os
+                # outros leitores nao os tem e continuam None
+                "preco_cheio": c.get("preco_cheio"),
+                "codigo_anatel": c.get("codigo_anatel"),
                 # a campanha, quando houve, veio do card e nao pode ser
                 # zerada aqui: e ela que explica por que o nome da oferta
                 # mudou naquele dia

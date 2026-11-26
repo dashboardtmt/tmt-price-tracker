@@ -1518,7 +1518,14 @@ function doFiltro(dia){
 // em 08/10 sem a TIM mexer em preco. A Claro, no mesmo caso, foi relida
 // pela escada gravada (reler_prezao.py); a TIM nao tem o que reler.
 // Escolha de quem le, em 25/11/2026: a linha da TIM comeca em 08/10.
-const ENTRADA_DESDE = {"TIM|prepago": "2026-10-08"};
+// A FIBRA E O MULTI DA CLARO, PELA MESMA REGRA (26/11/2026). Ate 26/11 os
+// dois eram lidos de frases de acessibilidade que nao batiam com os cards:
+// a entrada da fibra saia a 79,90 (o card cobra 89,90) e a do Multi a
+// 99,90 (um "750 Mega Especial" que a vitrine nao tem; o mais barato com
+// celular custa 159,90). Nao ha card gravado para reler o passado, entao a
+// linha comeca na primeira coleta pelo catalogo.
+const ENTRADA_DESDE = {"TIM|prepago": "2026-10-08",
+                       "Claro|fibra": "2026-11-27", "Claro|combo": "2026-11-27"};
 
 function entradaPorOperadora(dia){
   const por = {};
@@ -1526,7 +1533,9 @@ function entradaPorOperadora(dia){
     const p = precoDe(o);
     if (p == null) continue;
     const desde = ENTRADA_DESDE[o.operadora + "|" + o.produto];
-    if (desde && dia < desde) continue;
+    // a regra so vale quando a base ja chegou na data: antes disso a
+    // operadora sumiria do grafico inteiro, e nao so do comeco
+    if (desde && dia < desde && DIAS.length && DIAS[DIAS.length - 1] >= desde) continue;
     const atual = por[o.operadora];
     if (!atual || p < precoDe(atual)) por[o.operadora] = o;
   }

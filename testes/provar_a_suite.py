@@ -2374,6 +2374,44 @@ MUTACOES = [
         '    v = re.sub(r"<(style|script)\\b[^>]*>.*?</\\1>", " ", str(v), flags=re.S | re.I)\n',
         '    v = str(v)\n',
         "Cs1. o CSS da TIM volta a ser lido como nome de app"),
+    # A FIBRA E O MULTI DA CLARO PELO CATALOGO (26/11/2026): as tres regras
+    # da pagina que o catalogo nao aplica, o lote que ele responde, o teto
+    # de apps do card e o dia da troca numa linha so.
+    Mutacao(
+        "coletores/claro.py",
+        "    if fim and agora > fim:\n        return False\n",
+        "    if False:\n        return False\n",
+        "Ct1. o card fora da janela volta a entrar"),
+    Mutacao(
+        "coletores/claro.py",
+        "        if (uf, alvo) in fora:\n            continue\n",
+        "        if False:\n            continue\n",
+        "Ct2. a cidade excluida do card volta a ve-lo"),
+    Mutacao(
+        "coletores/claro.py",
+        "LOTE_DO_CATALOGO = 10\n",
+        "LOTE_DO_CATALOGO = 30\n",
+        "Ct3. o catalogo volta a ser pedido num lote que ele nao responde"),
+    Mutacao(
+        "coletores/claro.py",
+        "    if not resolvidos:\n",
+        "    if False:\n",
+        "Ct4. cidade que o catalogo nao conhece deixa de ser erro proprio"),
+    Mutacao(
+        "coletores/claro.py",
+        "LIMITE_DE_APPS_DO_CARD = 12\n",
+        "LIMITE_DE_APPS_DO_CARD = 6\n",
+        "Ct5. o Multi com TV volta a sair sem a lista de apps"),
+    Mutacao(
+        "coletores/claro.py",
+        "        if produto == \"combo\" and not celular:\n            continue\n",
+        "",
+        "Ct6. internet + TV sem celular volta a contar como combo"),
+    Mutacao(
+        "robo.py",
+        '                  "entradas", "leitura")',
+        '                  "entradas")',
+        "Ct7. a oferta so de versao volta a sair num segundo paragrafo"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

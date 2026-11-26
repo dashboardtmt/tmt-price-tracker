@@ -1175,6 +1175,18 @@ LEITURA_MUDOU_EM = {
                   "Unifique passou a ter o celular e os combos, que a "
                   "coleta não lia; e a Starlink passou a ter gravado o "
                   "preço cheio, que ela publica à parte durante a promoção",
+    # A fibra e o Multi da Claro trocaram de fonte: das frases de
+    # acessibilidade do HTML cru para o /api/catalog, que monta os cards.
+    # Commit de 26/11 depois da coleta das 00h; a primeira com o leitor
+    # novo e a de 27/11. Ver LEITURA_DE_OFERTA_MUDOU_EM.
+    "2026-11-27": "a fibra e o Multi da Claro passaram a ser lidos do "
+                  "catálogo que monta os cards da página (/api/catalog), "
+                  "e não das frases de acessibilidade do HTML: entraram os "
+                  "planos de 1, 5 e 10 Giga, o preço passou a ser o do card, "
+                  "com o preço cheio riscado e o código Anatel, os apps "
+                  "passaram a ser os que o card lista, e o Multi passou a "
+                  "ter as ofertas da vitrine (fibra + Pós, com e sem TV) no "
+                  "lugar das três que a frase inventava",
 }
 
 
@@ -1215,6 +1227,8 @@ LEITURA_EM_UMA_LINHA = {
                   "havia perdido, e a lista deixou de vir cortada",
     "2026-11-26": "entraram os Prezões temáticos da Claro, o celular e "
                   "os combos da Unifique, e o preço cheio da Starlink",
+    "2026-11-27": "a fibra e o Multi da Claro passaram a ser lidos dos "
+                  "cards da página, com os planos de 1, 5 e 10 Giga",
 }
 
 
@@ -2979,12 +2993,32 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"e R$ 249), que ela publica à parte durante a promoção "
                  u"de 30% até 30/11",
     }],
+    # A FIBRA E O MULTI DA CLARO PELO CATALOGO. Item 5 da fila de 24/11,
+    # com a escolha de quem le: as diferencas do dia da troca ficam fora
+    # da noticia, uma linha diz quantas e a lista vai no PDF. O resto da
+    # Claro (controle, pos, pre) continua noticia.
+    "2026-11-27": [{
+        "quem": [("Claro", "fibra", u""), ("Claro", "combo", u"")],
+        "texto": u"a fibra e o Multi da Claro passaram a ser lidos dos cards "
+                 u"que o cliente vê, e não das frases de acessibilidade da "
+                 u"página: entraram os planos de 1, 5 e 10 Giga, os preços "
+                 u"passaram a ser os do card (o 350 Mega de R$ 79,90 para "
+                 u"R$ 89,90 em São Paulo) e o Multi passou a ter as ofertas "
+                 u"da vitrine (fibra + Pós 100GB, com e sem TV)",
+    }],
 }
 
-# os grupos de evento de mudancas() que a declaracao alcanca
+# os grupos de evento de mudancas() que a declaracao alcanca.
+#
+# "leitura" (a oferta que mudou SO de versao) entrou em 26/11/2026. A
+# bancada do dia da troca da fibra da Claro mostrou a mensagem com DOIS
+# paragrafos sobre a mesma mudanca nossa: a linha das ofertas relidas e
+# "2 ofertas mudaram de versao sem mexer em preco nem entrega (Claro)" -
+# o 350 e o 750 Mega, que so passaram a ter os apps lidos. Para quem le
+# sao duas noticias; e uma so, e a declaracao por oferta ja a diz.
 GRUPOS_RELIDOS = ("precos", "composicao", "renomeadas", "grades", "voltaram",
                   "remodeladas", "contratuais", "saidas", "velocidades",
-                  "entradas")
+                  "entradas", "leitura")
 
 
 def _quem_e(e):
