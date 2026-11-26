@@ -86,9 +86,16 @@ APPS = {
     "premiere": {"nome": "Premiere", "preco_avulso": None,
                  "fonte": None, "conferido_em": None,
                  "evidencia": "ainda nao conferido"},
-    "vale_saude": {"nome": "Vale Saúde Sempre", "preco_avulso": None,
+    # DOIS PRODUTOS COM O MESMO COMECO (26/11/2026, auditoria contra o
+    # site): o pre da Vivo diz "Vale Saude Farma: desconto em farmacias", e o
+    # tracker escrevia "Vale Saude Sempre", que e a telemedicina do Vivo
+    # Controle Saude. Quem diz qual e o card, pelo tier; sem o card dizer,
+    # sai "Vale Saude" sozinho. O app continua um so: a chave da serie nao
+    # muda por causa do rotulo.
+    "vale_saude": {"nome": "Vale Saúde", "preco_avulso": None,
                    "fonte": None, "conferido_em": None,
-                   "evidencia": "telemedicina, nao streaming"},
+                   "evidencia": "Farma (desconto em farmacia) ou Sempre "
+                                "(telemedicina); nao streaming"},
     "vivae": {"nome": "Vivae", "preco_avulso": None,
               "fonte": None, "conferido_em": None,
               "evidencia": "educacao, nao streaming"},
@@ -228,6 +235,10 @@ TIERS = {
     # isso esta dito na evidencia para quem quiser conferir a leitura.
     "spotify": (
         ("Premium", 23.90),
+    ),
+    "vale_saude": (
+        ("Farma", None),
+        ("Sempre", None),
     ),
 }
 

@@ -1195,7 +1195,10 @@ LEITURA_MUDOU_EM = {
                   "Express passaram a ser lidos da página do próprio plano, e "
                   "não do carrossel velho da página de pós-pago (80 e 110 GB "
                   "em vez de 70 e 80, e 77, 92 e 117 GB nos Express, que "
-                  "entravam sem franquia)",
+                  "entravam sem franquia); e o Vivo Lite passou a ter a "
+                  "franquia que o card anuncia, com o bônus de 5 GB (35 e 45 "
+                  "GB, com 30 e 40 de contrato), e a Claro passou a ter o "
+                  "GeForce NOW, o iCloud+ e a Claro Banca que os cards listam",
 }
 
 
@@ -3050,7 +3053,9 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  ("TIM", "btl", u""),
                  # o Black da pagina dele; o Premium segue pela hub e o
                  # reajuste dele continua noticia
-                 ("TIM", "movel", u"re:^tim black( plus| [abc] express)?$")],
+                 ("TIM", "movel", u"re:^tim black( plus| [abc] express)?$"),
+                 # o Lite com o bonus que o card anuncia (35 e 45 GB)
+                 ("Vivo", "btl", u"re:^vivo lite")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
@@ -3059,7 +3064,7 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"Brisanet, o combo com TV e a fibra sem apps da Unifique, as "
                  u"páginas de streaming e sem apps da Vivo (com o pré de 15 "
                  u"dias), as três ofertas do TIM Controle FIT, a franquia do "
-                 u"TIM Black e dos três Express, os "
+                 u"TIM Black e dos três Express e a do Vivo Lite com o bônus, os "
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],

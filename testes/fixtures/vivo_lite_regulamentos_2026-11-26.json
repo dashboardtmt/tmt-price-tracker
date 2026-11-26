@@ -1,0 +1,80 @@
+{
+ "VIV202600066236": {
+  "nomeOferta": "Vivo Lite + YouTube Premium Lite",
+  "precoSemDescontos": "40",
+  "dataFimOferta": "30/11/2026",
+  "SMP": {
+   "franquiaDados": {
+    "franquia": "40",
+    "unidadeFranquia": "GB",
+    "franquiaEspecial": "0",
+    "unidadeFranquiaEspecial": "GB"
+   },
+   "listaSVA": [
+    "100037"
+   ]
+  },
+  "SCM": {}
+ },
+ "VIV202600066239": {
+  "nomeOferta": "Vivo Lite Mensal II",
+  "precoSemDescontos": "45",
+  "dataFimOferta": "30/11/2026",
+  "SMP": {
+   "franquiaDados": {
+    "franquia": "30",
+    "unidadeFranquia": "GB",
+    "franquiaEspecial": "0",
+    "unidadeFranquiaEspecial": "GB"
+   },
+   "listaSVA": [
+    "040022",
+    "030012",
+    "030032",
+    "030021"
+   ]
+  },
+  "SCM": {}
+ },
+ "VIV202600066240": {
+  "nomeOferta": "Vivo Lite Mensal III",
+  "precoSemDescontos": "55",
+  "dataFimOferta": "30/11/2026",
+  "SMP": {
+   "franquiaDados": {
+    "franquia": "40",
+    "unidadeFranquia": "GB",
+    "franquiaEspecial": "0",
+    "unidadeFranquiaEspecial": "GB"
+   },
+   "listaSVA": [
+    "040022",
+    "030012",
+    "030032",
+    "030021",
+    "060016"
+   ]
+  },
+  "SCM": {}
+ },
+ "VIV202600066255": {
+  "nomeOferta": "Vivo Lite Anual II",
+  "precoSemDescontos": "30",
+  "dataFimOferta": "30/11/2026",
+  "SMP": {
+   "franquiaDados": {
+    "franquia": "30",
+    "unidadeFranquia": "GB",
+    "franquiaEspecial": "0",
+    "unidadeFranquiaEspecial": "GB"
+   },
+   "listaSVA": [
+    "040022",
+    "030012",
+    "030032",
+    "030021"
+   ]
+  },
+  "SCM": {}
+ }
+}

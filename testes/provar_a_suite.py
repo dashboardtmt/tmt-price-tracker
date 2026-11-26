@@ -2332,6 +2332,27 @@ MUTACOES = [
         '    (r"claro\\s*banca", "claro_banca"),\n',
         "",
         "Ap3. a Claro Banca volta a sumir"),
+    # TRES CAMPOS DA VIVO QUE O CARD DIZ (26/11/2026)
+    Mutacao(
+        "coletores/vivo.py",
+        "        if contrato and base == contrato and extra:\n",
+        "        if False:\n",
+        "Vl1. o Lite volta a gravar a franquia do regulamento"),
+    Mutacao(
+        "coletores/vivo.py",
+        "        if contrato and base == contrato and extra:\n",
+        "        if contrato and extra:\n",
+        "Vl2. o bonus de outro contrato vale para o codigo"),
+    Mutacao(
+        "coletores/vivo.py",
+        "            if _depois:\n",
+        "            if False:\n",
+        "Vq1. a fibra com Disney+ perde o preco depois de 1 ano"),
+    Mutacao(
+        "coletores/apps.py",
+        '    "vale_saude": (\n        ("Farma", None),\n',
+        '    "vale_saude_x": (\n        ("Farma", None),\n',
+        "Vs1. o pre da Vivo volta a sair sem dizer qual Vale Saude"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",

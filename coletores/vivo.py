@@ -779,6 +779,35 @@ def _produto_do_regulamento(reg):
     return "btl"
 
 
+APOS_PROMOCAO = re.compile(
+    r"Ap[oó]s\s+(\d{1,2})\s+(anos?|m[eê]s|meses)\s*:?\s*R\$\s*([\d.]+(?:,\d{1,2})?)\s*/\s*m[eê]s",
+    re.I)
+BONUS_DO_CARD = re.compile(r"(\d{1,3})\s*GB\s*\+\s*(\d{1,3})\s*GB\s*de\s*b[oô]nus", re.I)
+
+
+def _bonus_do_card(html):
+    u"""{codigo Anatel: (GB do contrato, GB de bonus)}, do card que o linka.
+
+    A FRANQUIA ANUNCIADA E A DO CARD (26/11/2026, auditoria contra o site):
+    o Lite sai do regulamento, que registra 30 e 40 GB, e o card anuncia 35
+    e 45 - "30 GB + 5 GB de bonus 12 meses". O tracker grava a franquia
+    anunciada, com bonus, e a do contrato a parte, como nas outras
+    operadoras. O card que nao diz bonus nao mexe em nada, e o bonus so
+    vale quando a primeira parcela e a franquia do regulamento daquele
+    codigo - ver ler_lite.
+    """
+    saida = {}
+    for bloco in html.split('class="unique-card ')[1:]:
+        texto = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", bloco))
+        achados = set(BONUS_DO_CARD.findall(texto))
+        if len(achados) != 1:
+            continue          # sem bonus, ou dois bonus no mesmo bloco: nao chuta
+        base, extra = [int(x) for x in achados.pop()]
+        for cod in set(re.findall(r"VIV\d{12,}", bloco)):
+            saida.setdefault(cod, (base, extra))
+    return saida
+
+
 def ler_lite(op, hoje, avisos=None):
     """As ofertas Lite, pelo codigo Anatel que a pagina publica.
 
@@ -793,6 +822,7 @@ def ler_lite(op, hoje, avisos=None):
     codigos = sorted(set(re.findall(r"VIV\d{12,}", html)))
     if not codigos:
         return None, "nenhum codigo Anatel na pagina - o formato mudou"
+    bonus = _bonus_do_card(html)
 
     ofertas, vencidos = [], 0
     for cod in codigos:
@@ -831,13 +861,21 @@ def ler_lite(op, hoje, avisos=None):
         # um servico sem mexer no preco e nada diria nada, no produto
         # que o tracker acompanha para ver o PISO do mercado.
         sva, texto_sva = assinatura_sva(smp, scm)
+        contrato = int(_num(franquia) or 0) or None
+        anunciada, contratual = contrato, None
+        # O BONUS DO CARD, quando o card fala do mesmo contrato: ver
+        # _bonus_do_card
+        base, extra = bonus.get(cod) or (None, None)
+        if contrato and base == contrato and extra:
+            anunciada, contratual = contrato + extra, contrato
         ofertas.append({
             "nome_oferta": reg.get("nomeOferta"),
             "destaque": ("%s Mbps" % mbps) if mbps else
-                        ("%s GB" % franquia if franquia else None),
+                        ("%s GB" % anunciada if anunciada else None),
             "produto": produto,
             "degrau_mbps": mbps,
-            "franquia_anunciada_gb": int(_num(franquia) or 0) or None,
+            "franquia_anunciada_gb": anunciada,
+            "franquia_contratual_gb": contratual,
             "preco_promocional": preco,
             "codigo_anatel": cod,
             # o nivel de bundle NAO sai da contagem de codigos: eles nao
@@ -970,6 +1008,15 @@ def coletar(cidade, uf, verbose=True):
                 "campanha": None,
                 "id_catalogo": None,
             }
+            # O PRECO DEPOIS DA PROMOCAO, quando o card o escreve (26/11/2026,
+            # auditoria): "Vivo Fibra 600 Mega - 1 ano de Disney+ - R$ 100/mes
+            # - Apos 1 ano: R$ 120/mes". O tracker gravava o 100 sem dizer que
+            # ele acaba em 12 meses.
+            _depois = APOS_PROMOCAO.search(c["texto"] or "")
+            if _depois:
+                _n = int(_depois.group(1))
+                oferta["meses_desconto"] = _n * 12 if _depois.group(2).lower().startswith("ano") else _n
+                oferta["preco_pos_promocao"] = so_numero(_depois.group(3))
             oferta = enriquecer(oferta, idx.get(c["codigo_anatel"]))
             if c["codigo_anatel"]:
                 oferta = aplicar_regulamento(oferta, regulamento(op, c["codigo_anatel"]))
