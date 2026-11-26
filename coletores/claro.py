@@ -213,6 +213,14 @@ def ler_cards(op, url, produto):
             # HTML): no Claro Pos Geforce o "WhatsApp e ligacoes
             # ilimitadas" vem depois dos dois cortes (medido em 24/11/2026).
             "whatsapp": apps.whatsapp_incluso(re.sub(r"<[^>]+>", " ", bloco)),
+            # OS APPS TAMBEM PELO CARD INTEIRO (26/11/2026). Saiam da
+            # composicao, os primeiros 400 caracteres de um texto ja cortado
+            # em 12 mil de HTML, e o "Apps exclusivos para voce: Skeelo" do
+            # pos e do Controle Geforce fica depois dos dois cortes - o
+            # Skeelo faltava nos cinco planos de pos. Medido no hub de Sao
+            # Paulo: o card inteiro tem de 400 a 2.000 caracteres de texto e
+            # nomeia de um a tres apps.
+            "texto_apps": re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", bloco)).strip(),
         })
     if sem_preco_real and cards:
         cards[0]["avisos_oferta"] = apps.juntar_avisos(
@@ -1004,6 +1012,9 @@ def coletar(cidade, uf, verbose=True):
             nome = c["nome_oferta"]
             # so o catalogo traz o teto proprio; os outros usam o de apps.py
             lim = c.pop("limite_apps", None)
+            # o texto de onde saem os apps: o card inteiro, quando o leitor
+            # o tem (ler_cards); senao a composicao
+            fonte_apps = c.pop("texto_apps", None) or c.get("composicao")
             if produto == "prepago":
                 real = "prepago"
             elif produto in POR_TEXTO:
@@ -1022,16 +1033,16 @@ def coletar(cidade, uf, verbose=True):
                     if real in ("prepago", "combo")
                     else franquia_contratual(c["composicao"]),
                 "degrau_mbps": mbps(c["destaque"]) if real in ("fibra", "combo") else None,
-                "nivel_bundle": nivel_bundle(c["composicao"]),
+                "nivel_bundle": nivel_bundle(fonte_apps),
                 # a frase da vitrine nomeia o que acompanha a oferta, e
                 # as vezes tambem o tier ("Netflix Padrao")
-                "apps": apps.apps_do_texto(c.get("composicao"), limite=lim),
+                "apps": apps.apps_do_texto(fonte_apps, limite=lim),
                 "apps_rotulo": apps.rotulo(
-                    apps.apps_do_texto(c.get("composicao"), limite=lim),
-                    c.get("composicao"), c.get("nome_oferta")),
+                    apps.apps_do_texto(fonte_apps, limite=lim),
+                    fonte_apps, c.get("nome_oferta")),
                 "apps_planos": apps.planos_dos_apps(
-                    apps.apps_do_texto(c.get("composicao"), limite=lim),
-                    c.get("composicao"), c.get("nome_oferta")),
+                    apps.apps_do_texto(fonte_apps, limite=lim),
+                    fonte_apps, c.get("nome_oferta")),
                 # A LEITURA LARGA SAI DITA. Acima do limite de apps a
                 # lista vira vazia, e vazio quer dizer "nenhum app
                 # nomeado" - nivel 0, "sem assinatura inclusa" na
@@ -1039,7 +1050,7 @@ def coletar(cidade, uf, verbose=True):
                 # mensagem e o relatorio leem.
                 "avisos_oferta": apps.juntar_avisos(
                     c.get("avisos_oferta"),
-                    apps.aviso_de_leitura(c.get("composicao"), limite=lim)),
+                    apps.aviso_de_leitura(fonte_apps, limite=lim)),
                 # so o catalogo (fibra e Multi) preenche os dois; os
                 # outros leitores nao os tem e continuam None
                 "preco_cheio": c.get("preco_cheio"),

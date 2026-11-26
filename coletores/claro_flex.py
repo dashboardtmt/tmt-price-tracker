@@ -80,6 +80,35 @@ CARD = re.compile(
     re.I | re.S)
 
 
+# O WHATSAPP E UM LOGO. O card escreve "App Ilimitado" (no Passaporte, "Apps
+# Ilimitados") ao lado do logo do WhatsApp, e o detalhe do plano diz
+# "WhatsApp ilimitado pra tudo" - mas o texto da pagina nunca nomeia o app, e
+# o WhatsApp das quatro ofertas saia "nao" (auditoria de 26/11/2026). Antes
+# de ler o texto, o card que traz o logo passa a dizer o que o logo diz. A
+# troca tem quase o mesmo tamanho, porque a janela do CARD e de 260
+# caracteres.
+MARCA_O_WHATSAPP = r"""() => {
+  let n = 0;
+  for (const img of document.querySelectorAll('img')) {
+    if (!/whats\s?app/i.test(img.alt || '')) continue;
+    let el = img.parentElement;
+    for (let k = 0; k < 4 && el; k++, el = el.parentElement) {
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let achou = false;
+      while (w.nextNode()) {
+        const v = w.currentNode.nodeValue;
+        if (/\bapps?\s+ilimitad/i.test(v)) {
+          w.currentNode.nodeValue = v.replace(/\bapps?\s+ilimitad[oa]s?/i, 'WhatsApp ilimitado');
+          achou = true; n++;
+        }
+      }
+      if (achou) break;
+    }
+  }
+  return n;
+}"""
+
+
 def extrair(texto):
     t = re.sub(r"\s+", " ", texto or "")
     ofertas, vistos = [], set()
@@ -96,7 +125,11 @@ def extrair(texto):
         # declarado, so a preposicao saiu. O regex exigia o "do", nao
         # achou, e a franquia garantida das quatro ofertas inflou para a
         # anunciada - 10 GB que o contrato nao garante.
-        mc = re.search(r"(\d{1,3})\s*GB\s*(?:do\s+)?plano", meio, re.I)
+        #
+        # E O "LIVRES" TAMBEM (26/11/2026): desde 13/11 o card diz "35GB
+        # Livres + 5GB de bonus...", a forma do coletor irmao, e o regex so
+        # conhecia "plano" - a garantida de tres ofertas ficou vazia.
+        mc = re.search(r"(\d{1,3})\s*GB\s*(?:(?:do\s+)?plano|livres?\b)", meio, re.I)
         # CARD QUE DECLARA BONUS TEM PARTE PROMOCIONAL. Se ele fala de
         # bonus e o numero do plano nao foi lido, contratual igual a
         # anunciada e afirmacao falsa - e falha tem de virar buraco, nao
@@ -128,6 +161,8 @@ def extrair(texto):
             "avisos_oferta": apps.juntar_avisos(
                 None, apps.aviso_de_leitura(meio)),
             "composicao": meio.strip()[:400],
+            # o "App Ilimitado" do card e o WhatsApp - ver MARCA_O_WHATSAPP
+            "whatsapp": apps.whatsapp_incluso(meio),
         })
         if not mc and tem_bonus:
             ofertas[-1]["avisos_oferta"] = apps.juntar_avisos(
@@ -171,6 +206,10 @@ def coletar(cidade="Brasil", uf="BR", verbose=True, pagina=None):
 
         pagina.goto(PAGINA, wait_until="domcontentloaded", timeout=60000)
         pagina.wait_for_timeout(ESPERA)
+        try:
+            pagina.evaluate(MARCA_O_WHATSAPP)
+        except Exception as e:                          # noqa: BLE001
+            saida["avisos"].append("o logo do WhatsApp nao foi lido: %s" % str(e)[:80])
         texto = pagina.inner_text("body")
 
         if "flex" not in texto.lower():

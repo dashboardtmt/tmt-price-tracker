@@ -97,5 +97,42 @@ class OFlexLeAsQuatroOfertas(unittest.TestCase):
         self.assertIn("Passaporte", por_gb[60]["nome_oferta"])
 
 
+# O texto da pagina em 26/11/2026, depois de MARCA_O_WHATSAPP: o card trocou
+# "30GB plano" por "35GB Livres" em tres ofertas, e o "App Ilimitado" do logo
+# do WhatsApp ja vem como "WhatsApp ilimitado".
+HOJE_2611 = (
+    u"Ative agora com eSIM 40GB 30GB plano + 5GB bônus redes sociais + 5GB bônus "
+    u"Apps inclusos no bônus para redes sociais WhatsApp ilimitado VIRAFLEX10 "
+    u"DESCONTO DE 10 REAIS NO PRIMEIRO MÊS De: R$ 44,90 Por: R$ 34,90 no primeiro mês "
+    u"Plano mensal Plano anual Quero esse Mais detalhes Ative agora com eSIM 50GB 35GB Livres "
+    u"+ 5GB de bônus para Redes Sociais e Apps + 10GB de Bônus multi friday Apps "
+    u"inclusos no bônus para redes sociais WhatsApp ilimitado VIRAFLEX10 DESCONTO DE 10 "
+    u"REAIS NO PRIMEIRO MÊS De: R$ 59,90 Por: R$ 49,90 no primeiro mês Plano mensal "
+    u"Ative agora com eSIM 80GB 50GB Livres + 30GB Bônus multi friday Mais de 40 países "
+    u"das Américas para você utilizar seu Flex. WhatsApp ilimitado VIRAFLEX20 DESCONTO "
+    u"DE 20 REAIS NO PRIMEIRO MÊS De: R$ 119,90 Por: R$ 99,90 no primeiro mês")
+
+
+class OCardDe2611(unittest.TestCase):
+    u"""Auditoria contra o site de 26/11/2026: a garantida vazia em tres
+    ofertas desde 13/11, e o WhatsApp ilimitado saindo "nao" nas quatro."""
+
+    def setUp(self):
+        self.por_gb = {o["franquia_anunciada_gb"]: o for o in claro_flex.extrair(HOJE_2611)}
+
+    def test_o_livres_e_a_garantida(self):
+        self.assertEqual(self.por_gb[50]["franquia_contratual_gb"], 35)
+        self.assertEqual(self.por_gb[80]["franquia_contratual_gb"], 50)
+        self.assertEqual(self.por_gb[40]["franquia_contratual_gb"], 30)
+
+    def test_o_whatsapp_do_logo_entra(self):
+        self.assertTrue(all(o["whatsapp"] for o in self.por_gb.values()))
+
+    def test_a_marcacao_troca_so_o_texto_do_card_com_o_logo(self):
+        js = claro_flex.MARCA_O_WHATSAPP
+        self.assertIn("whats", js)
+        self.assertIn("WhatsApp ilimitado", js)
+
+
 if __name__ == "__main__":
     unittest.main()

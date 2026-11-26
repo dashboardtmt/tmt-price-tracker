@@ -2465,6 +2465,22 @@ MUTACOES = [
         '                      "preco_cheio": o.get("preco_cheio"),\n',
         '                      "preco_cheio": None,\n',
         "Tf4. o riscado da fibra da TIM volta a se perder"),
+    # OS APPS DO CARD INTEIRO E O FLEX (26/11/2026)
+    Mutacao(
+        "coletores/claro.py",
+        '            fonte_apps = c.pop("texto_apps", None) or c.get("composicao")\n',
+        '            c.pop("texto_apps", None)\n            fonte_apps = c.get("composicao")\n',
+        "Ca1. os apps da Claro voltam a sair dos 400 caracteres"),
+    Mutacao(
+        "coletores/claro_flex.py",
+        '        mc = re.search(r"(\\d{1,3})\\s*GB\\s*(?:(?:do\\s+)?plano|livres?\\b)", meio, re.I)\n',
+        '        mc = re.search(r"(\\d{1,3})\\s*GB\\s*(?:do\\s+)?plano", meio, re.I)\n',
+        "Ca2. o 'Livres' do Flex volta a deixar a garantida vazia"),
+    Mutacao(
+        "coletores/claro_flex.py",
+        '            "whatsapp": apps.whatsapp_incluso(meio),\n',
+        '            "whatsapp": False,\n',
+        "Ca3. o WhatsApp do logo do Flex volta a sair nao"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

@@ -2998,36 +2998,34 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"e R$ 249), que ela publica à parte durante a promoção "
                  u"de 30% até 30/11",
     }],
-    # A FIBRA E O MULTI DA CLARO PELO CATALOGO. Item 5 da fila de 24/11,
-    # com a escolha de quem le: as diferencas do dia da troca ficam fora
-    # da noticia, uma linha diz quantas e a lista vai no PDF. O resto da
-    # Claro (controle, pos, pre) continua noticia.
+    # A AUDITORIA CONTRA OS SITES DE 26/11/2026, numa declaracao so: cinco
+    # leituras mudaram para a mesma coleta, e a mensagem junta os textos das
+    # declaracoes do dia com ponto e virgula - cinco paragrafos de leitura
+    # no celular. As cinco:
+    #   - a fibra e o Multi da Claro pelo /api/catalog (item 5 da fila de
+    #     24/11, com a escolha de quem le: fora da noticia, uma linha e a
+    #     lista no PDF) - entram 1, 5 e 10 Giga, o preco e o do card;
+    #   - a fibra da TIM pelo card visivel, e nao pelas janelas escondidas:
+    #     sai o 700 Mega a R$ 99,99 que nenhuma pagina mostra, entra o 600
+    #     Mega Paramount+ que faltava em 9 pracas;
+    #   - a Starlink com os planos de viagem (Roam), a fidelidade de 12
+    #     meses do kit de R$ 49 e o TB decimal (1 TB = 1.000 GB);
+    #   - os apps do controle e do pos da Claro pelo card inteiro (o Skeelo
+    #     faltava nos cinco pos);
+    #   - o Claro Flex com o WhatsApp do logo e a franquia "Livres".
+    # O resto de cada operadora (pre da Claro, controle e pos da TIM, Vivo,
+    # Brisanet, Unifique, NuCel) continua noticia.
     "2026-11-27": [{
-        "quem": [("Claro", "fibra", u""), ("Claro", "combo", u"")],
-        "texto": u"a fibra e o Multi da Claro passaram a ser lidos dos cards "
-                 u"que o cliente vê, e não das frases de acessibilidade da "
-                 u"página: entraram os planos de 1, 5 e 10 Giga, os preços "
-                 u"passaram a ser os do card (o 350 Mega de R$ 79,90 para "
-                 u"R$ 89,90 em São Paulo) e o Multi passou a ter as ofertas "
-                 u"da vitrine (fibra + Pós 100GB, com e sem TV)",
-    }, {
-        # auditoria contra o site de 26/11: o Viagem nao era lido, o kit de
-        # R$ 49 tem contrato de 12 meses e o TB e decimal - muda a franquia,
-        # a chave e o nome (sem espaco duro) dos prioritarios de 1 e 2 TB
-        "quem": [("Starlink", "satelite", u"")],
-        "texto": u"a Starlink passou a ter os dois planos de viagem (100 GB "
-                 u"a R$ 339 e ilimitado a R$ 619), que o site mostra sem "
-                 u"endereço e a coleta não lia, a fidelidade de 12 meses do "
-                 u"kit de R$ 49 e o terabyte contado como ela conta (1 TB = "
-                 u"1.000 GB)",
-    }, {
-        # auditoria de 26/11: a escada de fibra lia as janelas escondidas
-        "quem": [("TIM", "fibra", u"")],
-        "texto": u"a fibra da TIM passou a ser lida dos cards que o cliente vê, "
-                 u"e não das janelas de comparação escondidas da página: saiu "
-                 u"o 700 Mega a R$ 99,99 que nenhuma página mostra, entrou o "
-                 u"600 Mega Paramount+ que faltava em 9 praças, e cada plano "
-                 u"passou a ter o preço riscado e os apps do card",
+        "quem": [("Claro", "fibra", u""), ("Claro", "combo", u""),
+                 ("TIM", "fibra", u""), ("Starlink", "satelite", u""),
+                 ("Claro", "movel", u""), ("Claro", "controle", u""),
+                 ("Claro", "btl", u"Claro Flex")],
+        "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
+                 u"uma auditoria contra os sites: a fibra e o Multi da Claro "
+                 u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
+                 u"da Claro; sai um 700 Mega da TIM que nenhuma página "
+                 u"mostra), os planos de viagem da Starlink, e os apps e o "
+                 u"WhatsApp que os cards da Claro listam",
     }],
 }
 
