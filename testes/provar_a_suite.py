@@ -2305,6 +2305,17 @@ MUTACOES = [
         '            if grupo == "grades":\n',
         "            if False:\n",
         "Gr1. a grade relida volta a sair inteira como noticia"),
+    # O ROTULO DA REGUA EM DUAS LINHAS (26/11/2026)
+    Mutacao(
+        "gerar_tela.py",
+        '  n = n.replace(/(^|\\s)(?:Prez[aã]o|Pr[eé]|Ultrafibra|Fibra|P[oó]s|Controle)(?=\\s|$)/gi, " ");\n',
+        '  n = n.replace(/\\b(?:Prez[aã]o|Pr[eé]|Ultrafibra|Fibra|P[oó]s|Controle)\\b/gi, " ");\n',
+        "Rt1. o Pre acentuado volta a ficar no nome curto"),
+    Mutacao(
+        "gerar_tela.py",
+        "                  pre: dias(x), nome: x.curto,\n",
+        "                  pre: dias(x),\n",
+        "Rt2. a regua volta a nao dizer qual oferta e o ponto"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",

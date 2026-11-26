@@ -46,6 +46,9 @@ class El {
     this.classList = { add() {}, remove() {}, toggle() {}, contains() { return false; } };
   }
   closest() { return new El("div"); }
+  // a caixa de cada grafico: a regua e o quadro das recargas mexem na
+  // altura e na visibilidade dela
+  get parentElement() { return this._pai || (this._pai = new El("div")); }
   addEventListener() {} removeEventListener() {}
   getBoundingClientRect() {
     return { top: 0, left: 0, width: 900, height: 40, bottom: 40, right: 900 };
@@ -151,6 +154,11 @@ for (const c of consultas) {
         // quadros viraram barras (25/11/2026), no plugin unidadeEixo
         eixoX: ((((g.options||{}).scales||{}).x||{}).title||{}).text
                || ((((g.options||{}).plugins||{}).unidadeEixo)||{}).x || "",
+        // A REGUA DESENHA O ROTULO NO CANVAS, que aqui nao existe: o que
+        // ela afirma mora nos pontos que o plugin recebe
+        regua: ((((g.options||{}).plugins||{}).regua||{}).linhas || []).map(l => ({
+          op: l.op, pontos: l.pontos.map(p => ({rotulo: p.rotulo, pre: p.pre || "",
+                                                nome: p.nome || ""}))})),
       };
     }
     return o;
