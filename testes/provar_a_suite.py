@@ -2534,6 +2534,17 @@ MUTACOES = [
         '        if comeco.startswith("re:"):\n            return re.search(comeco[3:], nome or "", re.I) is not None\n',
         '',
         "Vv4. a declaracao por padrao de nome deixa de casar"),
+    # O TIM CONTROLE FIT DO CARROSSEL (26/11/2026)
+    Mutacao(
+        "coletores/tim_fit.py",
+        '        if lista and uf.lower() not in lista:\n            continue\n        nome = re.sub(r"\\s+", " ", m.group(1)).strip()\n',
+        '        nome = re.sub(r"\\s+", " ", m.group(1)).strip()\n',
+        "Tz1. o bloco do FIT de outra regiao passa a valer"),
+    Mutacao(
+        "coletores/tim_fit.py",
+        "NACIONAL = False\n",
+        "NACIONAL = True\n",
+        "Tz2. o FIT volta a ser nacional"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

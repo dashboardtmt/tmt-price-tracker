@@ -47,7 +47,13 @@ ETIQUETA = re.compile(r'href="(https://[^"]*etiqueta[^"]*fit[^"]*\.pdf)"', re.I)
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
 
-NACIONAL = True
+# POR PRACA DESDE 27/11/2026. A etiqueta dizia "Abrangencia: Nacional", mas
+# a pagina de controle passou a vender o FIT em cards proprios, num carrossel,
+# com dois blocos: SP, SC, RN e CE (Anual 2.0 com 46 GB, Mensal 2.0 com 40 GB)
+# e as demais UFs (40 GB e 35 GB). E so a Mensal 1.0 ainda linka etiqueta:
+# a coleta lia UMA das tres ofertas, e a entrada da linha saia a R$ 35 quando
+# e R$ 30 (auditoria contra o site de 26/11/2026).
+NACIONAL = False
 
 
 def _buscar(url, timeout=45):
@@ -183,6 +189,64 @@ def da_etiqueta(t):
     }, None
 
 
+# O CARD DO CARROSSEL: o titulo (slot="secondary") e a oferta (slot="title"),
+#   "TIM Controle Fit Anual 2.0" / "Tenha 46GB por 12x R$30/mes"
+CARD_FIT = re.compile(
+    r'slot="secondary"[^>]*>\s*(TIM Controle Fit[^<]*?)\s*</h2>\s*<h2[^>]*slot="title"[^>]*>\s*'
+    r'Tenha\s+(\d+)\s*GB\s+por\s+(?:(\d+)\s*x\s*)?R\$\s*(\d+(?:,\d{2})?)\s*/\s*m', re.S | re.I)
+# o bloco que vale: o ultimo regionalization-toggle antes do card
+BLOCO_DA_UF = re.compile(r'regionalization-toggle="([^"]*)"')
+MODAL_DO_CARD = re.compile(r'data-modal-open="(modal-fit-[^"]+)"')
+# no modal: "Seu plano com 46GB/mes ... : 20GB do plano + 20GB bonus..."
+DO_PLANO = re.compile(r"(\d+)\s*GB\s+do\s+plano", re.I)
+
+
+def ler_carrossel(html, uf):
+    u"""As ofertas FIT da UF, como o carrossel da pagina de controle mostra."""
+    from .tim import _desescapar
+    d = _desescapar(html)
+    saida, vistos = [], set()
+    for m in CARD_FIT.finditer(d):
+        ufs = ""
+        for mt in BLOCO_DA_UF.finditer(d, 0, m.start()):
+            ufs = mt.group(1)
+        lista = [x.strip() for x in ufs.split(",") if x.strip()]
+        if lista and uf.lower() not in lista:
+            continue
+        nome = re.sub(r"\s+", " ", m.group(1)).strip()
+        if nome in vistos:
+            continue            # a pagina repete o carrossel no layout mobile
+        vistos.add(nome)
+        gb, parcelas, preco = int(m.group(2)), m.group(3), m.group(4)
+        contratual = None
+        md = MODAL_DO_CARD.search(d, m.end(), m.end() + 1200)
+        if md:
+            for mm in re.finditer(re.escape(md.group(1)) + r'"', d):
+                if "data-modal-open" in d[max(0, mm.start() - 20):mm.start()]:
+                    continue
+                # o modal tem muita marcacao antes do texto: 8 mil caracteres
+                texto = re.sub(r"<[^>]+>", " ", d[mm.start():mm.start() + 8000])
+                mp = DO_PLANO.search(texto)
+                contratual = int(mp.group(1)) if mp else None
+                break
+        valor = float(preco.replace(",", "."))
+        saida.append({
+            "nome_oferta": nome,
+            "destaque": "%dGB" % gb,
+            "franquia_anunciada_gb": gb,
+            "franquia_contratual_gb": contratual,
+            "preco_promocional": valor,
+            "preco_cheio": None,
+            # o Anual e pago em 12 parcelas no cartao: 12 meses de contrato
+            "fidelidade_meses": int(parcelas) if parcelas and "anual" in nome.lower() else None,
+            "multa_fidelidade": None,
+            "taxa_instalacao": None,
+            "composicao": "%s: %d GB por %s R$ %s/mes" % (nome, gb, (parcelas + "x") if parcelas else "", preco),
+            "codigo_anatel": None,
+        })
+    return saida
+
+
 def coletar(cidade="Brasil", uf="BR", verbose=True):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     praca = "%s/%s" % (cidade, uf)
@@ -195,10 +259,28 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
               % (praca, agora.strftime("%d/%m/%Y %H:%M")))
         print("=" * 70)
 
-    status, html = _buscar(PAGINA % UF_PADRAO)
+    # A PAGINA DA UF DA PRACA, e o bloco dela no carrossel
+    status, html = _buscar(PAGINA % (uf.lower() if uf != "BR" else UF_PADRAO))
     if status != 200:
         saida["avisos"].append("pagina de controle: HTTP %s" % status)
         return saida
+    texto_pagina = html.decode("utf-8", "replace")
+    do_carrossel = ler_carrossel(texto_pagina, uf if uf != "BR" else UF_PADRAO)
+    if do_carrossel:
+        for o in do_carrossel:
+            o.update({
+                "operadora": "TIM", "produto": "btl", "linha": "fit",
+                "praca": praca, "capturado_em": agora.isoformat(),
+                "degrau_mbps": None, "nivel_bundle": 0,
+                "apps": None, "apps_rotulo": None, "apps_planos": None,
+                "campanha": None, "id_catalogo": None,
+            })
+            saida["ofertas"].append(o)
+        if verbose:
+            print("  %d oferta(s) no carrossel" % len(do_carrossel))
+        return saida
+    # sem carrossel, a leitura de antes (a etiqueta), dita
+    saida["avisos"].append("nenhum card do FIT no carrossel - lida a etiqueta")
 
     links = sorted(set(ETIQUETA.findall(html.decode("utf-8", "replace"))))
     if not links:

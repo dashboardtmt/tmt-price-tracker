@@ -3030,11 +3030,13 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  ("Unifique", "fibra", u""), ("Unifique", "combo", u""),
                  # a Vivo so nas ofertas novas e nas duas que mudaram de app:
                  # o reajuste das outras continua noticia
-                 ("Vivo", "fibra", u"re:com (netflix|globoplay|disney)|\+ tv \+|vivo tv completo"),
+                 ("Vivo", "fibra", u"re:com (netflix|globoplay|disney)|[+] tv [+]|vivo tv completo"),
                  ("Vivo", "movel", u"re:sem apps$|^vivo v$"),
                  ("Vivo", "combo", u"re:sem apps$"),
                  ("Vivo", "controle", u"re:sem apps$|^vivo controle$|^vivo controle música$"),
-                 ("Vivo", "prepago", u"re:sem serviço digital$")],
+                 ("Vivo", "prepago", u"re:sem serviço digital$"),
+                 # a TIM Controle FIT passa a ser lida do carrossel, por praca
+                 ("TIM", "btl", u"")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
@@ -3042,7 +3044,7 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"mostra), as páginas de streaming e a fibra sem apps da "
                  u"Brisanet, o combo com TV e a fibra sem apps da Unifique, as "
                  u"páginas de streaming e sem apps da Vivo (com o pré de 15 "
-                 u"dias), os "
+                 u"dias), as três ofertas do TIM Controle FIT, os "
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],
