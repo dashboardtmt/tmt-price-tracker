@@ -117,6 +117,18 @@ class OCaminhoDeProducao(_ComPagina):
         self.assertEqual(len(fibra), 8)
         self.assertIn(("TIM Ultrafibra 1GIGA", 99.99, 189.99), fibra)
 
+    def test_o_card_ambiguo_nao_derruba_os_outros(self):
+        u"""TESTE DE PECA NAO PROVA MONTAGEM: o leitor devolve (cards, aviso),
+        e e coletar() que decide - o card a dois precos sai, dito, e os
+        outros sete ficam (mutacao D8)."""
+        um = HTML.split("<tim-card-pricing-offer")[1].split("</tim-card-pricing-offer>")[0]
+        outro = um.replace("Por R$ 79,99", "Por R$ 74,99")
+        self.html = HTML + "<tim-card-pricing-offer" + outro + "</tim-card-pricing-offer>"
+        saida = tim.coletar("Sao Paulo", "SP", verbose=False)
+        fibra = [o for o in saida["ofertas"] if o["produto"] == "fibra"]
+        self.assertEqual(len(fibra), 7)
+        self.assertTrue(any("dois precos" in a for a in saida["avisos"]))
+
     def test_a_fibra_da_hub_nao_entra_mais(self):
         u"""A hub repetia degraus com outro nome ("com Modem Wi-fi gratis")."""
         guarda = tim.ler_ofertas
