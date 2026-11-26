@@ -823,15 +823,27 @@ def ler_lite(op, hoje, avisos=None):
     if not codigos:
         return None, "nenhum codigo Anatel na pagina - o formato mudou"
     bonus = _bonus_do_card(html)
+    # O QUE VALE E O SITE (26/11/2026, decisao de quem le). O "Vivo Fibra
+    # 500 Mega Lite" e um card na vitrine, com "Baixar condicoes da oferta"
+    # e tudo, e o regulamento dele diz que a oferta acabou em 11/07/2026: o
+    # cliente ve e compra, e o tracker o descartava - era a fibra mais
+    # barata da Vivo (R$ 90). Codigo vencido que o card linka ("Baixar
+    # condicoes da oferta", href do proprio codigo) entra; o que so aparece
+    # fora de um link de card continua de fora. Pelo link, e nao pela
+    # posicao: o ultimo card de um corte por 'unique-card' vai ate o fim
+    # da pagina, com script e rodape dentro.
+    em_card = set(re.findall(r'href="(VIV\d{12,})"', html))
 
-    ofertas, vencidos = [], 0
+    ofertas, vencidos, vencidos_no_card = [], 0, 0
     for cod in codigos:
         reg = regulamento(op, cod)
         if not reg:
             continue
         if not _vigente(reg, hoje):
-            vencidos += 1
-            continue
+            if cod not in em_card:
+                vencidos += 1
+                continue
+            vencidos_no_card += 1
         nome = reg.get("nomeOferta") or ""
         # "Vivo Lite + Celular" e o MESMO plano vendido junto com um
         # aparelho em 21x - a vitrine mostra R$ 100 a R$ 330 por mes, mas
@@ -869,7 +881,8 @@ def ler_lite(op, hoje, avisos=None):
         if contrato and base == contrato and extra:
             anunciada, contratual = contrato + extra, contrato
         ofertas.append({
-            "nome_oferta": reg.get("nomeOferta"),
+            # "Vivo Fibra 500 Mega Lite." - o ponto final e do regulamento
+            "nome_oferta": (reg.get("nomeOferta") or "").strip().rstrip(".") or None,
             "destaque": ("%s Mbps" % mbps) if mbps else
                         ("%s GB" % anunciada if anunciada else None),
             "produto": produto,
@@ -888,6 +901,9 @@ def ler_lite(op, hoje, avisos=None):
         })
     if vencidos and avisos is not None:
         avisos.append("lite: %d codigo(s) com vigencia encerrada, ignorados" % vencidos)
+    if vencidos_no_card and avisos is not None:
+        avisos.append("lite: %d codigo(s) com vigencia encerrada na Anatel, gravados "
+                      "porque o card esta na vitrine" % vencidos_no_card)
     if not ofertas:
         return None, "nenhuma oferta Lite vigente"
     return ofertas, None

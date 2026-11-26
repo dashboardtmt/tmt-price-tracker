@@ -2353,6 +2353,16 @@ MUTACOES = [
         '    "vale_saude": (\n        ("Farma", None),\n',
         '    "vale_saude_x": (\n        ("Farma", None),\n',
         "Vs1. o pre da Vivo volta a sair sem dizer qual Vale Saude"),
+    Mutacao(
+        "coletores/vivo.py",
+        "            if cod not in em_card:\n",
+        "            if True:\n",
+        "Ls1. o card do Lite com regulamento vencido volta a sumir"),
+    Mutacao(
+        "coletores/vivo.py",
+        "    em_card = set(re.findall(r'href=\"(VIV\\d{12,})\"', html))\n",
+        "    em_card = set(re.findall(r\"VIV\\d{12,}\", html))\n",
+        "Ls2. codigo vencido fora de card volta a entrar"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",

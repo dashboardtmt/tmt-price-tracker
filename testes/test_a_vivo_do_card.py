@@ -69,6 +69,39 @@ class OBonusDoLite(unittest.TestCase):
         self.assertEqual(de["Vivo Lite Anual II"]["franquia_anunciada_gb"], 30)
 
 
+class OQueValeEOSite(unittest.TestCase):
+    u"""O Vivo Fibra 500 Mega Lite e um card da vitrine com regulamento
+    vencido em 11/07/2026. Decisao de quem le, 26/11/2026: "o que vale e
+    sempre o site". No card, entra; fora dos cards, continua de fora."""
+
+    VENCIDO = {"nomeOferta": "Vivo Fibra 500 Mega Lite.", "precoSemDescontos": "90",
+               "dataFimOferta": "11/07/2026",
+               "SCM": {"velocidade": {"download": "500", "unidadeDownload": "Mbps"}}, "SMP": {}}
+
+    def setUp(self):
+        guarda = vivo.buscar
+        self.html = (u'<div class="unique-card "><p>Internet Fibra 500 Mbps Plano anual</p>'
+                     u'<a href="VIV202603022618">Baixar condições da oferta</a></div>')
+        vivo.buscar = lambda op, url, **kw: (200, self.html)
+        self.addCleanup(setattr, vivo, "buscar", guarda)
+        for cod in ("VIV202603022618", "VIV202699999999"):
+            vivo._cache_regulamento[cod] = self.VENCIDO
+            self.addCleanup(vivo._cache_regulamento.pop, cod, None)
+
+    def test_o_card_vencido_entra(self):
+        avisos = []
+        ofertas, erro = vivo.ler_lite(None, date(2026, 11, 26), avisos)
+        self.assertIsNone(erro)
+        self.assertEqual([(o["nome_oferta"], o["produto"], o["degrau_mbps"], o["preco_promocional"])
+                          for o in ofertas], [("Vivo Fibra 500 Mega Lite", "fibra", 500, 90.0)])
+        self.assertTrue(any("gravados porque o card esta na vitrine" in a for a in avisos))
+
+    def test_o_codigo_fora_do_card_continua_de_fora(self):
+        self.html += u'<script>var x = "VIV202699999999";</script>'
+        ofertas, _ = vivo.ler_lite(None, date(2026, 11, 26), [])
+        self.assertNotIn("VIV202699999999", [o["codigo_anatel"] for o in ofertas])
+
+
 class OPrecoDepoisDaPromocao(unittest.TestCase):
     u"""coletar() inteiro: e ele que monta a oferta a partir do card."""
 

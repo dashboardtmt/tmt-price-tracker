@@ -3044,7 +3044,9 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  ("Unifique", "fibra", u""), ("Unifique", "combo", u""),
                  # a Vivo so nas ofertas novas e nas duas que mudaram de app:
                  # o reajuste das outras continua noticia
-                 ("Vivo", "fibra", u"re:com (netflix|globoplay|disney)|[+] tv [+]|vivo tv completo"),
+                 # (e o Fibra 500 Mega Lite, card com regulamento vencido que
+                 # passa a entrar: o que vale e o site)
+                 ("Vivo", "fibra", u"re:com (netflix|globoplay|disney)|[+] tv [+]|vivo tv completo|500 mega lite"),
                  ("Vivo", "movel", u"re:sem apps$|^vivo v$"),
                  ("Vivo", "combo", u"re:sem apps$"),
                  ("Vivo", "controle", u"re:sem apps$|^vivo controle$|^vivo controle música$"),
