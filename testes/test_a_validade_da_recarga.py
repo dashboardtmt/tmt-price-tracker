@@ -67,13 +67,15 @@ class AVivo(unittest.TestCase):
     def setUp(self):
         self.guarda = {k: getattr(vivo, k) for k in (
             "navegador", "trocar_praca", "indice_catalogo", "ler_vitrine",
-            "ler_lite", "PAUSA")}
+            "ler_lite", "PAUSA", "PAGINAS_EXTRAS")}
         self.addCleanup(lambda: [setattr(vivo, k, v) for k, v in self.guarda.items()])
         vivo.navegador = lambda: (None, None)
         vivo.trocar_praca = lambda op, c, u: True
         vivo.indice_catalogo = lambda op: ({}, [])
         vivo.ler_lite = lambda op, hoje, avisos=None: ([], None)
         vivo.PAUSA = 0
+        # as paginas extras da vitrine (26/11/2026) ficam fora deste teste
+        vivo.PAGINAS_EXTRAS = ()
         cards = {
             "prepago": [{"plano": u"Vivo Pré", "destaque": "25 GB", "preco": 35.0,
                          "codigo_anatel": None,
@@ -87,7 +89,7 @@ class AVivo(unittest.TestCase):
                           "codigo_anatel": None,
                           "texto": u"Vivo Controle 50 GB bonus por 30 dias"}],
         }
-        vivo.ler_vitrine = lambda op, p: (cards.get(p, []), None)
+        vivo.ler_vitrine = lambda op, p, *a: (cards.get(p, []), None)
 
     def test_a_validade_do_card_do_pre(self):
         r = vivo.coletar("Sao Paulo", "SP", verbose=False)

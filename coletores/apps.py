@@ -101,6 +101,12 @@ APPS = {
     "vivo_musica": {"nome": "Vivo Música", "preco_avulso": None,
                     "fonte": None, "conferido_em": None,
                     "evidencia": "servico da propria Vivo; nao ha preco avulso"},
+    # o app do Vivo Controle Musica desde pelo menos 26/11/2026: o card
+    # diz "Apple Music Individual", com o logo
+    "apple_music": {"nome": "Apple Music", "preco_avulso": None,
+                    "fonte": "https://www.apple.com/br/apple-music/",
+                    "conferido_em": "2026-11-26",
+                    "evidencia": "card do Vivo Controle Musica: Apple Music Individual"},
 
     # --- apps de catalogo: aparecem no TEXTO da oferta, nao no nome.
     # Sao o conteudo tipico do nivel 1, e o leitor merece saber quais
@@ -338,7 +344,9 @@ DO_NOME_VIVO = (
     (r"\beduca[çc][ãa]o\b", "vivae"),
     (r"\bentretenimento\b", "vivo_tv"),
     (r"\btravel\b", "vivo_travel"),
-    (r"\bm[úu]sica\b", "vivo_musica"),
+    # "Musica" SAIU EM 26/11/2026. O nome diz a categoria, nao o app: o card
+    # do Vivo Controle Musica diz "Apple Music Individual", e o tracker
+    # gravava "Vivo Musica". Quem nomeia o app agora e o texto do card.
 )
 
 
@@ -356,6 +364,7 @@ DO_TEXTO = (
     (r"\bnetflix\b", "netflix"),
     (r"\bdisney", "disney"),
     (r"\bspotify\b", "spotify"),
+    (r"apple\s*music", "apple_music"),
     (r"\bgloboplay\b", "globoplay"),
     # "Prime video" e como a API da Brisanet chama o Amazon Prime
     (r"amazon\s*prime|prime\s*video", "amazon"),
@@ -494,6 +503,7 @@ STREAMING = {"netflix", "disney", "globoplay", "amazon", "spotify",
              # propria Claro; nao ha preco avulso") e sobre PRECO, nao
              # sobre categoria. Mede 20 ofertas em 23/10/2026: a Vivo
              # Controle Musica sai de nivel 1 para 2.
+             "apple_music",
              "claro_musica", "vivo_musica"}
 # A Sky fica de fora de proposito: e TV por assinatura, e quem decide
 # nivel 4 e a regra de "tv por assinatura" de cada coletor, nao a

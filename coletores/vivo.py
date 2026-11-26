@@ -51,6 +51,41 @@ VITRINE = {
     "prepago": "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/pre-pago/vivo-pre",
 }
 
+# AS PAGINAS QUE A VITRINE LINKA E A COLETA NAO LIA (auditoria de 26/11/2026).
+# Todas no mesmo formato de card (unique-card, com codigo Anatel), entao a
+# leitura e a mesma de VITRINE. (produto, endereco, sufixo do nome): o sufixo
+# separa a oferta das homonimas da vitrine principal - "Vivo Familia 2" sem
+# apps custa R$ 265 e a com apps R$ 270, mesmo nome, mesma franquia; sem o
+# sufixo as duas cairiam na mesma serie e o robo leria reajuste todo dia.
+#   - fibra com Netflix, Globoplay e Disney+ (600, 700 e 1 Giga, com e sem
+#     TV): a pagina de internet mostra so o 600, num carrossel;
+#   - o Vivo V 500 GB, do pos;
+#   - as paginas "sem apps", que toda pagina da vitrine linka: pos, familia,
+#     Vivo Total e controle. Mudam a entrada de alguns produtos (o Vivo Pos
+#     sem apps de R$ 145 fica abaixo dos R$ 150 da vitrine), e e por isso
+#     que entram: e preco que o cliente contrata.
+# Card com o MESMO codigo Anatel de um ja lido nao entra de novo.
+PAGINAS_EXTRAS = (
+    ("fibra", "https://vivo.com.br/para-voce/produtos-e-servicos/para-casa/internet/internet-netflix", "com Netflix"),
+    ("fibra", "https://vivo.com.br/para-voce/produtos-e-servicos/para-casa/internet/internet-globoplay", "com Globoplay"),
+    ("fibra", "https://vivo.com.br/para-voce/produtos-e-servicos/para-casa/internet/internet-disney-plus", "com Disney+"),
+    ("movel", "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/planos-pos-pago/vivo-v", None),
+    ("movel", "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/planos-pos-pago/vivo-pos/sem-apps", "sem apps"),
+    ("movel", "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/planos-pos-pago/planos-familia-sem-apps", "sem apps"),
+    ("combo", "https://vivo.com.br/para-voce/produtos-e-servicos/combos/vivo-total/vivo-total-sem-apps", "sem apps"),
+    ("controle", "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/planos-controle/outros-planos", "sem apps"),
+    # O PRE "SEM SERVICO DIGITAL", contratado por SMS: 4 GB por 10 dias (R$ 14),
+    # 5 GB por 15 dias (R$ 16) e 10 GB por 30 dias (R$ 29). Era a recarga de
+    # 15 dias que faltava na Vivo - o report da XP compara essa faixa, e no
+    # tracker so a Claro aparecia nela (pergunta de quem le, 26/11/2026).
+    ("prepago", "https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/pre-pago/vivo-pre/pre-outras-ofertas", "sem serviço digital"),
+)
+
+# O CARD SEM NOME DE PLANO. Os cards do pre "sem servico digital" nao tem
+# unique-card__plan - abrem pela franquia ("4 GB de internet 5G") -, e a
+# leitura os descartava. Numa pagina extra, o nome e o do produto.
+NOME_DO_PRODUTO = {"prepago": "Vivo Pré"}
+
 # A linha de defesa, fora da vitrine principal: preco menor, sem
 # aparecer no portfolio anunciado. Ler junto e o que impede o tracker de
 # dizer que a Vivo entra a R$ 59 quando ela entra a R$ 45.
@@ -214,7 +249,53 @@ def _primeiro(padrao, bloco):
     return re.sub(r"\s+", " ", m.group(1)).strip() if m else None
 
 
-def ler_vitrine(op, produto):
+# O ADICIONAL OPCIONAL NAO E APP INCLUSO (26/11/2026). O card tem
+# interruptores de compra a parte - "+ 10 GB ... por R$ 5" no controle, com
+# a dica "com Protecao McAfee por R$5"; "Adicione 7 apps por R$ 60/mes" no
+# combo - dentro de <fieldset> com unique-card__switch. O texto do card os
+# levava junto, e o Vivo Controle de R$ 59 e o de R$ 75 saiam com o McAfee
+# incluso. Saem antes do corte. A escolha de TV da fibra e radio, outra
+# coisa, e fica.
+OPCIONAIS = re.compile(
+    r'<fieldset\b[^>]*>(?:(?!</fieldset>).)*?unique-card__switch'
+    r'(?:(?!</fieldset>).)*?</fieldset>', re.S)
+# O APP DO TOPO DO CARD ("Apple Music Individual" no Controle Musica) mora
+# depois do corte de 12 mil caracteres: o titulo co-branded entra junto.
+COBRANDED = re.compile(r'unique-card__features-cobranded-title[^>]*>(.*?)<', re.S)
+
+
+# O PRECO PARTIDO EM DOIS. No Vivo Total V da pagina sem apps o card escreve
+# "R$ <span data-original-price="1">1</span> <span>190/mes</span>": o
+# atributo traz so o milhar, e o resto vem colado no "/mes". Lido cru, o
+# plano de R$ 1.190 entrava a R$ 1.
+RESTO_DO_PRECO = re.compile(
+    r'data-original-price="(\d{1,2})"[^>]*>[^<]*</span>\s*'
+    r'<span[^>]*unique-card__price-new--side[^>]*>\s*(\d{3})\s*/\s*m', re.S)
+# A ESCOLHA DE TV DO CARD DE FIBRA + TV (radio): "Vivo TV Avancado" e o padrao
+# do preco; "Vivo TV Completo" soma o que o data-value diz, em base64 ("MTI1"
+# = 125), e aponta o proprio codigo Anatel (data-rgc-number = posicao na
+# lista do card). Conferido no navegador em 26/11: 270 + 125 = 395.
+OPCAO_DE_TV = re.compile(r'<input\b[^>]*type="radio"[^>]*>', re.S)
+
+
+def _opcoes_de_tv(bloco):
+    u"""[(rotulo, acrescimo, posicao do codigo)] das opcoes com acrescimo."""
+    import base64
+    saida = []
+    for m in OPCAO_DE_TV.finditer(OPCIONAIS.sub(" ", bloco)):
+        a = dict(re.findall(r'([\w-]+)="([^"]*)"', m.group(0)))
+        try:
+            extra = float(base64.b64decode(a.get("data-value") or "").decode("ascii"))
+        except Exception:
+            continue
+        rotulo = _html.unescape(a.get("aria-label") or "").strip()
+        n = re.match(r"\d+", a.get("data-rgc-number") or "")
+        if extra > 0 and rotulo and n:
+            saida.append((rotulo, extra, int(n.group(0))))
+    return saida
+
+
+def ler_vitrine(op, produto, url=None, sufixo=None):
     """Le os cards da vitrine da praca atual.
 
     O corte e por texto, em class="unique-card " - que aparece exatamente
@@ -225,7 +306,7 @@ def ler_vitrine(op, produto):
     da Vivo tem aninhamento irregular e a contagem desanda, fazendo um card
     engolir os seguintes (o 700 Mega saiu com o preco do 10 Giga).
     """
-    s, doc = buscar(op, VITRINE[produto])
+    s, doc = buscar(op, url or VITRINE[produto])
     if s != 200:
         return None, "HTTP %s" % s
 
@@ -235,18 +316,58 @@ def ler_vitrine(op, produto):
         destaque = _primeiro(r'header-benefit-text-big[^>]*>(.*?)<', bloco)
         preco = re.search(r'data-original-price="([^"]+)"', bloco)
         codigos = re.findall(r'data-code-rgc="([^"]+)"', bloco)
+        if not plano and url and preco:
+            plano = NOME_DO_PRODUTO.get(produto)
         if not plano or not preco:
             continue
-        # o texto do card para classificar o bundle: so ate o proximo card
-        texto = re.sub(r"<[^>]+>", " ", bloco[:12000])
+        valor = so_numero(preco.group(1))
+        partido = RESTO_DO_PRECO.search(bloco)
+        if partido:
+            valor = float(partido.group(1) + partido.group(2))
+        # o texto do card para classificar o bundle: so ate o proximo card,
+        # sem os adicionais opcionais, e com o titulo do app do topo
+        texto = re.sub(r"<[^>]+>", " ", OPCIONAIS.sub(" ", bloco)[:12000])
+        topo = " ".join(re.sub(r"\s+", " ", x).strip() for x in COBRANDED.findall(bloco))
+        if topo:
+            texto += " " + topo
+        texto = _html.unescape(re.sub(r"\s+", " ", texto))
+        nome = _html.unescape(plano)
+        # a pagina do Vivo V repete um "Vivo Total V 1 Giga" com codigo de
+        # 2025: e combo, e o card atual dele esta na pagina de combos
+        if url and produto == "movel" and nome.lower().startswith("vivo total"):
+            continue
+        # O PACOTE DE TV NO NOME quando o card e so de um: nas paginas de
+        # streaming o mesmo "Vivo Fibra + TV + Netflix 600 Mega" vem a R$ 315
+        # (TV Avancado) e a R$ 440 (TV Completo), dois cards com um nome so.
+        # Card que oferece as duas (radio) fica com o nome de sempre.
+        _t = texto.lower()
+        if ("+ tv" in nome.lower() and "vivo tv completo" in _t
+                and "vivo tv avan" not in _t):
+            nome = "%s (Vivo TV Completo)" % nome
+        # o sufixo so quando o nome ainda nao cita o que ele diz ("Vivo
+        # Fibra + TV + Netflix" nao vira "... com Netflix")
+        if sufixo and sufixo.split()[-1].lower() not in nome.lower():
+            nome = "%s %s" % (nome, sufixo)
         cards.append({
-            "plano": _html.unescape(plano),
+            "plano": nome,
             "destaque": _html.unescape(destaque) if destaque else None,
-            "preco": so_numero(preco.group(1)),
+            "preco": valor,
             "codigo_anatel": codigos[0] if codigos else None,
             "codigos_anatel": codigos or None,
-            "texto": _html.unescape(re.sub(r"\s+", " ", texto)),
+            "texto": texto,
         })
+        # a TV Completo do mesmo card, com o preco e o codigo dela
+        for rotulo, extra, pos in _opcoes_de_tv(bloco):
+            if pos - 1 >= len(codigos):
+                continue
+            cards.append({
+                "plano": "%s (%s)" % (nome, rotulo),
+                "destaque": _html.unescape(destaque) if destaque else None,
+                "preco": valor + extra,
+                "codigo_anatel": codigos[pos - 1],
+                "codigos_anatel": [codigos[pos - 1]],
+                "texto": texto + " " + rotulo,
+            })
     return cards, None
 
 
@@ -759,8 +880,25 @@ def coletar(cidade, uf, verbose=True):
     if verbose:
         print("  catalogo indexado: %d ofertas com codigo Anatel" % len(idx))
 
-    for produto in ("controle", "movel", "fibra", "combo", "prepago"):
-        cards, err = ler_vitrine(op, produto)
+    lidos = set()
+    # PAGINA EXTRA QUE FALHA TIRA O PRODUTO INTEIRO DA PRACA, dito: a oferta
+    # que so mora nela sairia como saida da vitrine (a regra da Brisanet)
+    falhou = set()
+    roteiro = ([(p, None, None) for p in ("controle", "movel", "fibra", "combo", "prepago")]
+               + list(PAGINAS_EXTRAS))
+    for produto, url_extra, sufixo in roteiro:
+        cards, err = ler_vitrine(op, produto, url_extra, sufixo)
+        if cards:
+            # o mesmo codigo Anatel numa pagina extra e a mesma oferta
+            cards = [c for c in cards if not c["codigo_anatel"]
+                     or (c["codigo_anatel"], c["preco"]) not in lidos]
+            lidos.update((c["codigo_anatel"], c["preco"]) for c in cards if c["codigo_anatel"])
+        elif url_extra:
+            # pagina extra que falhou ou que nao trouxe card nenhum
+            falhou.add(produto)
+            if not err:
+                saida["avisos"].append("vitrine %s: nenhum card em %s - a pagina mudou"
+                                       % (produto, url_extra.rsplit("/", 1)[-1]))
         if err:
             saida["avisos"].append("vitrine %s: %s" % (produto, err))
             if verbose:
@@ -843,6 +981,14 @@ def coletar(cidade, uf, verbose=True):
 
     # A linha Lite, depois da vitrine. Nao entra no laco acima porque a
     # fonte e outra: o regulamento Anatel, e nao o card da pagina.
+    if falhou:
+        antes = len(saida["ofertas"])
+        saida["ofertas"] = [o for o in saida["ofertas"] if o["produto"] not in falhou]
+        saida["avisos"].append(
+            "%s fora da praca hoje: uma das paginas falhou, e o que so ela traz "
+            "sairia como saida da vitrine (%d ofertas)"
+            % (", ".join(sorted(falhou)), antes - len(saida["ofertas"])))
+
     lites, err = ler_lite(op, agora.date(), saida["avisos"])
     if err:
         saida["avisos"].append("lite: %s" % err)

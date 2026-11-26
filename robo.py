@@ -3015,7 +3015,10 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
     #   - o Claro Flex com o WhatsApp do logo e a franquia "Livres";
     #   - a Brisanet com as seis paginas de streaming e a fibra sem SVA;
     #   - a Unifique com o combo com TV, a fibra sem apps, o riscado e a
-    #     fidelidade da fibra.
+    #     fidelidade da fibra;
+    #   - a Vivo com as paginas que a vitrine linka (fibra com streaming, Vivo
+    #     V, sem apps, o pre sem servico digital), a TV Completo dos cards, o
+    #     adicional opcional fora dos apps e o Apple Music.
     # O resto de cada operadora (pre da Claro, controle e pos da TIM, Vivo,
     # Brisanet, Unifique, NuCel) continua noticia.
     "2026-11-27": [{
@@ -3024,13 +3027,22 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  ("Claro", "movel", u""), ("Claro", "controle", u""),
                  ("Claro", "btl", u"Claro Flex"),
                  ("Brisanet", "fibra", u""), ("Brisanet", "combo", u""),
-                 ("Unifique", "fibra", u""), ("Unifique", "combo", u"")],
+                 ("Unifique", "fibra", u""), ("Unifique", "combo", u""),
+                 # a Vivo so nas ofertas novas e nas duas que mudaram de app:
+                 # o reajuste das outras continua noticia
+                 ("Vivo", "fibra", u"re:com (netflix|globoplay|disney)|\+ tv \+|vivo tv completo"),
+                 ("Vivo", "movel", u"re:sem apps$|^vivo v$"),
+                 ("Vivo", "combo", u"re:sem apps$"),
+                 ("Vivo", "controle", u"re:sem apps$|^vivo controle$|^vivo controle música$"),
+                 ("Vivo", "prepago", u"re:sem serviço digital$")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
                  u"da Claro; sai um 700 Mega da TIM que nenhuma página "
                  u"mostra), as páginas de streaming e a fibra sem apps da "
-                 u"Brisanet, o combo com TV e a fibra sem apps da Unifique, os "
+                 u"Brisanet, o combo com TV e a fibra sem apps da Unifique, as "
+                 u"páginas de streaming e sem apps da Vivo (com o pré de 15 "
+                 u"dias), os "
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],
@@ -3068,12 +3080,20 @@ def _sem_o_relido(hoje, d):
     if not declarados:
         return d
 
+    # O NOME POR PADRAO, quando o comeco nao basta (26/11/2026): "re:..." e
+    # uma expressao regular sobre o nome. As ofertas novas da Vivo tem o
+    # nome das antigas mais um sufixo ("Vivo Familia 2 sem apps"), e
+    # declarar pelo comeco tiraria da noticia o reajuste das antigas.
+    def casa(nome, comeco):
+        if comeco.startswith("re:"):
+            return re.search(comeco[3:], nome or "", re.I) is not None
+        return (nome or "").lower().startswith(comeco.lower())
+
     def declarado(e):
         op, produto, nome = _quem_e(e)
         for dec in declarados:
             for (o, p, comeco) in dec["quem"]:
-                if (op == o and produto == p
-                        and (nome or "").lower().startswith(comeco.lower())):
+                if op == o and produto == p and casa(nome, comeco):
                     return dec
         return None
 

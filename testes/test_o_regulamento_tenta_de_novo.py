@@ -76,13 +76,15 @@ class ORegulamentoTentaDeNovo(unittest.TestCase):
     def setUp(self):
         self.guarda = {k: getattr(vivo, k) for k in (
             "navegador", "trocar_praca", "indice_catalogo", "ler_vitrine",
-            "ler_lite", "PAUSA")}
+            "ler_lite", "PAUSA", "PAGINAS_EXTRAS")}
         self.addCleanup(self._volta)
         vivo.trocar_praca = lambda op, c, u: True
         vivo.indice_catalogo = lambda op: ({}, [])
-        vivo.ler_vitrine = lambda op, p: (([dict(CARD)] if p == "controle" else []), None)
+        vivo.ler_vitrine = lambda op, p, *a: (([dict(CARD)] if p == "controle" else []), None)
         vivo.ler_lite = lambda op, hoje, avisos=None: ([], None)
         vivo.PAUSA = 0
+        # as paginas extras da vitrine (26/11/2026) ficam fora deste teste
+        vivo.PAGINAS_EXTRAS = ()
         vivo._cache_regulamento.pop(CODIGO, None)
         vivo._tentativas_regulamento.pop(CODIGO, None)
         del vivo._falhas_regulamento[:]

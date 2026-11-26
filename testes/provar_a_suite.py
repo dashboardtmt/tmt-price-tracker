@@ -1559,9 +1559,9 @@ MUTACOES = [
     Mutacao(
         "gerar_tela.py",
         '  const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];\n'
-        '  // POR OPERADORA, AS OFERTAS EM BARRAS EM CIMA DO NOME',
+        '  // A REGUA POR OPERADORA: cada oferta um ponto, na ordem do preco',
         '  const hoje = DIAS[DIAS.length-1];\n'
-        '  // POR OPERADORA, AS OFERTAS EM BARRAS EM CIMA DO NOME',
+        '  // A REGUA POR OPERADORA: cada oferta um ponto, na ordem do preco',
         "T4. a dispersao volta a ignorar o seletor de data"),
 
     # ---------------------------------------------------------------
@@ -2291,8 +2291,8 @@ MUTACOES = [
         "Rl1. o preco relido volta a sair como reajuste"),
     Mutacao(
         "robo.py",
-        "                        and (nome or \"\").lower().startswith(comeco.lower())):\n",
-        "                        and True):\n",
+        "        return (nome or \"\").lower().startswith(comeco.lower())\n",
+        "        return True\n",
         "Rl2. a declaracao cala o produto inteiro, e nao so a oferta"),
     Mutacao(
         "robo.py",
@@ -2513,6 +2513,27 @@ MUTACOES = [
         '                "fidelidade_meses": fid.get((o["nome_oferta"], o["degrau_mbps"])),\n',
         '                "fidelidade_meses": None,\n',
         "Un3. a fidelidade de 12 meses da fibra volta a sumir"),
+    # A VIVO INTEIRA E A REGUA DO OVERVIEW (26/11/2026)
+    Mutacao(
+        "coletores/vivo.py",
+        '        texto = re.sub(r"<[^>]+>", " ", OPCIONAIS.sub(" ", bloco)[:12000])\n',
+        '        texto = re.sub(r"<[^>]+>", " ", bloco[:12000])\n',
+        "Vv1. o adicional opcional da Vivo volta a contar como app incluso"),
+    Mutacao(
+        "coletores/vivo.py",
+        '        if partido:\n            valor = float(partido.group(1) + partido.group(2))\n',
+        '',
+        "Vv2. o preco partido do Vivo Total V volta a sair R$ 1"),
+    Mutacao(
+        "coletores/vivo.py",
+        '        elif url_extra:\n            # pagina extra que falhou ou que nao trouxe card nenhum\n            falhou.add(produto)\n',
+        '        elif url_extra:\n            # pagina extra que falhou ou que nao trouxe card nenhum\n            pass\n',
+        "Vv3. pagina extra da Vivo que falha deixa o resto sair como saida"),
+    Mutacao(
+        "robo.py",
+        '        if comeco.startswith("re:"):\n            return re.search(comeco[3:], nome or "", re.I) is not None\n',
+        '',
+        "Vv4. a declaracao por padrao de nome deixa de casar"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
