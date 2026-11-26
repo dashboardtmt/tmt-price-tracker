@@ -378,8 +378,13 @@ MOLDE = r"""<!DOCTYPE html>
     background:#FFF6F2;opacity:1}
   .baixar svg{display:block;width:11px;height:11px}
   .baixar[disabled]{opacity:.5;cursor:progress}
-  .grafico-wrap{position:relative;height:320px}
-  .grafico-wrap.baixo{height:260px}
+  /* A ALTURA PADRAO (26/11/2026, pedido de quem le: "deixe os outros quadros
+     com essa altura... quando possivel, vamos padronizar"): a da regua com
+     quatro operadoras. So o primeiro quadro (o quadrante, .alto) e as
+     tabelas ficam fora. */
+  :root{--altura-grafico:292px}
+  .grafico-wrap{position:relative;height:var(--altura-grafico)}
+  .grafico-wrap.baixo{height:var(--altura-grafico)}
   .grafico-wrap.alto{height:450px}
   @media(max-width:860px){.grafico-wrap.alto{height:340px}}
   .legenda-ponto{display:inline-flex;align-items:center;gap:5px;font-size:11px;
@@ -608,7 +613,7 @@ MOLDE = r"""<!DOCTYPE html>
     .dupla{grid-template-columns:minmax(0, 1fr)}
     .bloco{padding:11px 13px 11px}
     .dentro{padding:0 14px}
-    .grafico-wrap{height:270px}
+    .grafico-wrap{height:var(--altura-grafico)}
   }
   /* A BARRA SO VIRA COLUNA UNICA NO CELULAR DE VERDADE. Ela virava
      aos 860px, e ai os quatro seletores ocupavam quatro fileiras -
@@ -2489,8 +2494,9 @@ function desenharRegua(id, linhas, opcoes){
     return;
   }
   // a altura segue o numero de operadoras: baixa, uma linha por player
+  // a altura padrao dos quadros; so cresce quando passa de quatro operadoras
   if (alvo && alvo.parentElement)
-    alvo.parentElement.style.height = (linhas.length * ALTURA_DA_LINHA + 76) + "px";
+    alvo.parentElement.style.height = Math.max(292, linhas.length * ALTURA_DA_LINHA + 76) + "px";
   const vs = linhas.flatMap(l => l.pontos.map(p => p.v)).filter(v => v > 0);
   const lo = Math.min(...vs), hi = Math.max(...vs);
   // UM PLANO DE R$ 2.000 NAO ESPREME OS OUTROS: com a razao acima de 6 a
