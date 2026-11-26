@@ -2363,6 +2363,16 @@ MUTACOES = [
         "    em_card = set(re.findall(r'href=\"(VIV\\d{12,})\"', html))\n",
         "    em_card = set(re.findall(r\"VIV\\d{12,}\", html))\n",
         "Ls2. codigo vencido fora de card volta a entrar"),
+    Mutacao(
+        "coletores/vivo.py",
+        "        elif url_extra and not err and produto in principal:\n",
+        "        elif False:\n",
+        "Ve1. a pagina extra sem card da praca derruba o combo inteiro"),
+    Mutacao(
+        "coletores/vivo.py",
+        "            if _de and (so_numero(_de.group(1)) or 0) > (c[\"preco\"] or 0):\n",
+        "            if False:\n",
+        "Ve2. o De: do card perde para o preco de tabela do contrato"),
     # OS PLANOS SEM FIDELIDADE DA LOJA DA CLARO (27/11/2026)
     Mutacao(
         "coletores/claro.py",

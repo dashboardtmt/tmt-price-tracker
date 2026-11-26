@@ -643,7 +643,11 @@ def aplicar_regulamento(oferta, reg):
             "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
             % (_reais(tabela), _reais(prom))))
         return oferta
-    oferta["preco_cheio"] = tabela or oferta.get("preco_cheio")
+    # O "DE:" DA VITRINE NA FRENTE (26/11/2026, "o que vale e sempre o site"):
+    # a Vivo Total Essencial do Nordeste diz "De: R$ 150" no card, e o
+    # tracker gravava os R$ 157,50 do regulamento. O preco de tabela do
+    # contrato so entra quando a vitrine nao diz o "De:".
+    oferta["preco_cheio"] = oferta.get("preco_cheio") or tabela
     # ZERO DECLARADO NAO E AUSENCIA. "Ausencia e ausencia, nunca
     # zero" e principio do projeto, e o espelho dele vale igual: um
     # regulamento que escreve tempoFidelizacao: 0 esta FALANDO, e
@@ -779,6 +783,7 @@ def _produto_do_regulamento(reg):
     return "btl"
 
 
+DE_DO_CARD = re.compile(r"\bDe:\s*R\$\s*([\d.]+(?:,\d{1,2})?)")
 APOS_PROMOCAO = re.compile(
     r"Ap[oó]s\s+(\d{1,2})\s+(anos?|m[eê]s|meses)\s*:?\s*R\$\s*([\d.]+(?:,\d{1,2})?)\s*/\s*m[eê]s",
     re.I)
@@ -938,15 +943,28 @@ def coletar(cidade, uf, verbose=True):
     # PAGINA EXTRA QUE FALHA TIRA O PRODUTO INTEIRO DA PRACA, dito: a oferta
     # que so mora nela sairia como saida da vitrine (a regra da Brisanet)
     falhou = set()
+    # PAGINA EXTRA SEM CARD NEM SEMPRE E FALHA (26/11/2026, medido antes da
+    # primeira coleta com as paginas extras): em Fortaleza e Natal a pagina
+    # do Vivo Total sem apps carrega inteira, com o cabecalho e as vantagens,
+    # e sem nenhum card - a Vivo nao vende o Total sem apps ali. Tratado como
+    # falha, o combo inteiro da Vivo (14 ofertas) sairia da praca toda noite.
+    # Sem card numa pagina que respondeu, de um produto cuja vitrine principal
+    # leu cards na mesma praca, e ausencia; o erro de rede continua falha.
+    principal = set()
     roteiro = ([(p, None, None) for p in ("controle", "movel", "fibra", "combo", "prepago")]
                + list(PAGINAS_EXTRAS))
     for produto, url_extra, sufixo in roteiro:
         cards, err = ler_vitrine(op, produto, url_extra, sufixo)
         if cards:
+            if not url_extra:
+                principal.add(produto)
             # o mesmo codigo Anatel numa pagina extra e a mesma oferta
             cards = [c for c in cards if not c["codigo_anatel"]
                      or (c["codigo_anatel"], c["preco"]) not in lidos]
             lidos.update((c["codigo_anatel"], c["preco"]) for c in cards if c["codigo_anatel"])
+        elif url_extra and not err and produto in principal:
+            saida["avisos"].append("vitrine %s: %s sem oferta nesta praca"
+                                   % (produto, url_extra.rsplit("/", 1)[-1]))
         elif url_extra:
             # pagina extra que falhou ou que nao trouxe card nenhum
             falhou.add(produto)
@@ -1034,6 +1052,12 @@ def coletar(cidade, uf, verbose=True):
                 oferta["meses_desconto"] = _n * 12 if _depois.group(2).lower().startswith("ano") else _n
                 oferta["preco_pos_promocao"] = so_numero(_depois.group(3))
             oferta = enriquecer(oferta, idx.get(c["codigo_anatel"]))
+            # O "DE:" DO CARD vence o catalogo e o regulamento: o que vale e o
+            # site. A Vivo Total Essencial do Nordeste diz "De: R$ 150" e o
+            # tracker gravava os R$ 157,50 do contrato (auditoria de 26/11).
+            _de = DE_DO_CARD.search(c["texto"] or "")
+            if _de and (so_numero(_de.group(1)) or 0) > (c["preco"] or 0):
+                oferta["preco_cheio"] = so_numero(_de.group(1))
             if c["codigo_anatel"]:
                 oferta = aplicar_regulamento(oferta, regulamento(op, c["codigo_anatel"]))
             saida["ofertas"].append(oferta)

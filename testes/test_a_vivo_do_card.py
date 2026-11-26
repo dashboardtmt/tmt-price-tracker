@@ -138,6 +138,53 @@ class OPrecoDepoisDaPromocao(unittest.TestCase):
         self.assertIsNone(f[700].get("preco_pos_promocao"))
 
 
+class APaginaExtraSemCard(unittest.TestCase):
+    u"""Em Fortaleza e Natal a pagina do Vivo Total sem apps carrega sem
+    nenhum card: a Vivo nao vende o Total sem apps ali. Medido em 26/11/2026,
+    antes da primeira coleta com as paginas extras - tratado como falha, o
+    combo inteiro sairia da praca toda noite."""
+
+    def setUp(self):
+        self.guarda = {k: getattr(vivo, k) for k in (
+            "navegador", "trocar_praca", "indice_catalogo", "ler_vitrine",
+            "ler_lite", "PAUSA", "PAGINAS_EXTRAS", "regulamento")}
+        self.addCleanup(lambda: [setattr(vivo, k, v) for k, v in self.guarda.items()])
+        vivo.navegador = lambda: (None, None)
+        vivo.trocar_praca = lambda op, c, u: True
+        vivo.indice_catalogo = lambda op: ({}, [])
+        vivo.ler_lite = lambda op, hoje, avisos=None: ([], None)
+        vivo.regulamento = lambda op, codigo: None
+        vivo.PAUSA = 0
+        vivo.PAGINAS_EXTRAS = (("combo", "http://extra/vivo-total-sem-apps", "sem apps"),)
+        self.principal = True
+
+        def ler(op, produto, url=None, sufixo=None):
+            if produto != "combo" or url:
+                return [], None
+            if not self.principal:
+                return [], None
+            return [{"plano": "Vivo Total Essencial", "destaque": "500 Mega", "preco": 100.0,
+                     "codigo_anatel": None, "codigos_anatel": None,
+                     "texto": u"Vivo Total Essencial De: R$ 150 Valor R$ 100 /mês"}], None
+        vivo.ler_vitrine = ler
+
+    def test_o_combo_fica_e_o_aviso_diz(self):
+        d = vivo.coletar("Fortaleza", "CE", verbose=False)
+        combo = [o for o in d["ofertas"] if o["produto"] == "combo"]
+        self.assertEqual([o["nome_oferta"] for o in combo], ["Vivo Total Essencial"])
+        self.assertTrue(any("sem oferta nesta praca" in a for a in d["avisos"]))
+
+    def test_o_de_do_card_e_o_preco_cheio(self):
+        u"""O que vale e o site: "De: R$ 150" no card, e nao o do contrato."""
+        d = vivo.coletar("Fortaleza", "CE", verbose=False)
+        self.assertEqual([o["preco_cheio"] for o in d["ofertas"] if o["produto"] == "combo"], [150.0])
+
+    def test_sem_a_vitrine_principal_continua_falha(self):
+        self.principal = False
+        d = vivo.coletar("Fortaleza", "CE", verbose=False)
+        self.assertTrue(any("nenhum card em vivo-total-sem-apps" in a for a in d["avisos"]))
+
+
 class OValeSaudeDoPre(unittest.TestCase):
 
     CARD = (u"+ 10 GB de bônus trazendo seu número para a Vivo Vale Saúde Farma: "
