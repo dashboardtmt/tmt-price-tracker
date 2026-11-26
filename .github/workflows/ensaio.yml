@@ -34,6 +34,7 @@ on:
     paths:
       - 'coletores/**'
       - 'ferramentas/ensaio_da_coleta.py'
+      - '.github/workflows/ensaio.yml'
   workflow_dispatch:
     inputs:
       referencia:
@@ -81,8 +82,38 @@ jobs:
           echo "antes=$antes" >> "$GITHUB_OUTPUT"
           git --no-pager log --oneline -1 "$antes"
 
+      # A MUDANCA DE LEITURA DE PROPOSITO NAO E FALHA (26/11/2026, escolha de
+      # quem le, depois de um dia de e-mails "Run failed: Ensaio da coleta":
+      # "ensaio nao falha no intencional"). Cada conserto de leitura da
+      # auditoria daquele dia - os apps da Claro, o bonus do Vivo Lite - fez o
+      # ensaio cair, porque mudar a leitura e exatamente o que ele acusa.
+      #
+      # O COMMIT DECLARA, numa linha propria: "Leitura-intencional: <o que
+      # muda>". Com ela, o codigo 1 do ensaio (perda, troca ou colisao de
+      # identidade) vira aviso no resumo do job e o job passa; o 2 (falha de
+      # montagem ou de rede) e o 3 (o replay nao reproduz a leitura ao vivo)
+      # continuam derrubando, declarado ou nao - esses nao sao a leitura
+      # mudando, sao o ensaio sem valer. Sem a linha, nada muda.
       - name: Ler a mesma pagina com os dois leitores
-        run: python ferramentas/ensaio_da_coleta.py --referencia ${{ steps.ref.outputs.antes }}
+        run: |
+          antes="${{ steps.ref.outputs.antes }}"
+          declarado="$(git log --format=%B "$antes..HEAD" | grep -i '^Leitura-intencional:' || true)"
+          set +e
+          python ferramentas/ensaio_da_coleta.py --referencia "$antes"
+          codigo=$?
+          set -e
+          if [ "$codigo" -eq 1 ] && [ -n "$declarado" ]; then
+            echo "::notice title=Ensaio da coleta::diferencas de leitura declaradas no commit - conferir o artefato"
+            {
+              echo "### Ensaio: diferencas declaradas como intencionais"
+              echo ""
+              echo "$declarado"
+              echo ""
+              echo "As perdas e trocas acima no log sao a leitura mudando de proposito; o artefato tem as duas leituras."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          exit "$codigo"
 
       # AS DUAS LEITURAS FICAM GUARDADAS, inclusive quando o job cai: e
       # com elas que se confere, oferta por oferta, se a perda era
