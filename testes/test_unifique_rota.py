@@ -128,8 +128,19 @@ class ONavegadorSaiuEOQueFicouNoLugar(unittest.TestCase):
     """
 
     def _pagina(self, status, texto):
+        u"""A pagina da FIBRA responde o que o teste pede; as do combo e
+        do celular respondem 404. Servir a mesma pagina nas tres rotas
+        deixava o aviso do combo ("combo: HTTP 500") satisfazer a
+        asserção da fibra, e o provador mostrou em 25/11/2026 que a
+        fibra podia voltar a calar o erro de servidor sem nenhum teste
+        notar (mutacao E3)."""
         guarda = unifique.buscar
-        unifique.buscar = lambda url: (status, texto)
+
+        def buscar(url):
+            if unifique.PAGINA_COMBO in url or unifique.PAGINA_MOVEL in url:
+                return 404, ""
+            return status, texto
+        unifique.buscar = buscar
         self.addCleanup(lambda: setattr(unifique, "buscar", guarda))
 
     def test_o_modulo_nao_importa_mais_playwright(self):
@@ -165,7 +176,8 @@ class ONavegadorSaiuEOQueFicouNoLugar(unittest.TestCase):
         self._pagina(500, "")
         s = unifique.coletar("Blumenau", "SC", verbose=False)
         self.assertFalse(any("nao atende" in a for a in s["avisos"]))
-        self.assertTrue(any("HTTP 500" in a for a in s["avisos"]))
+        self.assertTrue(any(a.startswith("HTTP 500") for a in s["avisos"]),
+                        s["avisos"])
 
     def test_cidade_que_nao_confirma_sai_como_layout_quebrado(self):
         self._pagina(200, "pagina de outra coisa, sem oferta nenhuma")
