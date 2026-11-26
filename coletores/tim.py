@@ -566,6 +566,10 @@ def _desescapar(html):
 def ler_escada_de_fibra(op, url, uf):
     """Os degraus de fibra da pagina de produto, por UF.
 
+    FORA DA PRODUCAO DESDE 27/11/2026: os pares que esta leitura acha moram
+    quase todos nas janelas de comparacao escondidas. A fibra sai de
+    ler_fibra_por_card. Fica para reler o passado e pelos seus testes.
+
     CADA DEGRAU DECLARA EM QUE UFS VALE, e isso e lido: o card de
     "600 Mega" a R$ 109,99 aparece em dois blocos, um para 17 UFs e
     outro para 2, e o de 400 Mega a R$ 79,99 vale em uma so. Sem olhar
@@ -677,6 +681,143 @@ def ler_escada_de_fibra(op, url, uf):
     return limpas, None
 
 
+# A FIBRA PELOS CARDS QUE O CLIENTE VE, desde 27/11/2026.
+#
+# A escada acima (ler_escada_de_fibra) le os pares data-ic-franquia /
+# data-ic-valor, que moram quase todos nas JANELAS DE COMPARACAO escondidas
+# - modais que nenhum botao abre. A auditoria contra o site de 26/11 achou
+# o custo: um "700 MEGA a R$ 99,99" gravado em 19 pracas que nenhuma pagina
+# mostra, mais um 600 Mega e um 600 Globoplay fantasmas em Sao Paulo, e o
+# card "600MEGA Paramount+ a R$ 109,99" FALTANDO em 9 pracas. O desempate
+# da janela (24/11) so resolvia preco em disputa; degrau que so existe na
+# janela entrava.
+#
+# O CARD VISIVEL e <tim-card-pricing-offer field-regioes=...>, o mesmo que
+# ler_familia ja le. Dentro dele, tudo o que o cliente ve: a velocidade
+# anunciada (value="700MEGA", com a dica "600MEGA de velocidade + 100MEGA
+# de bonus"), os logos dos apps, o preco ("Por R$ 109,99/mes") e o riscado
+# ("De R$ 149,99/mes"). Em SP, PE, RJ e AM a pagina tem 8 cards, e sao os 8
+# que a pagina mostra.
+#
+# O NOME e a velocidade anunciada mais os streamings do topo do card
+# ("TIM Ultrafibra 700MEGA Paramount+"): e assim que a TIM os distingue na
+# vitrine. Os apps da linha de baixo (Aya, Seguranca Digital, Babbel) vao
+# para a lista de apps, nao para o nome.
+STREAMINGS_DO_NOME = ("paramount", "max", "globoplay", "youtube", "netflix",
+                      "disney", "amazon", "telecine", "premiere", "deezer")
+INTERNET_DO_CARD = re.compile(
+    r'<tim-card-pricing-internet\b[^>]*\bslot="internet"[^>]*>', re.S)
+BENEFICIOS_DO_CARD = re.compile(
+    r'<tim-card-pricing-benefits\b([^>]*)>(.*?)</tim-card-pricing-benefits>', re.S)
+PRECO_DO_CARD = re.compile(r'<tim-card-pricing-price\b([^>]*)>', re.S)
+ALT_DO_LOGO = re.compile(r'<img\b[^>]*\balt="([^"]*)"', re.S)
+# o card nomeia o app no alt do logo: "Icone Paramount - TIM Ultracombo"
+LIXO_DO_ALT = re.compile(r"^\s*(?:icone|logo)\s+|\s+-\s+(?:tim\b.*|fibra)\s*$", re.I)
+LIMITE_DE_APPS_DO_CARD = 12
+
+
+def _logos(corpo):
+    """Os apps que os logos do card nomeiam. O logo do YouTube na faixa de
+    "servicos inclusos" e o YouTube Premium - o card de 800 MEGA e o "800
+    MEGA YOUTUBE" da TIM -, e a regua so reconhece o nome inteiro."""
+    nomes = [LIXO_DO_ALT.sub("", _html.unescape(a)).strip()
+             for a in ALT_DO_LOGO.findall(corpo or "") if a.strip()]
+    return ["YouTube Premium" if n.lower() == "youtube" else n for n in nomes]
+
+
+def ler_fibra_por_card(op, url, uf):
+    u"""A fibra da TIM como o card mostra. Ver o cabecalho do bloco."""
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    achados, vistos = [], set()
+    for m in CARD_COM_PRECO.finditer(h):
+        a = dict(ATRIBUTO.findall(m.group(1)))
+        regioes = [x.strip() for x in (a.get("field-regioes") or "").split(",")
+                   if x.strip()]
+        if regioes and uf.lower() not in regioes:
+            continue
+        fim = h.find("</tim-card-pricing-offer>", m.end())
+        corpo = h[m.end():fim if fim > 0 else m.end() + 6000]
+        velocidade, dica, rotulo = None, None, None
+        for mi in INTERNET_DO_CARD.finditer(corpo):
+            ai = dict(ATRIBUTO.findall(mi.group(0)))
+            if (ai.get("value") or "").strip():
+                velocidade = ai["value"].strip()
+                dica = (_html.unescape(ai.get("tooltip-text") or "").strip() or None)
+                rotulo = re.sub(r"\s+", " ", _html.unescape(ai.get("label") or "")
+                                .replace("&nbsp;", " ")).strip() or None
+                break
+        velocidade = velocidade or (a.get("data-first-consume") or "").strip()
+        mp = PRECO_DO_CARD.search(corpo)
+        ap = dict(ATRIBUTO.findall(mp.group(1))) if mp else {}
+        preco = numero((re.search(r"R\$\s*([\d.]+,\d{2})", _html.unescape(
+            ap.get("price") or a.get("data-price") or "")) or [None, None])[1])
+        mde = re.search(r"R\$\s*([\d.]+,\d{2})", _html.unescape(ap.get("discount-price") or ""))
+        cheio = numero(mde.group(1)) if mde and ap.get("discount") != "false" else None
+        mbps_ = mbps(velocidade)
+        if not mbps_ or preco is None:
+            continue
+        topo, baixo = [], []
+        for mb in BENEFICIOS_DO_CARD.finditer(corpo):
+            ab = dict(ATRIBUTO.findall(mb.group(1)))
+            (topo if (ab.get("mediaType") or "").lower() == "reduced" else baixo).extend(
+                _logos(mb.group(2)))
+        texto_apps = ", ".join(topo + baixo)
+        lista = apps.apps_do_texto(texto_apps, limite=LIMITE_DE_APPS_DO_CARD)
+        do_nome = [x for x in apps.apps_do_texto(", ".join(topo), limite=LIMITE_DE_APPS_DO_CARD)
+                   if x in STREAMINGS_DO_NOME]
+        nome = "TIM Ultrafibra %s" % re.sub(r"\s+", " ", velocidade)
+        if do_nome:
+            nome += " " + apps.rotulo(do_nome, ", ".join(topo))
+        if cheio is not None and cheio <= preco:
+            cheio = None
+        chave = (nome, preco)
+        if chave in vistos:
+            continue            # a pagina repete o card no layout mobile
+        vistos.add(chave)
+        composicao = "; ".join(x for x in (
+            rotulo and ("%s %s" % (rotulo, velocidade)), dica,
+            topo and ("streaming: " + ", ".join(topo)),
+            baixo and ("inclui: " + ", ".join(baixo))) if x)
+        achados.append({
+            "nome_oferta": nome[:80],
+            "destaque": re.sub(r"\s+", " ", velocidade),
+            "degrau_mbps": mbps_,
+            "franquia_anunciada_gb": None,
+            "franquia_contratual_gb": None,
+            "preco_promocional": preco,
+            "preco_cheio": cheio,
+            "nivel_bundle": nivel_bundle(texto_apps),
+            "apps": lista or None,
+            "apps_rotulo": apps.rotulo(lista, texto_apps) or None,
+            "apps_planos": apps.planos_dos_apps(lista, texto_apps),
+            "composicao": composicao,
+            "id_catalogo": a.get("field-sku") or a.get("node-id"),
+        })
+    if not achados:
+        return None, ("nenhum card de fibra reconhecido para %s - a leitura "
+                      "falhou, e nao ha como afirmar que a TIM nao vende "
+                      "fibra nesta UF" % uf)
+    # MESMO NOME A DOIS PRECOS nao vira um preco escolhido: os dois saem, ditos
+    por_nome = {}
+    for o in achados:
+        por_nome.setdefault(o["nome_oferta"], []).append(o)
+    ficam, ambiguos = [], []
+    for nome, grupo in por_nome.items():
+        if len(grupo) > 1:
+            ambiguos.append("%s a %s" % (nome, " e a ".join(
+                ("%.2f" % o["preco_promocional"]).replace(".", ",") for o in grupo)))
+            continue
+        ficam.append(grupo[0])
+    if ambiguos and not ficam:
+        return None, "a pagina publica cada card a mais de um preco em %s" % uf
+    if ambiguos:
+        return ficam, ("a pagina publica o mesmo card a dois precos em %s e "
+                       "nao diz qual vale (%s) - ficou fora" % (uf, "; ".join(ambiguos)))
+    return ficam, None
+
+
 def _do_card(bloco, padrao):
     m = re.search(padrao, bloco or "", re.S)
     return re.sub(r"\s+", " ", m.group(1)).strip() if m else None
@@ -779,6 +920,11 @@ def coletar(cidade, uf, verbose=True):
 
         for o in ofertas:
             real = classificar(o["nome_oferta"], o["destaque"])
+            # A FIBRA SO DOS CARDS DA PAGINA DE FIBRA (27/11/2026). A hub
+            # repetia degraus com outro nome ("TIM Ultrafibra com Modem
+            # Wi-fi gratis" era o 400/500 Mega) - ver ler_fibra_por_card.
+            if real == "fibra":
+                continue
             if real != "prepago":
                 o["validade_dias"] = None
             o.update({"operadora": "TIM", "produto": real, "praca": praca,
@@ -896,7 +1042,7 @@ def coletar(cidade, uf, verbose=True):
     # ficam. Tratar o aviso como falha jogaria a escada inteira fora por
     # causa de um degrau - foi o primeiro jeito que eu escrevi, e em
     # Recife isso custava nove degraus para esconder um.
-    fibra, err = ler_escada_de_fibra(op, FIBRA % uf.lower(), uf)
+    fibra, err = ler_fibra_por_card(op, FIBRA % uf.lower(), uf)
     if err:
         saida["avisos"].append("fibra: %s" % err)
         if verbose:
@@ -911,7 +1057,8 @@ def coletar(cidade, uf, verbose=True):
             o.update({"operadora": "TIM", "produto": "fibra", "praca": praca,
                       "pagina": "fibra",
                       "capturado_em": agora.isoformat(),
-                      "preco_cheio": None,
+                      # o riscado do card ("De R$ 149,99") - so a fibra o le
+                      "preco_cheio": o.get("preco_cheio"),
                       "codigo_anatel": None, "campanha": None})
             saida["ofertas"].append(o)
             novas += 1

@@ -227,28 +227,9 @@ class AEscadaDeFibraDaPaginaDeProduto(unittest.TestCase):
         self.assertTrue(erro)
         self.assertEqual(len(lido), 2)
 
-    def test_o_coletor_guarda_os_degraus_limpos_apesar_do_aviso(self):
-        """TESTE DE PECA NAO PROVA MONTAGEM. A funcao devolve
-        (degraus, aviso) e quem decide o que fazer com os dois e
-        coletar() - o primeiro jeito que eu escrevi tratava o aviso como
-        falha e jogava a escada inteira fora, e em Recife isso custava
-        nove degraus para esconder um. Aqui roda coletar().
-        """
-        html = (degrau("1GIGA", "99,99", ufs="pe")
-                + degrau("1GIGA", "129,99", ufs="pe")
-                + degrau("600 Mega", "109,99", ufs="pe")
-                + degrau("2GIGA", "369,99", ufs="pe"))
-        guarda_b, guarda_p = tim.buscar, tim.PAUSA
-        tim.buscar = lambda op, url, **k: (200, html)
-        tim.PAUSA = 0
-        self.addCleanup(lambda: setattr(tim, "buscar", guarda_b))
-        self.addCleanup(lambda: setattr(tim, "PAUSA", guarda_p))
-        saida = tim.coletar("Recife", "PE", verbose=False)
-        fibra = sorted(o["degrau_mbps"] for o in saida["ofertas"]
-                       if o["produto"] == "fibra")
-        self.assertEqual(fibra, [600, 2000],
-                         "o aviso nao pode levar os degraus limpos junto")
-        self.assertTrue(any("dois precos" in a for a in saida["avisos"]))
+    # O teste do caminho de producao desta escada saiu em 26/11/2026: a
+    # fibra da TIM passou a sair dos cards visiveis (ler_fibra_por_card),
+    # e o caminho de producao e testado em test_a_fibra_da_tim_pelo_card.
 
     def test_pagina_sem_degrau_devolve_erro(self):
         self._pagina("<html>nada aqui</html>")

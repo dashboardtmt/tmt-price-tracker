@@ -1189,7 +1189,9 @@ LEITURA_MUDOU_EM = {
                   "lugar das três que a frase inventava; e a Starlink passou a "
                   "ter os dois planos de viagem (Roam, código 8 da API), a "
                   "fidelidade de 12 meses do kit de R$ 49 e o terabyte "
-                  "decimal (1 TB = 1.000 GB, e não 1.024)",
+                  "decimal (1 TB = 1.000 GB, e não 1.024); e a fibra da TIM "
+                  "passou a ser lida dos cards da página, e não das janelas "
+                  "de comparação escondidas",
 }
 
 
@@ -1230,8 +1232,8 @@ LEITURA_EM_UMA_LINHA = {
                   "havia perdido, e a lista deixou de vir cortada",
     "2026-11-26": "entraram os Prezões temáticos da Claro, o celular e "
                   "os combos da Unifique, e o preço cheio da Starlink",
-    "2026-11-27": "a fibra e o Multi da Claro passaram a ser lidos dos "
-                  "cards da página, e entraram os planos de viagem da Starlink",
+    "2026-11-27": "a fibra da Claro e da TIM e o Multi da Claro passaram a "
+                  "ser lidos dos cards, e entrou o Starlink de viagem",
 }
 
 
@@ -3018,6 +3020,14 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"endereço e a coleta não lia, a fidelidade de 12 meses do "
                  u"kit de R$ 49 e o terabyte contado como ela conta (1 TB = "
                  u"1.000 GB)",
+    }, {
+        # auditoria de 26/11: a escada de fibra lia as janelas escondidas
+        "quem": [("TIM", "fibra", u"")],
+        "texto": u"a fibra da TIM passou a ser lida dos cards que o cliente vê, "
+                 u"e não das janelas de comparação escondidas da página: saiu "
+                 u"o 700 Mega a R$ 99,99 que nenhuma página mostra, entrou o "
+                 u"600 Mega Paramount+ que faltava em 9 praças, e cada plano "
+                 u"passou a ter o preço riscado e os apps do card",
     }],
 }
 

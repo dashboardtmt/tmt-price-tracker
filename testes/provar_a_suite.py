@@ -2444,6 +2444,27 @@ MUTACOES = [
         '            s["conferida_texto"] = SAIDA_NAO_CONFERIDA\n',
         '            pass\n',
         "Sc3. a saida de quem nao tem releitor deixa de dizer que nao foi conferida"),
+    # A FIBRA DA TIM PELO CARD VISIVEL (26/11/2026)
+    Mutacao(
+        "coletores/tim.py",
+        '    fibra, err = ler_fibra_por_card(op, FIBRA % uf.lower(), uf)\n',
+        '    fibra, err = ler_escada_de_fibra(op, FIBRA % uf.lower(), uf)\n',
+        "Tf1. a fibra da TIM volta a ler as janelas escondidas"),
+    Mutacao(
+        "coletores/tim.py",
+        '        if regioes and uf.lower() not in regioes:\n            continue\n        fim = h.find("</tim-card-pricing-offer>", m.end())\n',
+        '        fim = h.find("</tim-card-pricing-offer>", m.end())\n',
+        "Tf2. o card de fibra de outra UF passa a entrar"),
+    Mutacao(
+        "coletores/tim.py",
+        '            if real == "fibra":\n                continue\n',
+        '',
+        "Tf3. a fibra da hub volta a entrar com outro nome"),
+    Mutacao(
+        "coletores/tim.py",
+        '                      "preco_cheio": o.get("preco_cheio"),\n',
+        '                      "preco_cheio": None,\n',
+        "Tf4. o riscado da fibra da TIM volta a se perder"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
