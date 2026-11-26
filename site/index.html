@@ -321,6 +321,10 @@
      numa tela de 390). Com o minimo em zero a coluna encolhe e o grafico
      se redesenha nela. */
   .dupla{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:12px}
+  /* a regua por operadora: um quadro embaixo do outro, a altura dada pelo
+     numero de operadoras (desenharRegua) */
+  .pilha{display:grid;grid-template-columns:minmax(0, 1fr);gap:12px}
+  .grafico-wrap.regua{height:auto;min-height:120px}
   .dupla > .bloco, .grafico-wrap{min-width:0}
 
   table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;
@@ -647,14 +651,14 @@
     </div>
   </div>
 
-  <div class="dupla">
+  <div class="pilha">
     <div class="bloco">
       <h2 data-t="g2_t">Posicionamento preço-entrega</h2>
-      <div class="grafico-wrap alto"><canvas id="c-dispersao"></canvas></div>
+      <div class="grafico-wrap regua"><canvas id="c-dispersao"></canvas></div>
     </div>
     <div class="bloco">
       <h2 data-t="g3_t">Competitividade de preço por operadora</h2>
-      <div class="grafico-wrap alto"><canvas id="c-unitario"></canvas></div>
+      <div class="grafico-wrap regua"><canvas id="c-unitario"></canvas></div>
     </div>
   </div>
 
@@ -756,12 +760,12 @@ const FONTE = "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public
 const DADOS_GZ = "";
 const CORES = {"Claro": "#FF5000", "TIM": "#1D4080", "Vivo": "#398478", "NuCel": "#820AD1", "Brisanet": "#AD7645", "Unifique": "#5282D8", "Starlink": "#6E6E6E"};
 // so referencia: o preco avulso aparece na dica e nunca entra em conta
-const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte": "https://help.netflix.com/pt/node/24926", "conferido_em": "2026-10-08", "evidencia": "tres planos com precos diferentes; o preco so vale com o tier declarado pela operadora, e nenhuma declara. Padrão: R$ 44,90/mês"}, "disney": {"nome": "Disney+", "preco_avulso": null, "fonte": "https://www.disneyplus.com/pt-br", "conferido_em": "2026-10-08", "evidencia": "colunas Premium / Padrão / Padrão com anúncios sobre R$ 69,90 / R$ 49,90 / R$ 29,90"}, "spotify": {"nome": "Spotify", "preco_avulso": null, "fonte": "https://www.spotify.com/br-pt/premium/", "conferido_em": "2026-10-08", "evidencia": "Premium Individual. R$ 0 por 1 mês, depois R$ 23,90 por mês"}, "youtube": {"nome": "YouTube Premium", "preco_avulso": null, "fonte": "https://www.youtube.com/premium", "conferido_em": "2026-10-08", "evidencia": "Premium Lite ... Monthly R$16.90/month"}, "globoplay": {"nome": "Globoplay", "preco_avulso": null, "fonte": "https://globoplay.globo.com/assine/", "conferido_em": "2026-10-15", "evidencia": "mensal: Padrão com anúncios R$ 22,90, Premium R$ 39,90. A Vivo nao diz qual inclui, entao nenhum dos dois precos vale para a oferta dela"}, "amazon": {"nome": "Amazon Prime", "preco_avulso": null, "fonte": "https://www.amazon.com.br/amazonprime", "conferido_em": "2026-10-08", "evidencia": "a pagina responde 503 a leitura automatica"}, "premiere": {"nome": "Premiere", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "vale_saude": {"nome": "Vale Saúde Sempre", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "telemedicina, nao streaming"}, "vivae": {"nome": "Vivae", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "educacao, nao streaming"}, "vivo_tv": {"nome": "Vivo TV Inicial", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "vivo_travel": {"nome": "Vivo Travel", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "roaming, nao e app de assinatura"}, "vivo_musica": {"nome": "Vivo Música", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "paramount": {"nome": "Paramount+", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "max": {"nome": "Max", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "sky": {"nome": "Sky", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "TV por assinatura; a operadora vende o pacote, nao ha avulso comparavel"}, "telecine": {"nome": "Telecine", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "deezer": {"nome": "Deezer", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "skeelo": {"nome": "Skeelo", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "mcafee": {"nome": "McAfee", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "aya_books": {"nome": "Aya Books", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "aya_ensinah": {"nome": "Aya Ensinah", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "exa": {"nome": "EXA Segurança", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "goread": {"nome": "GoRead", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo"}, "claro_musica": {"nome": "Claro Música", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Claro"}, "google_one": {"nome": "Google One", "preco_avulso": null, "fonte": "https://one.google.com/about/plans", "conferido_em": "2026-11-04", "evidencia": "tres planos pagos: Lite (30 GB) R$ 4,50, Basic (100 GB) R$ 9,99 e AI Pro (5 TB) R$ 96,99, mais o AI Plus com 400 GB. O card da Vivo escreve so \"Google One\", entao nenhum dos tres precos vale para a oferta - o preco pertence ao tier"}};
+const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte": "https://help.netflix.com/pt/node/24926", "conferido_em": "2026-10-08", "evidencia": "tres planos com precos diferentes; o preco so vale com o tier declarado pela operadora, e nenhuma declara. Padrão: R$ 44,90/mês"}, "disney": {"nome": "Disney+", "preco_avulso": null, "fonte": "https://www.disneyplus.com/pt-br", "conferido_em": "2026-10-08", "evidencia": "colunas Premium / Padrão / Padrão com anúncios sobre R$ 69,90 / R$ 49,90 / R$ 29,90"}, "spotify": {"nome": "Spotify", "preco_avulso": null, "fonte": "https://www.spotify.com/br-pt/premium/", "conferido_em": "2026-10-08", "evidencia": "Premium Individual. R$ 0 por 1 mês, depois R$ 23,90 por mês"}, "youtube": {"nome": "YouTube Premium", "preco_avulso": null, "fonte": "https://www.youtube.com/premium", "conferido_em": "2026-10-08", "evidencia": "Premium Lite ... Monthly R$16.90/month"}, "globoplay": {"nome": "Globoplay", "preco_avulso": null, "fonte": "https://globoplay.globo.com/assine/", "conferido_em": "2026-10-15", "evidencia": "mensal: Padrão com anúncios R$ 22,90, Premium R$ 39,90. A Vivo nao diz qual inclui, entao nenhum dos dois precos vale para a oferta dela"}, "amazon": {"nome": "Amazon Prime", "preco_avulso": null, "fonte": "https://www.amazon.com.br/amazonprime", "conferido_em": "2026-10-08", "evidencia": "a pagina responde 503 a leitura automatica"}, "premiere": {"nome": "Premiere", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "vale_saude": {"nome": "Vale Saúde Sempre", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "telemedicina, nao streaming"}, "vivae": {"nome": "Vivae", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "educacao, nao streaming"}, "vivo_tv": {"nome": "Vivo TV Inicial", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "vivo_travel": {"nome": "Vivo Travel", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "roaming, nao e app de assinatura"}, "vivo_musica": {"nome": "Vivo Música", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Vivo; nao ha preco avulso"}, "apple_music": {"nome": "Apple Music", "preco_avulso": null, "fonte": "https://www.apple.com/br/apple-music/", "conferido_em": "2026-11-26", "evidencia": "card do Vivo Controle Musica: Apple Music Individual"}, "paramount": {"nome": "Paramount+", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "max": {"nome": "Max", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "sky": {"nome": "Sky", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "TV por assinatura; a operadora vende o pacote, nao ha avulso comparavel"}, "telecine": {"nome": "Telecine", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "deezer": {"nome": "Deezer", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "ainda nao conferido"}, "skeelo": {"nome": "Skeelo", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "mcafee": {"nome": "McAfee", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo, sem preco avulso relevante"}, "aya_books": {"nome": "Aya Books", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "aya_ensinah": {"nome": "Aya Ensinah", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "exa": {"nome": "EXA Segurança", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo da TIM"}, "goread": {"nome": "GoRead", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "app de catalogo"}, "claro_musica": {"nome": "Claro Música", "preco_avulso": null, "fonte": null, "conferido_em": null, "evidencia": "servico da propria Claro"}, "google_one": {"nome": "Google One", "preco_avulso": null, "fonte": "https://one.google.com/about/plans", "conferido_em": "2026-11-04", "evidencia": "tres planos pagos: Lite (30 GB) R$ 4,50, Basic (100 GB) R$ 9,99 e AI Pro (5 TB) R$ 96,99, mais o AI Plus com 400 GB. O card da Vivo escreve so \"Google One\", entao nenhum dos tres precos vale para a oferta - o preco pertence ao tier"}};
 // tier -> preco avulso, por app. O preco pertence ao TIER: Globoplay
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]]};
-const GERADO = "26/11/2026 09:01";
+const GERADO = "26/11/2026 10:32";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -2301,6 +2305,173 @@ const ROTULOS_EM_ANDARES = {
   },
 };
 
+// A REGUA POR OPERADORA (26/11/2026). Escolha de quem le, depois de "esses
+// graficos estao muito feios... altura menor e um embaixo do outro": o
+// desenho do deck. Uma linha por operadora, cada oferta um ponto numa regua
+// de preco (ou de R$ por unidade), a faixa cinza do plano mais barato ao mais
+// caro, e o rotulo "preco · entrega" ao lado do ponto - em cima e embaixo,
+// alternando, e afastados ate nao encostar, presos ao ponto por um fio. O
+// barras-em-cima-do-nome de 25/11 empilhava os rotulos uns sobre os outros.
+const ALTURA_DA_LINHA = 54;
+
+const REGUA = {
+  id: "regua",
+  beforeDatasetsDraw(ch, _a, op){
+    if (!op || !op.linhas) return;
+    const c = ch.ctx, ex = ch.scales.x, ey = ch.scales.y;
+    c.save();
+    op.linhas.forEach((l, i) => {
+      if (!l.pontos.length) return;
+      const vs = l.pontos.map(p => p.v);
+      const x0 = ex.getPixelForValue(Math.min(...vs)), x1 = ex.getPixelForValue(Math.max(...vs));
+      const y = ey.getPixelForValue(i);
+      c.fillStyle = "rgba(124,116,104,0.16)";
+      const r = 4, h = 8, w = Math.max(x1 - x0, 1);
+      c.beginPath();
+      c.roundRect ? c.roundRect(x0 - 6, y - h / 2, w + 12, h, r) : c.rect(x0 - 6, y - h / 2, w + 12, h);
+      c.fill();
+    });
+    c.restore();
+  },
+  afterDatasetsDraw(ch, _a, op){
+    if (!op || !op.linhas) return;
+    const estreito = ch.width < 600;
+    const c = ch.ctx, area = ch.chartArea, VAO = 6;
+    c.save();
+    c.font = "600 " + (estreito ? 9 : 10) + "px " + Chart.defaults.font.family;
+    c.textBaseline = "middle";
+    op.linhas.forEach((l, di) => {
+      const meta = ch.getDatasetMeta(di);
+      if (!ch.isDatasetVisible(di)) return;
+      // a mesma oferta duas vezes (mesmo preco e entrega) sai uma vez, "x2"
+      const iguais = {};
+      l.pontos.forEach((p, j) => {
+        const txt = estreito ? p.curto : p.rotulo;
+        if (!txt) return;
+        const k = txt + "|" + Math.round(meta.data[j].x);
+        if (iguais[k]) { iguais[k].n += 1; return; }
+        iguais[k] = {px: meta.data[j].x, py: meta.data[j].y, txt, n: 1};
+      });
+      const itens = Object.values(iguais).map(x => (
+        {...x, txt: x.n > 1 ? x.txt + " \u00d7" + x.n : x.txt}));
+      itens.sort((a, b) => a.px - b.px);
+      // alterna em cima e embaixo, na ordem da regua
+      [0, 1].forEach(lado => {
+        const fila = itens.filter((_, k) => k % 2 === lado);
+        fila.forEach(x => { x.w = c.measureText(x.txt).width; });
+        let grupos = fila.map(x => [x]);
+        const largura = g => g.reduce((s, x) => s + x.w, 0) + VAO * (g.length - 1);
+        const inicio = g => {
+          const centro = g.reduce((s, x) => s + x.px, 0) / g.length;
+          return Math.min(Math.max(centro - largura(g) / 2, area.left), area.right - largura(g));
+        };
+        let mudou = true;
+        while (mudou) {
+          mudou = false;
+          for (let i = 0; i < grupos.length - 1; i++) {
+            if (inicio(grupos[i]) + largura(grupos[i]) + VAO > inicio(grupos[i + 1])) {
+              grupos.splice(i, 2, grupos[i].concat(grupos[i + 1]));
+              mudou = true;
+              break;
+            }
+          }
+        }
+        grupos.forEach(g => {
+          let x0 = inicio(g);
+          g.forEach(x => {
+            const meio = x0 + x.w / 2;
+            const yt = lado === 0 ? x.py - 15 : x.py + 15;
+            if (Math.abs(meio - x.px) > 3) {
+              c.strokeStyle = "rgba(124,116,104,0.55)";
+              c.lineWidth = 0.8;
+              c.beginPath();
+              c.moveTo(x.px, x.py + (lado === 0 ? -7 : 7));
+              c.lineTo(meio, yt + (lado === 0 ? 5 : -5));
+              c.stroke();
+            }
+            c.fillStyle = "#2B2621";
+            c.textAlign = "left";
+            c.fillText(x.txt, x0, yt);
+            x0 += x.w + VAO;
+          });
+        });
+      });
+    });
+    c.restore();
+  },
+};
+
+// O PASSO REDONDO DA REGUA: 1, 2, 2,5 ou 5 vezes uma potencia de 10
+function passoRedondo(bruto){
+  const p = Math.pow(10, Math.floor(Math.log10(bruto)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= bruto) return m * p;
+  return 10 * p;
+}
+
+function desenharRegua(id, linhas, opcoes){
+  // linhas: [{op, pontos:[{v, rotulo, curto, dica}]}], de cima para baixo
+  const alvo = document.getElementById(id);
+  linhas = linhas.filter(l => l.pontos.length);
+  if (!linhas.length) {
+    if (graficos[id]) graficos[id].destroy(), delete graficos[id];
+    return;
+  }
+  // a altura segue o numero de operadoras: baixa, uma linha por player
+  if (alvo && alvo.parentElement)
+    alvo.parentElement.style.height = (linhas.length * ALTURA_DA_LINHA + 76) + "px";
+  const vs = linhas.flatMap(l => l.pontos.map(p => p.v)).filter(v => v > 0);
+  const lo = Math.min(...vs), hi = Math.max(...vs);
+  // UM PLANO DE R$ 2.000 NAO ESPREME OS OUTROS: com a razao acima de 6 a
+  // regua vira logaritmica (o 10 Giga da Vivo contra a fibra de R$ 80)
+  const log = hi / lo > 6;
+  const folga = (hi - lo) * 0.06 || hi * 0.1;
+  const fmt = opcoes.formatoEixo;
+  const passo = passoRedondo(((hi + folga) - Math.max(0, lo - folga)) / 6);
+  const xmin = Math.max(0, Math.floor((lo - folga) / passo) * passo);
+  const xmax = Math.ceil((hi + folga) / passo) * passo;
+  trocar(id, {
+    type: "scatter",
+    data: {datasets: linhas.map((l, i) => ({
+      label: l.op,
+      data: l.pontos.map(p => ({x: p.v, y: i})),
+      backgroundColor: CORES[l.op] || "#999",
+      borderColor: "#FFFFFF", borderWidth: 2,
+      pointRadius: 6, pointHoverRadius: 8,
+    }))},
+    options: {responsive: true, maintainAspectRatio: false, animation: false,
+      layout: {padding: {top: 6, right: 14, bottom: 22}},
+      plugins: {legend: {display: false},
+        unidadeEixo: {x: opcoes.unidade},
+        regua: {linhas},
+        tooltip: {callbacks: {
+          title: c => c.length ? linhas[c[0].datasetIndex].op : "",
+          label: c => linhas[c.datasetIndex].pontos[c.dataIndex].dica}}},
+      scales: {
+        x: log ? {type: "logarithmic", min: lo * 0.88, max: hi * 1.12,
+                  grid: {color: EIXO.grade}, border: {display: false},
+                  // as marcas 1, 2 e 5 de cada potencia de 10 (50, 100, 200, 500...)
+                  afterBuildTicks: ax => {
+                    const marcas = [];
+                    for (let e = Math.floor(Math.log10(ax.min)); e <= Math.ceil(Math.log10(ax.max)); e++)
+                      for (const m of [1, 2, 5]) {
+                        const v = m * Math.pow(10, e);
+                        if (v >= ax.min && v <= ax.max) marcas.push({value: v});
+                      }
+                    ax.ticks = marcas;
+                  },
+                  ticks: {color: "#7C7468", font: {size: 11}, callback: v => fmt(v)}}
+             : {type: "linear", min: xmin, max: xmax,
+                grid: {color: EIXO.grade}, border: {display: false},
+                ticks: {color: "#7C7468", font: {size: 11}, stepSize: passo, callback: v => fmt(v)}},
+        y: {type: "linear", min: -0.6, max: linhas.length - 0.4, reverse: true,
+            grid: {display: false}, border: {display: false},
+            afterBuildTicks: ax => { ax.ticks = linhas.map((_, i) => ({value: i})); },
+            ticks: {color: "#2B2621", font: {size: 12, weight: "700"}, padding: 10,
+                    callback: v => (linhas[v] || {}).op || ""}}}},
+    plugins: [REGUA, UNIDADE_EIXO],
+  });
+}
+
 function grafDispersao(){
   // O DIA E O DO SELETOR. Este painel e o grafUnitario liam sempre o
   // ultimo dia da serie, enquanto o quadrante ao lado lia o seletor:
@@ -2308,58 +2479,23 @@ function grafDispersao(){
   // Claro - num dia em que a Claro nao foi coletada no pre-pago. A
   // tela afirmava um R$/GB da Claro num dia sem oferta da Claro.
   const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
-  // POR OPERADORA, AS OFERTAS EM BARRAS EM CIMA DO NOME (25/11/2026, pedido
-  // de quem le). Dentro de cada operadora, da mais barata para a mais cara;
-  // o rotulo diz o preco e a entrega. Cada conjunto e uma posicao (1a, 2a,
-  // 3a oferta...), e skipNull fecha o buraco de quem tem menos ofertas.
+  // A REGUA POR OPERADORA: cada oferta um ponto, na ordem do preco
   const porOp = {};
   for (const o of doFiltro(hoje)) {
     const p = precoDe(o);
     if (p == null) continue;
     (porOp[o.operadora] = porOp[o.operadora] || []).push(
-      {p, e:entregaDe(o), nome:o.nome_oferta || ""});
+      {p, e: entregaDe(o), nome: o.nome_oferta || ""});
   }
   const ops = Object.keys(porOp).sort(porRelevancia);
-  if (!ops.length) {
-    if (graficos["c-dispersao"]) graficos["c-dispersao"].destroy(), delete graficos["c-dispersao"];
-    return;
-  }
-  for (const op of ops) porOp[op].sort((a, b) => a.p - b.p || (a.e.v || 0) - (b.e.v || 0));
-  const nMax = Math.max(...ops.map(op => porOp[op].length));
-  const estreito = window.innerWidth < 600;
   const entrega = x => x.e.v != null ? Number(x.e.v).toLocaleString("pt-BR") + " " + x.e.u : "";
-  const series = Array.from({length:nMax}, (_, k) => ({
-    label:String(k + 1), skipNull:true, borderRadius:3, maxBarThickness:30,
-    categoryPercentage:estreito ? 0.94 : 0.88, barPercentage:0.9,
-    backgroundColor:ops.map(op => CORES[op] || "#999"),
-    data:ops.map(op => porOp[op][k] ? porOp[op][k].p : null),
-  }));
-  trocar("c-dispersao", {
-    type:"bar",
-    data:{labels:ops, datasets:series},
-    options:{responsive:true, maintainAspectRatio:false,
-      // folga em cima para a unidade do preco e os andares de rotulo
-      layout:{padding:{top:24}},
-      plugins:{legend:{display:false},
-        unidadeEixo:{y:"R$/" + t("mes")},
-        tooltip:{callbacks:{
-          title:c => c.length ? c[0].label : "",
-          label:c => {
-            const x = porOp[c.label] && porOp[c.label][c.datasetIndex];
-            if (!x) return null;
-            return x.nome + ": " + reais(x.p) + (entrega(x) ? " · " + entrega(x) : "");
-          }}},
-        rotulosEmAndares:{formato:(v, i, j) => {
-          const x = porOp[ops[j]][i];
-          return [Number(v).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}),
-                  x ? entrega(x) : ""];
-        }}},
-      scales:{
-        x:{...eixos().x, ticks:{...eixos().x.ticks, autoSkip:false,
-           color:"#2B2621", font:{size:12, weight:"700"}}},
-        y:{...eixos(v=>reais(v).replace("R$ ","")).y, grace:"22%"}}},
-    plugins:[ROTULOS_EM_ANDARES, UNIDADE_EIXO],
-  });
+  const dois = v => Number(v).toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  desenharRegua("c-dispersao", ops.map(op => ({op, pontos: porOp[op]
+      .sort((a, b) => a.p - b.p || (a.e.v || 0) - (b.e.v || 0))
+      .map(x => ({v: x.p, curto: dois(x.p),
+                  rotulo: dois(x.p) + (entrega(x) ? " · " + entrega(x) : ""),
+                  dica: x.nome + ": " + reais(x.p) + (entrega(x) ? " · " + entrega(x) : "")}))})),
+    {unidade: "R$/" + t("mes"), formatoEixo: v => Number(v).toLocaleString("pt-BR", {maximumFractionDigits: 0})});
 }
 
 // Preco por unidade entregue: R$/GB no movel, R$/Mbps na fibra. E o
@@ -2367,68 +2503,36 @@ function grafDispersao(){
 // comparar precos nominais de ofertas que entregam coisas diferentes.
 function grafUnitario(){
   const hoje = document.getElementById("f-data").value || DIAS[DIAS.length-1];
-  // O PAR DO POSICIONAMENTO (26/11/2026). "Esses graficos estao feios":
-  // a coluna unica por operadora so mostrava o R$/unidade da oferta de
-  // ENTRADA, que e quase sempre a pior relacao da grade. Agora o desenho e
-  // o do quadro ao lado - a operadora no eixo, as ofertas dela em barras
-  // em cima do nome, NA MESMA ORDEM (do preco menor ao maior) - e a barra
-  // k de um quadro e a mesma oferta da barra k do outro.
+  // A MESMA REGUA, EM R$ POR UNIDADE: cada oferta um ponto. Uma unidade so
+  // na regua, a mais comum - o satelite mistura Mbps (residencial) e GB
+  // (prioritario), e R$/Mbps ao lado de R$/GB seria comparar o que nao se
+  // compara; a outra fica fora deste quadro.
   const porOp = {}, contaU = {};
   for (const o of doFiltro(hoje)) {
-    const p = precoDe(o);
-    if (p == null) continue;
-    const e = entregaDe(o);
-    (porOp[o.operadora] = porOp[o.operadora] || []).push({p, e, nome:o.nome_oferta || ""});
-    if (e.v) contaU[e.u] = (contaU[e.u] || 0) + 1;
+    const p = precoDe(o), e = entregaDe(o);
+    if (p == null || !e.v) continue;
+    (porOp[o.operadora] = porOp[o.operadora] || []).push({p, e, nome: o.nome_oferta || ""});
+    contaU[e.u] = (contaU[e.u] || 0) + 1;
   }
-  // UMA UNIDADE SO NO EIXO: a mais comum. O satelite mistura Mbps
-  // (residencial) e GB (prioritario), e R$/Mbps ao lado de R$/GB na mesma
-  // regua seria comparar o que nao se compara; a outra fica na dica.
   const u = Object.keys(contaU).sort((a, b) => contaU[b] - contaU[a])[0];
-  const ops = Object.keys(porOp).sort(porRelevancia)
-    .filter(op => porOp[op].some(x => x.e.v && x.e.u === u));
-  if (!u || !ops.length) {
-    if (graficos["c-unitario"]) graficos["c-unitario"].destroy(), delete graficos["c-unitario"];
-    return;
-  }
-  for (const op of ops) porOp[op].sort((a, b) => a.p - b.p || (a.e.v || 0) - (b.e.v || 0));
-  const unit = x => (x && x.e.v && x.e.u === u) ? x.p / x.e.v : null;
-  const valores = ops.flatMap(op => porOp[op].map(unit)).filter(v => v != null);
+  const ops = Object.keys(porOp).sort(porRelevancia);
+  const valores = ops.flatMap(op => porOp[op].filter(x => x.e.u === u).map(x => x.p / x.e.v));
   // casas conforme a grandeza (R$/GB e R$/Mbps ficam em centavos); o
   // rotulo leva uma a mais que o eixo - 1,18 e 1,20 sao "1,2" os dois
-  const casas = Math.max(...valores) < 1 ? 2 : 1;
+  const casas = valores.length && Math.max(...valores) < 1 ? 2 : 1;
   const casasRot = Math.min(casas + 1, 3);
-  const fmt = (v, c) => Number(v).toLocaleString("pt-BR", {minimumFractionDigits:c, maximumFractionDigits:c});
-  const nMax = Math.max(...ops.map(op => porOp[op].length));
-  const estreito = window.innerWidth < 600;
-  const series = Array.from({length:nMax}, (_, k) => ({
-    label:String(k + 1), skipNull:true, borderRadius:3, maxBarThickness:30,
-    categoryPercentage:estreito ? 0.94 : 0.88, barPercentage:0.9,
-    backgroundColor:ops.map(op => CORES[op] || "#999"),
-    data:ops.map(op => { const v = unit(porOp[op][k]); return v == null ? null : +v.toFixed(4); }),
-  }));
-  trocar("c-unitario", {
-    type:"bar",
-    data:{labels:ops, datasets:series},
-    options:{responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:24}},
-      plugins:{legend:{display:false},
-        unidadeEixo:{y:"R$/" + u},
-        tooltip:{callbacks:{
-          title:c => c.length ? c[0].label : "",
-          label:c => {
-            const x = porOp[c.label] && porOp[c.label][c.datasetIndex];
-            if (!x || unit(x) == null) return null;
-            return x.nome + ": R$ " + fmt(unit(x), casasRot) + "/" + u
-                   + "  (" + reais(x.p) + " ÷ " + Number(x.e.v).toLocaleString("pt-BR") + " " + u + ")";
-          }}},
-        rotulosEmAndares:{formato:v => [fmt(v, casasRot)]}},
-      scales:{
-        x:{...eixos().x, ticks:{...eixos().x.ticks, autoSkip:false,
-           color:"#2B2621", font:{size:12, weight:"700"}}},
-        y:{...eixos(v => fmt(v, casas)).y, grace:"18%"}}},
-    plugins:[ROTULOS_EM_ANDARES, UNIDADE_EIXO],
-  });
+  const fmt = (v, c) => Number(v).toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c});
+  const entrega = x => Number(x.e.v).toLocaleString("pt-BR") + " " + x.e.u;
+  desenharRegua("c-unitario", ops.map(op => ({op, pontos: porOp[op]
+      .filter(x => x.e.u === u)
+      .sort((a, b) => a.p / a.e.v - b.p / b.e.v)
+      .map(x => {
+        const v = x.p / x.e.v;
+        return {v, curto: fmt(v, casasRot), rotulo: fmt(v, casasRot) + " · " + entrega(x),
+                dica: x.nome + ": R$ " + fmt(v, casasRot) + "/" + u + "  (" + reais(x.p)
+                      + " ÷ " + entrega(x) + ")"};
+      })})),
+    {unidade: "R$/" + (u || ""), formatoEixo: v => fmt(v, casas)});
 }
 
 // AS RECARGAS DO PRE-PAGO POR VALIDADE (24/11/2026), os dois quadros do
@@ -2441,7 +2545,11 @@ function grafUnitario(){
 // so com 30 lido, diz "30 dias". Em cada faixa entra a recarga mais
 // barata da operadora (empate: a que entrega mais GB), e o segundo quadro
 // divide ESSA recarga - os dois falam da mesma oferta.
-const FAIXAS_RECARGA = [[28, 999], [21, 27], [16, 20], [1, 15]];
+// A FAIXA CURTA EM DUAS (26/11/2026): a Vivo vende 5 GB por 15 dias (R$ 16)
+// e 4 GB por 10 dias (R$ 14) na pagina "sem servico digital". Numa faixa
+// so, "ate 15 dias", a de 10 dias ocupava o lugar da de 15 - a faixa que o
+// report da XP compara.
+const FAIXAS_RECARGA = [[28, 999], [21, 27], [16, 20], [12, 15], [1, 11]];
 // O PRIMEIRO DIA EM QUE AS TRES LEEM A VALIDADE. O Prezao relido
 // (reler_prezao.py) da validade a Claro tambem nos dias anteriores, e a
 // TIM e a Vivo nao tem: o quadro de uma data antiga mostraria so a Claro,
