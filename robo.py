@@ -1198,7 +1198,11 @@ LEITURA_MUDOU_EM = {
                   "entravam sem franquia); e o Vivo Lite passou a ter a "
                   "franquia que o card anuncia, com o bônus de 5 GB (35 e 45 "
                   "GB, com 30 e 40 de contrato), e a Claro passou a ter o "
-                  "GeForce NOW, o iCloud+ e a Claro Banca que os cards listam",
+                  "GeForce NOW, o iCloud+ e a Claro Banca que os cards listam, "
+                  "e os planos sem fidelidade da loja (Controle de 15 e 20 GB "
+                  "e Pós de 50 a 200 GB, com e sem os apps exclusivos); e o "
+                  "Vivo Fibra 500 Mega Lite, card com regulamento vencido na "
+                  "Anatel, passou a entrar: o que vale é o site",
 }
 
 
@@ -3066,7 +3070,8 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"Brisanet, o combo com TV e a fibra sem apps da Unifique, as "
                  u"páginas de streaming e sem apps da Vivo (com o pré de 15 "
                  u"dias), as três ofertas do TIM Controle FIT, a franquia do "
-                 u"TIM Black e dos três Express e a do Vivo Lite com o bônus, os "
+                 u"TIM Black e dos três Express e a do Vivo Lite com o bônus, "
+                 u"os planos sem fidelidade da Claro, o Vivo Fibra Lite 500, os "
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],

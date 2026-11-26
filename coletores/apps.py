@@ -184,6 +184,11 @@ APPS = {
     "claro_banca": {"nome": "Claro Banca", "preco_avulso": None,
                     "fonte": None, "conferido_em": None,
                     "evidencia": "revistas digitais, servico da propria Claro"},
+    # o terceiro dos "Apps exclusivos" do Pos da Claro ("Skeelo +2" no card):
+    # identificador de chamadas, catalogo
+    "truecaller": {"nome": "Truecaller", "preco_avulso": None,
+                   "fonte": None, "conferido_em": None,
+                   "evidencia": "identificador de chamadas; app de catalogo"},
 }
 
 # O tier de cada app, e o preco avulso DAQUELE tier quando conferido.
@@ -428,6 +433,7 @@ DO_TEXTO = (
     (r"geforce\s*now", "geforce_now"),
     (r"\bicloud", "icloud"),
     (r"claro\s*banca", "claro_banca"),
+    (r"\btruecaller\b", "truecaller"),
 )
 
 

@@ -2363,6 +2363,22 @@ MUTACOES = [
         "    em_card = set(re.findall(r'href=\"(VIV\\d{12,})\"', html))\n",
         "    em_card = set(re.findall(r\"VIV\\d{12,}\", html))\n",
         "Ls2. codigo vencido fora de card volta a entrar"),
+    # OS PLANOS SEM FIDELIDADE DA LOJA DA CLARO (27/11/2026)
+    Mutacao(
+        "coletores/claro.py",
+        "    sem_fid, erro = ler_sem_fidelidade(op)\n    if erro:\n",
+        "    sem_fid, erro = ler_sem_fidelidade(op)\n    if erro and False:\n",
+        "Sf1. a loja que falha deixa o pos e o controle como saida"),
+    Mutacao(
+        "coletores/claro.py",
+        '                if not re.search(r"\\sou\\s", desc, re.I):\n',
+        "                if True:\n",
+        "Sf2. o Google One ou iCloud+ da loja vira os dois inclusos"),
+    Mutacao(
+        "coletores/claro.py",
+        "                        if n and n not in nomes:\n                            nomes.append(n)\n",
+        "                        pass\n",
+        "Sf3. o Skeelo do Controle sem fidelidade volta a sumir"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",

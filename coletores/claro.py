@@ -1065,7 +1065,107 @@ def coletar(cidade, uf, verbose=True):
         if verbose:
             print("  %-7s %d ofertas" % (produto, len(cards)))
         time.sleep(PAUSA)
+
+    # OS PLANOS SEM FIDELIDADE, da loja - ver ler_sem_fidelidade. Se a loja
+    # nao responde, o pos e o controle saem da praca hoje, como a pagina
+    # extra da Vivo: o que so ela traz nao pode virar "saida da vitrine".
+    sem_fid, erro = ler_sem_fidelidade(op)
+    if erro:
+        antes = len(saida["ofertas"])
+        saida["ofertas"] = [o for o in saida["ofertas"]
+                            if o["produto"] not in ("movel", "controle")]
+        saida["avisos"].append(
+            "movel, controle fora da praca hoje: a loja sem fidelidade falhou "
+            "(%s), e o que so ela traz nao pode sair como saida - %d ofertas "
+            "deixadas de fora" % (erro, antes - len(saida["ofertas"])))
+    else:
+        for o in sem_fid:
+            saida["ofertas"].append(dict(o, praca=praca, capturado_em=agora.isoformat(),
+                                         ibge=ibge))
+        if verbose:
+            print("  %-7s %d ofertas" % ("sem fidelidade", len(sem_fid)))
     return saida
+
+
+# OS PLANOS SEM FIDELIDADE DA LOJA (27/11/2026). Escolha de quem le em
+# 26/11, "incluir, como a Vivo sem apps": a loja vende o Controle de 15 e
+# 20 GB e o Pos de 50 a 200 GB sem fidelidade, em duas familias cada - com
+# os apps exclusivos (Skeelo, Truecaller, Claro Banca) e sem eles -, e a
+# vitrine principal so linka a loja. Os precos estao no __NEXT_DATA__ da
+# pagina: "price" e o preco do plano; o "paymentComboPrices" mais baixo e o
+# do debito automatico, condicionado, e fica de fora. A loja nao muda com a
+# praca (medido na auditoria de 26/11) e e lida uma vez por rodada.
+LOJA_SEM_FIDELIDADE = "https://loja.claro.com.br/c/planos-de-celular/sem-fidelidade"
+_cache_sem_fidelidade = {}
+
+
+def ler_sem_fidelidade(op):
+    if "ofertas" in _cache_sem_fidelidade:
+        return [dict(o) for o in _cache_sem_fidelidade["ofertas"]], None
+    s, h = buscar(op, LOJA_SEM_FIDELIDADE)
+    if s != 200:
+        return None, "HTTP %s" % s
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', h, re.S)
+    try:
+        pagina = json.loads(m.group(1))["props"]["pageProps"]
+    except Exception:
+        return None, "a loja sem fidelidade mudou de formato (sem __NEXT_DATA__)"
+    saida, vistos = [], set()
+    for chave, produto, rotulo in (("productsPos", "movel", u"Claro Pós"),
+                                   ("productsControle", "controle", u"Claro Controle")):
+        for p in pagina.get(chave) or ():
+            preco = (p.get("price") or {}).get("value")
+            g = re.match(r"\s*(\d{1,4})", p.get("identifier") or p.get("name") or "")
+            if preco is None or not g:
+                continue
+            nomes = [i.get("title") for i in ((p.get("exclusiveApps") or {}).get("items") or ())
+                     if i.get("title")]
+            # os icones de cada grupo tambem nomeiam app: o Controle lista so
+            # a Claro Banca em exclusiveApps e o Skeelo so no grupo
+            # "SVSkeeloBanca". O grupo que e escolha ("Google One ou
+            # iCloud+") vai so pela frase, para o "ou" continuar valendo.
+            partes = []
+            for x in (p.get("planAppsGroups") or ()):
+                desc = x.get("description") or ""
+                partes.append(desc + ".")
+                if not re.search(r"\sou\s", desc, re.I):
+                    for ic in (x.get("icons") or ()):
+                        n = ic.get("name") or ic.get("title") or ic.get("alt")
+                        if n and n not in nomes:
+                            nomes.append(n)
+            grupos = " ".join(partes)
+            texto = ((u"Apps exclusivos para você: %s. " % ", ".join(nomes)) if nomes else "") + grupos
+            lista = apps.apps_do_texto(texto)
+            nome = u"%s sem fidelidade%s" % (rotulo, "" if nomes else " sem apps")
+            identidade = (nome, int(g.group(1)), float(preco))
+            if identidade in vistos:
+                continue
+            vistos.add(identidade)
+            saida.append({
+                "operadora": "Claro", "produto": produto,
+                "id_catalogo": p.get("code"),
+                "nome_oferta": nome,
+                "destaque": "%sGB" % g.group(1),
+                "franquia_anunciada_gb": int(g.group(1)),
+                "franquia_contratual_gb": None,
+                "preco_promocional": float(preco),
+                "preco_cheio": None,
+                "fidelidade_meses": 0,
+                "nivel_bundle": apps.nivel_dos_apps(lista),
+                "apps": lista,
+                "apps_rotulo": apps.rotulo(lista, texto),
+                "apps_planos": apps.planos_dos_apps(lista, texto),
+                # "estes planos nao possuem WhatsApp ilimitado", e o Controle
+                # e "sem redes sociais inclusos"
+                "whatsapp": False,
+                "composicao": (u"%s %sGB sem fidelidade, na loja. %s" % (rotulo, g.group(1), texto))[:400],
+                "codigo_anatel": None, "campanha": None, "validade_dias": None,
+                "pagina": "sem fidelidade",
+            })
+    if not saida:
+        return None, "nenhum plano reconhecido na loja sem fidelidade"
+    _cache_sem_fidelidade["ofertas"] = saida
+    return [dict(o) for o in saida], None
 
 
 def main():

@@ -28,13 +28,15 @@ PAGINA = "<html>" + CARD + '<div class="card-planos-fim"></div></html>'
 class OsAppsDoCardInteiro(unittest.TestCase):
 
     def setUp(self):
-        guarda = (claro.buscar, claro.PAUSA, claro.codigo_cidade)
+        guarda = (claro.buscar, claro.PAUSA, claro.codigo_cidade, claro.ler_sem_fidelidade)
         claro.buscar = lambda op, url, *a, **k: (200, PAGINA) if url == claro.PAGINAS["movel"] else (404, "")
         claro.PAUSA = 0
         claro.codigo_cidade = lambda op, c, u: ("x", "123", None)
+        # a loja sem fidelidade fora deste teste: sem ela o pos sai da praca
+        claro.ler_sem_fidelidade = lambda op: ([], None)
 
         def volta():
-            claro.buscar, claro.PAUSA, claro.codigo_cidade = guarda
+            claro.buscar, claro.PAUSA, claro.codigo_cidade, claro.ler_sem_fidelidade = guarda
         self.addCleanup(volta)
 
     def test_o_skeelo_depois_do_corte_entra(self):
