@@ -2736,9 +2736,19 @@ MUTACOES = [
     # O DADO PELO PROPRIO SITE (26/11/2026)
     Mutacao(
         "gerar_tela.py",
-        '    ? ["/" + FONTE.split("/").pop(), FONTE] : [FONTE];\n',
+        '    ? ["/serie.json", "/" + FONTE.split("/").pop(), FONTE] : [FONTE];\n',
         '    ? [FONTE] : [FONTE];\n',
         "Ds1. a rede que bloqueia o Storage volta a ficar sem dado"),
+    Mutacao(
+        "gerar_tela.py",
+        '    ? ["/serie.json", "/" + FONTE.split("/").pop(), FONTE] : [FONTE];\n',
+        '    ? ["/" + FONTE.split("/").pop(), FONTE] : [FONTE];\n',
+        "Ds4. o filtro que barra arquivo compactado volta a deixar a tela sem dado"),
+    Mutacao(
+        "vercel.json",
+        '          "key": "Content-Encoding",\n',
+        '          "key": "X-Sem-Compressao",\n',
+        "Ds5. o JSON do site volta a sair com os bytes compactados crus"),
     Mutacao(
         "gerar_tela.py",
         "    if (i + 1 < rotas.length) return tentar(i + 1, erros);\n",

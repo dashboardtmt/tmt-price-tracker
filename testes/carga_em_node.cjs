@@ -2,23 +2,30 @@
 // mentira. Uso: node carga_em_node.cjs <bloco.js> '<cenario json>'
 //
 // O cenario diz o protocolo da pagina e o que cada rota responde:
-//   {"protocolo": "https:", "site": "bloqueado" | 200 | 404, "storage": ...}
-// "bloqueado" e o que a rede corporativa faz: o fetch rejeita com
-// TypeError("Failed to fetch") sem resposta nenhuma.
+//   {"protocolo": "https:", "json": ..., "site": ..., "storage": ...}
+// com cada valor "bloqueado" | 200 | <outro status>. "bloqueado" e o que a
+// rede corporativa faz: o fetch rejeita com TypeError("Failed to fetch") sem
+// resposta nenhuma.
+//
+// A rota /serie.json chega descomprimida, como o navegador a entrega (a
+// compressao e a do HTTP, Content-Encoding: gzip); as do .gz chegam com os
+// bytes do arquivo compactado, que a pagina descomprime.
 const fs = require("fs");
 const zlib = require("zlib");
 
 const bloco = fs.readFileSync(process.argv[2], "utf8");
 const CENARIO = JSON.parse(process.argv[3]);
-const corpo = zlib.gzipSync(Buffer.from(JSON.stringify([{operadora: "Claro"}, {operadora: "Vivo"}])));
+const linhas = JSON.stringify([{operadora: "Claro"}, {operadora: "Vivo"}]);
+const compactado = zlib.gzipSync(Buffer.from(linhas));
 const pedidos = [];
 
 globalThis.self = globalThis;
 globalThis.fetch = async (url) => {
   pedidos.push(url);
-  const r = CENARIO[url.startsWith("/") ? "site" : "storage"];
+  const rota = url === "/serie.json" ? "json" : (url.startsWith("/") ? "site" : "storage");
+  const r = CENARIO[rota];
   if (r === "bloqueado") throw new TypeError("Failed to fetch");
-  if (r === 200) return new Response(corpo, {status: 200});
+  if (r === 200) return new Response(rota === "json" ? linhas : compactado, {status: 200});
   return new Response("", {status: r});
 };
 

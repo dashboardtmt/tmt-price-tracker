@@ -4129,10 +4129,18 @@ if (FONTE) {
   // mesmo dia, o mesmo arquivo respondia 200. O vercel.json repassa
   // /dados.json.gz do Storage: o navegador so fala com o vercel.app, e o
   // dado continua o da coleta de hoje, e nao um retrato do deploy. O
-  // Storage direto fica de segunda rota, e o recado diz as duas falhas.
+  // Storage direto fica de ultima rota, e o recado diz a falha de cada uma.
   // Fora de http (o arquivo aberto do disco) nao ha site: so o Storage.
+  //
+  // E O DADO VAI COMO JSON, NAO COMO ARQUIVO COMPACTADO (mesmo dia, segunda
+  // foto: o site abria e o dado nao, agora pelas duas rotas). O que as duas
+  // tinham em comum era o tipo: um .gz de 2,6 MB servido como
+  // application/gzip, que filtro de rede corporativa barra como download de
+  // arquivo compactado. /serie.json entrega os mesmos bytes com
+  // Content-Encoding: gzip e Content-Type: application/json (vercel.json) -
+  // a compressao HTTP de qualquer site, que o proprio navegador desfaz.
   const rotas = /^https?:$/.test(location.protocol)
-    ? ["/" + FONTE.split("/").pop(), FONTE] : [FONTE];
+    ? ["/serie.json", "/" + FONTE.split("/").pop(), FONTE] : [FONTE];
   // no-store: a tela tem de mostrar a coleta de hoje, nao a de ontem que
   // ficou no cache do navegador
   const baixar = url => fetch(url, {cache:"no-store"})
@@ -4153,7 +4161,7 @@ if (FONTE) {
     .then(d=>{ if(!Array.isArray(d)||!d.length) throw new Error("vazio");
                return d; });
   const tentar = (i, erros) => baixar(rotas[i]).catch(e => {
-    if (!erros.includes(e.message)) erros.push(e.message);
+    erros.push((rotas[i] === FONTE ? "Storage" : rotas[i]) + ": " + e.message);
     if (i + 1 < rotas.length) return tentar(i + 1, erros);
     throw new Error(erros.join(" / "));
   });

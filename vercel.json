@@ -15,9 +15,26 @@
           "value": "public, max-age=0, must-revalidate"
         }
       ]
+    },
+    {
+      "source": "/serie.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Content-Encoding",
+          "value": "gzip"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/serie.json",
+      "destination": "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json.gz"
+    },
     {
       "source": "/dados.json.gz",
       "destination": "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json.gz"
