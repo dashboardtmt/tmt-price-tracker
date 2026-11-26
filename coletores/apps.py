@@ -161,6 +161,22 @@ APPS = {
                                 "escreve so \"Google One\", entao "
                                 "nenhum dos tres precos vale para a "
                                 "oferta - o preco pertence ao tier"},
+    # OS TRES QUE OS CARDS DA CLARO LISTAM E A REGUA NAO TINHA (26/11/2026,
+    # medido no caminho de producao em SP): o "Claro Controle Geforce" de
+    # R$ 69,90 saia com os mesmos apps do Claro Controle de R$ 69,90, o
+    # iCloud+ do "Google One (AI Plus) e iCloud+" dos Pos de R$ 239,90 e
+    # R$ 339,90 ficava de fora, e a Claro Banca de cinco das seis fibras e
+    # dos quatro Multi tambem. Nenhum e streaming de video: jogo na nuvem,
+    # armazenamento e revistas - catalogo, que nao sobe nivel de bundle.
+    "geforce_now": {"nome": "GeForce NOW", "preco_avulso": None,
+                    "fonte": None, "conferido_em": None,
+                    "evidencia": "jogo na nuvem; o card da Claro nao diz o plano"},
+    "icloud": {"nome": "iCloud+", "preco_avulso": None,
+               "fonte": None, "conferido_em": None,
+               "evidencia": "armazenamento em nuvem; o card da Claro nao diz o plano"},
+    "claro_banca": {"nome": "Claro Banca", "preco_avulso": None,
+                    "fonte": None, "conferido_em": None,
+                    "evidencia": "revistas digitais, servico da propria Claro"},
 }
 
 # O tier de cada app, e o preco avulso DAQUELE tier quando conferido.
@@ -396,6 +412,11 @@ DO_TEXTO = (
     # googletagmanager, Google Play e Google Fotos em volta; "one"
     # colado a marca e o que nomeia o produto assinado.
     (r"google\s*one", "google_one"),
+    # "GeForce NOW" e "geforcenow" (o alt do logo), nunca "GeForce" solto,
+    # que e a marca da placa de video
+    (r"geforce\s*now", "geforce_now"),
+    (r"\bicloud", "icloud"),
+    (r"claro\s*banca", "claro_banca"),
 )
 
 

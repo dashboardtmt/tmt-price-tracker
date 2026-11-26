@@ -2316,6 +2316,22 @@ MUTACOES = [
         "                  pre: dias(x), nome: x.curto,\n",
         "                  pre: dias(x),\n",
         "Rt2. a regua volta a nao dizer qual oferta e o ponto"),
+    # OS TRES APPS QUE OS CARDS DA CLARO LISTAM (26/11/2026)
+    Mutacao(
+        "coletores/apps.py",
+        '    (r"geforce\\s*now", "geforce_now"),\n',
+        "",
+        "Ap1. o Controle Geforce volta a ter os apps do Controle comum"),
+    Mutacao(
+        "coletores/apps.py",
+        '    (r"\\bicloud", "icloud"),\n',
+        "",
+        "Ap2. o iCloud+ do Pos volta a sumir"),
+    Mutacao(
+        "coletores/apps.py",
+        '    (r"claro\\s*banca", "claro_banca"),\n',
+        "",
+        "Ap3. a Claro Banca volta a sumir"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",
