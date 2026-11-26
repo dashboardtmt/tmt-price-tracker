@@ -12,7 +12,7 @@
         },
         {
           "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
+          "value": "private, no-cache, must-revalidate"
         }
       ]
     },

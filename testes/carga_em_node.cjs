@@ -31,6 +31,7 @@ globalThis.fetch = async (url) => {
 
 const rodar = new Function("location", "estado", `
   const FONTE = "https://exemplo.supabase.co/storage/v1/object/public/tela/dados.json.gz";
+  const GERADO = "26/11/2026 17:36";
   let lang = "pt", DADOS = null;
   function recado(t){ estado.recados.push(t); }
   function iniciar(){ estado.iniciado++; estado.n = DADOS.length; }

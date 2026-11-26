@@ -100,6 +100,8 @@ class ASerieChegaPorOutraRota(unittest.TestCase):
         self.assertIn("/serie.json: Failed to fetch / /dados.json.gz: HTTP 502 / "
                       "Storage: Failed to fetch", d["recados"][-1])
         self.assertIn(u"nada aqui foi estimado", d["recados"][-1])
+        # a versao da pagina, para a foto do recado dizer qual copia roda
+        self.assertIn(u"Página de 26/11/2026 17:36.", d["recados"][-1])
 
     def test_o_arquivo_aberto_do_disco_vai_direto_ao_storage(self):
         d = self.rodar(protocolo="file:")

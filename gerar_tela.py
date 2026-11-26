@@ -4168,8 +4168,12 @@ if (FONTE) {
   tentar(0, [])
     .then(d=>{ DADOS = d; recado(""); iniciar(); })
     .catch(e=>recado(lang==="pt"
-      ? "Não consegui carregar a série ("+e.message+"). A página está no ar, mas sem dado — nada aqui foi estimado."
-      : "Could not load the series ("+e.message+"). The page is up but has no data — nothing was estimated."));
+      // A DATA DA PAGINA VAI NO RECADO (26/11/2026): a terceira foto do PC
+      // de rede corporativa trazia o recado no formato antigo, sem as rotas
+      // - a pagina ali era uma copia velha. Com a data, a foto diz sozinha
+      // qual versao esta rodando.
+      ? "Não consegui carregar a série ("+e.message+"). A página está no ar, mas sem dado — nada aqui foi estimado. Página de "+GERADO+"."
+      : "Could not load the series ("+e.message+"). The page is up but has no data — nothing was estimated. Page from "+GERADO+"."));
 } else if (DADOS_GZ) {
   // A COPIA LOCAL TAMBEM VEM COMPRIMIDA, e abre sem rede como antes: o
   // dado mora no proprio arquivo, so que em gzip. Ver serie_embutida()
