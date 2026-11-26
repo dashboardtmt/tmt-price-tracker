@@ -2379,6 +2379,17 @@ MUTACOES = [
         "                        if n and n not in nomes:\n                            nomes.append(n)\n",
         "                        pass\n",
         "Sf3. o Skeelo do Controle sem fidelidade volta a sumir"),
+    # O PREZAO COM ANUNCIO, SO NOS DDDS DA ABA (27/11/2026)
+    Mutacao(
+        "coletores/claro.py",
+        "    if ddds and ddd not in ddds:\n",
+        "    if False:\n",
+        "An1. o Prezao com anuncio entra em praca que nao ve a aba"),
+    Mutacao(
+        "coletores/claro.py",
+        '    preco = re.search(r"R\\$\\s*(\\d{1,3},\\d{2})", " ".join(campo))\n',
+        '    preco = re.search(r"R\\$\\s*(\\d{1,3},\\d{2})", texto)\n',
+        "An2. o Prezao com anuncio grava a tarifa diaria como preco"),
     # A LEITURA DE OFERTA DECLARADA (24/11/2026)
     Mutacao(
         "robo.py",

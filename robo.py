@@ -3061,7 +3061,9 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  # reajuste dele continua noticia
                  ("TIM", "movel", u"re:^tim black( plus| [abc] express)?$"),
                  # o Lite com o bonus que o card anuncia (35 e 45 GB)
-                 ("Vivo", "btl", u"re:^vivo lite")],
+                 ("Vivo", "btl", u"re:^vivo lite"),
+                 # a aba do Prezao com anuncio, que so Aracaju ve
+                 ("Claro", "prepago", u"Claro Prezao com anúncio")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
@@ -3071,7 +3073,8 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"páginas de streaming e sem apps da Vivo (com o pré de 15 "
                  u"dias), as três ofertas do TIM Controle FIT, a franquia do "
                  u"TIM Black e dos três Express e a do Vivo Lite com o bônus, "
-                 u"os planos sem fidelidade da Claro, o Vivo Fibra Lite 500, os "
+                 u"os planos sem fidelidade da Claro, o Prezão com anúncio de "
+                 u"Aracaju, o Vivo Fibra Lite 500, os "
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],

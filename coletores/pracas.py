@@ -74,6 +74,19 @@ COBERTURA = {
 }
 
 
+# O DDD DE CADA PRACA (26/11/2026). Ha oferta segmentada por DDD, e nao por
+# cidade: o "Prezao com anuncio" da Claro vale nos DDDs 15, 38, 53 e 79 - das
+# 20 pracas, so Aracaju. A lista acima nao muda; o DDD fica ao lado.
+DDD = {
+    "Sao Paulo": "11", "Rio de Janeiro": "21", "Belo Horizonte": "31", "Vitoria": "27",
+    "Curitiba": "41", "Florianopolis": "48", "Porto Alegre": "51",
+    "Salvador": "71", "Fortaleza": "85", "Recife": "81", "Sao Luis": "98",
+    "Natal": "84", "Joao Pessoa": "83", "Maceio": "82", "Aracaju": "79",
+    "Teresina": "86", "Brasilia": "61", "Manaus": "92",
+    "Blumenau": "47", "Joinville": "47",
+}
+
+
 def pracas_de(operadora):
     """As pracas que fazem sentido para esta operadora."""
     cobertura = COBERTURA.get(operadora)

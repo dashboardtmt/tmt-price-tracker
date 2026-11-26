@@ -26,6 +26,7 @@ import urllib.parse
 import urllib.request
 
 from . import apps
+from . import pracas
 from . import rede
 from datetime import datetime, timedelta, timezone
 
@@ -565,6 +566,85 @@ def _so_letras(s):
     return re.sub(r"[^a-z]", "", (s or "").lower())
 
 
+# O PREZAO COM ANUNCIO (27/11/2026, auditoria contra o site de 26/11). A
+# pagina do Prezao tem uma terceira aba, ao lado de "Prezao R$1 por dia" e
+# "Outras ofertas Pre", que so aparece em alguns DDDs: "Prezao com anuncio -
+# Assista e leve internet na mesma hora", R$ 15,00 por 30 dias, "Assista 1
+# minuto de anuncio / Leve 1 hora de internet", WhatsApp para texto,
+# ligacoes ilimitadas e Skeelo. Nao ha franquia: a internet e por anuncio.
+# A aba vem nos dados da pagina com o segmento (DDDs 15, 38, 53 e 79 em
+# 26/11) - das 20 pracas, so Aracaju -, e e lida dali, sem trocar a cidade.
+ABA_COM_ANUNCIO = u"Prezão com anúncio"
+
+
+def _nos(n):
+    if isinstance(n, dict):
+        yield n
+        for v in n.values():
+            yield from _nos(v)
+    elif isinstance(n, list):
+        for v in n:
+            yield from _nos(v)
+
+
+def _textos(n, saida):
+    if isinstance(n, dict):
+        for k, v in n.items():
+            if isinstance(v, str) and k in ("label", "condition", "price", "children", "content"):
+                saida.append(v)
+            else:
+                _textos(v, saida)
+    elif isinstance(n, list):
+        for v in n:
+            _textos(v, saida)
+    return saida
+
+
+def ler_prezao_com_anuncio(op, url, ddd):
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', h, re.S)
+    if not m:
+        return None, "a pagina do Prezao veio sem __NEXT_DATA__"
+    try:
+        dados = json.loads(m.group(1))
+    except Exception as e:
+        return None, "JSON invalido: %s" % e
+    abas = [n for n in _nos(dados) if n.get("component") == "tab_select_item"
+            and n.get("title") == ABA_COM_ANUNCIO]
+    if not abas:
+        return [], None      # a aba saiu da pagina: nenhuma oferta, sem erro
+    aba = abas[0]
+    ddds = sorted({d for seg in ((aba.get("segments") or {}).get("data") or ())
+                   for d in (seg.get("ddds") or ())})
+    if ddds and ddd not in ddds:
+        return [], None      # a praca nao ve a aba
+    partes = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", x)).strip() for x in _textos(aba, [])]
+    texto = " ".join(p for p in partes if p)
+    # O PRECO E O DO CAMPO "price" DO CARD, e nao o primeiro R$ do texto: os
+    # detalhes falam da tarifa de R$ 2,19 por dia para quem fica sem saldo
+    campo = [n.get("price") for n in _nos(aba) if isinstance(n.get("price"), str)]
+    preco = re.search(r"R\$\s*(\d{1,3},\d{2})", " ".join(campo))
+    dias = re.search(r"\bPor\s+(\d{1,3})\s+dias\b", texto, re.I)
+    if not preco or not dias:
+        return None, "a aba do Prezao com anuncio mudou de formato (sem preco ou validade)"
+    junto = "Inclui Skeelo. " if re.search(r"\bskeelo\b", texto, re.I) else ""
+    return [{
+        "id_catalogo": None,
+        "nome_oferta": u"Claro Prezao com anúncio",
+        "destaque": None,
+        "franquia_anunciada_gb": None,
+        "franquia_contratual_gb": None,
+        "whatsapp": apps.whatsapp_incluso(texto),
+        "preco_promocional": numero(preco.group(1)),
+        "validade_dias": int(dias.group(1)),
+        "composicao": (junto + u"Prezao com anuncio: assista 1 minuto de anuncio e leve 1 hora "
+                       u"de internet; WhatsApp para mensagem de texto e ligacoes ilimitadas, "
+                       u"por %s dias. Vale nos DDDs %s." % (dias.group(1), ", ".join(ddds)))[:400],
+    }], None
+
+
 def ler_prezao_tematico(op, url):
     u"""Os Prezoes tematicos: uma oferta por card de contratar."""
     s, h = buscar(op, url)
@@ -998,6 +1078,13 @@ def coletar(cidade, uf, verbose=True):
                 cards, erro = [], None
             if temas:
                 cards = (cards or []) + temas
+            # o Prezao com anuncio, so nos DDDs da aba - ver ler_prezao_com_anuncio
+            if not erro:
+                anuncio, erro_a = ler_prezao_com_anuncio(op, url, pracas.DDD.get(cidade))
+                if erro_a:
+                    saida["avisos"].append("prepago com anuncio: %s" % erro_a)
+                elif anuncio:
+                    cards = (cards or []) + anuncio
         elif produto in POR_TEXTO:
             cards, erro = ler_catalogo(op, url, produto, cidade, uf, agora)
         else:
