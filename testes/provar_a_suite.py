@@ -868,7 +868,7 @@ MUTACOES = [
 
     Mutacao(
         "gerar_tela.py",
-        '               if (!/\\.gz$/.test(FONTE)) return r.json();\n'
+        '               if (!/\\.gz$/.test(url)) return r.json();\n'
         '               if (!self.DecompressionStream) throw new Error("navegador sem gzip");\n'
         "               return new Response(\n"
         '                 r.body.pipeThrough(new DecompressionStream("gzip"))).json(); })',
@@ -2717,6 +2717,22 @@ MUTACOES = [
         '            "tiers_da_pagina": ". ".join(f for v, f in por_recarga if valor >= v) or None,\n',
         '            "tiers_da_pagina": ". ".join(f for v, f in por_recarga) or None,\n',
         "Vt3. a frase da recarga de R$ 35 passa a valer na de R$ 30"),
+    # O DADO PELO PROPRIO SITE (26/11/2026)
+    Mutacao(
+        "gerar_tela.py",
+        '    ? ["/" + FONTE.split("/").pop(), FONTE] : [FONTE];\n',
+        '    ? [FONTE] : [FONTE];\n',
+        "Ds1. a rede que bloqueia o Storage volta a ficar sem dado"),
+    Mutacao(
+        "gerar_tela.py",
+        "    if (i + 1 < rotas.length) return tentar(i + 1, erros);\n",
+        "",
+        "Ds2. a rota do site que falha deixa de cair no Storage"),
+    Mutacao(
+        "vercel.json",
+        '      "source": "/dados.json.gz",\n',
+        '      "source": "/serie.json.gz",\n',
+        "Ds3. o site deixa de repassar o arquivo que a tela pede"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

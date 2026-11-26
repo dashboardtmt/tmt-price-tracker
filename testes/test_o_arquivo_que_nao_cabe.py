@@ -317,7 +317,7 @@ class ASerieNoNavegador(unittest.TestCase):
         u"""A copia local, gerada sem --remoto, nao passa por aqui; mas a
         tela aberta contra um arquivo .json qualquer tem de seguir
         lendo."""
-        self.assertIn("if (!/\\.gz$/.test(FONTE)) return r.json();", self.molde)
+        self.assertIn("if (!/\\.gz$/.test(url)) return r.json();", self.molde)
 
 
 class ORobotApontaParaOGz(unittest.TestCase):

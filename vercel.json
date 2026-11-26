@@ -17,5 +17,11 @@
       ]
     }
   ],
+  "rewrites": [
+    {
+      "source": "/dados.json.gz",
+      "destination": "https://iuopzrxfmobllhkyuvkk.supabase.co/storage/v1/object/public/tela/dados.json.gz"
+    }
+  ],
   "outputDirectory": "site"
 }

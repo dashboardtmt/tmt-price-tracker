@@ -4122,9 +4122,20 @@ function recado(txt){
 
 if (FONTE) {
   recado(lang==="pt" ? "Carregando a série..." : "Loading the series...");
+  // O DADO PELO ENDERECO DO PROPRIO SITE PRIMEIRO (26/11/2026). Aberta num
+  // PC de rede corporativa, a pagina carregou e o dado nao: "Nao consegui
+  // carregar a serie (Failed to fetch)". A rede bloqueia o endereco do
+  // Storage (supabase.co), e o navegador nem chega a pedir - daqui, no
+  // mesmo dia, o mesmo arquivo respondia 200. O vercel.json repassa
+  // /dados.json.gz do Storage: o navegador so fala com o vercel.app, e o
+  // dado continua o da coleta de hoje, e nao um retrato do deploy. O
+  // Storage direto fica de segunda rota, e o recado diz as duas falhas.
+  // Fora de http (o arquivo aberto do disco) nao ha site: so o Storage.
+  const rotas = /^https?:$/.test(location.protocol)
+    ? ["/" + FONTE.split("/").pop(), FONTE] : [FONTE];
   // no-store: a tela tem de mostrar a coleta de hoje, nao a de ontem que
   // ficou no cache do navegador
-  fetch(FONTE, {cache:"no-store"})
+  const baixar = url => fetch(url, {cache:"no-store"})
     .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status);
                // A SERIE VEM COMPRIMIDA. Sem compressao ela passou dos
                // 50 MB do Storage em 11/11/2026 e deixou de ser
@@ -4135,12 +4146,19 @@ if (FONTE) {
                // SEM SILENCIO SE O NAVEGADOR NAO SOUBER: o erro sobe
                // para o recado da pagina, que diz que nao ha dado em
                // vez de desenhar uma tela vazia.
-               if (!/\.gz$/.test(FONTE)) return r.json();
+               if (!/\.gz$/.test(url)) return r.json();
                if (!self.DecompressionStream) throw new Error("navegador sem gzip");
                return new Response(
                  r.body.pipeThrough(new DecompressionStream("gzip"))).json(); })
     .then(d=>{ if(!Array.isArray(d)||!d.length) throw new Error("vazio");
-               DADOS = d; recado(""); iniciar(); })
+               return d; });
+  const tentar = (i, erros) => baixar(rotas[i]).catch(e => {
+    if (!erros.includes(e.message)) erros.push(e.message);
+    if (i + 1 < rotas.length) return tentar(i + 1, erros);
+    throw new Error(erros.join(" / "));
+  });
+  tentar(0, [])
+    .then(d=>{ DADOS = d; recado(""); iniciar(); })
     .catch(e=>recado(lang==="pt"
       ? "Não consegui carregar a série ("+e.message+"). A página está no ar, mas sem dado — nada aqui foi estimado."
       : "Could not load the series ("+e.message+"). The page is up but has no data — nothing was estimated."));
