@@ -68,7 +68,7 @@
 <div class="wrap">
 <nav>
   <a href="#s1">1. O que é</a>
-  <a href="#s2">2. As 133 decisões</a>
+  <a href="#s2">2. As 134 decisões</a>
   <a href="#s3">3. Escopo</a>
   <a href="#s4">4. As 20 praças</a>
   <a href="#s5">5. Como a série funciona</a>
@@ -105,7 +105,7 @@
 </section>
 
 <section id="s2">
-  <h2><span class="num">2.</span> As 133 decisões</h2>
+  <h2><span class="num">2.</span> As 134 decisões</h2>
   <table class="decisoes">
     <tr><th>#</th><th>Questão</th><th>Decisão</th></tr>
     <tr><td>1</td><td>Objetivo</td><td>Dashboard com múltiplas visões sobre a mesma base</td></tr>
@@ -241,6 +241,7 @@
     <tr><td>131</td><td>A entrada da TIM no pr&eacute;-pago come&ccedil;a em 08/10</td><td>O mesmo degrau da Claro, sem a prova: de 30/09 a 07/10 s&oacute; a recarga de R$ 30 da TIM era lida, e a coleta n&atilde;o guardou as outras. A &quot;entrada&quot; desses dias era o topo, e a linha ca&iacute;a para R$ 20 em 08/10 sem a TIM mexer em pre&ccedil;o. Escolha de quem l&ecirc; (25/11): a linha come&ccedil;a em 08/10; o banco n&atilde;o muda.</td></tr>
     <tr><td>132</td><td>O meio do Overview em barras verticais</td><td>Pedido de quem l&ecirc; (25/11). O posicionamento pre&ccedil;o-entrega deixa de ser dispers&atilde;o: uma faixa por entrega, da menor para a maior, com a oferta mais barata de cada operadora (escolha: &quot;agrupar por entrega&quot;). Quando a operadora tem mais de uma oferta na mesma entrega, a dica diz quantas e at&eacute; quanto v&atilde;o. O pre&ccedil;o vai em cima da barra e sobe um andar s&oacute; quando encostaria no vizinho, medido na hora do desenho. A competitividade vira coluna por operadora, da mais barata &agrave; mais cara. Os quadros de recarga ganham o valor em cima da barra. O filtro de produto vira uma fita de p&iacute;lulas, a selecionada em laranja, como a barra de player do Dashboard TMT, na ordem pedida: Controle, Pr&eacute;-pago, Below-the-line, P&oacute;s-pago, Fibra, Combo, Sat&eacute;lite.</td></tr>
     <tr><td>133</td><td>A fibra e o Multi da Claro lidos do cat&aacute;logo que monta os cards</td><td>At&eacute; 26/11 os dois eram lidos das frases de acessibilidade do HTML, e n&atilde;o dos cards que o cliente v&ecirc;. Medido em S&atilde;o Paulo: os planos de 1, 5 e 10 Giga (R$ 179,90, 499,90 e 1.999,90) <b>nunca entraram</b>, porque a frase deles n&atilde;o tem pre&ccedil;o; o 350 Mega sa&iacute;a a 79,90 com o card a 89,90 (de 99,90), o 500 Mega a 109,90 com o card a 119,90, nenhum app entrava; e o Multi tinha tr&ecirc;s ofertas que a vitrine n&atilde;o tem (500 Mega a 119,90, 600 Mega + 60 GB a 159,90 e um &quot;750 Mega Especial&quot; a 99,90) no lugar das quatro que tem. Desde a coleta de 27/11 a leitura faz a mesma chamada que a p&aacute;gina (<code>/api/catalog</code>, p&uacute;blica, com a UF e a cidade no endere&ccedil;o) e aplica as tr&ecirc;s regras que a p&aacute;gina aplica e o cat&aacute;logo n&atilde;o: a <b>janela do card</b> (o 600 Mega a 99,90 tinha janela de 15/11 e o cat&aacute;logo ainda o resolvia), a <b>cidade exclu&iacute;da</b> (o 1 Giga + P&oacute;s exclui 314 cidades, Blumenau entre elas) e o card <b>n&atilde;o achado</b> na cidade. O pre&ccedil;o &eacute; o do card, e n&atilde;o a soma dos produtos (o Multi de 159,90 somaria 224,80); o riscado vira pre&ccedil;o cheio; a franquia do Multi &eacute; a do card (P&oacute;s 100GB = 50 + 50 de b&ocirc;nus). O cat&aacute;logo devolve tudo como &quot;n&atilde;o achado&quot;, com HTTP 200, quando recebe 22 cards ou mais, e a leitura pede em lotes de 10, como a p&aacute;gina. O Multi do tracker &eacute; fibra + celular: a aba de internet + TV sem linha m&oacute;vel fica fora; a de fam&iacute;lia (com TV) entra, como os &quot;+ TV&quot; da Vivo. No dia da troca as diferen&ccedil;as ficam fora da not&iacute;cia, numa linha s&oacute; (escolha de 24/11), e as linhas de entrada da fibra e do Multi da Claro come&ccedil;am em 27/11, pela regra da decis&atilde;o 131.</td></tr>
+    <tr><td>134</td><td>A competitividade com o desenho do posicionamento</td><td>Pedido de quem l&ecirc; (25/11: &quot;esses gr&aacute;ficos est&atilde;o feios&quot;). A coluna &uacute;nica por operadora mostrava s&oacute; o R$/unidade da oferta de <b>entrada</b>, que &eacute; quase sempre a pior rela&ccedil;&atilde;o da grade. Agora o quadro &eacute; o par do posicionamento: a operadora no eixo, as ofertas dela em barras em cima do nome, <b>na mesma ordem</b> (do pre&ccedil;o menor ao maior), e a barra k de um quadro &eacute; a mesma oferta da barra k do outro. O r&oacute;tulo leva uma casa a mais que o eixo. Uma unidade s&oacute; na r&eacute;gua, a mais comum do produto: o sat&eacute;lite mistura Mbps e GB, e a outra fica na dica.</td></tr>
   </table>
   <div class="box">
     <span class="rotulo">Por que começar só com a Vivo</span>
