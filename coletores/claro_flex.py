@@ -175,6 +175,81 @@ def extrair(texto):
     return ofertas
 
 
+# OS APPS DO FLEX SAO OS DO HUB DA CLARO (27/11/2026). Os dois sites da
+# Claro discordam: o hub de planos (planoscelular) mostra "App exclusivo pra
+# voce: Skeelo" nos quatro cards do Flex, e Claro Musica no de 55 GB e no
+# Passaporte 80 GB; o site do Flex - cards, as oito gavetas de detalhes e o
+# cadastro para onde o proprio hub manda - nao cita app nenhum. Escolha de
+# quem le, 26/11: "hub da Claro". O resto do card (preco, franquia,
+# WhatsApp) continua vindo do site do Flex; do hub vem so a lista de apps,
+# casada pela franquia anunciada. O bloco do hub e nacional (medido sem
+# praca, em Manaus e em Porto Alegre: o mesmo) e os precos batem com os do
+# site.
+#
+# A LISTA DE APPS E A CHAVE DA SERIE. Hub fora do ar nao pode virar "o Flex
+# perdeu o Skeelo": nesse dia o Flex fica fora, dito. Hub que respondeu sem
+# o bloco do Flex e outra coisa - a Claro tirou o Flex do hub -, e ai os
+# apps sao so os do site, com aviso.
+FLEX_NO_HUB = re.compile(r"Claro Flex\s+Plano sem fidelidade", re.I)
+CARD_DO_HUB = re.compile(r"(?=Claro Flex\s+\d{2,3}\s*GB)", re.I)
+
+
+def apps_do_hub(html):
+    """{franquia GB: {"preco", "apps", "texto"}} dos cards do Flex no hub.
+
+    Dicionario vazio quando o hub nao mostra o Flex.
+    """
+    t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html or "")).replace("&#32;", " ")
+    ini = FLEX_NO_HUB.search(t)
+    if not ini:
+        return {}
+    fim = t.find("Celulares Ofertas", ini.end())
+    bloco = t[ini.end():fim if fim > 0 else ini.end() + 6000]
+    saida = {}
+    for card in CARD_DO_HUB.split(bloco)[1:]:
+        gb = int(re.match(r"Claro Flex\s+(\d+)", card, re.I).group(1))
+        preco = re.search(r"Demais meses\s*R\$\s*(\d{1,3},\d{2})", card)
+        partes = re.split(r"exclusivos?\s+pra\s+voc\S*", card, maxsplit=1, flags=re.I)
+        texto = (u"App exclusivo pra você: %s" % partes[1].strip()) if len(partes) > 1 else ""
+        saida.setdefault(gb, {"preco": _num(preco.group(1)) if preco else None,
+                              "apps": apps.apps_do_texto(texto) if texto else [],
+                              "texto": texto})
+    return saida
+
+
+def ler_hub():
+    """(apps do hub por franquia, erro ou None)."""
+    from . import claro
+    op, _ = claro.navegador()
+    s, h = claro.buscar(op, claro.PAGINAS["movel"])
+    if s != 200:
+        return None, "HTTP %s" % s
+    return apps_do_hub(h), None
+
+
+def com_os_apps_do_hub(ofertas, hub, avisos):
+    """Junta a cada oferta do site os apps do card do hub com a mesma franquia."""
+    if not hub:
+        avisos.append("o hub da Claro nao mostrou o Flex hoje: os apps sao so os do site do Flex")
+        return ofertas
+    for o in ofertas:
+        par = hub.get(o["franquia_anunciada_gb"])
+        if par is None:
+            avisos.append("o hub da Claro nao tem o Flex de %s GB: os apps dele sao so os do site"
+                          % o["franquia_anunciada_gb"])
+            continue
+        if par["preco"] is not None and par["preco"] != o["preco_cheio"]:
+            avisos.append("o Flex de %s GB custa R$ %.2f no hub e R$ %.2f no site do Flex"
+                          % (o["franquia_anunciada_gb"], par["preco"], o["preco_cheio"] or 0))
+        lista = list(o["apps"] or []) + [a for a in par["apps"] if a not in (o["apps"] or [])]
+        fonte = "%s %s" % (o.get("composicao") or "", par["texto"])
+        o["apps"] = lista
+        o["apps_rotulo"] = apps.rotulo(lista, fonte)
+        o["apps_planos"] = apps.planos_dos_apps(lista, fonte)
+        o["nivel_bundle"] = max(o.get("nivel_bundle") or 0, nivel_bundle(fonte))
+    return ofertas
+
+
 def coletar(cidade="Brasil", uf="BR", verbose=True, pagina=None):
     agora = datetime.now(timezone(timedelta(hours=-3)))
     praca = "%s/%s" % (cidade, uf)
@@ -222,6 +297,15 @@ def coletar(cidade="Brasil", uf="BR", verbose=True, pagina=None):
             saida["avisos"].append(
                 "nenhum card reconhecido - o layout do Flex mudou")
             return saida
+
+        # os apps vem do hub da Claro - ver com_os_apps_do_hub
+        hub, erro_hub = ler_hub()
+        if erro_hub:
+            saida["avisos"].append(
+                "apps do Flex no hub da Claro: %s - o Flex fica fora hoje, para "
+                "a falta do app nao sair como troca de oferta" % erro_hub)
+            return saida
+        ofertas = com_os_apps_do_hub(ofertas, hub, saida["avisos"])
 
         for o in ofertas:
             o.update({

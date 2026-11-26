@@ -1206,7 +1206,10 @@ LEITURA_MUDOU_EM = {
                   "Pós do hub da Claro passaram a ter a fidelidade de 12 meses que "
                   "a loja declara, com o card fechando no \"Mais detalhes\" (o Pós "
                   "250 GB deixou de levar o Claro Música dos cards do Flex que "
-                  "vêm depois dele)",
+                  "vêm depois dele); e o Claro Flex passou a ter os apps que o "
+                  "hub da Claro lista nos cards dele (Skeelo nos quatro, Claro "
+                  "Música no de 55 e no Passaporte 80 GB), que o site do Flex "
+                  "não cita - escolha de quem lê",
 }
 
 

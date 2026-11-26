@@ -2717,6 +2717,22 @@ MUTACOES = [
         '            "tiers_da_pagina": ". ".join(f for v, f in por_recarga if valor >= v) or None,\n',
         '            "tiers_da_pagina": ". ".join(f for v, f in por_recarga) or None,\n',
         "Vt3. a frase da recarga de R$ 35 passa a valer na de R$ 30"),
+    # OS APPS DO FLEX DO HUB DA CLARO (27/11/2026)
+    Mutacao(
+        "coletores/claro_flex.py",
+        '        ofertas = com_os_apps_do_hub(ofertas, hub, saida["avisos"])\n',
+        "",
+        "Fh1. o Flex volta a sair sem os apps que o hub lista"),
+    Mutacao(
+        "coletores/claro_flex.py",
+        "        if erro_hub:\n",
+        "        if False:\n",
+        "Fh2. o hub fora do ar vira o Flex perdendo o Skeelo"),
+    Mutacao(
+        "coletores/claro_flex.py",
+        '        par = hub.get(o["franquia_anunciada_gb"])\n',
+        "        par = next(iter(hub.values()))\n",
+        "Fh3. o card do hub deixa de ser casado pela franquia"),
     # O DADO PELO PROPRIO SITE (26/11/2026)
     Mutacao(
         "gerar_tela.py",
