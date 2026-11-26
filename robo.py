@@ -1232,8 +1232,8 @@ LEITURA_EM_UMA_LINHA = {
                   "havia perdido, e a lista deixou de vir cortada",
     "2026-11-26": "entraram os Prezões temáticos da Claro, o celular e "
                   "os combos da Unifique, e o preço cheio da Starlink",
-    "2026-11-27": "a fibra da Claro e da TIM e o Multi da Claro passaram a "
-                  "ser lidos dos cards, e entrou o Starlink de viagem",
+    "2026-11-27": "várias leituras passaram a seguir o que a vitrine "
+                  "mostra, depois de uma auditoria contra os sites",
 }
 
 
@@ -3012,19 +3012,22 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
     #     meses do kit de R$ 49 e o TB decimal (1 TB = 1.000 GB);
     #   - os apps do controle e do pos da Claro pelo card inteiro (o Skeelo
     #     faltava nos cinco pos);
-    #   - o Claro Flex com o WhatsApp do logo e a franquia "Livres".
+    #   - o Claro Flex com o WhatsApp do logo e a franquia "Livres";
+    #   - a Brisanet com as seis paginas de streaming e a fibra sem SVA.
     # O resto de cada operadora (pre da Claro, controle e pos da TIM, Vivo,
     # Brisanet, Unifique, NuCel) continua noticia.
     "2026-11-27": [{
         "quem": [("Claro", "fibra", u""), ("Claro", "combo", u""),
                  ("TIM", "fibra", u""), ("Starlink", "satelite", u""),
                  ("Claro", "movel", u""), ("Claro", "controle", u""),
-                 ("Claro", "btl", u"Claro Flex")],
+                 ("Claro", "btl", u"Claro Flex"),
+                 ("Brisanet", "fibra", u""), ("Brisanet", "combo", u"")],
         "texto": u"a coleta passou a ler o que a vitrine mostra, depois de "
                  u"uma auditoria contra os sites: a fibra e o Multi da Claro "
                  u"e a fibra da TIM pelos cards (entram o 1, o 5 e o 10 Giga "
                  u"da Claro; sai um 700 Mega da TIM que nenhuma página "
-                 u"mostra), os planos de viagem da Starlink, e os apps e o "
+                 u"mostra), as páginas de streaming e a fibra sem apps da "
+                 u"Brisanet, os planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],
 }

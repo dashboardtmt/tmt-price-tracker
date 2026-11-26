@@ -44,7 +44,7 @@ CAMPOS = """
   plan_speed
   description
   additional_details
-  price { price_note original_price discount_price }
+  price { price_note price_note_modal_detail original_price discount_price }
   included_products(filters: { isActive: { eq: true } }) { name }
 """
 
@@ -52,6 +52,29 @@ PAGINAS = {
     "fibra": "fetchInternetPage",
     "combo": "comboPageQuery",
 }
+
+# O QUE A BRISANET VENDE E A COLETA NAO LIA, ate 26/11/2026 (auditoria contra
+# o site): seis paginas de streaming, cada uma com as suas ofertas - "[NOV]
+# 600MB + SKY LIGHT" a R$ 89,90, "600MB + 40GB + Max" a R$ 129,79, "NOV26
+# 500MB + TELECINE"... -, 62 linhas por dia nas 7 pracas; e a fibra "sem SVA"
+# (sem apps), que a pagina de internet linka ("Para planos sem apps inclusos,
+# consulte os precos aqui"), com o unico 1 Giga da Brisanet (R$ 144,90). As
+# consultas sao as que as proprias paginas fazem, com o mesmo filtro de cidade
+# e o mesmo fragmento de oferta.
+#
+# (produto, raiz da consulta, blocos de ofertas). O produto e o da Brisanet:
+# as paginas de streaming estao no menu de combos e a aba delas se chama
+# "Combos" - a mesma regra da comboPage, que ja traz fibra + streaming.
+CONSULTAS = (
+    ("fibra", "internetPage", ("Offers", "PageInternetSemSva")),
+    ("combo", "comboPage", ("Offers",)),
+    ("combo", "skyplusPage", ("Offers",)),
+    ("combo", "maxPage", ("Offers",)),
+    ("combo", "telecinePage", ("Offers",)),
+    ("combo", "netflixPage", ("Offers",)),
+    ("combo", "premierePage", ("Offers",)),
+    ("combo", "globoPlayPage", ("Offers",)),
+)
 
 STREAMINGS = {"netflix", "globoplay", "amazon prime", "disney", "spotify",
               "premiere", "max", "paramount", "telecine", "skyplus", "brisaplay"}
@@ -323,22 +346,31 @@ def coletar(cidade, uf, verbose=True):
     # o que ja entrou, para a oferta que aparece nas duas consultas nao
     # ser gravada duas vezes
     vistas = set()
-    for produto, nome_query in PAGINAS.items():
-        raiz = {"fetchInternetPage": "internetPage",
-                "comboPageQuery": "comboPage"}[nome_query]
-        q = ("query($cityId: ID) { %s { Offers { tab_name offers(filters: { or: ["
-             "{ cities: { documentId: { eq: $cityId } } },"
-             "{ city_selector: { cities: { documentId: { eq: $cityId } } } } ],"
-             "active_offer: { eq: true } }) { %s } } } }" % (raiz, CAMPOS))
+    # PRODUTO COM UMA PAGINA QUE FALHOU SAI INTEIRO DA PRACA, dito. Com seis
+    # paginas de combo, a oferta que so mora na que falhou sumiria e a
+    # mensagem a daria como saida da vitrine; produto ausente e "nao lido"
+    # (filtro 7 de robo._ofertas_que_sairam), e nao saida.
+    falhou = set()
+    for produto, raiz, blocos in CONSULTAS:
+        filtro = ("offers(filters: { or: ["
+                  "{ cities: { documentId: { eq: $cityId } } },"
+                  "{ city_selector: { cities: { documentId: { eq: $cityId } } } } ],"
+                  "active_offer: { eq: true } }) { %s }" % CAMPOS)
+        q = "query($cityId: ID) { %s { %s } }" % (
+            raiz, " ".join("%s { tab_name %s }" % (b, filtro) for b in blocos))
         d, err = gql(token, q, {"cityId": city_id})
         if err:
-            saida["avisos"].append("%s: %s" % (produto, err))
+            saida["avisos"].append("%s (%s): %s" % (produto, raiz, err))
+            falhou.add(produto)
             if verbose:
-                print("  %-6s FALHOU (%s)" % (produto, err[:70]))
+                print("  %-6s %s FALHOU (%s)" % (produto, raiz, err[:70]))
             time.sleep(PAUSA)
             continue
 
-        grupos = ((d.get(raiz) or {}).get("Offers") or [])
+        grupos = []
+        for b in blocos:
+            g = (d.get(raiz) or {}).get(b) or []
+            grupos.extend([g] if isinstance(g, dict) else g)
         n = 0
         for g in grupos:
             # A ABA MANDA NO PRODUTO, e nao o nome da query.
@@ -363,7 +395,10 @@ def coletar(cidade, uf, verbose=True):
             produto_real = "combo" if "combo" in aba else produto
             for o in (g.get("offers") or []):
                 preco = o.get("price") or {}
-                meses_desc, preco_depois = fim_da_promocao(preco.get("price_note"))
+                # a nota do card ou, sem ela, a do modal "Mais detalhes":
+                # nas paginas de streaming so o modal diz quando o preco muda
+                nota = preco.get("price_note") or preco.get("price_note_modal_detail")
+                meses_desc, preco_depois = fim_da_promocao(nota)
                 produtos = [p.get("name") for p in (o.get("included_products") or []) if p.get("name")]
                 contexto = " ".join(filter(None, [o.get("offer_name"), o.get("description"),
                                                   o.get("additional_details")]))
@@ -406,16 +441,24 @@ def coletar(cidade, uf, verbose=True):
                     # a Brisanet diz quanto o desconto dura e o preco depois
                     "meses_desconto": meses_desc,
                     "preco_pos_promocao": preco_depois,
-                    "nota_preco": preco.get("price_note"),
+                    "nota_preco": nota,
+                    "pagina": raiz,
                     "id_catalogo": o.get("documentId"),
                     "aba": g.get("tab_name"),
                     "codigo_anatel": None, "campanha": None,
                 })
                 n += 1
         if verbose:
-            print("  %-6s %d ofertas" % (produto, n))
+            print("  %-6s %-14s %d ofertas" % (produto, raiz, n))
         time.sleep(PAUSA)
 
+    if falhou:
+        antes = len(saida["ofertas"])
+        saida["ofertas"] = [o for o in saida["ofertas"] if o["produto"] not in falhou]
+        saida["avisos"].append(
+            "%s fora da praca hoje: uma das paginas falhou, e o que so ela "
+            "traz sairia como saida da vitrine (%d ofertas)"
+            % (", ".join(sorted(falhou)), antes - len(saida["ofertas"])))
     return saida
 
 

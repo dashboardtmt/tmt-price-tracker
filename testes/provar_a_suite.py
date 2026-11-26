@@ -2481,6 +2481,22 @@ MUTACOES = [
         '            "whatsapp": apps.whatsapp_incluso(meio),\n',
         '            "whatsapp": False,\n',
         "Ca3. o WhatsApp do logo do Flex volta a sair nao"),
+    # A BRISANET INTEIRA (26/11/2026)
+    Mutacao(
+        "coletores/brisanet.py",
+        '    ("combo", "skyplusPage", ("Offers",)),\n',
+        '',
+        "Br1. a pagina do Sky+ da Brisanet deixa de ser lida"),
+    Mutacao(
+        "coletores/brisanet.py",
+        '    ("fibra", "internetPage", ("Offers", "PageInternetSemSva")),\n',
+        '    ("fibra", "internetPage", ("Offers",)),\n',
+        "Br2. a fibra sem SVA da Brisanet deixa de ser lida"),
+    Mutacao(
+        "coletores/brisanet.py",
+        '            falhou.add(produto)\n',
+        '',
+        "Br3. pagina que falha deixa o resto do produto sair como saida"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',
