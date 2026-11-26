@@ -2412,6 +2412,22 @@ MUTACOES = [
         '                  "entradas", "leitura")',
         '                  "entradas")',
         "Ct7. a oferta so de versao volta a sair num segundo paragrafo"),
+    # A STARLINK DE VIAGEM, O CONTRATO DO KIT E O TB DECIMAL (26/11/2026)
+    Mutacao(
+        "coletores/starlink.py",
+        '    8: "viagem",\n',
+        '',
+        "Sw1. os planos de viagem da Starlink deixam de ser lidos"),
+    Mutacao(
+        "coletores/starlink.py",
+        '                "fidelidade_meses": kit_fidelidade,\n',
+        '                "fidelidade_meses": None,\n',
+        "Sw2. o contrato de 12 meses do kit de R$ 49 volta a sumir"),
+    Mutacao(
+        "coletores/starlink.py",
+        '    return int(v * 1000) if m.group(2).upper() == "TB" else int(v)\n',
+        '    return int(v * 1024) if m.group(2).upper() == "TB" else int(v)\n',
+        "Sw3. o terabyte volta a ser 1024 GB"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

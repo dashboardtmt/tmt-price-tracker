@@ -1186,7 +1186,10 @@ LEITURA_MUDOU_EM = {
                   "com o preço cheio riscado e o código Anatel, os apps "
                   "passaram a ser os que o card lista, e o Multi passou a "
                   "ter as ofertas da vitrine (fibra + Pós, com e sem TV) no "
-                  "lugar das três que a frase inventava",
+                  "lugar das três que a frase inventava; e a Starlink passou a "
+                  "ter os dois planos de viagem (Roam, código 8 da API), a "
+                  "fidelidade de 12 meses do kit de R$ 49 e o terabyte "
+                  "decimal (1 TB = 1.000 GB, e não 1.024)",
 }
 
 
@@ -1228,7 +1231,7 @@ LEITURA_EM_UMA_LINHA = {
     "2026-11-26": "entraram os Prezões temáticos da Claro, o celular e "
                   "os combos da Unifique, e o preço cheio da Starlink",
     "2026-11-27": "a fibra e o Multi da Claro passaram a ser lidos dos "
-                  "cards da página, com os planos de 1, 5 e 10 Giga",
+                  "cards da página, e entraram os planos de viagem da Starlink",
 }
 
 
@@ -3005,6 +3008,16 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"passaram a ser os do card (o 350 Mega de R$ 79,90 para "
                  u"R$ 89,90 em São Paulo) e o Multi passou a ter as ofertas "
                  u"da vitrine (fibra + Pós 100GB, com e sem TV)",
+    }, {
+        # auditoria contra o site de 26/11: o Viagem nao era lido, o kit de
+        # R$ 49 tem contrato de 12 meses e o TB e decimal - muda a franquia,
+        # a chave e o nome (sem espaco duro) dos prioritarios de 1 e 2 TB
+        "quem": [("Starlink", "satelite", u"")],
+        "texto": u"a Starlink passou a ter os dois planos de viagem (100 GB "
+                 u"a R$ 339 e ilimitado a R$ 619), que o site mostra sem "
+                 u"endereço e a coleta não lia, a fidelidade de 12 meses do "
+                 u"kit de R$ 49 e o terabyte contado como ela conta (1 TB = "
+                 u"1.000 GB)",
     }],
 }
 

@@ -22,8 +22,10 @@ proprio ("satelite") em vez de disputar degrau com a fibra:
     mensalidade esconde o que pesa na decisao de quem contrata
   - nao ha praca: o preco e nacional, declarado por pais
 
-As duas familias vendidas no Brasil tem codigos distintos na API, achados
-por varredura: 1 e residencial e 6 e o Priority, de uso profissional.
+As familias vendidas no Brasil tem codigos distintos na API, achados
+por varredura: 1 e residencial, 6 e o Priority (de uso profissional) e 8
+e o Viagem (Roam), lido desde 27/11/2026. O 9 e o Prioritario Global, de
+empresa e para uso fora do pais, e fica fora; 4 e 7 repetem o 1 e o 6.
 
 Uso:  python coletores/starlink.py
 """
@@ -57,7 +59,21 @@ NACIONAL = True
 FAMILIAS = {
     1: "residencial",
     6: "priority",
+    # O VIAGEM (Roam), desde 27/11/2026. A auditoria contra o site de 26/11
+    # achou os dois planos de viagem (100 GB a R$ 339 e ilimitado a R$ 619)
+    # na pagina da Starlink sem endereco nenhum - os unicos precos de
+    # pessoa fisica que ela mostra sem pedir endereco - e a API os serve no
+    # codigo 8. A metodologia dizia que os outros codigos voltavam vazios.
+    # O 9 (Prioritario Global, de R$ 1.695 a R$ 14.520) e plano de empresa
+    # para uso fora do pais e fica fora: nao e o que o tracker compara.
+    8: "viagem",
 }
+
+# O CONTRATO DO KIT. O kit mais barato (Mini X a R$ 49) vem com "Contrato de
+# 12 meses obrigatorio" na descricao longa; sem contrato, o mais barato e o
+# Mini X a R$ 299. Ate 26/11 a taxa saia 49 e a fidelidade vazia, e vazio
+# e lido como "sem fidelidade".
+CONTRATO = re.compile(r"contrato\s+de\s+(\d+)\s+mes", re.I)
 
 
 # O CABECALHO DE LINGUA E CARGA, nao enfeite. Medido em 27/10/2026, na
@@ -145,12 +161,23 @@ def velocidade_declarada(*fontes):
 
 
 def franquia(texto):
-    """"Local Priority 500 GB" -> 500. "1 TB" -> 1024."""
+    """"Local Priority 500 GB" -> 500. "1 TB" -> 1000.
+
+    DECIMAL, como a Starlink conta: o bloco de 50 GB dela e de
+    50.000.000.000 bytes. Ate 26/11/2026 o 1 TB saia 1024 GB e o 2 TB 2048,
+    e o R$/GB do prioritario saia 2% mais barato do que a Starlink vende."""
     m = re.search(r"(\d+(?:[.,]\d+)?)\s*(GB|TB)", str(texto or ""), re.I)
     if not m:
         return None
     v = float(m.group(1).replace(",", "."))
-    return int(v * 1024) if m.group(2).upper() == "TB" else int(v)
+    return int(v * 1000) if m.group(2).upper() == "TB" else int(v)
+
+
+def fidelidade_do_kit(kit):
+    """Os meses de contrato que o kit exige, ou None se a descricao nao diz."""
+    m = CONTRATO.search("%s %s" % (kit.get("longDescription") or "",
+                                   kit.get("description") or ""))
+    return int(m.group(1)) if m else None
 
 
 def _num(v):
@@ -201,19 +228,24 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
         # O kit e custo de entrada, nao mensalidade. Vale o mais barato da
         # familia, que e o que o site anuncia como "a partir de".
         kits = [(_num(k.get("adjustedPrice") or k.get("price")),
-                 k.get("description") or k.get("name"))
+                 k.get("description") or k.get("name"), fidelidade_do_kit(k))
                 for k in (d.get("kits") or [])]
-        kits = [(p, n) for p, n in kits if p is not None]
+        kits = [(p, n, f) for p, n, f in kits if p is not None]
         # O NOME DO KIT JUNTO COM O PRECO. O campo gravava so o numero e
         # perdia de qual kit ele saiu: na familia residencial o minimo e
         # o Kit Mini a R$ 99, hardware diferente do prato Standard de
         # R$ 2.400 que o plano sugere. O numero continua o "a partir de"
         # que o site anuncia; agora da para conferir de onde veio.
-        kit_min, kit_min_nome = min(kits) if kits else (None, None)
+        # no empate de preco, o sem contrato; o contrato do escolhido vai
+        # para a fidelidade
+        kit_min, kit_min_nome, kit_fidelidade = (
+            min(kits, key=lambda x: (x[0], x[2] or 0)) if kits else (None, None, None))
 
         assinaturas = d.get("subscriptions") or []
         for s in assinaturas:
-            nome = s.get("description") or s.get("englishDescription") or ""
+            # "Prioritario Local 1 TB " vinha com espaco no fim e espaco duro
+            # no meio: o nome e o que a Starlink escreve, sem o lixo de espaco
+            nome = " ".join((s.get("description") or s.get("englishDescription") or "").split())
             preco = _num(s.get("adjustedPrice"))
             if preco is None:
                 continue
@@ -247,7 +279,8 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
                 # campo representa nas outras operadoras
                 "taxa_instalacao": kit_min,
                 "taxa_instalacao_kit": kit_min_nome,
-                "fidelidade_meses": None,
+                # o contrato e o do kit que a taxa nomeia
+                "fidelidade_meses": kit_fidelidade,
                 "multa_fidelidade": None,
                 # a propria API declara quanto dura a promocao, o que so a
                 # Brisanet tambem faz
@@ -260,7 +293,8 @@ def coletar(cidade="Brasil", uf="BR", verbose=True):
                 "codigo_anatel": None,
                 "campanha": None,
                 "tecnologia": ["satelite"],
-                "kits": [{"preco": p, "nome": n} for p, n in sorted(kits)],
+                "kits": [{"preco": p, "nome": n, "fidelidade_meses": f}
+                         for p, n, f in sorted(kits, key=lambda x: (x[0], x[2] or 0))],
                 "moeda": d.get("isoCurrencyCode"),
             })
 
