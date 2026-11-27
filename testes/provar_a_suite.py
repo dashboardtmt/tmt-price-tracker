@@ -2622,6 +2622,17 @@ MUTACOES = [
         '        o = por_nid.get(n.group(1)) if n else None\n',
         '    for o in list(por_nid.values()):\n',
         "Tn7. o JSON inteiro entra, e nao so o no que a pagina lista"),
+    # AS VARIANTES FORA DA VITRINE (27/11/2026)
+    Mutacao(
+        "gerar_tela.py",
+        '  DADOS = comVariantes ? DADOS_TODOS : DADOS_TODOS.filter(o => !variante(o));\n',
+        '  DADOS = DADOS_TODOS;\n',
+        "Vf1. a tela volta a misturar as variantes na vitrine"),
+    Mutacao(
+        "gerar_tela.py",
+        '    const k = o.operadora + "|" + e.v + "|" + vr;\n',
+        '    const k = o.operadora + "|" + e.v;\n',
+        "Vf2. a variante divide a linha do degrau com o plano da vitrine"),
     # OS APPS DO CARD INTEIRO E O FLEX (26/11/2026)
     Mutacao(
         "coletores/claro.py",
