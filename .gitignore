@@ -56,3 +56,6 @@ relatorio-*.pdf
 
 # o deck do price tracker e de uso interno: nada dele entra neste repositorio publico
 deck/
+
+# saida da ferramentas/sonda_pagina.py
+sonda-saida/

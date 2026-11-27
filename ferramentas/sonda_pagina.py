@@ -18,7 +18,7 @@ dado. A pasta sobe como artefato do workflow "Sonda de pagina".
 Nao grava nada no banco, nao manda mensagem, nao mexe na tela.
 
 Uso:
-    python ferramentas/sonda_pagina.py --coletor tim --pasta .sonda URL [URL...]
+    python ferramentas/sonda_pagina.py --coletor tim --pasta sonda-saida URL [URL...]
     python ferramentas/sonda_pagina.py --coletor tim --padrao "<tim-card-pricing-offer" URL
 """
 import argparse
@@ -55,7 +55,7 @@ def main(argv=None):
     p.add_argument("urls", nargs="+")
     p.add_argument("--coletor", required=True,
                    help="modulo de coletores/ cujo navegador() e buscar() usar")
-    p.add_argument("--pasta", default=".sonda")
+    p.add_argument("--pasta", default="sonda-saida")
     p.add_argument("--padrao", default=None,
                    help="trecho de texto a contar em cada corpo")
     a = p.parse_args(argv)

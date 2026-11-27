@@ -44,9 +44,9 @@ jobs:
         run: |
           read -ra LISTA <<< "$URLS"
           if [ -n "$PADRAO" ]; then
-            python ferramentas/sonda_pagina.py --coletor "$COLETOR" --pasta .sonda --padrao "$PADRAO" "${LISTA[@]}"
+            python ferramentas/sonda_pagina.py --coletor "$COLETOR" --pasta sonda-saida --padrao "$PADRAO" "${LISTA[@]}"
           else
-            python ferramentas/sonda_pagina.py --coletor "$COLETOR" --pasta .sonda "${LISTA[@]}"
+            python ferramentas/sonda_pagina.py --coletor "$COLETOR" --pasta sonda-saida "${LISTA[@]}"
           fi
 
       - name: Guardar os corpos
@@ -54,6 +54,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sonda
-          path: .sonda/
+          path: sonda-saida/
           if-no-files-found: warn
           retention-days: 7
