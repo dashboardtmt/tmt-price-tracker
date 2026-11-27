@@ -1,0 +1,41 @@
+name: Apagar capturas gravadas de fonte errada
+
+# Roda apagar_capturas.py com os segredos do Supabase, que so existem aqui.
+# Sem "apagar", so conta as linhas que a tabela alcanca; com ele, apaga e
+# confere. Ver o cabecalho de apagar_capturas.py.
+#
+# NAO MANDA MENSAGEM E NAO MEXE NA TELA. Depois de apagar, o dado publicado
+# so muda na proxima "Atualizar a tela" (ou na rotina diaria).
+
+on:
+  workflow_dispatch:
+    inputs:
+      apagar:
+        description: "Apagar (sem isto, so conta)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  apagar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Apagar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          if [ "${{ inputs.apagar }}" = "true" ]; then
+            python apagar_capturas.py --apagar
+          else
+            python apagar_capturas.py
+          fi
