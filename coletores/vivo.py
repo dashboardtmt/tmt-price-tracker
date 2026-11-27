@@ -475,6 +475,36 @@ REGULAMENTO = "https://vivo.com.br/bin/vivo-portal/rgc-offer-json-file?anatelCod
 # e o movel - que e metade da oferta - nao aparecia em lugar nenhum.
 GB_DO_MOVEL = re.compile(r"(\d{1,4})\s*GB\s+de\s+Vivo\s+P[óo]s", re.I)
 
+# O CONTRATO QUE O CARD DECLARA (27/11/2026, conferencia no dado publicado).
+# O card da Vivo Total Essencial de 600 Mega diz "60 GB de Vivo Pos" e, logo
+# abaixo, "40 GB de Franquia + 20 GB de bonus": 40 de contrato. O tracker
+# gravava 60, do regulamento do codigo VIV202604066118 - que a Essencial
+# divide com o Vivo Total Pro, e que se chama "VT Pro 600Mega com SVA + 60
+# GB". A guarda de aplicar_regulamento so recusava o documento que declara
+# MAIS do que o card anuncia; este declara o mesmo que o anunciado e passava.
+# O que vale e o site: com a frase no card, o contrato e o N dela.
+FRANQUIA_MAIS_BONUS = re.compile(
+    r"(\d{1,4})\s*GB\s+de\s+franquia\s*\+\s*(\d{1,4})\s*GB\s+de\s+b[oô]nus",
+    re.I)
+
+
+def contrato_do_card(texto, anunciada=None):
+    u"""Os GB de contrato que o card declara, ou None.
+
+    SO QUANDO O CARD NAO SE CONTRADIZ: um par so de (franquia, bonus) no
+    texto - o card repete a frase no detalhe, e a repeticao conta como uma
+    -, e, com a franquia anunciada lida, contrato mais bonus fechando com
+    ela. Dois pares diferentes, ou uma soma que nao fecha, e card que fala
+    de mais de uma coisa, e entao nao se chuta.
+    """
+    pares = {(int(a), int(b)) for a, b in FRANQUIA_MAIS_BONUS.findall(texto or "")}
+    if len(pares) != 1:
+        return None
+    contrato, bonus = pares.pop()
+    if anunciada and contrato + bonus != anunciada:
+        return None
+    return contrato or None
+
 # O formato de um codigo Anatel da Vivo: VIV e doze digitos ou mais.
 #
 # A vitrine as vezes publica codigo quebrado - em 14/10/2026 o card de
@@ -710,23 +740,42 @@ def aplicar_regulamento(oferta, reg):
     #
     # Mesma conclusao do preco de tabela acima: provada a origem alheia,
     # o documento sai inteiro.
+    #
+    # E O CONTRATO QUE O CARD DECLARA TAMBEM PROVA (27/11/2026). Quem le o
+    # card ("40 GB de Franquia + 20 GB de bonus") grava o contrato dele em
+    # franquia_contratual_gb antes de chegar aqui - ver contrato_do_card. O
+    # regulamento que declara outro numero e de outra oferta, mesmo quando
+    # bate com o anunciado: o da Vivo Total Essencial de 600 Mega e o do Pro,
+    # com 60 GB de contrato, preco de tabela de R$ 160 e multa de R$ 1.400,
+    # e os tres iam para a Essencial. O contrato fica o do card.
     franquia = (smp.get("franquiaDados") or {}).get("franquia")
     if franquia:
         v = int(_num(franquia) or 0) or None
         anunciada = oferta.get("franquia_anunciada_gb")
-        if v and anunciada and v > anunciada:
+        do_card = oferta.get("franquia_contratual_gb")
+        if v and ((anunciada and v > anunciada) or (do_card and v != do_card)):
             for campo in ("preco_cheio", "fidelidade_meses",
                           "multa_fidelidade", "taxa_instalacao",
                           "taxa_adesao"):
                 oferta[campo] = None
+            if do_card and v != do_card:
+                aviso = apps.ressalva(
+                    "o contrato n\u00e3o deu para ler: sem pre\u00e7o de "
+                    "tabela, fidelidade, multa e taxas",
+                    "o regulamento declara %s GB de contrato e o card, %s GB "
+                    "de franquia mais b\u00f4nus: o documento \u00e9 de outra "
+                    "oferta que divide o mesmo c\u00f3digo Anatel, e nenhum "
+                    "campo contratual dele foi usado - o contrato gravado "
+                    "\u00e9 o do card" % (v, do_card))
+            else:
+                aviso = apps.ressalva(
+                    "sem franquia garantida",
+                    "o regulamento declara %s GB para um card de %s GB: "
+                    "o documento \u00e9 de outra oferta que divide o mesmo "
+                    "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
+                    % (v, anunciada))
             oferta["avisos_oferta"] = apps.juntar_avisos(
-                oferta.get("avisos_oferta"),
-                apps.ressalva(
-                "sem franquia garantida",
-                "o regulamento declara %s GB para um card de %s GB: "
-                "o documento \u00e9 de outra oferta que divide o mesmo "
-                "c\u00f3digo Anatel, e nenhum campo contratual dele foi usado"
-                % (v, anunciada)))
+                oferta.get("avisos_oferta"), aviso)
             return oferta
         if v:
             oferta["franquia_contratual_gb"] = v
@@ -1084,6 +1133,11 @@ def coletar(cidade, uf, verbose=True):
                 oferta["meses_desconto"] = _n * 12 if _depois.group(2).lower().startswith("ano") else _n
                 oferta["preco_pos_promocao"] = so_numero(_depois.group(3))
             oferta = enriquecer(oferta, idx.get(c["codigo_anatel"]))
+            # O CONTRATO QUE O CARD DECLARA, antes do regulamento: e ele que
+            # o regulamento tem de confirmar. Ver contrato_do_card.
+            _contrato = contrato_do_card(c["texto"], oferta.get("franquia_anunciada_gb"))
+            if _contrato:
+                oferta["franquia_contratual_gb"] = _contrato
             # O "DE:" DO CARD vence o catalogo e o regulamento: o que vale e o
             # site. A Vivo Total Essencial do Nordeste diz "De: R$ 150" e o
             # tracker gravava os R$ 157,50 do contrato (auditoria de 26/11).

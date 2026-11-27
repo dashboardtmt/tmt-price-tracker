@@ -1034,10 +1034,10 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        "        if k in vistas or k in renomeada:\n            continue\n"
-        "        if (l.get(\"operadora\"), l.get(\"praca\")) not in coletadas_ontem:",
-        "        if k in renomeada:\n            continue\n"
-        "        if (l.get(\"operadora\"), l.get(\"praca\")) not in coletadas_ontem:",
+        # reancorada em 27/11/2026: a serie que ja existia passou a ter
+        # caminho proprio, o do nome repetido (Nr1 a Nr9)
+        "        if k in vistas:\n            # entrega nao lida",
+        "        if False:\n            # entrega nao lida",
         "En1. a oferta que volta dentro da janela vira lancamento"),
 
     Mutacao(
@@ -1049,7 +1049,7 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        "        if k in vistas or k in renomeada:",
+        "        if k in renomeada:\n            continue\n        if k in vistas:",
         "        if k in vistas:",
         "En3. o renome volta a sair tambem como lancamento"),
 
@@ -1625,8 +1625,13 @@ MUTACOES = [
 
     Mutacao(
         "coletores/vivo.py",
-        '            for campo in ("preco_cheio", "fidelidade_meses",',
-        '            for campo in ():',
+        # A TUPLA INTEIRA NA ANCORA (27/11/2026): trocar so a primeira
+        # linha deixava as duas de continuacao soltas, o vivo.py mutado nao
+        # compilava e a suite caia no import - "pegou" sem medir nada.
+        '            for campo in ("preco_cheio", "fidelidade_meses",\n'
+        '                          "multa_fidelidade", "taxa_instalacao",\n'
+        '                          "taxa_adesao"):\n',
+        '            for campo in ():\n',
         "C1b. franquia que contradiz volta a deixar o resto passar"),
 
     Mutacao(
@@ -2856,6 +2861,92 @@ MUTACOES = [
         '      "source": "/dados.json.gz",\n',
         '      "source": "/serie.json.gz",\n',
         "Ds3. o site deixa de repassar o arquivo que a tela pede"),
+    # A OFERTA NOVA DE NOME REPETIDO, desde 27/11/2026. A Vivo Total
+    # Essencial de 600 Mega entrou em 17 pracas com o nome da de 500, que
+    # ja estava no Nordeste, e a mensagem nao disse nada.
+    Mutacao(
+        "robo.py",
+        '            if e != (None, None) and e not in entregas_vistas[k]:\n'
+        '                repetidas[k + (e,)].append(l)\n',
+        '            pass\n',
+        "Nr1. a oferta nova de nome repetido volta a entrar calada"),
+    Mutacao(
+        "robo.py",
+        '        if any(ultima_na_praca.get((k[:2], l.get("praca")), set())\n'
+        '               - hoje_na_praca[(k[:2], l.get("praca"))] for l in linhas):\n'
+        '            continue\n',
+        '',
+        "Nr2. a escada que anda sob um nome so vira lancamento"),
+    Mutacao(
+        "robo.py",
+        '                 and (l.get("operadora"), l.get("praca")) + par(l)\n'
+        '                 not in prateleira_ontem]\n',
+        ']\n',
+        "Nr3. o renome que o detector nao casa vira lancamento"),
+    Mutacao(
+        "robo.py",
+        ' and e not in entregas_vistas[k]:\n',
+        ':\n',
+        "Nr4. a entrega que a serie ja teve na janela volta como nova"),
+    Mutacao(
+        "robo.py",
+        '        if e.get("nome_ja_era_texto"):\n'
+        '            linhas.append("  %s" % e["nome_ja_era_texto"])\n',
+        '',
+        "Nr5. a mensagem deixa de dizer de quem era o nome"),
+    Mutacao(
+        "robo.py",
+        '    segue = bool(base)\n',
+        '    segue = True\n',
+        "Nr6. o nome que saiu passa a ser dito como se seguisse"),
+    Mutacao(
+        "robo.py",
+        '        entrega = e.get("entrega_texto") or (\n',
+        '        entrega = None or (\n',
+        "Nr7. o combo que entra volta a sair so com os Mbps"),
+    Mutacao(
+        "auditor.py",
+        '        if degrau is None:\n'
+        '            return bool(linhas)\n',
+        '        return bool(linhas)\n',
+        "Nr8. o auditor volta a recusar a entrada onde a velha continua"),
+    Mutacao(
+        "relatorio.py",
+        '            oferta = "%s<br/><i>%s</i>" % (oferta, e["nome_ja_era_texto"])\n',
+        '            pass\n',
+        "Nr9. o PDF deixa de dizer de quem era o nome"),
+    # O CONTRATO QUE O CARD DA VIVO DECLARA, desde 27/11/2026. A Vivo Total
+    # Essencial de 600 Mega diz "40 GB de Franquia + 20 GB de bonus" e o
+    # tracker gravava 60, do regulamento do Pro, que divide o codigo.
+    Mutacao(
+        "coletores/vivo.py",
+        '            if _contrato:\n'
+        '                oferta["franquia_contratual_gb"] = _contrato\n',
+        '',
+        "Vk1. o contrato do card deixa de ser lido e o do Pro volta"),
+    Mutacao(
+        "coletores/vivo.py",
+        ' or (do_card and v != do_card)):\n',
+        '):\n',
+        "Vk2. o regulamento que contradiz o card volta a valer inteiro"),
+    Mutacao(
+        "coletores/vivo.py",
+        '    if anunciada and contrato + bonus != anunciada:\n'
+        '        return None\n',
+        '',
+        "Vk3. o par que nao fecha com o anunciado vira contrato"),
+    Mutacao(
+        "coletores/vivo.py",
+        '    if len(pares) != 1:\n',
+        '    if not pares:\n',
+        "Vk4. o card com dois pares diferentes elege um deles"),
+    Mutacao(
+        "coletores/vivo.py",
+        '            if do_card and v != do_card:\n'
+        '                aviso = apps.ressalva(\n',
+        '            if False:\n'
+        '                aviso = apps.ressalva(\n',
+        "Vk5. a recusa do regulamento passa a dizer o motivo errado"),
     Mutacao(
         "relatorio.py",
         'PAINEL = "https://tmt-price-tracker.vercel.app"',

@@ -653,12 +653,21 @@ def _bloco_entradas(d):
     """Oferta que entrou na vitrine, com a lista inteira de pracas."""
     linhas = []
     for e in d.get("entradas") or []:
-        entrega = (("%s %s" % (e.get("entrega"), e.get("unidade") or ""))
-                   .strip() if e.get("entrega") else "—")
+        # a frase pronta do robo, a mesma da mensagem: no combo, as duas
+        # pernas ("600 Mbps + 60 GB")
+        entrega = e.get("entrega_texto") or (
+            ("%s %s" % (e.get("entrega"), e.get("unidade") or "")).strip()
+            if e.get("entrega") else "—")
+        # O NOME REPETIDO VAI DITO NA CELULA DA OFERTA, como na mensagem:
+        # sem a frase, "Vivo Total Essencial a R$ 130" le como reajuste da
+        # Essencial de R$ 100, que segue na vitrine
+        oferta = e.get("nome_oferta")
+        if e.get("nome_ja_era_texto"):
+            oferta = "%s<br/><i>%s</i>" % (oferta, e["nome_ja_era_texto"])
         linhas.append([
             e.get("operadora"),
             e.get("produto"),
-            e.get("nome_oferta"),
+            oferta,
             _reais(e.get("preco")),
             entrega,
             _pracas(e),

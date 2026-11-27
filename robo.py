@@ -3099,6 +3099,21 @@ LEITURA_DE_OFERTA_MUDOU_EM = {
                  u"planos de viagem da Starlink, e os apps e o "
                  u"WhatsApp que os cards da Claro listam",
     }],
+    # O CONTRATO QUE O CARD DA VIVO DECLARA (vivo.contrato_do_card). O card
+    # da Essencial de 600 Mega diz "40 GB de Franquia + 20 GB de bonus", e o
+    # tracker gravava 60, do regulamento do Vivo Total Pro, que divide o
+    # codigo Anatel com ela. Medido no ensaio das paginas de 27/11 (Sao
+    # Paulo, Teresina e Fortaleza, 309 ofertas): so ela muda, e a chave
+    # nao. Commit de 27/11 a tarde; a primeira coleta com o leitor novo e
+    # a de 28/11. Sem esta linha a mensagem de 28/11 diria "a franquia de
+    # contrato da Vivo Total Essencial foi de 60 para 40 GB" em 17 pracas.
+    "2026-11-28": [{
+        "quem": [("Vivo", "combo", u"re:^vivo total essencial$")],
+        "texto": u"a Vivo Total Essencial de 600 Mega passou a ter o "
+                 u"contrato que o card declara (40 GB, mais 20 de bônus), e "
+                 u"não o do regulamento do Vivo Total Pro, que divide o "
+                 u"código Anatel com ela",
+    }],
 }
 
 # os grupos de evento de mudancas() que a declaracao alcanca.
@@ -3641,6 +3656,35 @@ def _ofertas_que_entraram(do_dia, antes, ontem, renomeadas=()):
     Com isso, de 16/10 a 16/11: 10 lancamentos em 6 dias - Claro Geforce,
     Vivo Total V 2 e 10 Giga, os BLACK da Brisanet, Vivo Lite + YouTube.
 
+    E A OFERTA NOVA PODE TER NOME VELHO (27/11/2026, conferencia no dado
+    publicado). Ate 26/11 a "Vivo Total Essencial" existia so em 6 pracas
+    do Nordeste, a R$ 100 com 500 Mega e 20 GB. Em 27/11 a Vivo pos em
+    outras 14 pracas, e ao lado da velha em mais 3, uma oferta da Purple
+    Friday com o MESMO nome: R$ 130, 600 Mega e 60 GB. A serie e o nome,
+    o nome ja estava na janela, e a mensagem do dia nao disse nada. Por
+    isso a serie que ja existia tambem pode entrar, por ENTREGA: a entrega
+    (degrau e franquia) que a serie nunca teve na janela, numa praca
+    coletada ontem - inclusive ao lado da velha, onde ela continua.
+
+    MEDIDO NOS 58 DIAS COMPARAVEIS antes de fechar a regra: a definicao
+    rende 100 candidatos em 16 dias, e o sexto filtro, so deste caso, e o
+    que separa:
+      - 97 TOMARAM O LUGAR de outra entrega da serie na mesma praca: o
+        mesmo plano com franquia nova (o Claro Pos em 06/10, 13/10, 05/11
+        e 13/11), a escada andando sob um nome so (a "Vivo Fibra" passou
+        o ponto de R$ 100 do 700 para o 600 Mega em 03/10 e 15/10), a
+        nossa leitura (o TIM Black Familia e o Black relidos em 25 e
+        27/11, o Lite com o bonus em 27/11). E a mesma oferta mudada por
+        dentro, que a remodelada e a escada dizem, e nenhuma praca vira
+        entrada;
+      - 1 JA ESTAVA NA PRATELEIRA ontem, na mesma praca, com a mesma
+        entrega e o mesmo preco e outro nome: o "TIM Pre XIP Plus - 16GB"
+        perdeu o sufixo em tres pracas em 13/10, e o detector de renome,
+        que casa pela chave, nao o pegou porque a chave mudou junto;
+      - 1 e cobertura (filtro 5): o TIM Controle FIT de 27/11, que a
+        coleta passou a ler do carrossel.
+    Sobra a Essencial, em 17 pracas - e nenhuma saida dos 58 dias muda.
+
     DEVOLVE (entradas, passou_a_ler). A cobertura nao some: vai ao PDF,
     porque e uma descontinuidade da serie, e o leitor que olhar o site
     no dia ve as ofertas aparecerem.
@@ -3672,14 +3716,70 @@ def _ofertas_que_entraram(do_dia, antes, ontem, renomeadas=()):
         renomeada.add((a.get("operadora"),
                        _serie_sem_safra(a.get("nome_oferta"))))
 
+    # A ENTREGA DE CADA SERIE NA JANELA, e o que a serie tinha em cada
+    # praca da ultima vez que apareceu ali - entrega e preco, porque o
+    # sexto filtro compara os dois, e a ultima vez e nao ontem: a praca que
+    # ficou um dia sem a serie (o Claro Controle de Belo Horizonte em
+    # 12/10) volta com a escada ja andada.
+    def par(l):
+        return _degrau_da_oferta(l) + (l.get("preco_promocional"),)
+
+    entregas_vistas = collections.defaultdict(set)
+    ultima_na_praca = {}
+    for dia in sorted(antes):
+        no_dia = collections.defaultdict(set)
+        for l in antes[dia]:
+            entregas_vistas[serie(l)].add(_degrau_da_oferta(l))
+            no_dia[(serie(l), l.get("praca"))].add(par(l))
+        ultima_na_praca.update(no_dia)
+    hoje_na_praca = collections.defaultdict(set)
+    for l in do_dia:
+        hoje_na_praca[(serie(l), l.get("praca"))].add(par(l))
+    # a prateleira de ontem, sem nome: o que a operadora vendia em cada
+    # praca, por entrega e preco
+    prateleira_ontem = {(l.get("operadora"), l.get("praca")) + par(l)
+                        for l in antes[ontem]}
+
     novas = collections.defaultdict(list)
+    repetidas = collections.defaultdict(list)
     for l in do_dia:
         k = serie(l)
-        if k in vistas or k in renomeada:
+        if k in renomeada:
+            continue
+        if k in vistas:
+            # entrega nao lida nao e entrega nova: sem ela, nao ha o que
+            # distinga a oferta das outras do mesmo nome
+            e = _degrau_da_oferta(l)
+            if e != (None, None) and e not in entregas_vistas[k]:
+                repetidas[k + (e,)].append(l)
             continue
         if (l.get("operadora"), l.get("praca")) not in coletadas_ontem:
             continue
         novas[k].append(l)
+    for k, linhas in repetidas.items():
+        # O SEXTO FILTRO, so do nome repetido, em duas partes.
+        #
+        # A ENTREGA NOVA NAO PODE TER TOMADO O LUGAR DE NADA. Se, numa
+        # praca onde ela aparece, o que a serie tinha ali (entrega e preco)
+        # nao esta mais, e a mesma oferta mudada por dentro, ou a escada
+        # andando - e entao nenhuma praca vira entrada. O Claro Controle de
+        # 13/10 e 13/11 trocou 45 GB por 40 e 55; a "Vivo Fibra" de 03/10
+        # e 15/10, que da nome aos tres degraus, passou o ponto de R$ 100
+        # do 700 para o 600 Mega e o 700 para R$ 150.
+        if any(ultima_na_praca.get((k[:2], l.get("praca")), set())
+               - hoje_na_praca[(k[:2], l.get("praca"))] for l in linhas):
+            continue
+        # E A PRATELEIRA NAO PODE JA TER A OFERTA. A mesma entrega pelo
+        # mesmo preco, ontem, na mesma praca e na mesma operadora, com outro
+        # nome, e renome que o detector de renome nao casou: em 13/10 o "TIM
+        # Pre XIP Plus - 16GB" de R$ 30 perdeu o sufixo em tres pracas e caiu
+        # na serie do "TIM Pre XIP Plus" de R$ 20 e R$ 25.
+        ficam = [l for l in linhas
+                 if (l.get("operadora"), l.get("praca")) in coletadas_ontem
+                 and (l.get("operadora"), l.get("praca")) + par(l)
+                 not in prateleira_ontem]
+        if ficam:
+            novas[k] = ficam
 
     por_produto = collections.defaultdict(list)
     for k, linhas in novas.items():
@@ -3707,19 +3807,79 @@ def _ofertas_que_entraram(do_dia, antes, ontem, renomeadas=()):
                             if l.get("preco_promocional") is not None)
             pracas = sorted({l.get("praca") for l in linhas})
             base = linhas[0]
-            entradas.append({
+            entrada = {
                 "operadora": operadora, "produto": produto,
                 "nome_oferta": base.get("nome_oferta"),
                 # a mais barata entre as pracas, como o "estava a" da saida
                 "preco": precos[0] if precos else None,
                 "entrega": _entrega(base), "unidade": _unidade(base),
+                # AS DUAS PERNAS DO COMBO, em texto pronto para a mensagem e
+                # o PDF lerem a mesma frase: "600 Mbps" nao separa a
+                # Essencial nova (600 Mega e 60 GB) da velha (500 e 20)
+                "entrega_texto": _entrega_por_extenso(base),
                 "pracas": pracas, "universo": len(comparaveis),
                 "onde": _onde(pracas, len(comparaveis)),
                 "onde_todas": _onde(pracas, len(comparaveis), limite=None),
-            })
+            }
+            if len(k) == 3:
+                # o degrau cru vai junto para o auditor: com o nome
+                # repetido, o nome sozinho nao identifica a oferta
+                entrada["degrau"] = list(k[2])
+                entrada["nome_ja_era_texto"] = _o_nome_ja_era(
+                    k, do_dia, antes, serie)
+            entradas.append(entrada)
     entradas.sort(key=lambda e: (-len(e["pracas"]), e["operadora"],
                                  e["nome_oferta"] or ""))
     return entradas, passou_a_ler
+
+
+def _degrau_da_oferta(l):
+    """(Mbps, GB) da oferta: as duas pernas, porque no combo sao as duas."""
+    return (l.get("degrau_mbps"), l.get("franquia_anunciada_gb"))
+
+
+def _entrega_por_extenso(l):
+    """"600 Mbps + 60 GB" no combo, "1000 Mbps" na fibra, "20 GB" no movel."""
+    mbps, gb = _degrau_da_oferta(l)
+    if mbps and gb:
+        return "%s Mbps + %s GB" % (mbps, gb)
+    return ("%s Mbps" % mbps) if mbps else ("%s GB" % gb) if gb else ""
+
+
+def _o_nome_ja_era(k, do_dia, antes, serie):
+    u"""A frase que diz de quem era o nome, quando a oferta nova o repete.
+
+    Sem ela a linha e verdadeira e engana: quem le "Vivo Total Essencial
+    entrou na vitrine a 130,00" e sabe que a Essencial existia no Nordeste
+    a 100,00 conclui que ela subiu de preco. A oferta que tinha o nome e a
+    de HOJE, quando ela segue na vitrine; quando nao segue, a do ultimo dia
+    da janela em que o nome apareceu.
+    """
+    operadora_serie, entrega = k[:2], k[2]
+    base = [l for l in do_dia if serie(l) == operadora_serie
+            and _degrau_da_oferta(l) != entrega]
+    segue = bool(base)
+    for dia in sorted(antes, reverse=True):
+        if base:
+            break
+        base = [l for l in antes[dia] if serie(l) == operadora_serie]
+    if not base:
+        return None
+    por = collections.defaultdict(list)
+    for l in base:
+        por[_degrau_da_oferta(l)].append(l)
+    # a que esta em mais pracas, se o nome tiver mais de uma
+    _e, ls = max(por.items(), key=lambda x: (len({l.get("praca") for l in x[1]}),
+                                             str(x[0])))
+    precos = sorted(l["preco_promocional"] for l in ls
+                    if l.get("preco_promocional") is not None)
+    n = len({l.get("praca") for l in ls})
+    oferta = " com ".join(x for x in (
+        _reais(precos[0]) if precos else "", _entrega_por_extenso(ls[0])) if x)
+    return ("o nome j\u00e1 era de outra oferta, que segue na vitrine: %s, "
+            "em %d pra\u00e7a%s" % (oferta, n, "" if n == 1 else "s")
+            if segue else
+            "o nome era de outra oferta, que saiu: %s" % oferta)
 
 
 def _quem_ficou_no_degrau(do_dia, irmas, pracas):
@@ -4618,12 +4778,15 @@ def montar_mensagem(hoje, ontem):
         linhas = abrir(_categoria(e), e["operadora"],
                        "%s \u00b7 %s" % (_categoria(e), _rotulo(e)))
         preco = _reais(e.get("preco"))
-        entrega = ("%s %s" % (e["entrega"], e.get("unidade") or "")).strip() \
-            if e.get("entrega") else ""
+        entrega = e.get("entrega_texto") or (
+            ("%s %s" % (e["entrega"], e.get("unidade") or "")).strip()
+            if e.get("entrega") else "")
         linhas.append("  entrou na vitrine%s%s"
-                      % (" a %s" % preco if preco != "\u2014" else "",
+                      % (" a %s" % preco if e.get("preco") is not None else "",
                          ", com %s" % entrega if entrega else ""))
         linhas.append("  %s" % e["onde"])
+        if e.get("nome_ja_era_texto"):
+            linhas.append("  %s" % e["nome_ja_era_texto"])
     if len(entradas) > 3:
         n = len(entradas) - 3
         cauda.append("e mais %s na vitrine, no relat\u00f3rio"

@@ -1,0 +1,117 @@
+{
+ "VIV202604066118": {
+  "SCM": {
+   "listaSVA": [
+    "030039",
+    "100069",
+    "100060",
+    "030048",
+    "030014",
+    "030035",
+    "040010"
+   ],
+   "velocidade": {
+    "upload": "300",
+    "download": "600",
+    "unidadeUpload": "Mbps",
+    "unidadeDownload": "Mbps"
+   },
+   "wifiIncluso": "1",
+   "listaTecnologia": [
+    "FTTH"
+   ]
+  },
+  "SMP": {
+   "listaSVA": [
+    "030039",
+    "040022",
+    "030021"
+   ],
+   "dependentes": {
+    "valor": "50",
+    "quantidade": "5",
+    "compartilhamento": "Compartilhar dados e voz"
+   },
+   "franquiaSMS": {
+    "onNet": "100",
+    "offNet": "100"
+   },
+   "franquiaVoz": {
+    "ldi": "0",
+    "fixoLdnOnNet": "300",
+    "fixoLdnOffNet": "300",
+    "movelLdnOnNet": "300",
+    "localFixoOnNet": "300",
+    "movelLdnOffNet": "300",
+    "localFixoOffNet": "300",
+    "localMovelOnNet": "300",
+    "localMovelOffNet": "300"
+   },
+   "franquiaDados": {
+    "franquia": "60",
+    "unidadeFranquia": "GB"
+   },
+   "listaAppIsentos": [
+    "050006",
+    "020006",
+    "020007"
+   ],
+   "roamingNacional": "300 minutos de ligações e 100 SMS ilimitado para qualquer operador no Brasil",
+   "roamingInternacional": "Para maiores informações sobre o Vivo Travel acesse https://vivo.com.br/para-voce/produtos-e-servicos/para-o-celular/roaming-internacional/vivo-travel",
+   "condicoesAposConsumoFranquia": "Cobrança por tráfego excedente"
+  },
+  "linkSite": "https://vivo.com.br/para-voce",
+  "focoVenda": "1",
+  "regOferta": "https://vivo.com.br/para-voce/contratos-e-regulamentos/condicoes-ofertas",
+  "nomeOferta": "VT Pro 600Mega com SVA + 60 GB com SVA",
+  "tipoOferta": "Conjunta",
+  "exibeOferta": "1",
+  "fidelizacao": {
+   "tempoDesconto": "12",
+   "multaFidelizacao": "1400",
+   "tempoFidelizacao": "12",
+   "descontoFidelizacao": "0",
+   "beneficioFidelizacao": "Fidelidade até 31/07/2027. Isenção da taxa de instalação de R$ 800 na Banda Larga e R$600 da Móvel."
+  },
+  "custoInicial": {
+   "adesao": "0",
+   "instalacao": "0",
+   "equipamento": "0"
+  },
+  "dataFimOferta": "12/12/2026",
+  "ofertaDigital": "0",
+  "prazoVigencia": {
+   "duracaoVigencia": "31/07/2027",
+   "tipoPeriodicidadeVigencia": "predeterminada"
+  },
+  "destaqueOferta": "Fibra 600 Mega +Pós 60GB + 10GB de Bônus - Com Fidelidade",
+  "listaPromocoes": [
+   {
+    "tempoDesconto": "12",
+    "descontoPromocao": "0",
+    "descricaoPromocao": "O bônus da aba Informações depende do pagamento das faturas até o vencimento. Em caso de inadimplência, poderá haver a perda do bônus. Após a quitação do débito, o bônus retornará em até 24h."
+   }
+  ],
+  "formasPagamento": [
+   {
+    "formaPagamento": "Boleto Bancário",
+    "descontoPagamento": "0"
+   }
+  ],
+  "modoEquipamento": "1",
+  "segmentoCliente": "PF",
+  "areasAbrangencia": [
+   "76"
+  ],
+  "dataInicioOferta": "08/11/2026",
+  "precoSemDescontos": "160",
+  "identificadorUnico": "VIV202604066118",
+  "parametrosReajuste": {
+   "indiceReajuste": "IPCA",
+   "dataBaseReajuste": "08/11/2026",
+   "periodicidadeReajuste": "12"
+  },
+  "modalidadePagamento": "Pós pago",
+  "beneficiosOfertaConjunta": "Assine e tenha a melhor experiência digital!"
+ }
+}

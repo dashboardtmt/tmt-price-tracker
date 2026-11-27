@@ -152,16 +152,32 @@ def _pracas_da_entrada(e, idx_h, idx_o, coletadas_ontem):
     O espelho de _pracas_da_saida. A janela de sete dias do detector -
     volta nao e lancamento - fica fora daqui: o auditor so tem os dois
     dias, e confere a parte que os dois dias sustentam.
+
+    O NOME REPETIDO SE CONFERE PELO DEGRAU (27/11/2026). Quando a oferta
+    nova repete o nome de outra, o evento traz o degrau cru ("degrau":
+    [Mbps, GB]) e a pergunta passa a ser: a praca tem hoje uma linha com
+    este nome E este degrau, e ontem nao tinha? So pelo nome, a Vivo Total
+    Essencial de 600 Mega e 60 GB era recusada nas tres pracas do Nordeste
+    onde a de 500 Mega e 20 GB continua - e la ela entrou.
     """
     ident = (e.get("operadora"), e.get("produto"), None,
              " ".join((e.get("nome_oferta") or "").lower().split()))
+    degrau = e.get("degrau")
+
+    def tem(idx, praca):
+        linhas = idx.get(ident, {}).get(praca) or []
+        if degrau is None:
+            return bool(linhas)
+        return any([l.get("degrau_mbps"), l.get("franquia_anunciada_gb")]
+                   == list(degrau) for l in linhas)
+
     boas, incertas = set(), set()
     for praca in set(e.get("pracas") or ()):
         if (e.get("operadora"), praca) not in coletadas_ontem:
             # praca que ninguem leu ontem nao sustenta nem nega a entrada
             incertas.add(praca)
             continue
-        if idx_h.get(ident, {}).get(praca) and not idx_o.get(ident, {}).get(praca):
+        if tem(idx_h, praca) and not tem(idx_o, praca):
             boas.add(praca)
     return boas, incertas
 
