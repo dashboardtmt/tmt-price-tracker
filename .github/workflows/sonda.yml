@@ -1,0 +1,59 @@
+name: Sonda de pagina
+
+# O que o servidor do GitHub recebe de uma pagina, com os cabecalhos e o
+# cookie do proprio coletor. Guarda o corpo de cada resposta como artefato.
+# Ver o cabecalho de ferramentas/sonda_pagina.py.
+#
+# Nao grava no banco, nao manda mensagem, nao mexe na tela. So le sites
+# publicos. Roda apenas quando disparado na mao.
+
+on:
+  workflow_dispatch:
+    inputs:
+      coletor:
+        description: "Modulo de coletores/ cujos cabecalhos usar (ex.: tim)"
+        required: true
+        default: "tim"
+      urls:
+        description: "URLs separadas por espaco"
+        required: true
+      padrao:
+        description: "Trecho de texto a contar em cada pagina (opcional)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Buscar as paginas
+        env:
+          COLETOR: ${{ inputs.coletor }}
+          URLS: ${{ inputs.urls }}
+          PADRAO: ${{ inputs.padrao }}
+        run: |
+          read -ra LISTA <<< "$URLS"
+          if [ -n "$PADRAO" ]; then
+            python ferramentas/sonda_pagina.py --coletor "$COLETOR" --pasta .sonda --padrao "$PADRAO" "${LISTA[@]}"
+          else
+            python ferramentas/sonda_pagina.py --coletor "$COLETOR" --pasta .sonda "${LISTA[@]}"
+          fi
+
+      - name: Guardar os corpos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonda
+          path: .sonda/
+          if-no-files-found: warn
+          retention-days: 7
