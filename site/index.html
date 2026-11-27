@@ -200,6 +200,8 @@
   #matriz td.degrau{position:sticky;left:108px;z-index:2;
     color:var(--cor-texto-suave);white-space:nowrap;
     background-color:var(--cor-superficie);border-right:1px solid var(--cor-borda)}
+  /* a variante (sem fidelidade, sem apps) dita ao lado do degrau, menor */
+  #matriz td.degrau .variante{font-size:10px;font-style:italic}
   #matriz thead th:nth-child(1){position:sticky;left:0;z-index:3}
   #matriz thead th:nth-child(2){position:sticky;left:108px;z-index:3}
   /* COLUNA INTEIRA OU NENHUMA. Com a serie toda a tabela sempre rola,
@@ -603,9 +605,10 @@
     </div>
     <div class="campo">
       <label data-t="f_escopo">Planos</label>
-      <select id="f-escopo" onchange="escopo(this.value)">
+      <select id="f-escopo" autocomplete="off" onchange="escopo(this.value)">
         <option value="todos" data-t="e_todos">Todos</option>
         <option value="entrada" data-t="e_entrada">Só o de entrada</option>
+        <option value="variantes" data-t="e_variantes">Com sem fidelidade e sem apps</option>
       </select>
     </div>
     <div class="campo">
@@ -770,7 +773,7 @@ const PRECOS_APPS = {"netflix": {"nome": "Netflix", "preco_avulso": null, "fonte
 // custa R$ 22,90 no Padrao com anuncios e R$ 39,90 no Premium, e dizer
 // so "Globoplay" nao diz o preco.
 const TIERS_APPS = {"netflix": [["Padrão com anúncios", null], ["Premium", null], ["Padrão", 44.9]], "disney": [["Padrão com anúncios", 29.9], ["Premium", 69.9], ["Padrão", 49.9]], "globoplay": [["Padrão com anúncios", 22.9], ["Premium", 39.9]], "youtube": [["Lite", 16.9], ["Premium", null]], "google_one": [["AI Pro", 96.99], ["AI Plus", null], ["Basic", 9.99], ["Lite", 4.5]], "spotify": [["Premium", 23.9]], "vale_saude": [["Farma", null], ["Sempre", null]]};
-const GERADO = "27/11/2026 06:40";
+const GERADO = "27/11/2026 10:31";
 
 const T = {
   pt:{titulo:"Price Tracker TMT", f_praca:"Praça", f_produto:"Produto",
@@ -856,6 +859,7 @@ const T = {
                + "então não há faixa a montar aqui.",
       f_data:"Data", f_contra:"Comparar com", f_escopo:"Quais planos",
       e_todos:"Todos os planos", e_entrada:"Só o mais barato de cada operadora",
+      e_variantes:"Com os sem fidelidade e sem apps",
       produtos:{controle:"Controle", movel:"Pós-pago", fibra:"Fibra",
                 combo:"Combo (fibra + móvel)", prepago:"Pré-pago",
                 satelite:"Satélite", btl:"Below-the-line"},
@@ -959,6 +963,7 @@ const T = {
                + "is no band to build here.",
       f_data:"Date", f_contra:"Compare with", f_escopo:"Which plans",
       e_todos:"All plans", e_entrada:"Cheapest of each carrier only",
+      e_variantes:"Including no-contract and no-apps plans",
       produtos:{controle:"Hybrid (Controle)", movel:"Postpaid", fibra:"Fibre",
                 combo:"Bundle (fibre + mobile)", prepago:"Prepaid",
                 satelite:"Satellite", btl:"Below-the-line"},
@@ -1003,6 +1008,32 @@ let metricaAtual = "mes";
 // "todos" mostra o portfolio inteiro; "entrada" so o plano mais barato de
 // cada operadora, que e a espinha dorsal da serie (decisao 7)
 let escopoAtual = "todos";
+
+// AS VARIANTES FORA DA VITRINE PRINCIPAL, desde 27/11/2026. Os planos sem
+// fidelidade da loja da Claro e as paginas "sem apps" da Vivo e da
+// Unifique entraram na coleta em 26/11, e no dia seguinte a grade do
+// Controle mostrou um "Claro 15 GB a R$ 59,90" e um "Vivo 10 GB a R$ 70"
+// ao lado dos planos de sempre - planos reais, que o cliente contrata, mas
+// que lidos como linha nova da grade pareciam erro ("ofertas super caras e
+// que entregam pouco"): sem fidelidade o plano perde o bonus e fica so com
+// a franquia base, pelo mesmo preco. Escolha de quem le, em 27/11: ficam no
+// banco e na serie, e a tela mostra por padrao so a vitrine principal; a
+// opcao "Com os sem fidelidade e sem apps" traz as variantes, com o rotulo
+// dizendo qual e. O corte e na lista inteira (DADOS), para todas as vistas
+// obedecerem juntas - quase nenhuma passa so por doFiltro.
+//
+// A variante se reconhece pelo sufixo que o coletor poe no nome: "sem
+// fidelidade" (Claro), "sem apps" (Vivo, Unifique e o sem-apps da Claro) e
+// "sem serviço digital" (o pre da Vivo contratado por SMS).
+const VARIANTE = /\s(sem fidelidade(?:\s+sem apps)?|sem apps|sem serviço digital)\s*$/i;
+function variante(o){
+  const m = VARIANTE.exec((o && o.nome_oferta) || "");
+  return m ? m[1].toLowerCase() : "";
+}
+let DADOS_TODOS = null, comVariantes = false;
+function recortarVariantes(){
+  DADOS = comVariantes ? DADOS_TODOS : DADOS_TODOS.filter(o => !variante(o));
+}
 // Rotular as 21 ofertas de uma praca cobre os pontos vizinhos - o
 // display:auto do plugin so evita colisao entre textos, nao entre texto e
 // ponto. O padrao passa a ser rotular so a oferta de entrada de cada
@@ -1133,7 +1164,9 @@ function esc(v){
 }
 
 function escopo(v){
-  escopoAtual = v;
+  comVariantes = v === "variantes";
+  escopoAtual = comVariantes ? "todos" : v;
+  recortarVariantes();
   desenhar();
 }
 
@@ -1192,10 +1225,13 @@ function porOrdemDoFiltro(a, b){
 
 function derivar(){
   corrigirHistorico();
+  // os filtros saem da lista inteira, para nao mudarem com as variantes
+  DADOS_TODOS = DADOS;
   OPERADORAS = [...new Set(DADOS.map(o=>o.operadora))].sort(porRelevancia);
   PRACAS = [...new Set(DADOS.map(o=>o.praca))].sort();
   PRODUTOS = [...new Set(DADOS.map(o=>o.produto))].sort(porOrdemDoFiltro);
   DIAS = [...new Set(DADOS.map(diaDe))].filter(Boolean).sort();
+  recortarVariantes();
 }
 
 function t(k){ return T[lang][k]; }
@@ -1525,13 +1561,18 @@ function porDegrau(dia){
   for (const o of doFiltro(dia)) {
     const p = precoDe(o), e = entregaDe(o);
     if (p == null || e.v == null) continue;
-    const k = o.operadora + "|" + e.v;
+    // a variante (sem fidelidade, sem apps) tem linha propria, com o
+    // rotulo dizendo qual e - no mesmo degrau ela venceria pelo preco o
+    // plano da vitrine, e a linha "15 GB" passaria a ser outro produto
+    const vr = variante(o);
+    const k = o.operadora + "|" + e.v + "|" + vr;
     const atual = por[k];
     // O MAIS BARATO DO DEGRAU, como o grafico de entrada - ver menor().
     // A preocupacao da decisao 10, fibra pura contra fibra mais TV, nao
     // volta: a TV encarece, e entao o plano puro vence pelo preco mesmo.
     if (!atual || menor(o, atual.oferta)) {
-      por[k] = {operadora:o.operadora, degrau:e.v, unidade:e.u, oferta:o};
+      por[k] = {operadora:o.operadora, degrau:e.v, unidade:e.u, oferta:o,
+                variante: vr};
     }
   }
   return por;
@@ -2787,13 +2828,14 @@ function matriz(){
     for (const [k, v] of Object.entries(porDegrau(d))) {
       if (desligadas.has(v.operadora)) continue;
       linhas[k] = linhas[k] || {operadora:v.operadora, degrau:v.degrau,
-                                unidade:v.unidade, por:{}};
+                                unidade:v.unidade, variante:v.variante, por:{}};
       linhas[k].por[d] = {p:precoDe(v.oferta), nome:v.oferta.nome_oferta||"",
                           apps:v.oferta.apps_rotulo||""};
     }
   }
   const ordenadas = Object.values(linhas).sort((a, b)=>
-    porRelevancia(a.operadora, b.operadora) || a.degrau - b.degrau);
+    porRelevancia(a.operadora, b.operadora) || a.degrau - b.degrau
+    || (a.variante || "").localeCompare(b.variante || ""));
 
   if (!ordenadas.length) {
     alvo.innerHTML = `<div class="vazio">${t("sem_dado")}</div>`;
@@ -2868,7 +2910,9 @@ function matriz(){
     const cor = CORES[l.operadora] || "#999";
     return `<tr class="${classes}" style="--cor-op:${cor}">`
          + `<td class="op-col">${rotuloOp}</td>`
-         + `<td class="degrau">${l.degrau} ${l.unidade}</td>${celulas}</tr>`;
+         + `<td class="degrau">${l.degrau} ${l.unidade}`
+         + (l.variante ? ` <span class="variante">${esc(l.variante)}</span>` : "")
+         + `</td>${celulas}</tr>`;
   }).join("");
 
   alvo.innerHTML = `<table><thead>${cab}</thead><tbody>${corpo}</tbody></table>`;
