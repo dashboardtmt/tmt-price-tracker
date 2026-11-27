@@ -505,7 +505,7 @@ def _contratual_que_fecha(info, franquia):
 
 
 def _ler_pagina_de_plano(op, url, uf, do_plano, precos, rotulo):
-    u"""Os cards <tim-card-pricing-offer> da pagina de um plano.
+    u"""Os cards da pagina de um plano, no formato que vier - ver _cards.
 
     do_plano(nome) diz que card e do plano; precos sao os padroes de preco
     aceitos, em ordem - o Familia so aceita o total, porque o primeiro
@@ -517,16 +517,14 @@ def _ler_pagina_de_plano(op, url, uf, do_plano, precos, rotulo):
     for o in (ofertas_do_html(h)[0] or ()):
         do_json[_nome_curto(o["nome_oferta"])] = o
     saida, vistos = [], set()
-    for m in CARD_COM_PRECO.finditer(h):
-        a = dict(ATRIBUTO.findall(m.group(1)))
-        regioes = [x.strip() for x in (a.get("field-regioes") or "").split(",")
-                   if x.strip()]
-        if regioes and uf.lower() not in regioes:
+    cards, formato = _cards(h)
+    for c in cards:
+        if c["regioes"] and uf.lower() not in c["regioes"]:
             continue
-        nome = _html.unescape(a.get("data-node-name") or "").split(" - ")[0].strip()
-        cru = _html.unescape(a.get("data-price") or "")
+        nome = (c["nome_do_no"] or "").split(" - ")[0].strip()
+        cru = c["preco"] or ""
         total = next((x for x in (p.search(cru) for p in precos) if x), None)
-        franquia = gb(a.get("data-first-consume"))
+        franquia = gb(c["consumo"])
         if not nome or not total or not do_plano(nome.lower()):
             continue
         if nome in vistos:
@@ -548,13 +546,33 @@ def _ler_pagina_de_plano(op, url, uf, do_plano, precos, rotulo):
         saida.append(base)
     if not saida:
         return [], ("nenhum card do %s reconhecido - a leitura falhou, e "
-                    "nao ha como afirmar que o plano saiu da praca" % rotulo)
+                    "nao ha como afirmar que o plano saiu da praca (%s)"
+                    % (rotulo, formato))
     return saida, None
 
 
 def ler_familia(op, url, uf):
     return _ler_pagina_de_plano(op, url, uf, lambda n: "fam" in n,
                                 (PRECO_TOTAL,), "TIM Black Familia")
+
+
+def _tem_pagina_propria(nome):
+    u"""O Black e o Familia, que tem pagina propria, nao entram pelo
+    carrossel da pagina de pos-pago.
+
+    O CARROSSEL E VELHO E NINGUEM O VE (ver os cabecalhos do Familia e do
+    Black): R$ 284,99 para o Familia Plus que cobra R$ 264,99, sem franquia
+    em tres dos quatro Familia, 70GB no Black que publica 80. Com a pagina
+    do plano lida, o carrossel nao trazia nada novo; com ela FALHANDO, ele
+    preenchia o buraco com o preco velho. Em 27/11/2026 foi o que saiu na
+    mensagem: "TIM Black Familia Plus 264,99 -> 284,99, entrega deixou de
+    ser lida (era 180)", nas 20 pracas, sem a TIM ter mudado nada.
+
+    Pagina do plano que falha deixa o plano SEM LEITURA no dia, dito no
+    aviso da propria pagina - e nao lido de uma fonte que ja se sabe velha.
+    O Black Empresa nao tem pagina propria aqui e segue pelo pos."""
+    n = (nome or "").lower()
+    return "fam" in n or ("black" in n and "empresa" not in n)
 
 
 def ler_black(op, url, uf):
@@ -774,27 +792,115 @@ LIXO_DO_ALT = re.compile(r"^\s*(?:icone|logo)\s+|\s+-\s+(?:tim\b.*|fibra)\s*$", 
 LIMITE_DE_APPS_DO_CARD = 12
 
 
+def _sem_lixo(nomes):
+    u"""O nome do app que o alt do logo diz, sem o "Icone ... - TIM Ultracombo".
+    O logo do YouTube na faixa de "servicos inclusos" e o YouTube Premium -
+    o card de 800 MEGA e o "800 MEGA YOUTUBE" da TIM -, e a regua so
+    reconhece o nome inteiro."""
+    limpos = [LIXO_DO_ALT.sub("", _html.unescape(n)).strip() for n in nomes if (n or "").strip()]
+    return ["YouTube Premium" if n.lower() == "youtube" else n for n in limpos]
+
+
 def _logos(corpo):
-    """Os apps que os logos do card nomeiam. O logo do YouTube na faixa de
-    "servicos inclusos" e o YouTube Premium - o card de 800 MEGA e o "800
-    MEGA YOUTUBE" da TIM -, e a regua so reconhece o nome inteiro."""
-    nomes = [LIXO_DO_ALT.sub("", _html.unescape(a)).strip()
-             for a in ALT_DO_LOGO.findall(corpo or "") if a.strip()]
-    return ["YouTube Premium" if n.lower() == "youtube" else n for n in nomes]
+    """Os apps que os logos do card nomeiam."""
+    return _sem_lixo(ALT_DO_LOGO.findall(corpo or ""))
 
 
-def ler_fibra_por_card(op, url, uf):
-    u"""A fibra da TIM como o card mostra. Ver o cabecalho do bloco."""
-    s, h = buscar(op, url)
-    if s != 200:
-        return None, "HTTP %s" % s
-    achados, vistos = [], set()
+# O CARD DE COMPARACAO, desde 27/11/2026 - o formato que o servidor do
+# GitHub recebe desde 26/11 as 17:29.
+#
+# As paginas do Black, do Familia e da Ultrafibra trocaram o
+# <tim-card-pricing-offer>, com tudo em atributo, por um
+#
+#   <article lang="rj" about="/rj/node/167136" class="oferta-teaser">
+#
+# que traz o nome e a franquia e NAO traz preco nem logo: os dois moram so
+# no JSON da pagina (drupalSettings.ofertas), no mesmo no. A versao que o
+# GitHub recebe foi montada a 1h de 27/11 (tim-ds-web.esm.js?tp574m, que e
+# a hora em base 36); a que chegava do Brasil na mesma manha era a de 26/11
+# (?tp3cgi). A coleta das 06:00 de 27/11 nao leu nenhum card nas 20 pracas,
+# e o Familia Plus voltou do carrossel velho da pagina de pos a R$ 284,99.
+#
+# OS ATRIBUTOS DO CARD ANTIGO SAO CAMPOS DO NO. Medido em 27/11 na pagina
+# antiga, card a card, contra o JSON do mesmo nid, nas 8 fibras de SP e nos
+# 10 planos do Black e do Familia: data-price e o value da internet sao
+# field_preco_principal_7_1_3 e field_titulo, data-first-consume e
+# field_titulo, a dica e field_information_text, o rotulo e field_subtitle,
+# o riscado e field_preco_tracejado_7_1_3, field-regioes e field_regioes,
+# data-node-name e o title, e os logos de cima e de baixo sao
+# field_beneficios_destaque e field_outros_beneficios, com o mesmo alt. O
+# card novo e lido por esses campos - e entra SO o no que a pagina lista
+# num teaser: o JSON tem a mesma contagem hoje, mas e a lista que o
+# cliente ve.
+#
+# O campo de preco do card no JSON (field_preco_card_oferta) continua fora:
+# e resto de campanha (ver o Familia).
+TEASER = re.compile(r'<article\b([^>]*\bclass="oferta-teaser"[^>]*)>', re.S)
+NO_DO_TEASER = re.compile(r'\babout="/[\w-]+/node/(\d+)"')
+
+
+def _nid(o):
+    v = o.get("nid")
+    if isinstance(v, list):
+        v = (v[0] or {}).get("value") if v and isinstance(v[0], dict) else None
+    return str(v) if v not in (None, "") else None
+
+
+def _alts_do_campo(campo):
+    u"""Os alt dos logos de um campo do JSON: o "name" de cada imagem."""
+    alts = []
+    for x in campo or ():
+        nome = (x.get("name") or [None])[0] if isinstance(x, dict) else None
+        if isinstance(nome, dict) and nome.get("value"):
+            alts.append(nome["value"])
+    return alts
+
+
+def _cards_do_teaser(h):
+    m = re.search(r'<script[^>]*drupal-settings-json[^>]*>(.*?)</script>', h, re.S)
+    try:
+        cru = json.loads(m.group(1)).get("ofertas", []) if m else []
+    except ValueError:
+        cru = []
+    por_nid = dict((_nid(o), o) for o in cru if isinstance(o, dict) and _nid(o))
+    cards, sem_no = [], 0
+    for t in TEASER.finditer(h):
+        n = NO_DO_TEASER.search(t.group(1))
+        o = por_nid.get(n.group(1)) if n else None
+        if o is None:
+            sem_no += 1
+            continue
+        titulo = texto(o.get("field_titulo"))
+        principal = texto(o.get("field_preco_principal_7_1_3"))
+        cards.append({
+            "regioes": [str(r.get("target_id")).strip().lower()
+                        for r in (o.get("field_regioes") or ())
+                        if isinstance(r, dict) and r.get("target_id")],
+            "nome_do_no": texto(o.get("title")),
+            "preco": principal,
+            "consumo": titulo,
+            "velocidade": titulo,
+            "dica": texto(o.get("field_information_text")),
+            "rotulo": texto(o.get("field_subtitle")),
+            "preco_do_card": principal,
+            "riscado": texto(o.get("field_preco_tracejado_7_1_3")),
+            "topo": _sem_lixo(_alts_do_campo(o.get("field_beneficios_destaque"))),
+            "baixo": _sem_lixo(_alts_do_campo(o.get("field_outros_beneficios"))),
+            "id": texto(o.get("field_sku")) or _nid(o),
+        })
+    return cards, sem_no
+
+
+def _cards(h):
+    u"""Os cards de oferta da pagina, no formato que ela vier, como campos.
+
+    Devolve (cards, formato): formato diz o que a pagina tinha, para o aviso
+    de leitura falha contar o que foi visto em vez de so dizer que falhou -
+    em 27/11/2026 o aviso "nenhum card reconhecido" nao dizia que a pagina
+    tinha trocado de formato, e so a sonda do GitHub mostrou."""
+    cards = []
     for m in CARD_COM_PRECO.finditer(h):
         a = dict(ATRIBUTO.findall(m.group(1)))
-        regioes = [x.strip() for x in (a.get("field-regioes") or "").split(",")
-                   if x.strip()]
-        if regioes and uf.lower() not in regioes:
-            continue
         fim = h.find("</tim-card-pricing-offer>", m.end())
         corpo = h[m.end():fim if fim > 0 else m.end() + 6000]
         velocidade, dica, rotulo = None, None, None
@@ -806,21 +912,58 @@ def ler_fibra_por_card(op, url, uf):
                 rotulo = re.sub(r"\s+", " ", _html.unescape(ai.get("label") or "")
                                 .replace("&nbsp;", " ")).strip() or None
                 break
-        velocidade = velocidade or (a.get("data-first-consume") or "").strip()
         mp = PRECO_DO_CARD.search(corpo)
         ap = dict(ATRIBUTO.findall(mp.group(1))) if mp else {}
-        preco = numero((re.search(r"R\$\s*([\d.]+,\d{2})", _html.unescape(
-            ap.get("price") or a.get("data-price") or "")) or [None, None])[1])
-        mde = re.search(r"R\$\s*([\d.]+,\d{2})", _html.unescape(ap.get("discount-price") or ""))
-        cheio = numero(mde.group(1)) if mde and ap.get("discount") != "false" else None
-        mbps_ = mbps(velocidade)
-        if not mbps_ or preco is None:
-            continue
         topo, baixo = [], []
         for mb in BENEFICIOS_DO_CARD.finditer(corpo):
             ab = dict(ATRIBUTO.findall(mb.group(1)))
             (topo if (ab.get("mediaType") or "").lower() == "reduced" else baixo).extend(
                 _logos(mb.group(2)))
+        cards.append({
+            "regioes": [x.strip() for x in (a.get("field-regioes") or "").split(",")
+                        if x.strip()],
+            "nome_do_no": _html.unescape(a.get("data-node-name") or ""),
+            "preco": _html.unescape(a.get("data-price") or ""),
+            "consumo": a.get("data-first-consume"),
+            "velocidade": velocidade or (a.get("data-first-consume") or "").strip(),
+            "dica": dica,
+            "rotulo": rotulo,
+            "preco_do_card": _html.unescape(ap.get("price") or a.get("data-price") or ""),
+            "riscado": (_html.unescape(ap.get("discount-price") or "")
+                        if ap.get("discount") != "false" else None),
+            "topo": topo,
+            "baixo": baixo,
+            "id": a.get("field-sku") or a.get("node-id"),
+        })
+    if cards:
+        return cards, "%d card(s) <tim-card-pricing-offer>" % len(cards)
+    cards, sem_no = _cards_do_teaser(h)
+    formato = ("0 <tim-card-pricing-offer>, %d teaser(s) oferta-teaser lido(s) "
+               "pelo JSON" % len(cards))
+    if sem_no:
+        formato += ", %d teaser(s) sem o no no JSON" % sem_no
+    return cards, formato
+
+
+def ler_fibra_por_card(op, url, uf):
+    u"""A fibra da TIM como o card mostra. Ver o cabecalho do bloco."""
+    s, h = buscar(op, url)
+    if s != 200:
+        return None, "HTTP %s" % s
+    achados, vistos = [], set()
+    cards, formato = _cards(h)
+    for c in cards:
+        if c["regioes"] and uf.lower() not in c["regioes"]:
+            continue
+        velocidade, dica, rotulo = c["velocidade"] or "", c["dica"], c["rotulo"]
+        preco = numero((re.search(r"R\$\s*([\d.]+,\d{2})", c["preco_do_card"] or "")
+                        or [None, None])[1])
+        mde = re.search(r"R\$\s*([\d.]+,\d{2})", c["riscado"] or "")
+        cheio = numero(mde.group(1)) if mde else None
+        mbps_ = mbps(velocidade)
+        if not mbps_ or preco is None:
+            continue
+        topo, baixo = list(c["topo"]), list(c["baixo"])
         texto_apps = ", ".join(topo + baixo)
         lista = apps.apps_do_texto(texto_apps, limite=LIMITE_DE_APPS_DO_CARD)
         do_nome = [x for x in apps.apps_do_texto(", ".join(topo), limite=LIMITE_DE_APPS_DO_CARD)
@@ -851,12 +994,12 @@ def ler_fibra_por_card(op, url, uf):
             "apps_rotulo": apps.rotulo(lista, texto_apps) or None,
             "apps_planos": apps.planos_dos_apps(lista, texto_apps),
             "composicao": composicao,
-            "id_catalogo": a.get("field-sku") or a.get("node-id"),
+            "id_catalogo": c["id"],
         })
     if not achados:
         return None, ("nenhum card de fibra reconhecido para %s - a leitura "
                       "falhou, e nao ha como afirmar que a TIM nao vende "
-                      "fibra nesta UF" % uf)
+                      "fibra nesta UF (%s)" % (uf, formato))
     # MESMO NOME A DOIS PRECOS nao vira um preco escolhido: os dois saem, ditos
     por_nome = {}
     for o in achados:
@@ -1087,7 +1230,7 @@ def coletar(cidade, uf, verbose=True):
             print("  %-9s FALHOU (%s)" % ("pos-pago", err))
     else:
         ja = dict((_nome_curto(o.get("nome_oferta")), o) for o in saida["ofertas"])
-        novas = 0
+        novas, fora = 0, 0
         for o in pos:
             lida = ja.get(_nome_curto(o["nome_oferta"]))
             if lida is not None:
@@ -1098,6 +1241,9 @@ def coletar(cidade, uf, verbose=True):
                 if lida.get("pagina") == "black" and not lida.get("apps") and o.get("apps"):
                     for k in ("apps", "apps_rotulo", "apps_planos", "nivel_bundle"):
                         lida[k] = o.get(k)
+                continue
+            if _tem_pagina_propria(o["nome_oferta"]):
+                fora += 1
                 continue
             o.update({"operadora": "TIM",
                       "produto": classificar(o["nome_oferta"], o["destaque"]),
@@ -1115,7 +1261,8 @@ def coletar(cidade, uf, verbose=True):
                 if o.get("produto") == "movel":
                     o["whatsapp"] = True
         if verbose:
-            print("  %-9s %d ofertas, %d novas" % ("pos-pago", len(pos), novas))
+            print("  %-9s %d ofertas, %d novas, %d do carrossel velho fora"
+                  % ("pos-pago", len(pos), novas, fora))
     time.sleep(PAUSA)
 
     # A ESCADA DE FIBRA, da pagina de produto. Mesma regra do pos: entra

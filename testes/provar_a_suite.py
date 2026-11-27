@@ -2569,8 +2569,8 @@ MUTACOES = [
         "Tf1. a fibra da TIM volta a ler as janelas escondidas"),
     Mutacao(
         "coletores/tim.py",
-        '        if regioes and uf.lower() not in regioes:\n            continue\n        fim = h.find("</tim-card-pricing-offer>", m.end())\n',
-        '        fim = h.find("</tim-card-pricing-offer>", m.end())\n',
+        '        if c["regioes"] and uf.lower() not in c["regioes"]:\n            continue\n        velocidade, dica, rotulo = ',
+        '        velocidade, dica, rotulo = ',
         "Tf2. o card de fibra de outra UF passa a entrar"),
     Mutacao(
         "coletores/tim.py",
@@ -2582,6 +2582,46 @@ MUTACOES = [
         '                      "preco_cheio": o.get("preco_cheio"),\n',
         '                      "preco_cheio": None,\n',
         "Tf4. o riscado da fibra da TIM volta a se perder"),
+    # O CARD DE COMPARACAO DA TIM (27/11/2026)
+    Mutacao(
+        "coletores/tim.py",
+        '    cards, sem_no = _cards_do_teaser(h)\n',
+        '    cards, sem_no = [], 0\n',
+        "Tn1. a pagina no formato teaser volta a nao ser lida"),
+    Mutacao(
+        "coletores/tim.py",
+        '            "preco": principal,\n            "consumo": titulo,\n',
+        '            "preco": texto(o.get("field_preco_card_oferta")),\n            "consumo": titulo,\n',
+        "Tn2. o teaser volta a pegar o preco de campanha do JSON"),
+    Mutacao(
+        "coletores/tim.py",
+        '            "regioes": [str(r.get("target_id")).strip().lower()\n',
+        '            "regioes": [] and [str(r.get("target_id")).strip().lower()\n',
+        "Tn3. o card do teaser passa a valer em toda UF"),
+    Mutacao(
+        "coletores/tim.py",
+        '            "riscado": texto(o.get("field_preco_tracejado_7_1_3")),\n',
+        '            "riscado": None,\n',
+        "Tn4. o riscado do teaser se perde"),
+    Mutacao(
+        "coletores/tim.py",
+        '            "topo": _sem_lixo(_alts_do_campo(o.get("field_beneficios_destaque"))),\n'
+        '            "baixo": _sem_lixo(_alts_do_campo(o.get("field_outros_beneficios"))),\n',
+        '            "topo": _sem_lixo(_alts_do_campo(o.get("field_outros_beneficios"))),\n'
+        '            "baixo": _sem_lixo(_alts_do_campo(o.get("field_beneficios_destaque"))),\n',
+        "Tn5. os apps de cima e de baixo do teaser trocam de lugar"),
+    Mutacao(
+        "coletores/tim.py",
+        '            if _tem_pagina_propria(o["nome_oferta"]):\n',
+        '            if False:\n',
+        "Tn6. o carrossel velho do pos volta a tapar a pagina do plano que falhou"),
+    Mutacao(
+        "coletores/tim.py",
+        '    for t in TEASER.finditer(h):\n'
+        '        n = NO_DO_TEASER.search(t.group(1))\n'
+        '        o = por_nid.get(n.group(1)) if n else None\n',
+        '    for o in list(por_nid.values()):\n',
+        "Tn7. o JSON inteiro entra, e nao so o no que a pagina lista"),
     # OS APPS DO CARD INTEIRO E O FLEX (26/11/2026)
     Mutacao(
         "coletores/claro.py",

@@ -113,11 +113,16 @@ class OCaminhoDeProducao(_ComPaginas):
             self.assertEqual(m["TIM Black %s Express" % nome]["apps"], ["deezer"])
         self.assertFalse(m["TIM Black"].get("apps"))
 
-    def test_sem_a_pagina_do_black_o_carrossel_volta_e_diz(self):
+    def test_sem_a_pagina_do_black_o_carrossel_nao_volta(self):
+        u"""Ate 27/11/2026 o carrossel velho preenchia o buraco - e foi assim
+        que o Familia Plus saiu a R$ 284,99 nas 20 pracas, com a TIM cobrando
+        264,99. Pagina do plano que falha deixa o plano sem leitura, dito."""
         self.black = "<html>nada</html>"
         r = tim.coletar("Sao Paulo", "SP", verbose=False)
         m = dict((o["nome_oferta"], o) for o in r["ofertas"] if o["produto"] == "movel")
-        self.assertEqual(m["TIM Black"]["franquia_anunciada_gb"], 70)
+        self.assertNotIn("TIM Black", m)
+        self.assertFalse([o for o in r["ofertas"] if o.get("pagina") == "pos-pago"
+                          and "black" in o["nome_oferta"].lower()])
         self.assertTrue(any(a.startswith("black:") for a in r["avisos"]))
 
 
