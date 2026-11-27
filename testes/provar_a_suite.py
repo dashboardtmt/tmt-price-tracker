@@ -509,9 +509,51 @@ MUTACOES = [
     Mutacao(
         "robo.py",
         '                          if (operadora, x) in coletadas\n'
-        '                          and lido(operadora, serie, x))\n',
-        '                          if lido(operadora, serie, x))\n',
+        '                          and lido(operadora, serie, x)\n',
+        '                          if lido(operadora, serie, x)\n',
         "B1. praca sem coleta hoje volta a render saida"),
+
+    # O FILTRO 8 (27/11/2026): a pagina do plano que falhou nao e o plano
+    # que saiu. Uma mutacao por peca - o filtro, o acento, o comeco do
+    # nome, o ultimo registro e o caminho de erro.
+    Mutacao(
+        "robo.py",
+        '                          and pagina_lida(operadora, serie, x))\n',
+        '                          and True)\n',
+        "B10. pagina do plano que falhou volta a render saida"),
+
+    Mutacao(
+        "robo.py",
+        '    t = unicodedata.normalize("NFKD", nome or "")\n',
+        '    t = nome or ""\n',
+        "B11. o rotulo sem acento deixa de casar com a serie acentuada"),
+
+    Mutacao(
+        "robo.py",
+        '        return not any(n == r or n.startswith(r + " ")\n',
+        '        return not any(n == r\n',
+        "B12. o rotulo deixa de cobrir o Plus, o Premium e o VIP"),
+
+    Mutacao(
+        "robo.py",
+        '        if c.get("operadora") in vistos:\n'
+        '            continue\n'
+        '        vistos.add(c.get("operadora"))\n'
+        '        avisos = c.get("avisos") or ()\n',
+        '        avisos = c.get("avisos") or ()\n',
+        "B13. o aviso da rodada velha cala a saida que o repique confirmou"),
+
+    Mutacao(
+        "robo.py",
+        '              if not erro_vigia and not coletas[1] else [])\n',
+        '              if not erro_vigia else [])\n',
+        "B14. sem os avisos da coleta, a saida volta a sair sem conferir"),
+
+    Mutacao(
+        "relatorio.py",
+        '               if d.get("erro_coleta") else\n',
+        '               if False else\n',
+        "B15. o PDF volta a dizer que nada saiu no dia sem os avisos"),
 
     Mutacao(
         "robo.py",
@@ -1307,8 +1349,12 @@ MUTACOES = [
 
     Mutacao(
         "robo.py",
-        '    col, erro_col = armazenamento.consultar(',
-        '    col, erro_col = (lambda a, b: (a, None))(*armazenamento.consultar(',
+        '    return armazenamento.consultar(\n'
+        '        "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"\n'
+        '        "ofertas,sucesso,avisos,iniciada_em&order=iniciada_em.desc" % hoje)\n',
+        '    return (lambda a, b: (a, None))(*armazenamento.consultar(\n'
+        '        "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"\n'
+        '        "ofertas,sucesso,avisos,iniciada_em&order=iniciada_em.desc" % hoje))\n',
         "A1. consulta que cai volta a virar dia sem coleta"),
 
     Mutacao(

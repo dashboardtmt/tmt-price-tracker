@@ -640,7 +640,13 @@ def _bloco_saidas(d):
         ["Operadora", "Produto", "Oferta", "Último preço", "Dias",
          "Praças", "Ressalva"], linhas,
         [17 * mm, 15 * mm, 40 * mm, 19 * mm, 11 * mm, 28 * mm, 40 * mm],
-        vazio="Nenhuma oferta deixou a vitrine.")
+        # SEM O REGISTRO DE COLETA, A SAIDA NAO FOI CONFERIDA: ela le os
+        # avisos dele (robo.PAGINA_DE_PLANO_FALHOU), e a tabela vazia nao
+        # pode afirmar que nada saiu - a mensagem tambem nao afirma
+        vazio=("Saídas não conferidas: sem o registro de coleta da data, "
+               "nenhuma saída de oferta é anunciada."
+               if d.get("erro_coleta") else
+               "Nenhuma oferta deixou a vitrine."))
 
 
 def _bloco_entradas(d):

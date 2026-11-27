@@ -26,6 +26,7 @@ import re
 import sys
 import threading
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -773,8 +774,12 @@ def _agrupar(achados, ident, atual, antes):
 COBERTURA_MINIMA = 0.85
 
 
-def mudancas(hoje, ontem):
+def mudancas(hoje, ontem, coletas=None):
     """O levantamento do dia, num dicionario com chave para cada coisa.
+
+    `coletas` e o (registros, erro) da tabela de coletas do dia, que
+    montar_mensagem ja leu para a manchete; sem ele a consulta e feita
+    aqui. A saida depende dos avisos dela - ver _paginas_que_falharam.
 
     POR QUE DICIONARIO E NAO TUPLA. Isto devolvia oito valores em fila, e
     cada detector novo empurrava a fila: quem chamava tinha de acertar a
@@ -1029,9 +1034,16 @@ def mudancas(hoje, ontem):
     # a saida pode afirmar. Ver _produtos_nao_lidos.
     nao_lidos = (_produtos_nao_lidos(do_dia, (antes or {}).get(ontem))
                  if not erro_vigia else [])
+    # A PAGINA DE PLANO QUE FALHOU, pelo aviso da coleta: o filtro 8.
+    # SEM OS AVISOS, NENHUMA SAIDA. A saida afirma que o plano deixou a
+    # praca, e o aviso e o unico lugar que diz que a pagina dele nao foi
+    # lida; a manchete diz que o estado da coleta nao foi lido.
+    if coletas is None:
+        coletas = _coletas_do_dia(hoje)
+    paginas_falhas = _paginas_que_falharam(coletas[0])
     saidas = (_ofertas_que_sairam(do_dia, antes, ontem, casadas_por_nome,
-                                  nao_lidos)
-              if not erro_vigia else [])
+                                  nao_lidos, paginas_falhas)
+              if not erro_vigia and not coletas[1] else [])
     # O ESPELHO DA SAIDA, com os mesmos renomes: o que o detector de
     # renome casou nao entrou nem saiu - mudou de nome.
     entradas, passou_a_ler = (
@@ -3206,7 +3218,7 @@ def _sem_o_relido(hoje, d):
 # fila de 24/11/2026, escolha de quem le: "construir, comecando por TIM e
 # Unifique; nas outras, 'saida nao conferida na pagina' ate ficar pronto".
 #
-# POR QUE. Os sete filtros de _ofertas_que_sairam trabalham sobre o dado
+# POR QUE. Os filtros de _ofertas_que_sairam trabalham sobre o dado
 # gravado, e o dado gravado e a leitura de UMA passada pela pagina. Medido
 # nos 49 dias publicados: produto inteiro sumindo de praca coletada foi
 # leitura 23 de 23 vezes, e 21 voltaram no dia seguinte - falha passageira,
@@ -3359,14 +3371,72 @@ def _frase_dos_nao_lidos(nao_lidos):
     return frases
 
 
-def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=(), nao_lidos=()):
+# A PAGINA DE PLANO QUE FALHOU. Desde 27/11/2026 o TIM Black e o Familia
+# nao entram mais pelo carrossel velho da pagina de pos-pago
+# (tim._tem_pagina_propria): pagina do plano que falha deixa o plano SEM
+# LEITURA no dia, e o coletor diz isso no aviso da praca - "Sao Paulo/SP:
+# familia: nenhum card do TIM Black Familia reconhecido - a leitura
+# falhou, e nao ha como afirmar que o plano saiu da praca". O filtro 7 nao
+# ve: o produto movel continua lido, pelo Black e pelo pos.
+#
+# MEDIDO ANTES DE ESCREVER. Nos 58 dias publicados, nenhuma das 25 saidas
+# cai em praca com esse aviso: ate 27/11 o carrossel tapava o buraco. Com
+# o coletor de hoje, o 27/11 - o Familia sem leitura nas 20 pracas - sairia
+# como "TIM Black Familia, Plus, Premium e VIP sairam da vitrine" em 20
+# pracas cada.
+#
+# O CASAMENTO E PELO COMECO DO NOME, sem acento: o aviso diz "TIM Black
+# Familia" e a serie e "TIM Black Família Plus". O rotulo "TIM Black" cobre
+# tambem o Familia, entao a pagina do Black que falha cala a saida do
+# Familia na mesma praca: o pior caso e uma saida calada, nunca uma falsa.
+PAGINA_DE_PLANO_FALHOU = re.compile(
+    r"nenhum card do (.+?) reconhecido - a leitura falhou")
+
+
+def _coletas_do_dia(hoje):
+    u"""(registros, erro) da tabela de coletas do dia, o mais novo primeiro.
+
+    "avisos" e onde mora o MOTIVO da falha - da manchete e do filtro 8."""
+    return armazenamento.consultar(
+        "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"
+        "ofertas,sucesso,avisos,iniciada_em&order=iniciada_em.desc" % hoje)
+
+
+def _plano(nome):
+    u"""O nome que casa com o rotulo do aviso: sem acento e sem safra."""
+    t = unicodedata.normalize("NFKD", nome or "")
+    return _serie_sem_safra("".join(c for c in t
+                                    if not unicodedata.combining(c)))
+
+
+def _paginas_que_falharam(coletas):
+    u"""{(operadora, praca): {rotulo}} das paginas de plano sem leitura.
+
+    Vale o ULTIMO registro de cada operadora, como na manchete: em dia de
+    repique a rodada que fica e a ultima."""
+    falhou, vistos = collections.defaultdict(set), set()
+    for c in coletas or ():
+        if c.get("operadora") in vistos:
+            continue
+        vistos.add(c.get("operadora"))
+        avisos = c.get("avisos") or ()
+        for a in ([avisos] if isinstance(avisos, str) else avisos):
+            m = PAGINA_DE_PLANO_FALHOU.search(str(a))
+            if m:
+                praca = str(a).split(": ", 1)[0]
+                falhou[(c.get("operadora"), praca)].add(_plano(m.group(1)))
+    return dict(falhou)
+
+
+def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=(), nao_lidos=(),
+                        paginas_falhas=None):
     """A oferta que deixou a vitrine: qual, de onde, e por quanto.
 
     Pedido de quem le, em 03/11/2026, depois de 01/11 ter passado em
     silencio: a Vivo Lite Anual II e a Mensal II sairam das 20 pracas e
     a mensagem disse "nenhuma mudanca". Ausencia nao tinha detector.
 
-    SETE FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
+    OITO FILTROS, UM CASO REAL POR FILTRO. Medir primeiro foi o que
     desenhou a regra: a definicao ingenua - chave que estava ontem e nao
     esta hoje - rende 2.560 linhas em 34 dias, e quase nenhuma e saida.
 
@@ -3397,6 +3467,10 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=(), nao_lidos=()):
          o coletor nao leu nenhum combo e avisou, a rodada fechou como
          sucesso, e os dois Ultracombos "sairam da vitrine" nas 20
          pracas, com a pagina mostrando os dois. Ver _produtos_nao_lidos.
+      8. A PAGINA DO PLANO TEM DE TER SIDO LIDA NA PRACA. Produto lido
+         nao e plano lido: a pagina do TIM Black Familia que falha deixa
+         o movel lido pelo Black e pelo pos, e o coletor diz no aviso
+         que o plano ficou sem leitura. Ver PAGINA_DE_PLANO_FALHOU.
 
     Com isso: 22 saidas em 34 dias, em 6 dias - e as que sobram sao
     oferta de verdade saindo, como a promo "Relampago" da Claro que
@@ -3444,21 +3518,31 @@ def _ofertas_que_sairam(do_dia, antes, ontem, renomeadas=(), nao_lidos=()):
     nao_lido = {(n["operadora"], p, n["produto"])
                 for n in nao_lidos or () for p in n["pracas"]}
     produtos_em = collections.defaultdict(set)
+    # e o filtro 8: o nome de cada serie de ontem, sem acento, para casar
+    # com o rotulo do aviso - _serie_sem_safra troca o acento por espaco
+    planos = collections.defaultdict(set)
     for l in antes[ontem]:
-        produtos_em[(l.get("operadora"),
-                     _serie_sem_safra(l.get("nome_oferta")),
+        serie_l = _serie_sem_safra(l.get("nome_oferta"))
+        produtos_em[(l.get("operadora"), serie_l,
                      l.get("praca"))].add(l.get("produto"))
+        planos[(l.get("operadora"), serie_l)].add(_plano(l.get("nome_oferta")))
 
     def lido(operadora, serie, praca):
         ps = produtos_em.get((operadora, serie, praca)) or set()
         return not ps or not all((operadora, praca, p) in nao_lido for p in ps)
+
+    def pagina_lida(operadora, serie, praca):
+        rotulos = (paginas_falhas or {}).get((operadora, praca)) or ()
+        return not any(n == r or n.startswith(r + " ")
+                       for n in planos[(operadora, serie)] for r in rotulos)
 
     saidas = []
     for k, pracas_ontem in de_ontem.items():
         operadora, serie = k
         comparaveis = set(x for x in pracas_ontem
                           if (operadora, x) in coletadas
-                          and lido(operadora, serie, x))
+                          and lido(operadora, serie, x)
+                          and pagina_lida(operadora, serie, x))
         if not comparaveis or comparaveis & de_hoje.get(k, set()):
             continue
         if comparaveis & renomeada_em.get(k, set()):
@@ -4143,7 +4227,22 @@ def _tamanho_da_serie():
 def montar_mensagem(hoje, ontem):
     """O recado do dia: o mercado primeiro, o robo so quando falha."""
     dia = datetime.fromisoformat(hoje).strftime("%d/%m")
-    r = mudancas(hoje, ontem)
+    # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
+    # tambem pode. Este retorno era descartado num `_`, e `col` vazio
+    # significava "nao rodou": um 503 so nesta consulta fazia a mensagem
+    # afirmar "O ROBO NAO RODOU HOJE" num dia em que ele rodou e gravou
+    # tudo. "Nao sei se rodou" e "nao rodou" sao estados diferentes.
+    #
+    # "avisos" entra no select porque e onde mora o MOTIVO da falha. Sem
+    # ele a manchete tinha de inventar um: usava pracas_ok, e coletor que
+    # leu as 20 pracas e nao conseguiu gravar saia como "em 20 de 20
+    # pracas" - frase de sucesso explicando uma falha.
+    #
+    # UMA CONSULTA SO, ANTES DO LEVANTAMENTO: a saida tambem le os avisos
+    # (o filtro 8), e com duas consultas a manchete podia dizer que leu o
+    # estado da coleta num dia em que a saida nao conseguiu ler.
+    col, erro_col = _coletas_do_dia(hoje)
+    r = mudancas(hoje, ontem, (col, erro_col))
     mud, comp, renom = r["precos"], r["composicao"], r["renomeadas"]
     grades, voltaram, remodeladas = r["grades"], r["voltaram"], r["remodeladas"]
     duvidosa = r.get("duvidosa") or []
@@ -4155,19 +4254,6 @@ def montar_mensagem(hoje, ontem):
     entradas = r.get("entradas") or []
     nao_lidos = r.get("nao_lidos") or []
 
-    # O ESTADO DA COLETA, QUE PODE VIRAR MANCHETE - e o erro dela, que
-    # tambem pode. Este retorno era descartado num `_`, e `col` vazio
-    # significava "nao rodou": um 503 so nesta consulta fazia a mensagem
-    # afirmar "O ROBO NAO RODOU HOJE" num dia em que ele rodou e gravou
-    # tudo. "Nao sei se rodou" e "nao rodou" sao estados diferentes.
-    #
-    # "avisos" entra no select porque e onde mora o MOTIVO da falha. Sem
-    # ele a manchete tinha de inventar um: usava pracas_ok, e coletor que
-    # leu as 20 pracas e nao conseguiu gravar saia como "em 20 de 20
-    # pracas" - frase de sucesso explicando uma falha.
-    col, erro_col = armazenamento.consultar(
-        "coletas?data_captura=eq.%s&select=operadora,pracas_ok,pracas_pedidas,"
-        "ofertas,sucesso,avisos,iniciada_em&order=iniciada_em.desc" % hoje)
     if col:
         # em dia de repique a mesma operadora tem varios registros; vale o
         # ultimo, senao a mesma coleta conta duas vezes
@@ -4193,7 +4279,11 @@ def montar_mensagem(hoje, ontem):
         linhas += ["", "N\u00e3o deu para ler o estado da coleta: %s"
                    % str(erro_col)[:80],
                    "O que vem abaixo vale; s\u00f3 n\u00e3o d\u00e1 para dizer se a "
-                   "coleta do dia fechou."]
+                   "coleta do dia fechou.",
+                   # a saida le os avisos da coleta (o filtro 8), e sem
+                   # eles fica de fora - ver mudancas
+                   "Sem os avisos da coleta, nenhuma saída de oferta é "
+                   "anunciada hoje."]
     elif not col:
         linhas += ["", "O ROB\u00d4 N\u00c3O RODOU HOJE.",
                    "Nenhum registro de coleta. Nada do que vem abaixo \u00e9 de hoje."]
@@ -4242,6 +4332,9 @@ def montar_mensagem(hoje, ontem):
             else:
                 linhas.append("Nenhuma oferta foi capturada hoje: n\u00e3o h\u00e1 o "
                               "que comparar.")
+        elif not total_mud and erro_col:
+            # a saida nao foi conferida, e a frase nao a enumera
+            linhas.append("Nenhuma mudança de preço, composição ou nome.")
         elif not total_mud:
             linhas.append("Nenhuma mudan\u00e7a de pre\u00e7o, composi\u00e7\u00e3o, "
                           "nome ou sa\u00edda de oferta.")
